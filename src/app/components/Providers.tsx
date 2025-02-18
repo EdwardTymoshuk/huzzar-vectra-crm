@@ -6,6 +6,7 @@ import { ReactNode, useState } from 'react'
 
 import { Toaster } from 'sonner'
 import Noop from './Noop'
+import { ThemeProvider } from './ThemeProvider'
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
@@ -13,7 +14,9 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <Noop>{children}</Noop>
+        <Noop>
+          <ThemeProvider>{children}</ThemeProvider>
+        </Noop>
         <Toaster position="top-center" richColors />
       </SessionProvider>
     </QueryClientProvider>

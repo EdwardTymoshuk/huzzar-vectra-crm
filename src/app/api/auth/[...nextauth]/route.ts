@@ -1,5 +1,6 @@
 import { prisma } from '@/utils/prisma'
-import { PrismaAdapter } from '@next-auth/prisma-adapter' // ✅ Używamy starszej wersji
+
+import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import bcrypt from 'bcrypt'
 import NextAuth, { AuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'

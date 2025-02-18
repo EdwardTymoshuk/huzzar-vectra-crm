@@ -7,19 +7,121 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+ //********************** USERS **********************
 model User {
-  id        String  @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role        Role     @default(TECHNICIAN)
-  phoneNumber String
- identyficator Int?    @unique
-  status      UserStatus @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String  @id @default(uuid()) // Unique user ID
+  email         String   @unique // Unique user email
+  password      String // Encrypted user password
+  name          String // Full name of the user
+  role          Role    @default(TECHNICIAN) // User role
+  phoneNumber   String // User phone number
+  identyficator Int?    @unique // Unique identifier for the user
+  status        UserStatus @default(ACTIVE) // Account status
+  createdAt     DateTime @default(now()) // User account creation date
+  updatedAt     DateTime @updatedAt // Last update timestamp
+
+  // Relations
+  orders            Order[] // List of assigned work orders
+  orderHistory      OrderHistory[] // History of changes made by the user
+  warehouseItems    Warehouse[] @relation("WarehouseAssignedTo") // Equipment assigned to the user
+  warehouseHistoryPerformed WarehouseHistory[] @relation("WarehouseHistoryPerformedBy") // User who performed warehouse actions
+  warehouseHistoryAssigned  WarehouseHistory[] @relation("WarehouseHistoryAssignedTo") // User who was assigned items
 }
 
+ //********************** ORDERS **********************
+model Order {
+  id               String   @id @default(uuid()) // Unique order ID
+  orderNumber      String   @unique // Unique order number
+  date             DateTime // Order date
+  timeSlot         TimeSlot // Time range for execution (e.g., 8-12, 8-9)
+  standard         Standard // Execution standard (W1-W6)
+  contractRequired Boolean  // Indicates if a contract needs to be delivered
+  equipmentNeeded  String[] // List of required equipment (names only, no serial numbers)
+  clientPhoneNumber String? // Customer contact number
+  notes            String?  // Additional order notes
+  status           OrderStatus @default(PENDING) // Order status
+
+  // Address details
+  county          String   // County (Powiat)
+  municipality    String   // Municipality (Gmina)
+  city           String   // City
+  street         String   // Street address
+  postalCode     String   // Postal code
+
+  // Relations
+  assignedTo      User?    @relation(fields: [assignedToId], references: [id]) // Assigned technician
+  assignedToId    String?
+
+  // Equipment assigned to the order
+  assignedEquipment Warehouse[] @relation("WarehouseAssignedToOrder")
+
+  // Order history
+  history         OrderHistory[]
+
+  createdAt       DateTime @default(now()) // Order creation date
+  updatedAt       DateTime @updatedAt // Last update timestamp
+}
+
+ //***************** ORDER HISTORY ********************
+model OrderHistory {
+  id            String   @id @default(uuid()) // Unique history record ID
+  order         Order    @relation(fields: [orderId], references: [id]) // Related order
+  orderId       String
+  changedBy     User     @relation(fields: [changedById], references: [id]) // User who made the change
+  changedById   String
+  changeDate    DateTime @default(now()) // Timestamp of the change
+  statusBefore  OrderStatus // Previous status before the change
+  statusAfter   OrderStatus // New status after the change
+  notes         String?  // Additional notes about the change
+  equipmentUsed String[] // List of used equipment/materials
+}
+
+//********************* WAREHOUSE ********************
+model Warehouse {
+  id          String  @id @default(uuid()) // Unique warehouse ID
+  itemType    WarehouseItemType // Item type (Device or Material)
+  name        String // Item name
+  category    DeviceCategory? // Category (only for Devices)
+  subcategory String? // Subcategory (e.g., Modem, Amplifier)
+  serialNumber String? @unique // Unique serial number (only for Devices)
+  quantity    Int // Quantity (for Materials)
+  unit        MaterialUnit? // Unit (only for Materials)
+  price       Float // Price per unit
+  status      WarehouseStatus // Status (Available, Assigned, Returned, AssignedToOrder)
+  
+  // Assigned to a technician or stored in the main warehouse
+  assignedTo  User?   @relation(fields: [assignedToId], references: [id], name: "WarehouseAssignedTo")
+  assignedToId String?
+
+  // Assigned to an order
+  assignedOrder Order? @relation(fields: [assignedOrderId], references: [id], name: "WarehouseAssignedToOrder")
+  assignedOrderId String?
+
+  // Warehouse history tracking
+  history     WarehouseHistory[]
+
+  createdAt   DateTime @default(now()) // Record creation date
+  updatedAt   DateTime @updatedAt // Last update timestamp
+}
+
+ //***************** WAREHOUSE HISTORY ****************
+model WarehouseHistory {
+  id            String  @id @default(uuid()) // Unique history record ID
+  warehouseItem Warehouse @relation(fields: [warehouseItemId], references: [id]) // Related warehouse item
+  warehouseItemId String
+
+  action        WarehouseAction // Action type (Received, Issued, Returned)
+  performedBy   User     @relation(fields: [performedById], references: [id], name: "WarehouseHistoryPerformedBy") // User who performed the action
+  performedById String
+  assignedTo    User?    @relation(fields: [assignedToId], references: [id], name: "WarehouseHistoryAssignedTo") // Assigned technician (if applicable)
+  assignedToId  String?
+  actionDate    DateTime @default(now()) // Timestamp of the action
+  notes         String?  // Additional comments
+}
+
+ //********************** ENUMS **********************
+
+//*********** USER ENUMS ***********
 enum Role {
   TECHNICIAN
   COORDINATOR
@@ -31,4 +133,81 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+//*********** ORDER ENUMS ***********
+enum OrderStatus {
+  PENDING // Waiting for assignment
+  ASSIGNED // Assigned to a technician
+  IN_PROGRESS // Work in progress
+  COMPLETED // Successfully completed
+  NOT_COMPLETED // Not completed
+  CANCELED // Order canceled
+}
+
+enum Standard {
+  W1
+  W2
+  W3
+  W4
+  W5
+  W6
+}
+
+enum TimeSlot {
+  EIGHT_NINE
+  EIGHT_TEN
+  EIGHT_ELEVEN
+  EIGHT_TWELVE
+  NINE_TEN
+  TEN_ELEVEN
+  TEN_TWELVE
+  ELEVEN_TWELVE
+  ELEVEN_FOURTEEN
+  TWELVE_THIRTEEN
+  TWELVE_FOURTEEN
+  TWELVE_SIXTEEN
+  THIRTEEN_FOURTEEN
+  FOURTEEN_FIFTEEN
+  FOURTEEN_SIXTEEN
+  FOURTEEN_SEVENTEEN
+  FIFTEEN_SIXTEEN
+  SIXTEEN_SEVENTEEN
+  SIXTEEN_TWENTY
+  SEVENTEEN_EIGHTEEN
+  SEVENTEEN_TWENTY
+  EIGHTEEN_NINETEEN
+  EIGHTEEN_TWENTY
+  NINETEEN_TWENTY
+}
+
+//*********** WAREHOUSE ENUMS ***********
+enum WarehouseItemType {
+  DEVICE
+  MATERIAL
+}
+
+enum DeviceCategory {
+  MODEM
+  DECODER
+  OTHER
+  AMPLIFIER
+}
+
+enum MaterialUnit {
+  PIECE
+  METER
+}
+
+enum WarehouseStatus {
+  AVAILABLE
+  ASSIGNED
+  RETURNED // Item returned to the warehouse
+  ASSIGNED_TO_ORDER // Item assigned to an order
+}
+
+enum WarehouseAction {
+  RECEIVED // Item added to warehouse
+  ISSUED // Item issued to a technician
+  RETURNED // Item returned to warehouse
 }
