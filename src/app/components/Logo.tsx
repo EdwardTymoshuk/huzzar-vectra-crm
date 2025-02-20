@@ -7,8 +7,8 @@ const Logo = ({ className }: { className?: string }) => {
       <Image
         src="/img/huzzar-logo.png"
         alt="Huzzar Logo"
-        width={140}
-        height={40}
+        width={220}
+        height={60}
         priority
       />
     </div>

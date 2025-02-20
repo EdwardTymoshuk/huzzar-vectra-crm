@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import Header from './components/Header'
+import ClientRoutingHandler from './components/ClientRoutingHandler'
 import Providers from './components/Providers'
-import Sidebar from './components/Sidebar'
 import './globals.css'
 
 const geistSans = Geist({
@@ -16,8 +15,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Huzzar CRM',
-  description: 'System zarządzania dla Huzzar',
+  title: 'Huzzar | Vectra CRM',
+  description: 'System zarządzania dla Vectry Huzzar',
 }
 
 export default function RootLayout({
@@ -29,15 +28,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          <div className="flex flex-col h-screen">
-            <Header />
-            <div className="flex flex-1">
-              <Sidebar />
-              <main className="flex h-screen w-full flex-row items-stretch bg-background text-foreground">
-                {children}
-              </main>
-            </div>
-          </div>
+          <ClientRoutingHandler>{children}</ClientRoutingHandler>
         </Providers>
       </body>
     </html>

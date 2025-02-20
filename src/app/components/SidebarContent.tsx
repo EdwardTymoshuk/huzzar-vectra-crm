@@ -1,16 +1,8 @@
 'use client'
 
-import { Button } from '@/app/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/app/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CgProfile } from 'react-icons/cg'
 import {
   MdAssignment,
   MdOutlineSettings,
@@ -21,6 +13,7 @@ import {
 } from 'react-icons/md'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
+import UserDropdown from './UserDropdown'
 
 const menuItems = [
   { name: 'Dashboard', icon: MdSpaceDashboard, href: '/' },
@@ -58,31 +51,7 @@ export default function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* Theme Toggle & User Dropdown */}
       <div className="p-4 border-t border-border flex flex-col items-center space-y-4 transition-none">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="default"
-              className="flex items-center bg-primary text-background rounded-full px-3 py-2 hover:bg-primary-hover"
-            >
-              <CgProfile size={24} className="transition-none" />
-              <span className="ml-3 text-sm font-medium">Eduard Tymoshuk</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-40 bg-background border-border rounded-md">
-            <DropdownMenuItem asChild>
-              <Link href="/profile" className="w-full font-semibold">
-                My Profile
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-danger hover:text-destructive-hover"
-              onClick={() => alert('Logged out!')}
-            >
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+        <UserDropdown />
         <ThemeToggle />
       </div>
     </div>
