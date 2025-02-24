@@ -65,6 +65,7 @@ export const userRouter = router({
         name: z.string().min(2),
         email: z.string().email(),
         phoneNumber: z.string(),
+        // password remains optional
         password: z
           .string()
           .min(8, 'Hasło musi mieć co najmniej 8 znaków')
@@ -74,24 +75,36 @@ export const userRouter = router({
           .regex(/\d/, 'Hasło musi zawierać cyfrę')
           .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Hasło musi zawierać znak specjalny')
           .optional(),
+        // Add role as well (optional if user doesn't want to change role)
+        role: z
+          .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
+          .optional(),
       })
     )
     .mutation(async ({ input }) => {
+      // Build update data
       const updateData: Partial<{
         name: string
         email: string
         phoneNumber: string
         password: string
+        role: 'ADMIN' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN'
       }> = {
         name: input.name,
         email: input.email,
         phoneNumber: input.phoneNumber,
-        password: input.password,
       }
+
       if (input.password && input.password.trim().length > 0) {
         const hashedPassword = await bcrypt.hash(input.password, 10)
         updateData.password = hashedPassword
       }
+
+      if (input.role) {
+        updateData.role = input.role
+      }
+
+      console.log('Aktualizowane dane:', updateData)
       return prisma.user.update({
         where: { id: input.id },
         data: updateData,

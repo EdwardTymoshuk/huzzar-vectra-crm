@@ -24,6 +24,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { MdAdd } from 'react-icons/md'
+import { PiArrowsClockwiseBold } from 'react-icons/pi'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -54,6 +55,7 @@ type AdminFormData = z.infer<typeof adminSchema>
  */
 export default function AddAdminDialog() {
   const [open, setOpen] = useState(false)
+  const [isSpinning, setIsSpinning] = useState(false)
 
   const utils = trpc.useUtils()
 
@@ -85,6 +87,10 @@ export default function AddAdminDialog() {
   const handleGeneratePassword = () => {
     const password = generateStrongPassword()
     setValue('password', password)
+    setIsSpinning(true)
+    setTimeout(() => {
+      setIsSpinning(false)
+    }, 500)
     toast.success('Wygenerowano silne hasło.')
   }
 
@@ -112,7 +118,7 @@ export default function AddAdminDialog() {
               {...register('name')}
             />
             {errors.name && (
-              <p className="text-red-500 text-sm">{errors.name.message}</p>
+              <p className="text-danger text-sm">{errors.name.message}</p>
             )}
           </div>
 
@@ -126,7 +132,7 @@ export default function AddAdminDialog() {
               {...register('email')}
             />
             {errors.email && (
-              <p className="text-red-500 text-sm">{errors.email.message}</p>
+              <p className="text-danger text-sm">{errors.email.message}</p>
             )}
           </div>
 
@@ -139,7 +145,7 @@ export default function AddAdminDialog() {
               {...register('phoneNumber')}
             />
             {errors.phoneNumber && (
-              <p className="text-red-500 text-sm">
+              <p className="text-danger text-sm">
                 {errors.phoneNumber.message}
               </p>
             )}
@@ -172,7 +178,7 @@ export default function AddAdminDialog() {
               </SelectContent>
             </Select>
             {errors.role && (
-              <p className="text-red-500 text-sm">{errors.role.message}</p>
+              <p className="text-danger text-sm">{errors.role.message}</p>
             )}
           </div>
 
@@ -188,14 +194,17 @@ export default function AddAdminDialog() {
               />
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={handleGeneratePassword}
               >
-                🔄 Wygeneruj
+                <PiArrowsClockwiseBold
+                  className={isSpinning ? 'animate-spin' : ''}
+                />{' '}
+                Wygeneruj
               </Button>
             </div>
             {errors.password && (
-              <p className="text-red-500 text-sm">{errors.password.message}</p>
+              <p className="text-danger text-sm">{errors.password.message}</p>
             )}
           </div>
 

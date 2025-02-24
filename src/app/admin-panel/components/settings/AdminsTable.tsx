@@ -18,6 +18,13 @@ import {
   FormMessage,
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import {
   Table,
@@ -41,6 +48,7 @@ import {
   MdVisibility,
   MdVisibilityOff,
 } from 'react-icons/md'
+import { PiArrowsClockwiseBold } from 'react-icons/pi'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -62,7 +70,8 @@ type AdminUser = Prisma.UserGetPayload<{
 
 /**
  * Validation schema for editing user data.
- * Password is optional: if left empty, it won't be changed.
+ * - Password is optional: if left empty, it won't be changed.
+ * - Role is also optional: if omitted, it won't be changed.
  */
 const adminEditSchema = z.object({
   name: z.string().min(2, 'Imię jest wymagane'),
@@ -77,6 +86,9 @@ const adminEditSchema = z.object({
     .regex(/\d/, 'Hasło musi zawierać cyfrę')
     .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Hasło musi zawierać znak specjalny')
     .optional(),
+  role: z
+    .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
+    .optional(),
 })
 
 type AdminEditFormData = z.infer<typeof adminEditSchema>
@@ -86,13 +98,14 @@ type AdminEditFormData = z.infer<typeof adminEditSchema>
  * - Displays a list of admins with actions: edit, block/unblock, and delete.
  * - Editing is done in a modal with pre-filled fields.
  * - The logged-in admin cannot block/delete themselves.
- * - All UI texts are in Polish, but the code comments are in English.
+ * - We now include role selection in the edit form.
  */
 const AdminsTable = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isEditDialogOpen, setEditDialogOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [isSpinning, setIsSpinning] = useState(false)
 
   const utils = trpc.useUtils()
   const { data: session } = useSession()
@@ -136,7 +149,7 @@ const AdminsTable = () => {
 
   /**
    * Handles the click on the edit button.
-   * We set selectedUser and fill the form with existing data (password = '').
+   * We set selectedUser and fill the form with existing data (password = '', etc.).
    */
   const handleEdit = (admin: AdminUser) => {
     setSelectedUser(admin)
@@ -145,6 +158,7 @@ const AdminsTable = () => {
       email: admin.email,
       phoneNumber: admin.phoneNumber,
       password: '', // Empty by default so we won't re-validate the hash
+      role: admin.role, // Pre-fill with current role
     })
     setEditDialogOpen(true)
   }
@@ -166,6 +180,10 @@ const AdminsTable = () => {
       shouldValidate: true,
       shouldDirty: true,
     })
+    setIsSpinning(true)
+    setTimeout(() => {
+      setIsSpinning(false)
+    }, 500)
     toast.success('Wygenerowano silne hasło.')
   }
 
@@ -320,7 +338,39 @@ const AdminsTable = () => {
                   </FormItem>
                 )}
               />
-              {/* Hasło - optional */}
+              {/* Role selection (optional) */}
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rola</FormLabel>
+                    <FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value} // current value in form
+                        defaultValue={field.value} // ensures the initial select is correct
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wybierz rolę" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background">
+                          <SelectItem value="ADMIN">Administrator</SelectItem>
+                          <SelectItem value="TECHNICIAN">Technik</SelectItem>
+                          <SelectItem value="COORDINATOR">
+                            Koordynator
+                          </SelectItem>
+                          <SelectItem value="WAREHOUSEMAN">
+                            Magazynier
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {/* Password (optional) */}
               <FormField
                 control={editForm.control}
                 name="password"
@@ -344,9 +394,12 @@ const AdminsTable = () => {
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         onClick={handleGeneratePassword}
                       >
+                        <PiArrowsClockwiseBold
+                          className={isSpinning ? 'animate-spin' : ''}
+                        />{' '}
                         Wygeneruj
                       </Button>
                     </div>
