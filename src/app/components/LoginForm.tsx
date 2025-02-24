@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { signIn } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -19,6 +19,13 @@ const loginSchema = z.object({
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
+
+enum Role {
+  TECHNICIAN = 'TECHNICIAN',
+  COORDINATOR = 'COORDINATOR',
+  WAREHOUSEMAN = 'WAREHOUSEMAN',
+  ADMIN = 'ADMIN',
+}
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
@@ -47,7 +54,21 @@ export default function LoginForm() {
     if (result?.error) {
       setLoginError('Nieprawidłowy adres e-mail lub hasło')
     } else {
-      router.push(callbackUrl)
+      const session = await getSession()
+      const userRole = session?.user?.role
+
+      // 🔄 Przekierowanie na podstawie roli użytkownika
+      if (
+        userRole === Role.ADMIN ||
+        userRole === Role.COORDINATOR ||
+        userRole === Role.WAREHOUSEMAN
+      ) {
+        router.push('/admin-panel')
+      } else if (userRole === Role.TECHNICIAN) {
+        router.push('/')
+      } else {
+        setLoginError('Nieznana rola użytkownika')
+      }
     }
   }
 

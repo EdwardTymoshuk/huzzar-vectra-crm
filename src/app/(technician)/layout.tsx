@@ -1,8 +1,8 @@
+import ClientRoutingHandler from '@/app/components/ClientRoutingHandler'
+import Providers from '@/app/components/Providers'
+import '@/app/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import ClientRoutingHandler from './components/ClientRoutingHandler'
-import Providers from './components/Providers'
-import './globals.css'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -15,11 +15,14 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Huzzar | Vectra CRM',
-  description: 'System zarządzania dla Vectry Huzzar',
+  title: 'Huzzar | Vectra CRM - Technician',
+  description: 'Technician panel for Huzzar Vectra CRM',
 }
 
-export default function RootLayout({
+/**
+ * Technician layout sharing the same Providers and ClientRoutingHandler.
+ */
+export default function TechnicianLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
