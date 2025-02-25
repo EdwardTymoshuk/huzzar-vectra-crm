@@ -104,11 +104,19 @@ model Warehouse {
   updatedAt   DateTime @updatedAt // Last update timestamp
 }
 
+//***************** SETTINGS ********************
 model DeviceDefinition {
   id       String         @id @default(uuid())
   category DeviceCategory
   name     String        
 }
+
+model RateDefinition {
+  id     String @id @default(uuid())
+  code   String 
+  amount Float 
+}
+
 
 
  //***************** WAREHOUSE HISTORY ****************
