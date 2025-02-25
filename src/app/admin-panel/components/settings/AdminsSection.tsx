@@ -1,25 +1,15 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/app/components/ui/accordion'
 import AddAdminDialog from './AddAdminDialog'
 import AdminsTable from './AdminsTable'
+import SettingsSection from './SettingsSection'
 
-const AdminsSection = () => {
+const AdminsSection = ({ title }: { title: string }) => {
   return (
-    <Accordion type="single" collapsible className="w-full font-bold">
-      <AccordionItem value="admin-list">
-        <AccordionTrigger>Administratorzy</AccordionTrigger>
-        <AccordionContent>
-          <AdminsTable />
-          <div className="flex justify-end mt-4">
-            <AddAdminDialog />
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+    <SettingsSection title={title}>
+      <AdminsTable />
+      <div className="flex justify-end mt-4">
+        <AddAdminDialog />
+      </div>
+    </SettingsSection>
   )
 }
 

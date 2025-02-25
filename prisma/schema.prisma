@@ -104,6 +104,13 @@ model Warehouse {
   updatedAt   DateTime @updatedAt // Last update timestamp
 }
 
+model DeviceDefinition {
+  id       String         @id @default(uuid())
+  category DeviceCategory
+  name     String        
+}
+
+
  //***************** WAREHOUSE HISTORY ****************
 model WarehouseHistory {
   id            String  @id @default(uuid()) // Unique history record ID
@@ -190,8 +197,9 @@ enum WarehouseItemType {
 enum DeviceCategory {
   MODEM
   DECODER
-  OTHER
+  ONT
   AMPLIFIER
+  OTHER
 }
 
 enum MaterialUnit {
