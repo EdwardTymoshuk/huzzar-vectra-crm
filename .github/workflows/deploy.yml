@@ -10,18 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 Pobranie repozytorium
-      uses: actions/checkout@v3
+      - name: 📥 Pobranie repozytorium
+        uses: actions/checkout@v3
 
-    - name: 🚀 Deploy na serwer
-      uses: appleboy/ssh-action@master
-      with:
-        host: 185.242.135.184  # IP Twojego serwera
-        username: root  # Jeśli używasz innego użytkownika, zmień na `user`
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          cd /var/www/huzzar-vectra-crm
-          git pull origin main
-          npm install
-          npm run build
-          pm2 restart vectra-crm
+      - name: 🚀 Deploy na serwer
+        uses: appleboy/ssh-action@master
+        with:
+          host: 185.242.135.184 # IP Twojego serwera
+          username: root # Jeśli używasz innego użytkownika, zmień na `user`
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/huzzar-vectra-crm
+            git pull origin main
+
+            # 1️⃣ Usuń stare node_modules i ponownie zainstaluj zależności
+            rm -rf node_modules .prisma
+            npm install
+
+            # 2️⃣ Wygeneruj Prisma Client
+            npx prisma generate
+
+            # 3️⃣ Zastosuj migracje (jeśli używasz bazy danych)
+            npx prisma migrate deploy
+
+            # 4️⃣ Zbuduj aplikację i restartuj PM2
+            npm run build
+            pm2 restart vectra-crm
