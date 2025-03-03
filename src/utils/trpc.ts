@@ -1,3 +1,5 @@
+// src/utils/trpc.ts
+
 import type { AppRouter } from '@/server/routers'
 import { httpBatchLink } from '@trpc/client'
 import { createTRPCNext } from '@trpc/next'

@@ -1,3 +1,5 @@
+// src/server/middleware
+
 import { authOptions } from '@/lib/authOptions'
 import { TRPCError, initTRPC } from '@trpc/server'
 import { getServerSession } from 'next-auth'
