@@ -35,4 +35,4 @@ jobs:
 
             # 4️⃣ Zbuduj aplikację i restartuj PM2
             npm run build
-            pm2 restart vectra-crm
+            npx pm2 restart vectra-crm
