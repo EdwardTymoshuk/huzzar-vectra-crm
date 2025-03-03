@@ -111,8 +111,8 @@ const DeviceDefinitionsList: FC = () => {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {items.map((d) => (
-                <TooltipProvider>
-                  <Tooltip key={d.id}>
+                <TooltipProvider key={d.id}>
+                  <Tooltip>
                     <TooltipTrigger asChild>
                       <Badge
                         key={d.id}

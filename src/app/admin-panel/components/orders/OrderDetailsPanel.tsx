@@ -7,6 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/app/components/ui/sheet'
+import { statusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { MdClose } from 'react-icons/md'
 
@@ -37,7 +38,7 @@ const OrderDetailsPanel = ({
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full max-w-md p-6">
-        <SheetHeader className="flex justify-between items-center">
+        <SheetHeader className="flex flex-row justify-between items-center">
           <SheetTitle>Szczegóły zlecenia</SheetTitle>
           <Button size="icon" variant="ghost" onClick={onClose}>
             <MdClose className="w-5 h-5" />
@@ -58,7 +59,7 @@ const OrderDetailsPanel = ({
               {new Date(order.date).toLocaleDateString('pl-PL')}
             </p>
             <p>
-              <strong>Status:</strong> {order.status}
+              <strong>Status:</strong> {statusMap[order.status] || order.status}
             </p>
             <p>
               <strong>Adres:</strong> {order.city}, {order.street}

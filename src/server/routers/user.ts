@@ -1,4 +1,5 @@
 import { prisma } from '@/utils/prisma'
+import { TRPCError } from '@trpc/server'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
 import { protectedProcedure, roleProtectedProcedure } from '../middleware'
@@ -7,6 +8,10 @@ import { router } from '../trpc'
 export const userRouter = router({
   // Fetch the currently logged-in user
   me: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.user) {
+      throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
+
     return prisma.user.findUnique({
       where: { id: ctx.user.id },
       select: { id: true, email: true, name: true, role: true, status: true },

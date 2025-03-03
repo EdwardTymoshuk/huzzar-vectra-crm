@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
   Pagination,
@@ -9,6 +10,13 @@ import {
   PaginationPrevious,
 } from '@/app/components/ui/pagination'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -16,7 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { statusColorMap, statusMap, timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
+import { OrderStatus, Prisma } from '@prisma/client'
 import { useState } from 'react'
 import {
   MdArrowDownward,
@@ -25,29 +35,20 @@ import {
   MdEdit,
   MdVisibility,
 } from 'react-icons/md'
+import EditOrderModal from './EditOrderModal'
 import OrderDetailsPanel from './OrderDetailsPanel'
 import OrdersFilterSort from './OrdersFilter'
 
-/**
- * Mapping of status values to Polish equivalents.
- */
-const statusMap: Record<string, string> = {
-  PENDING: 'NIEPRZYPISANE',
-  ASSIGNED: 'W TRAKCIE',
-  COMPLETED: 'WYKONANE',
-  NOT_COMPLETED: 'NIEWYKONANE',
-  CANCELED: 'WYCOFANE',
-}
-
-/**
- * Mapping of time slots to formatted Polish equivalents.
- */
-const timeSlotMap: Record<string, string> = {
-  EIGHT_ELEVEN: '8-11',
-  ELEVEN_FOURTEEN: '11-14',
-  FOURTEEN_SEVENTEEN: '14-17',
-  SEVENTEEN_TWENTY: '17-20',
-}
+type OrderWithAssignedTo = Prisma.OrderGetPayload<{
+  include: {
+    assignedTo: {
+      select: {
+        id: true
+        name: true
+      }
+    }
+  }
+}>
 
 const OrdersTable = () => {
   const [currentPage, setCurrentPage] = useState(1)
@@ -56,8 +57,13 @@ const OrdersTable = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [sortField, setSortField] = useState<'date' | 'status'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
+    null
+  )
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
 
   // Fetch orders from API using tRPC
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
@@ -68,8 +74,9 @@ const OrdersTable = () => {
     status: statusFilter || undefined,
     technician: technicianFilter || undefined,
   })
+  const updateStatusMutation = trpc.order.toggleOrderStatus.useMutation()
 
-  const orders = data?.orders || []
+  const orders = (data?.orders ?? []) as OrderWithAssignedTo[]
   const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
 
   const handleSort = (field: 'date' | 'status') => {
@@ -81,25 +88,43 @@ const OrdersTable = () => {
     }
   }
 
+  const handleEditOrder = (order: OrderWithAssignedTo) => {
+    setEditingOrder({
+      ...order,
+      assignedTo: order.assignedTo || null,
+    })
+    setIsEditModalOpen(true)
+  }
+
+  const handleStatusChange = async (
+    orderId: string,
+    newStatus: OrderStatus
+  ) => {
+    await updateStatusMutation.mutateAsync({ id: orderId, status: newStatus })
+    setEditingStatusId(null)
+  }
+
   return (
     <div className="overflow-hidden">
-      {/* Header with Sorting & Filtering */}
-      <OrdersFilterSort
-        setStatusFilter={setStatusFilter}
-        setTechnicianFilter={setTechnicianFilter}
-      />
+      <div className="flex flex-row items-center w-full justify-between py-4">
+        {/* Header with Filtering */}
+        <OrdersFilterSort
+          setStatusFilter={setStatusFilter}
+          setTechnicianFilter={setTechnicianFilter}
+        />
 
-      {/* Number of items per page controls */}
-      <div className="flex justify-end gap-2 p-4">
-        {[30, 50, 100].map((size) => (
-          <Button
-            key={size}
-            variant={itemsPerPage === size ? 'default' : 'outline'}
-            onClick={() => setItemsPerPage(size)}
-          >
-            {size}
-          </Button>
-        ))}
+        {/* Number of items per page controls */}
+        <div className="flex justify-end gap-2">
+          {[30, 50, 100].map((size) => (
+            <Button
+              key={size}
+              variant={itemsPerPage === size ? 'default' : 'outline'}
+              onClick={() => setItemsPerPage(size)}
+            >
+              {size}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Orders Table */}
@@ -168,7 +193,34 @@ const OrdersTable = () => {
                 <TableCell>
                   {new Date(order.date).toLocaleDateString()}
                 </TableCell>
-                <TableCell>{statusMap[order.status] || order.status}</TableCell>
+                <TableCell
+                  onDoubleClick={() => setEditingStatusId(order.id)}
+                  className="cursor-pointer"
+                >
+                  {editingStatusId === order.id ? (
+                    <Select
+                      defaultValue={order.status}
+                      onValueChange={(value) =>
+                        handleStatusChange(order.id, value as OrderStatus)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(statusMap).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={statusColorMap[order.status]}>
+                      {statusMap[order.status]}
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell>
                   {timeSlotMap[order.timeSlot] || order.timeSlot}
                 </TableCell>
@@ -176,7 +228,7 @@ const OrdersTable = () => {
                   {order.city}, {order.street}
                 </TableCell>
                 <TableCell>
-                  {order.assignedTo?.name || 'Nieprzypisany'}
+                  {order.assignedTo ? order.assignedTo.name : 'Nieprzypisany'}
                 </TableCell>
                 <TableCell className="flex gap-2">
                   <Button
@@ -189,7 +241,11 @@ const OrdersTable = () => {
                   >
                     <MdVisibility className="w-5 h-5 text-warning" />
                   </Button>
-                  <Button size="icon" variant="ghost">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleEditOrder(order)}
+                  >
                     <MdEdit className="w-5 h-5 text-success" />
                   </Button>
                   <Button size="icon" variant="ghost">
@@ -250,6 +306,13 @@ const OrdersTable = () => {
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
       />
+
+      {isEditModalOpen && editingOrder && (
+        <EditOrderModal
+          order={editingOrder}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
     </div>
   )
 }

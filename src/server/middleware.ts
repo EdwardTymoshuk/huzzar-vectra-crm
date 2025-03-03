@@ -1,4 +1,4 @@
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { TRPCError, initTRPC } from '@trpc/server'
 import { getServerSession } from 'next-auth'
 import superjson from 'superjson'
@@ -13,6 +13,14 @@ interface Context {
     identyficator?: number | null
     role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
     status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  } | null
+}
+
+// Tworzenie kontekstu dla tRPC
+export const createContext = async (): Promise<Context> => {
+  const session = await getServerSession(authOptions)
+  return {
+    user: session?.user ?? null, // 🛠 Zapewnia, że `user` zawsze istnieje (może być `null`)
   }
 }
 
@@ -26,27 +34,21 @@ const t = initTRPC.context<Context>().create({
 
 // Middleware do sprawdzania autoryzacji
 export const isAuthenticated = t.middleware(async ({ ctx, next }) => {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user) {
+  if (!ctx.user) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'User is not authenticated',
     })
   }
 
-  if (session.user.status !== 'ACTIVE') {
+  if (ctx.user.status !== 'ACTIVE') {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'User account is not active',
     })
   }
 
-  return next({
-    ctx: {
-      user: session.user,
-    },
-  })
+  return next()
 })
 
 // Middleware do sprawdzania ról użytkownika

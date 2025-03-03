@@ -11,7 +11,7 @@ const MainContainer = ({
   return (
     <main
       className={cn(
-        'flex h-screen w-full flex-row items-stretch bg-background text-foreground',
+        'flex h-screen w-full flex-row items-stretch bg-background text-foreground overflow-auto',
         className
       )}
     >

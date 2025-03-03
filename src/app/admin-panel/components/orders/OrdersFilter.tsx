@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
+import { OrderStatus } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
@@ -26,7 +27,7 @@ const OrdersFilter = ({
   setStatusFilter,
   setTechnicianFilter,
 }: {
-  setStatusFilter: (status: string | null) => void
+  setStatusFilter: (status: OrderStatus | null) => void
   setTechnicianFilter: (technician: string | null) => void
 }) => {
   const [statusFilter, setStatusFilterState] = useState<string | null>(null)
@@ -48,7 +49,7 @@ const OrdersFilter = ({
         <Select
           onValueChange={(value) => {
             setStatusFilterState(value === 'all' ? null : value)
-            setStatusFilter(value === 'all' ? null : value)
+            setStatusFilter(value === 'all' ? null : (value as OrderStatus))
           }}
           value={statusFilter || 'all'}
         >
@@ -57,8 +58,9 @@ const OrdersFilter = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Wszystkie</SelectItem>
-            <SelectItem value="PENDING">Nieprzypisane</SelectItem>
-            <SelectItem value="ASSIGNED">W trakcie</SelectItem>
+            <SelectItem value="PENDING">Nie przypisane</SelectItem>
+            <SelectItem value="ASSIGNED">Przypisane</SelectItem>
+            <SelectItem value="IN_PROGRESS">W trakcie</SelectItem>
             <SelectItem value="COMPLETED">Wykonane</SelectItem>
             <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
             <SelectItem value="CANCELED">Wycofane</SelectItem>

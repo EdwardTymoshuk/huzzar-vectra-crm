@@ -1,12 +1,12 @@
 import { prisma } from '@/utils/prisma'
-import { Standard, TimeSlot } from '@prisma/client'
+import { OrderStatus, Standard, TimeSlot } from '@prisma/client'
 import { z } from 'zod'
 import { protectedProcedure, roleProtectedProcedure } from '../middleware'
 import { router } from '../trpc'
 
 export const orderRouter = router({
   /**
-   * Fetch orders with optional search and pagination.
+   * Fetch orders with optional filters, sorting, and pagination.
    */
   getOrders: protectedProcedure
     .input(
@@ -15,30 +15,30 @@ export const orderRouter = router({
         limit: z.number().optional().default(30),
         sortField: z.enum(['date', 'status']).optional().default('date'),
         sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
-        status: z.string().optional(),
+        status: z.nativeEnum(OrderStatus).optional(),
         technician: z.string().optional(),
       })
     )
     .query(async ({ input }) => {
       const { page, limit, sortField, sortOrder, status, technician } = input
 
-      // Filtry
-      const filters: any = {}
+      const filters: {
+        status?: OrderStatus
+        assignedToId?: string | null
+      } = {}
+
       if (status) filters.status = status
-      if (technician === 'assigned') {
-        filters.assignedToId = { not: null }
-      } else if (technician === 'unassigned') {
-        filters.assignedToId = null
+      if (technician) {
+        filters.assignedToId = technician === 'unassigned' ? null : technician
       }
 
-      // Pobranie zleceń z paginacją, sortowaniem i filtrami
       const orders = await prisma.order.findMany({
         where: filters,
         orderBy: { [sortField]: sortOrder },
         skip: (page - 1) * limit,
         take: limit,
         include: {
-          assignedTo: { select: { name: true } },
+          assignedTo: { select: { id: true, name: true } },
         },
       })
 
@@ -46,6 +46,7 @@ export const orderRouter = router({
 
       return { orders, totalOrders }
     }),
+
   /**
    * Create a new order.
    */
@@ -96,15 +97,37 @@ export const orderRouter = router({
   /**
    * Edit an existing order.
    */
-  editOrder: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+  editOrder: roleProtectedProcedure(['ADMIN'])
     .input(
       z.object({
         id: z.string(),
         orderNumber: z.string().min(3),
         date: z.string(),
-        city: z.string().min(2),
-        street: z.string().min(3),
-        technician: z.string().optional(),
+        timeSlot: z.enum([
+          'EIGHT_ELEVEN',
+          'ELEVEN_FOURTEEN',
+          'FOURTEEN_SEVENTEEN',
+          'SEVENTEEN_TWENTY',
+        ]),
+        standard: z.enum(['W1', 'W2', 'W3', 'W4', 'W5', 'W6']),
+        contractRequired: z.boolean(),
+        equipmentNeeded: z.array(z.string()),
+        clientPhoneNumber: z.string().optional(),
+        notes: z.string().optional(),
+        status: z.enum([
+          'PENDING',
+          'ASSIGNED',
+          'IN_PROGRESS',
+          'COMPLETED',
+          'NOT_COMPLETED',
+          'CANCELED',
+        ]),
+        county: z.string(),
+        municipality: z.string(),
+        city: z.string(),
+        street: z.string(),
+        postalCode: z.string(),
+        assignedToId: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -113,9 +136,19 @@ export const orderRouter = router({
         data: {
           orderNumber: input.orderNumber,
           date: new Date(input.date),
+          timeSlot: input.timeSlot,
+          standard: input.standard,
+          contractRequired: input.contractRequired,
+          equipmentNeeded: input.equipmentNeeded,
+          clientPhoneNumber: input.clientPhoneNumber,
+          notes: input.notes,
+          status: input.status,
+          county: input.county,
+          municipality: input.municipality,
           city: input.city,
           street: input.street,
-          assignedToId: input.technician || null,
+          postalCode: input.postalCode,
+          assignedToId: input.assignedToId || null,
         },
       })
     }),
@@ -141,6 +174,7 @@ export const orderRouter = router({
           'ASSIGNED',
           'IN_PROGRESS',
           'COMPLETED',
+          'NOT_COMPLETED',
           'CANCELED',
         ]),
       })
@@ -157,7 +191,7 @@ export const orderRouter = router({
       const order = await prisma.order.findUnique({
         where: { id: input.id },
         include: {
-          assignedTo: { select: { name: true } },
+          assignedTo: { select: { id: true, name: true } },
         },
       })
 
