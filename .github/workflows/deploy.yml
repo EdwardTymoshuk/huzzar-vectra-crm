@@ -1,0 +1,27 @@
+name: 🚀 Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Pobranie repozytorium
+      uses: actions/checkout@v3
+
+    - name: 🚀 Deploy na serwer
+      uses: appleboy/ssh-action@master
+      with:
+        host: 185.242.135.184  # IP Twojego serwera
+        username: root  # Jeśli używasz innego użytkownika, zmień na `user`
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /var/www/huzzar-vectra-crm
+          git pull origin main
+          npm install
+          npm run build
+          pm2 restart vectra-crm
