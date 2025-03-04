@@ -1,3 +1,5 @@
+// arc/app/admin-panel/orders/page.tsx
+
 'use client'
 
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'

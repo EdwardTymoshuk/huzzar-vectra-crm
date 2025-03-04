@@ -1,3 +1,6 @@
+// src/lib/constants.ts
+
+import { IconType } from 'react-icons'
 import {
   MdAssignment,
   MdOutlineSettings,
@@ -7,24 +10,77 @@ import {
   MdWarehouse,
 } from 'react-icons/md'
 
-export const adminsMenuItems = [
-  { name: 'Dashboard', icon: MdSpaceDashboard, href: '/admin-panel' },
-  { name: 'Zlecenia', icon: MdAssignment, href: '/admin-panel/orders' },
-  { name: 'Magazyn', icon: MdWarehouse, href: '/admin-panel/warehouse' },
-  { name: 'Rozliczenia', icon: MdReceiptLong, href: '/admin-panel/billing' },
-  { name: 'Pracownicy', icon: MdPeopleAlt, href: '/admin-panel/employees' },
+/**
+ * Interface for menu items to enforce correct data structure.
+ */
+export interface MenuItem {
+  key: string
+  name: string
+  icon: IconType
+  href: string
+}
+
+/**
+ * Menu items for admin users.
+ */
+export const adminsMenuItems: MenuItem[] = [
   {
+    key: 'dashboard',
+    name: 'Dashboard',
+    icon: MdSpaceDashboard,
+    href: '/admin-panel',
+  },
+  {
+    key: 'orders',
+    name: 'Zlecenia',
+    icon: MdAssignment,
+    href: '/admin-panel/orders',
+  },
+  {
+    key: 'warehouse',
+    name: 'Magazyn',
+    icon: MdWarehouse,
+    href: '/admin-panel/warehouse',
+  },
+  {
+    key: 'billing',
+    name: 'Rozliczenia',
+    icon: MdReceiptLong,
+    href: '/admin-panel/billing',
+  },
+  {
+    key: 'employees',
+    name: 'Pracownicy',
+    icon: MdPeopleAlt,
+    href: '/admin-panel/employees',
+  },
+  {
+    key: 'settings',
     name: 'Ustawienia',
     icon: MdOutlineSettings,
     href: '/admin-panel/settings',
   },
 ]
-export const techniciansMenuItems = [
-  { name: 'Dashboard', icon: MdSpaceDashboard, href: '/' },
-  { name: 'Zlecenia', icon: MdAssignment, href: '/orders' },
-  { name: 'Magazyn', icon: MdWarehouse, href: '/warehouse' },
-  { name: 'Rozliczenia', icon: MdReceiptLong, href: '/billing' },
-  { name: 'Ustawienia', icon: MdOutlineSettings, href: '/settings' },
+
+/**
+ * Menu items for technician users.
+ */
+export const techniciansMenuItems: MenuItem[] = [
+  { key: 'dashboard', name: 'Dashboard', icon: MdSpaceDashboard, href: '/' },
+  { key: 'orders', name: 'Zlecenia', icon: MdAssignment, href: '/orders' },
+  { key: 'warehouse', name: 'Magazyn', icon: MdWarehouse, href: '/warehouse' },
+  {
+    key: 'billing',
+    name: 'Rozliczenia',
+    icon: MdReceiptLong,
+    href: '/billing',
+  },
+  {
+    key: 'settings',
+    name: 'Ustawienia',
+    icon: MdOutlineSettings,
+    href: '/settings',
+  },
 ]
 
 /**

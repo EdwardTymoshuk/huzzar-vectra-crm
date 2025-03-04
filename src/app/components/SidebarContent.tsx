@@ -1,25 +1,31 @@
 'use client'
 
-import { adminsMenuItems, techniciansMenuItems } from '@/lib/constants'
+import {
+  MenuItem,
+  adminsMenuItems,
+  techniciansMenuItems,
+} from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useSession } from 'next-auth/react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import UserDropdown from './UserDropdown'
 
 /**
- * SidebarContent component renders dynamic navigation links
- * based on the authenticated user's role.
+ * SidebarContent component dynamically updates content without page reload.
+ * Uses query parameter "tab" instead of navigating to a new page.
  */
 export default function SidebarContent() {
-  const pathname = usePathname()
   const { data: session } = useSession()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  // Dynamically select menu items based on user role
-  const menuItems =
-    pathname.startsWith('/admin-panel') ||
+  // Get active tab from URL parameters
+  const currentTab = searchParams.get('tab') || 'dashboard'
+
+  // Select menu items based on user role
+  const menuItems: MenuItem[] =
     session?.user.role === 'ADMIN' ||
     session?.user.role === 'COORDINATOR' ||
     session?.user.role === 'WAREHOUSEMAN'
@@ -29,22 +35,23 @@ export default function SidebarContent() {
   return (
     <div className="flex flex-col h-full bg-secondary">
       <Logo className="justify-center w-full" />
-      {/* Dynamic navigation menu */}
+
+      {/* Navigation menu */}
       <nav className="flex-1 pt-8 space-y-2">
         {menuItems.map((item) => (
-          <Link key={item.name} href={item.href}>
-            <div
-              className={cn(
-                'flex items-center p-3 transition cursor-pointer text-background',
-                pathname === item.href
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted hover:text-accent-foreground'
-              )}
-            >
-              <item.icon className="mr-3 h-5 w-5" />
-              <span>{item.name}</span>
-            </div>
-          </Link>
+          <div
+            key={item.key}
+            onClick={() => router.push(`/admin-panel?tab=${item.key}`)}
+            className={cn(
+              'flex items-center p-3 transition cursor-pointer text-background',
+              currentTab === item.key
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted hover:text-accent-foreground'
+            )}
+          >
+            <item.icon className="mr-3 h-5 w-5" />
+            <span>{item.name}</span>
+          </div>
         ))}
       </nav>
 

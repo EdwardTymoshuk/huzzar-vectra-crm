@@ -3,29 +3,40 @@
 import Header from '@/app/components/Header'
 import MainContainer from '@/app/components/MainContainer'
 import Sidebar from '@/app/components/Sidebar'
-import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import { useSearchParams } from 'next/navigation'
 
 /**
- * Handles routing-based rendering of sidebar and header.
- * Sidebar and content are aligned horizontally using flex layout.
+ * Lazy-load pages dynamically based on active tab
  */
+const pages: Record<string, React.ComponentType> = {
+  dashboard: dynamic(() => import('@/app/admin-panel/page')),
+  orders: dynamic(() => import('@/app/admin-panel/orders/page')),
+  warehouse: dynamic(() => import('@/app/admin-panel/warehouse/page')),
+  billing: dynamic(() => import('@/app/admin-panel/billing/page')),
+  employees: dynamic(() => import('@/app/admin-panel/employees/page')),
+  settings: dynamic(() => import('@/app/admin-panel/settings/page')),
+}
+
 const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const pathname = usePathname()
-  const isLoginPage = pathname?.startsWith('/login')
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'dashboard'
+
+  // Select the corresponding page component, defaulting to dashboard
+  const ActivePage = pages[activeTab] || pages.dashboard
 
   return (
     <>
-      {!isLoginPage && <Header />}
+      <Header />
       <div className="flex h-screen">
-        {/* Sidebar aligned to the left */}
-        {!isLoginPage && <Sidebar />}
-        {/* Main content aligned to the right */}
-        <MainContainer>{children}</MainContainer>
+        <Sidebar />
+        <MainContainer>
+          <ActivePage />
+        </MainContainer>
       </div>
     </>
   )
 }
-
 export default ClientRoutingHandler

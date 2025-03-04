@@ -1,3 +1,5 @@
+// src/app/admin-panel/page.tsx
+
 'use client'
 
 import MaxWidthWrapper from '../components/MaxWidthWrapper'

@@ -4,12 +4,15 @@ import { Button } from '@/app/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/app/components/ui/sheet'
 import { MdMenu } from 'react-icons/md'
 import Logo from './Logo'
-import SidebarContent from './SidebarContent' // Import only sidebar content
+import SidebarContent from './SidebarContent' // Mobile Sidebar Content
 
+/**
+ * Header component that includes a mobile sidebar toggle.
+ */
 export default function Header() {
   return (
     <header className="w-full bg-secondary text-secondary-foreground flex md:hidden items-center justify-between px-4 py-3 md:pl-72 border-b border-border">
-      {/* Mobile Menu Button (Left-aligned) */}
+      {/* Mobile Menu Button */}
       <Sheet>
         <SheetTrigger asChild>
           <Button
