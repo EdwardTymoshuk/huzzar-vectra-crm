@@ -1,24 +1,27 @@
 'use client'
 
+import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
-import { Input } from '@/app/components/ui/input'
+import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { MdAdd, MdCalendarMonth, MdOutlineSearch } from 'react-icons/md'
+import { MdAdd, MdCalendarMonth } from 'react-icons/md'
 import AddOrderModal from './AddOrderModal'
 import ImportOrders from './ImportOrders'
 
 /**
  * OrdersToolbar component:
  * - Contains top action buttons with responsive layout.
+ * - Uses universal SearchInput component.
  */
 const OrdersToolbar = () => {
-  const [isModalOpen, setModalOpen] = useState(false)
+  const { setSearchTerm } = useOrdersSearch()
   const router = useRouter()
+  const [isModalOpen, setModalOpen] = useState(false)
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-      {/* Buttons with responsive icons */}
+      {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setModalOpen(true)} variant="success">
           <MdAdd />
@@ -33,10 +36,11 @@ const OrdersToolbar = () => {
         </Button>
       </div>
 
-      <div className="relative w-full  sm:w-1/2 lg:w-1/4">
-        <MdOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <Input placeholder="Szukaj" className="pl-10" />
-      </div>
+      {/* Universal Search Input */}
+      <SearchInput
+        placeholder="Szukaj po nr zlecenia lub adresie"
+        onSearch={setSearchTerm}
+      />
 
       {/* Add Order Modal */}
       <AddOrderModal open={isModalOpen} onClose={() => setModalOpen(false)} />

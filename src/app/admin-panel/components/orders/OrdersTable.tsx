@@ -24,10 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
 import { statusColorMap, statusMap, timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, Prisma } from '@prisma/client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   MdArrowDownward,
   MdArrowUpward,
@@ -65,6 +66,8 @@ const OrdersTable = () => {
   )
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
 
+  const { searchTerm } = useOrdersSearch()
+
   // Fetch orders from API using tRPC
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
     page: currentPage,
@@ -78,6 +81,16 @@ const OrdersTable = () => {
 
   const orders = (data?.orders ?? []) as OrderWithAssignedTo[]
   const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(
+      (order) =>
+        order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        `${order.city} ${order.street}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+    )
+  }, [orders, searchTerm])
 
   const handleSort = (field: 'date' | 'status') => {
     if (sortField === field) {
@@ -187,7 +200,7 @@ const OrdersTable = () => {
               </TableCell>
             </TableRow>
           ) : orders.length ? (
-            orders.map((order) => (
+            filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell>{order.orderNumber}</TableCell>
                 <TableCell>
