@@ -1,11 +1,8 @@
 'use client'
 
-import {
-  MenuItem,
-  adminsMenuItems,
-  techniciansMenuItems,
-} from '@/lib/constants'
+import { adminsMenuItems, techniciansMenuItems } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { MenuItem } from '@/types'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Logo from './Logo'

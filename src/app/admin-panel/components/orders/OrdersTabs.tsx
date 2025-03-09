@@ -6,6 +6,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
+import AssignmentsTable from './AssignmentsTable'
 import OrdersTable from './OrdersTable'
 
 /**
@@ -29,9 +30,7 @@ const OrdersTabs = () => {
         <OrdersTable />
       </TabsContent>
       <TabsContent value="assignments">
-        <div className="h-96 flex justify-center items-center text-gray-400">
-          Podział zleceń między technikami (W przygotowaniu)
-        </div>
+      <AssignmentsTable />
       </TabsContent>
     </Tabs>
   )

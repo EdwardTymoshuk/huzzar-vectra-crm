@@ -1,6 +1,8 @@
+import { prisma } from '@/utils/prisma'
 // src/server/middleware
 
 import { authOptions } from '@/lib/authOptions'
+import { PrismaClient } from '@prisma/client'
 import { TRPCError, initTRPC } from '@trpc/server'
 import { getServerSession } from 'next-auth'
 import superjson from 'superjson'
@@ -16,13 +18,15 @@ interface Context {
     role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
     status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
   } | null
+  prisma: PrismaClient
 }
 
 // Tworzenie kontekstu dla tRPC
 export const createContext = async (): Promise<Context> => {
   const session = await getServerSession(authOptions)
   return {
-    user: session?.user ?? null, // 🛠 Zapewnia, że `user` zawsze istnieje (może być `null`)
+    user: session?.user ?? null,
+    prisma,
   }
 }
 

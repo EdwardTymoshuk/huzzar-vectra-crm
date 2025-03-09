@@ -7,138 +7,141 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/app/components/ui/form'
-import { Input } from '@/app/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select'
+import { Form } from '@/app/components/ui/form'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Prisma } from '@prisma/client'
-import { useState } from 'react'
+import { OrderStatus, Prisma } from '@prisma/client'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { z } from 'zod'
+import { OrderFormData, OrderFormFields, orderSchema } from './OrderFormFields'
 
 /**
- * Schema validation for editing orders
+ * Define a type for the order with assigned technician info, etc.
  */
-const orderSchema = z.object({
-  orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),
-  date: z.string().min(1, 'Data jest wymagana'),
-  timeSlot: z.enum([
-    'EIGHT_ELEVEN',
-    'ELEVEN_FOURTEEN',
-    'FOURTEEN_SEVENTEEN',
-    'SEVENTEEN_TWENTY',
-  ]),
-  standard: z.enum(['W1', 'W2', 'W3', 'W4', 'W5', 'W6']),
-  contractRequired: z.boolean(),
-  equipmentNeeded: z.string(),
-  clientPhoneNumber: z.string().optional(),
-  notes: z.string().optional(),
-  status: z.enum([
-    'PENDING',
-    'ASSIGNED',
-    'IN_PROGRESS',
-    'COMPLETED',
-    'NOT_COMPLETED',
-    'CANCELED',
-  ]),
-  county: z.string(),
-  municipality: z.string(),
-  city: z.string(),
-  street: z.string(),
-  postalCode: z.string(),
-  assignedToId: z.string().optional(),
-})
-
-type OrderFormData = z.infer<typeof orderSchema>
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
-  include: { assignedTo: { select: { id: true; name: true } } }
+  include: {
+    assignedTo: {
+      select: {
+        id: true
+        name: true
+      }
+    }
+  }
 }>
 
+/**
+ * EditOrderModal:
+ * Displays a modal for editing an existing order.
+ * Uses the same OrderFormFields but with default values
+ * derived from the 'order' prop.
+ *
+ * Comments in English, UI labels in Polish.
+ */
 const EditOrderModal = ({
+  open,
+  onCloseAction, // renamed to match Next.js guidance about server/client actions
   order,
-  onClose,
 }: {
+  open: boolean
+  onCloseAction: () => void
   order: OrderWithAssignedTo
-  onClose: () => void
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const utils = trpc.useUtils()
 
-  // Fetch technicians for assignment
-  const { data: technicians } = trpc.user.getAllUsers.useQuery()
-
-  // tRPC mutation for updating an order
+  // tRPC update mutation
   const updateOrderMutation = trpc.order.editOrder.useMutation({
     onSuccess: () => {
       toast.success('Zlecenie zostało zaktualizowane!')
       utils.order.getOrders.invalidate()
-      onClose()
+      onCloseAction()
     },
     onError: () => toast.error('Błąd podczas aktualizacji zlecenia.'),
   })
 
+  /**
+   * Prepare default values for the form.
+   * Some fields might be null in DB => fallback to '' or 'none'.
+   * Convert equipmentNeeded (string[]) -> comma-separated string.
+   */
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
+      type: order.type,
+      operator: order.operator,
       orderNumber: order.orderNumber,
       date: new Date(order.date).toISOString().split('T')[0],
       timeSlot: order.timeSlot,
-      standard: order.standard,
       contractRequired: order.contractRequired,
-      equipmentNeeded: order.equipmentNeeded.join(', '),
-      clientPhoneNumber: order.clientPhoneNumber || '',
-      notes: order.notes || '',
-      status: order.status,
-      county: order.county,
-      municipality: order.municipality,
       city: order.city,
       street: order.street,
       postalCode: order.postalCode,
-      assignedToId: order.assignedToId || '',
+      county: order.county || '',
+      municipality: order.municipality || '',
+      clientPhoneNumber: order.clientPhoneNumber || '',
+      notes: order.notes || '',
+      equipmentNeeded: order.equipmentNeeded
+        ? order.equipmentNeeded.join(', ')
+        : '',
+      assignedToId: order.assignedToId || 'none',
+      status: order.status || OrderStatus.PENDING,
     },
   })
 
+  /**
+   * Handle form submission to update existing order.
+   * Convert equipmentNeeded from comma-separated string to string[],
+   * fallback status if needed, etc.
+   */
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true)
 
-    const updatedStatus =
-      data.assignedToId && data.assignedToId !== 'none'
-        ? 'ASSIGNED'
-        : data.status === 'ASSIGNED'
-        ? 'PENDING'
-        : data.status
+    // Convert to array
+    const equipmentArr = data.equipmentNeeded
+      ? data.equipmentNeeded
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
+
+    // Fallback to 'PENDING' if there's no status
+    let finalStatus = data.status
+
+    if (data.assignedToId !== order.assignedToId) {
+      // Jeśli status był NIE PRZYPISANE, zmień na PRZYPISANE
+      if (order.status === OrderStatus.PENDING) {
+        finalStatus = OrderStatus.ASSIGNED
+      }
+    }
 
     await updateOrderMutation.mutateAsync({
-      ...data,
       id: order.id,
-      status: updatedStatus,
+      ...data,
+      status: finalStatus,
+      equipmentNeeded: equipmentArr,
       assignedToId:
         data.assignedToId === 'none' ? undefined : data.assignedToId,
-      equipmentNeeded: data.equipmentNeeded
-        .split(',')
-        .map((item) => item.trim()),
     })
 
     setIsSubmitting(false)
   }
 
+  useEffect(() => {
+    const assignedToId = form.watch('assignedToId')
+    const currentStatus = form.getValues('status')
+
+    if (
+      assignedToId &&
+      assignedToId !== 'none' &&
+      currentStatus === OrderStatus.PENDING
+    ) {
+      form.setValue('status', OrderStatus.ASSIGNED)
+    }
+  }, [form.watch('assignedToId')])
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onCloseAction}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edytuj zlecenie</DialogTitle>
@@ -146,116 +149,12 @@ const EditOrderModal = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="orderNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Numer zlecenia</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Reusable form fields */}
+            <OrderFormFields control={form.control} />
 
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="timeSlot"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Slot czasowy</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz slot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EIGHT_ELEVEN">8:00 - 11:00</SelectItem>
-                      <SelectItem value="ELEVEN_FOURTEEN">
-                        11:00 - 14:00
-                      </SelectItem>
-                      <SelectItem value="FOURTEEN_SEVENTEEN">
-                        14:00 - 17:00
-                      </SelectItem>
-                      <SelectItem value="SEVENTEEN_TWENTY">
-                        17:00 - 20:00
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Miasto</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="street"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ulica</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="assignedToId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Przypisany technik</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz technika" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nieprzypisany</SelectItem>
-                      {technicians?.map((tech) => (
-                        <SelectItem key={tech.id} value={tech.id}>
-                          {tech.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={onClose}>
+            {/* Action buttons */}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={onCloseAction}>
                 Anuluj
               </Button>
               <Button type="submit" disabled={isSubmitting}>

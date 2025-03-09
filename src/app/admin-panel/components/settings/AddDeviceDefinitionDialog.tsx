@@ -101,7 +101,7 @@ const AddDeviceDefinitionDialog: FC = () => {
               </SelectContent>
             </Select>
             {errors.category && (
-              <p className="text-red-500 text-sm">{errors.category.message}</p>
+              <p className="text-danger text-sm">{errors.category.message}</p>
             )}
           </div>
 
@@ -109,7 +109,7 @@ const AddDeviceDefinitionDialog: FC = () => {
             <Label>Nazwa podkategorii</Label>
             <Input placeholder="np. FunBox 6" {...register('name')} />
             {errors.name && (
-              <p className="text-red-500 text-sm">{errors.name.message}</p>
+              <p className="text-danger text-sm">{errors.name.message}</p>
             )}
           </div>
 

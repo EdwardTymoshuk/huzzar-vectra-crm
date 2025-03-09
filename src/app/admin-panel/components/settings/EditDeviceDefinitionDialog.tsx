@@ -116,7 +116,7 @@ const EditDeviceDefinitionDialog: FC<EditDeviceDefinitionDialogProps> = ({
               </SelectContent>
             </Select>
             {errors.category && (
-              <p className="text-red-500 text-sm">{errors.category.message}</p>
+              <p className="text-danger text-sm">{errors.category.message}</p>
             )}
           </div>
 
@@ -124,7 +124,7 @@ const EditDeviceDefinitionDialog: FC<EditDeviceDefinitionDialogProps> = ({
             <Label>Nazwa</Label>
             <Input {...register('name')} placeholder="np. FunBox 6" />
             {errors.name && (
-              <p className="text-red-500 text-sm">{errors.name.message}</p>
+              <p className="text-danger text-sm">{errors.name.message}</p>
             )}
           </div>
 

@@ -93,7 +93,7 @@ const EditRateDefinitionDialog: FC<EditRateDefinitionDialogProps> = ({
             <Label>Kod</Label>
             <Input placeholder="Kod" {...register('code')} />
             {errors.code && (
-              <p className="text-red-500 text-sm">{errors.code.message}</p>
+              <p className="text-danger text-sm">{errors.code.message}</p>
             )}
           </div>
 
@@ -105,7 +105,7 @@ const EditRateDefinitionDialog: FC<EditRateDefinitionDialogProps> = ({
               {...register('amount', { valueAsNumber: true })}
             />
             {errors.amount && (
-              <p className="text-red-500 text-sm">{errors.amount.message}</p>
+              <p className="text-danger text-sm">{errors.amount.message}</p>
             )}
           </div>
 

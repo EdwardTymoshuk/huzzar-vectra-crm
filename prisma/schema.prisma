@@ -7,136 +7,131 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
- //********************** USERS **********************
+////////////////////////////////////////////////////////
+//                      MODELS
+////////////////////////////////////////////////////////
+
+/// The user model, representing all users in the system.
+/// Includes technicians, coordinators, warehouse managers, and admins.
 model User {
-  id            String  @id @default(uuid()) // Unique user ID
-  email         String   @unique // Unique user email
-  password      String // Encrypted user password
-  name          String // Full name of the user
-  role          Role    @default(TECHNICIAN) // User role
-  phoneNumber   String // User phone number
-  identyficator Int?    @unique // Unique identifier for the user
-  status        UserStatus @default(ACTIVE) // Account status
-  createdAt     DateTime @default(now()) // User account creation date
-  updatedAt     DateTime @updatedAt // Last update timestamp
-
-  // Relations
-  orders            Order[] // List of assigned work orders
-  orderHistory      OrderHistory[] // History of changes made by the user
-  warehouseItems    Warehouse[] @relation("WarehouseAssignedTo") // Equipment assigned to the user
-  warehouseHistoryPerformed WarehouseHistory[] @relation("WarehouseHistoryPerformedBy") // User who performed warehouse actions
-  warehouseHistoryAssigned  WarehouseHistory[] @relation("WarehouseHistoryAssignedTo") // User who was assigned items
+  id                        String             @id @default(uuid())
+  email                     String             @unique
+  name                      String
+  createdAt                 DateTime           @default(now())
+  identyficator             Int?               @unique
+  password                  String
+  phoneNumber               String
+  role                      Role               @default(TECHNICIAN)
+  status                    UserStatus         @default(ACTIVE)
+  updatedAt                 DateTime           @updatedAt
+  orders                    Order[]
+  orderHistory              OrderHistory[]
+  warehouseItems            Warehouse[]        @relation("WarehouseAssignedTo")
+  warehouseHistoryAssigned  WarehouseHistory[] @relation("WarehouseHistoryAssignedTo")
+  warehouseHistoryPerformed WarehouseHistory[] @relation("WarehouseHistoryPerformedBy")
 }
 
- //********************** ORDERS **********************
+/// The order model, representing job assignments in the system.
 model Order {
-  id               String   @id @default(uuid()) // Unique order ID
-  orderNumber      String   @unique // Unique order number
-  date             DateTime // Order date
-  timeSlot         TimeSlot // Time range for execution (e.g., 8-12, 8-9)
-  standard         Standard // Execution standard (W1-W6)
-  contractRequired Boolean  // Indicates if a contract needs to be delivered
-  equipmentNeeded  String[] // List of required equipment (names only, no serial numbers)
-  clientPhoneNumber String? // Customer contact number
-  notes            String?  // Additional order notes
-  status           OrderStatus @default(PENDING) // Order status
-
-  // Address details
-  county          String   // County (Powiat)
-  municipality    String   // Municipality (Gmina)
-  city           String   // City
-  street         String   // Street address
-  postalCode     String   // Postal code
-
-  // Relations
-  assignedTo      User?    @relation(fields: [assignedToId], references: [id]) // Assigned technician
-  assignedToId    String?
-
-  // Equipment assigned to the order
-  assignedEquipment Warehouse[] @relation("WarehouseAssignedToOrder")
-
-  // Order history
-  history         OrderHistory[]
-
-  createdAt       DateTime @default(now()) // Order creation date
-  updatedAt       DateTime @updatedAt // Last update timestamp
+  id                String         @id @default(uuid())
+  operator          Operator       // Defines the operator handling the order
+  type              OrderType
+  orderNumber       String         @unique
+  date              DateTime
+  timeSlot          TimeSlot
+  standard          Standard?
+  contractRequired  Boolean
+  equipmentNeeded   String[]
+  clientPhoneNumber String?
+  notes             String?
+  status            OrderStatus    @default(PENDING)
+  county            String?
+  municipality      String?
+  city              String
+  street            String
+  postalCode        String
+  assignedToId      String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  assignedTo        User?          @relation(fields: [assignedToId], references: [id])
+  history           OrderHistory[]
+  assignedEquipment Warehouse[]    @relation("WarehouseAssignedToOrder")
 }
 
- //***************** ORDER HISTORY ********************
+/// Tracks changes in order statuses.
 model OrderHistory {
-  id            String   @id @default(uuid()) // Unique history record ID
-  order         Order    @relation(fields: [orderId], references: [id]) // Related order
+  id            String      @id @default(uuid())
   orderId       String
-  changedBy     User     @relation(fields: [changedById], references: [id]) // User who made the change
   changedById   String
-  changeDate    DateTime @default(now()) // Timestamp of the change
-  statusBefore  OrderStatus // Previous status before the change
-  statusAfter   OrderStatus // New status after the change
-  notes         String?  // Additional notes about the change
-  equipmentUsed String[] // List of used equipment/materials
+  changeDate    DateTime    @default(now())
+  statusBefore  OrderStatus
+  statusAfter   OrderStatus
+  notes         String?
+  equipmentUsed String[]
+  changedBy     User        @relation(fields: [changedById], references: [id])
+  order         Order       @relation(fields: [orderId], references: [id])
 }
 
-//********************* WAREHOUSE ********************
+/// Represents items stored in the warehouse.
 model Warehouse {
-  id          String  @id @default(uuid()) // Unique warehouse ID
-  itemType    WarehouseItemType // Item type (Device or Material)
-  name        String // Item name
-  category    DeviceCategory? // Category (only for Devices)
-  subcategory String? // Subcategory (e.g., Modem, Amplifier)
-  serialNumber String? @unique // Unique serial number (only for Devices)
-  quantity    Int // Quantity (for Materials)
-  unit        MaterialUnit? // Unit (only for Materials)
-  price       Float // Price per unit
-  status      WarehouseStatus // Status (Available, Assigned, Returned, AssignedToOrder)
-  
-  // Assigned to a technician or stored in the main warehouse
-  assignedTo  User?   @relation(fields: [assignedToId], references: [id], name: "WarehouseAssignedTo")
-  assignedToId String?
-
-  // Assigned to an order
-  assignedOrder Order? @relation(fields: [assignedOrderId], references: [id], name: "WarehouseAssignedToOrder")
+  id              String             @id @default(uuid())
+  itemType        WarehouseItemType
+  name            String
+  category        DeviceCategory?
+  subcategory     String?
+  serialNumber    String?            @unique
+  quantity        Int
+  unit            MaterialUnit?
+  price           Float
+  status          WarehouseStatus
+  assignedToId    String?
   assignedOrderId String?
-
-  // Warehouse history tracking
-  history     WarehouseHistory[]
-
-  createdAt   DateTime @default(now()) // Record creation date
-  updatedAt   DateTime @updatedAt // Last update timestamp
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  assignedOrder   Order?             @relation("WarehouseAssignedToOrder", fields: [assignedOrderId], references: [id])
+  assignedTo      User?              @relation("WarehouseAssignedTo", fields: [assignedToId], references: [id])
+  history         WarehouseHistory[]
 }
 
-//***************** SETTINGS ********************
+/// Defines different types of devices available in the warehouse.
 model DeviceDefinition {
   id       String         @id @default(uuid())
   category DeviceCategory
-  name     String        
+  name     String
 }
 
+/// Represents rate definitions for different services.
 model RateDefinition {
   id     String @id @default(uuid())
-  code   String 
-  amount Float 
+  code   String
+  amount Float
 }
 
-
-
- //***************** WAREHOUSE HISTORY ****************
+/// Tracks warehouse operations like receiving, issuing, or returning items.
 model WarehouseHistory {
-  id            String  @id @default(uuid()) // Unique history record ID
-  warehouseItem Warehouse @relation(fields: [warehouseItemId], references: [id]) // Related warehouse item
+  id              String          @id @default(uuid())
   warehouseItemId String
-
-  action        WarehouseAction // Action type (Received, Issued, Returned)
-  performedBy   User     @relation(fields: [performedById], references: [id], name: "WarehouseHistoryPerformedBy") // User who performed the action
-  performedById String
-  assignedTo    User?    @relation(fields: [assignedToId], references: [id], name: "WarehouseHistoryAssignedTo") // Assigned technician (if applicable)
-  assignedToId  String?
-  actionDate    DateTime @default(now()) // Timestamp of the action
-  notes         String?  // Additional comments
+  action          WarehouseAction
+  performedById   String
+  assignedToId    String?
+  actionDate      DateTime        @default(now())
+  notes           String?
+  assignedTo      User?           @relation("WarehouseHistoryAssignedTo", fields: [assignedToId], references: [id])
+  performedBy     User            @relation("WarehouseHistoryPerformedBy", fields: [performedById], references: [id])
+  warehouseItem   Warehouse       @relation(fields: [warehouseItemId], references: [id])
 }
 
- //********************** ENUMS **********************
+////////////////////////////////////////////////////////
+//                      ENUMS
+////////////////////////////////////////////////////////
 
-//*********** USER ENUMS ***********
+/// Defines the operator responsible for an order.
+enum Operator {
+  V
+  MMP
+}
+
+/// Defines user roles within the system.
 enum Role {
   TECHNICIAN
   COORDINATOR
@@ -144,22 +139,30 @@ enum Role {
   ADMIN
 }
 
+/// Defines the status of a user.
 enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
 }
 
-//*********** ORDER ENUMS ***********
+/// Defines the status of an order.
 enum OrderStatus {
-  PENDING // Waiting for assignment
-  ASSIGNED // Assigned to a technician
-  IN_PROGRESS // Work in progress
-  COMPLETED // Successfully completed
-  NOT_COMPLETED // Not completed
-  CANCELED // Order canceled
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  NOT_COMPLETED
+  CANCELED
 }
 
+//define order type
+enum OrderType {
+  INSTALATION
+  SERVICE
+}
+
+/// Defines the standard of execution for an order.
 enum Standard {
   W1
   W2
@@ -169,41 +172,54 @@ enum Standard {
   W6
 }
 
+/// Defines time slots for order scheduling.
 enum TimeSlot {
-  EIGHT_ELEVEN      // 08:00 - 11:00
-  ELEVEN_FOURTEEN   // 11:00 - 14:00
-  FOURTEEN_SEVENTEEN // 14:00 - 17:00
-  SEVENTEEN_TWENTY  // 17:00 - 20:00
+  EIGHT_TEN          @map("8-10")    // 08:00 - 10:00
+  TEN_TWELVE         @map("10-12")   // 10:00 - 12:00
+  TWELVE_FOURTEEN    @map("12-14")   // 12:00 - 14:00
+  FOURTEEN_SIXTEEN   @map("14-16")   // 14:00 - 16:00
+  SIXTEEN_EIGHTEEN   @map("16-18")   // 16:00 - 18:00
+  EIGHTEEN_TWENTY    @map("18-20")   // 18:00 - 20:00
+
+  NINE_TWELVE        @map("9-12")    // 09:00 - 12:00
+  TWELVE_FIFTEEN     @map("12-15")   // 12:00 - 15:00
+  FIFTEEN_EIGHTEEN   @map("15-18")   // 15:00 - 18:00
+  EIGHTEEN_TWENTYONE @map("18-21")   // 18:00 - 21:00
 }
 
-//*********** WAREHOUSE ENUMS ***********
+
+/// Defines item types in the warehouse.
 enum WarehouseItemType {
   DEVICE
   MATERIAL
 }
 
+/// Defines categories of devices.
 enum DeviceCategory {
   MODEM
   DECODER
-  ONT
-  AMPLIFIER
   OTHER
+  AMPLIFIER
+  ONT
 }
 
+/// Defines measurement units for warehouse items.
 enum MaterialUnit {
   PIECE
   METER
 }
 
+/// Defines the status of items in the warehouse.
 enum WarehouseStatus {
   AVAILABLE
   ASSIGNED
-  RETURNED // Item returned to the warehouse
-  ASSIGNED_TO_ORDER // Item assigned to an order
+  RETURNED
+  ASSIGNED_TO_ORDER
 }
 
+/// Defines possible warehouse operations.
 enum WarehouseAction {
-  RECEIVED // Item added to warehouse
-  ISSUED // Item issued to a technician
-  RETURNED // Item returned to warehouse
+  RECEIVED
+  ISSUED
+  RETURNED
 }

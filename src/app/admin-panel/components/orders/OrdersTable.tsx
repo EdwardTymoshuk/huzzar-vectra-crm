@@ -1,5 +1,15 @@
 'use client'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
@@ -25,7 +35,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
-import { statusColorMap, statusMap, timeSlotMap } from '@/lib/constants'
+import { getTimeSlotLabel, statusColorMap, statusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, Prisma } from '@prisma/client'
 import { useMemo, useState } from 'react'
@@ -64,23 +74,46 @@ const OrdersTable = () => {
   const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
     null
   )
+
+  // For editing status inline:
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
 
-  const { searchTerm } = useOrdersSearch()
+  // For editing technician inline:
+  const [editingTechId, setEditingTechId] = useState<string | null>(null)
 
-  // Fetch orders from API using tRPC
+  // Deletion
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [orderToDelete, setOrderToDelete] =
+    useState<OrderWithAssignedTo | null>(null)
+
+  const { searchTerm } = useOrdersSearch()
+  const trpcUtils = trpc.useUtils()
+
+  // tRPC queries and mutations
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
     sortField,
     sortOrder,
     status: statusFilter || undefined,
-    technician: technicianFilter || undefined,
+    assignedToId: technicianFilter || undefined,
   })
+
   const updateStatusMutation = trpc.order.toggleOrderStatus.useMutation()
+  const deleteOrderMutation = trpc.order.deleteOrder.useMutation()
+
+  // Example: specialized mutation to assign a technician
+  const assignTechMutation = trpc.order.assignTechnician?.useMutation()
+
+  // If you don't have 'assignTechnician', you can do partial "editOrder" if it allows partial data.
 
   const orders = (data?.orders ?? []) as OrderWithAssignedTo[]
   const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
+
+  // For listing all technicians. If you have a user.getAllUsers or similar:
+  const { data: technicians } = trpc.user.getAllUsers?.useQuery() || {
+    data: [],
+  }
 
   const filteredOrders = useMemo(() => {
     return orders.filter(
@@ -101,6 +134,7 @@ const OrdersTable = () => {
     }
   }
 
+  // Opens the "Edit order" modal
   const handleEditOrder = (order: OrderWithAssignedTo) => {
     setEditingOrder({
       ...order,
@@ -109,12 +143,55 @@ const OrdersTable = () => {
     setIsEditModalOpen(true)
   }
 
+  const handleDeleteOrder = (order: OrderWithAssignedTo) => {
+    setOrderToDelete(order)
+    setIsDeleteModalOpen(true)
+  }
+
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return
+    await deleteOrderMutation.mutateAsync({ id: orderToDelete.id })
+    setIsDeleteModalOpen(false)
+    setOrderToDelete(null)
+    trpcUtils.order.getOrders.invalidate()
+  }
+
+  // In-line status change
   const handleStatusChange = async (
     orderId: string,
     newStatus: OrderStatus
   ) => {
-    await updateStatusMutation.mutateAsync({ id: orderId, status: newStatus })
+    const order = orders.find((o) => o.id === orderId)
+    if (!order) return
+
+    const finalStatus =
+      newStatus === OrderStatus.PENDING && order.assignedToId
+        ? OrderStatus.ASSIGNED
+        : newStatus
+
+    await updateStatusMutation.mutateAsync({ id: orderId, status: finalStatus })
+
+    trpcUtils.order.getOrders.invalidate()
     setEditingStatusId(null)
+  }
+
+  // In-line technician change
+  const handleTechChange = async (orderId: string, newTechId: string) => {
+    if (!assignTechMutation) {
+      console.warn('No "assignTechnician" mutation found in the router.')
+      setEditingTechId(null)
+      return
+    }
+
+    const assignedToId = newTechId === 'none' ? undefined : newTechId
+
+    await assignTechMutation.mutateAsync({
+      id: orderId,
+      assignedToId,
+    })
+
+    trpcUtils.order.getOrders.invalidate()
+    setEditingTechId(null)
   }
 
   return (
@@ -144,6 +221,7 @@ const OrdersTable = () => {
       <Table className="border rounded-lg">
         <TableHeader>
           <TableRow>
+            <TableHead>Operator</TableHead>
             <TableHead>Nr zlecenia</TableHead>
             <TableHead
               onClick={() => handleSort('date')}
@@ -189,23 +267,25 @@ const OrdersTable = () => {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center">
+              <TableCell colSpan={8} className="text-center">
                 Ładowanie...
               </TableCell>
             </TableRow>
           ) : isError ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-red-500">
+              <TableCell colSpan={8} className="text-center text-danger">
                 Błąd ładowania danych.
               </TableCell>
             </TableRow>
           ) : orders.length ? (
             filteredOrders.map((order) => (
               <TableRow key={order.id}>
+                <TableCell>{order.operator}</TableCell>
                 <TableCell>{order.orderNumber}</TableCell>
                 <TableCell>
                   {new Date(order.date).toLocaleDateString()}
                 </TableCell>
+                {/* STATUS - in-line editing */}
                 <TableCell
                   onDoubleClick={() => setEditingStatusId(order.id)}
                   className="cursor-pointer"
@@ -216,6 +296,11 @@ const OrdersTable = () => {
                       onValueChange={(value) =>
                         handleStatusChange(order.id, value as OrderStatus)
                       }
+                      onOpenChange={(isOpen) => {
+                        if (!isOpen) {
+                          setEditingStatusId(null)
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -235,15 +320,54 @@ const OrdersTable = () => {
                   )}
                 </TableCell>
                 <TableCell>
-                  {timeSlotMap[order.timeSlot] || order.timeSlot}
+                  {getTimeSlotLabel(order.operator, order.timeSlot)}
                 </TableCell>
                 <TableCell>
                   {order.city}, {order.street}
                 </TableCell>
-                <TableCell>
-                  {order.assignedTo ? order.assignedTo.name : 'Nieprzypisany'}
+
+                {/* TECHNICIAN - in-line editing */}
+                <TableCell
+                  onDoubleClick={() => setEditingTechId(order.id)}
+                  className="cursor-pointer"
+                >
+                  {editingTechId === order.id ? (
+                    <Select
+                      defaultValue={
+                        order.assignedTo?.id ? order.assignedTo.id : 'none'
+                      }
+                      onValueChange={(value) =>
+                        handleTechChange(order.id, value)
+                      }
+                      onOpenChange={(isOpen) => {
+                        if (!isOpen) {
+                          setEditingTechId(null)
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nieprzypisany</SelectItem>
+                        {technicians?.map((tech) => (
+                          <SelectItem key={tech.id} value={tech.id}>
+                            {tech.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : order.assignedTo ? (
+                    <Badge className="bg-secondary hover:bg-secondary/80">
+                      {order.assignedTo.name}
+                    </Badge>
+                  ) : (
+                    'Nieprzypisany'
+                  )}
                 </TableCell>
+
                 <TableCell className="flex gap-2">
+                  {/* View details */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -254,6 +378,7 @@ const OrdersTable = () => {
                   >
                     <MdVisibility className="w-5 h-5 text-warning" />
                   </Button>
+                  {/* Edit modal */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -261,7 +386,12 @@ const OrdersTable = () => {
                   >
                     <MdEdit className="w-5 h-5 text-success" />
                   </Button>
-                  <Button size="icon" variant="ghost">
+                  {/* Delete */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleDeleteOrder(order)}
+                  >
                     <MdDelete className="w-5 h-5 text-danger" />
                   </Button>
                 </TableCell>
@@ -269,7 +399,7 @@ const OrdersTable = () => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={7} className="text-center">
+              <TableCell colSpan={8} className="text-center">
                 Brak danych do wyświetlenia.
               </TableCell>
             </TableRow>
@@ -314,18 +444,51 @@ const OrdersTable = () => {
         </Pagination>
       )}
 
+      {/* Order details side panel */}
       <OrderDetailsPanel
         orderId={selectedOrderId}
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
       />
 
+      {/* Edit modal */}
       {isEditModalOpen && editingOrder && (
         <EditOrderModal
+          open={isEditModalOpen}
           order={editingOrder}
-          onClose={() => setIsEditModalOpen(false)}
+          onCloseAction={() => setIsEditModalOpen(false)}
         />
       )}
+
+      {/* DELETE ALERT DIALOG */}
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Czy na pewno chcesz usunąć to zlecenie?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="text-danger text-base">
+                Usunięcie tego zlecenia jest nieodwracalne.
+              </span>
+              <br />
+              <br />
+              <strong>Nr zlecenia:</strong> {orderToDelete?.orderNumber} <br />
+              <strong>Adres:</strong> {orderToDelete?.city},{' '}
+              {orderToDelete?.street}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteOrder}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Usuń
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

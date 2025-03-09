@@ -77,7 +77,7 @@ const AddRateDefinitionDialog: FC = () => {
             <Label>Kod</Label>
             <Input placeholder="np. W1" {...register('code')} />
             {errors.code && (
-              <p className="text-red-500 text-sm">{errors.code.message}</p>
+              <p className="text-danger text-sm">{errors.code.message}</p>
             )}
           </div>
 
@@ -90,7 +90,7 @@ const AddRateDefinitionDialog: FC = () => {
               {...register('amount', { valueAsNumber: true })}
             />
             {errors.amount && (
-              <p className="text-red-500 text-sm">{errors.amount.message}</p>
+              <p className="text-danger text-sm">{errors.amount.message}</p>
             )}
           </div>
 

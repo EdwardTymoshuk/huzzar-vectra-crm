@@ -30,7 +30,10 @@ const OrdersToolbar = () => {
 
         <ImportOrders />
 
-        <Button variant="danger" onClick={() => router.push('/planowanie')}>
+        <Button
+          variant="danger"
+          onClick={() => router.push('/admin-panel/orders?tab=planning')}
+        >
           <MdCalendarMonth />
           <span className="hidden lg:inline">Planowanie</span>
         </Button>
@@ -43,7 +46,10 @@ const OrdersToolbar = () => {
       />
 
       {/* Add Order Modal */}
-      <AddOrderModal open={isModalOpen} onClose={() => setModalOpen(false)} />
+      <AddOrderModal
+        open={isModalOpen}
+        onCloseAction={() => setModalOpen(false)}
+      />
     </div>
   )
 }

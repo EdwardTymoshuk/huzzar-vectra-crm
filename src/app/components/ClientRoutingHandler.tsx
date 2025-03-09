@@ -16,6 +16,7 @@ const pages: Record<string, React.ComponentType> = {
   billing: dynamic(() => import('@/app/admin-panel/billing/page')),
   employees: dynamic(() => import('@/app/admin-panel/employees/page')),
   settings: dynamic(() => import('@/app/admin-panel/settings/page')),
+  planning: dynamic(() => import('@/app/admin-panel/orders/planning/page')),
 }
 
 const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
