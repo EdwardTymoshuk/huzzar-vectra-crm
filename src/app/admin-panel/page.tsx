@@ -4,7 +4,7 @@
 
 import MaxWidthWrapper from '../components/MaxWidthWrapper'
 
-export default function HomePage() {
+const HomePage = () => {
   return (
     <div className="flex-1 flex flex-col">
       <MaxWidthWrapper>
@@ -13,3 +13,5 @@ export default function HomePage() {
     </div>
   )
 }
+
+export default HomePage

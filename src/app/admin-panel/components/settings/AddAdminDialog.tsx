@@ -53,7 +53,7 @@ type AdminFormData = z.infer<typeof adminSchema>
  * - Allows adding a new administrator with API integration (tRPC + Prisma).
  * - Provides full validation, role selection, and password generation.
  */
-export default function AddAdminDialog() {
+const AddAdminDialog = () => {
   const [open, setOpen] = useState(false)
   const [isSpinning, setIsSpinning] = useState(false)
 
@@ -223,3 +223,5 @@ export default function AddAdminDialog() {
     </Dialog>
   )
 }
+
+export default AddAdminDialog

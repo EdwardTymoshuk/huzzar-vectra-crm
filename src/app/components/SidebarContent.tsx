@@ -13,7 +13,7 @@ import UserDropdown from './UserDropdown'
  * SidebarContent component dynamically updates content without page reload.
  * Uses query parameter "tab" instead of navigating to a new page.
  */
-export default function SidebarContent() {
+const SidebarContent = () => {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -60,3 +60,5 @@ export default function SidebarContent() {
     </div>
   )
 }
+
+export default SidebarContent

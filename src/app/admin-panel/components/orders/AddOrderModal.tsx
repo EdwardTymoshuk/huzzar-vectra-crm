@@ -62,6 +62,8 @@ export function AddOrderModal({
     },
   })
 
+  const assignedToId = form.watch('assignedToId')
+
   /**
    * Handles the form submission:
    * - Converts 'equipmentNeeded' from comma-separated string to string[]
@@ -101,7 +103,7 @@ export function AddOrderModal({
       // Reset the form and close the modal
       form.reset()
       onCloseAction()
-    } catch (error) {
+    } catch {
       toast.error('Błąd podczas dodawania zlecenia.')
     } finally {
       setIsSubmitting(false)
@@ -109,7 +111,6 @@ export function AddOrderModal({
   }
 
   useEffect(() => {
-    const assignedToId = form.watch('assignedToId')
     const currentStatus = form.getValues('status')
 
     if (
@@ -119,7 +120,7 @@ export function AddOrderModal({
     ) {
       form.setValue('status', OrderStatus.ASSIGNED)
     }
-  }, [form.watch('assignedToId')])
+  }, [assignedToId, form])
 
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>

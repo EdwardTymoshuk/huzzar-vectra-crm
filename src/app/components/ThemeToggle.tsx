@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { LuMoonStar, LuSunMedium } from 'react-icons/lu'
 
-export default function ThemeToggle() {
+const ThemeToggle = () => {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const isDark = theme === 'dark'
@@ -68,3 +68,5 @@ export default function ThemeToggle() {
     </div>
   )
 }
+
+export default ThemeToggle

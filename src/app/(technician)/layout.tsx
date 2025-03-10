@@ -3,6 +3,7 @@ import Providers from '@/app/components/Providers'
 import '@/app/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Suspense } from 'react'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -22,18 +23,22 @@ export const metadata: Metadata = {
 /**
  * Technician layout sharing the same Providers and ClientRoutingHandler.
  */
-export default function TechnicianLayout({
+const TechnicianLayout = ({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{ children: React.ReactNode }>) => {
   return (
     <html lang="pl">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          <ClientRoutingHandler>{children}</ClientRoutingHandler>
+          <Suspense fallback={<div>Loading...</div>}>
+            <ClientRoutingHandler>{children}</ClientRoutingHandler>
+          </Suspense>
         </Providers>
       </body>
     </html>
   )
 }
+
+export default TechnicianLayout

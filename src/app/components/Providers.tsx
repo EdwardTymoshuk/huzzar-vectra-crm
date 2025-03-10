@@ -8,7 +8,7 @@ import { Toaster } from 'sonner'
 import Noop from './Noop'
 import { ThemeProvider } from './ThemeProvider'
 
-export default function Providers({ children }: { children: ReactNode }) {
+const Providers = ({ children }: { children: ReactNode }) => {
   const [queryClient] = useState(() => new QueryClient())
 
   return (
@@ -22,3 +22,5 @@ export default function Providers({ children }: { children: ReactNode }) {
     </QueryClientProvider>
   )
 }
+
+export default Providers

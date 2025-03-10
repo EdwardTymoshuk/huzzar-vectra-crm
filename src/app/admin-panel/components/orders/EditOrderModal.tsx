@@ -89,6 +89,8 @@ const EditOrderModal = ({
     },
   })
 
+  const assignedToId = form.watch('assignedToId')
+
   /**
    * Handle form submission to update existing order.
    * Convert equipmentNeeded from comma-separated string to string[],
@@ -128,7 +130,6 @@ const EditOrderModal = ({
   }
 
   useEffect(() => {
-    const assignedToId = form.watch('assignedToId')
     const currentStatus = form.getValues('status')
 
     if (
@@ -138,7 +139,7 @@ const EditOrderModal = ({
     ) {
       form.setValue('status', OrderStatus.ASSIGNED)
     }
-  }, [form.watch('assignedToId')])
+  }, [assignedToId, form])
 
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>

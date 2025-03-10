@@ -107,7 +107,10 @@ const OrdersTable = () => {
 
   // If you don't have 'assignTechnician', you can do partial "editOrder" if it allows partial data.
 
-  const orders = (data?.orders ?? []) as OrderWithAssignedTo[]
+  const orders = useMemo(() => {
+    return (data?.orders ?? []) as OrderWithAssignedTo[]
+  }, [data?.orders])
+
   const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
 
   // For listing all technicians. If you have a user.getAllUsers or similar:

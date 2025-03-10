@@ -3,6 +3,7 @@ import Providers from '@/app/components/Providers'
 import '@/app/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Suspense } from 'react'
 
 // Fonts configuration
 const geistSans = Geist({
@@ -24,18 +25,20 @@ export const metadata: Metadata = {
  * Admin layout using global Providers and ClientRoutingHandler.
  * Sidebar and Header are dynamically rendered by ClientRoutingHandler.
  */
-export default function AdminLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+const AdminLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <html lang="pl">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          <ClientRoutingHandler>{children}</ClientRoutingHandler>
+          <Suspense fallback={<div>Loading...</div>}>
+            <ClientRoutingHandler>{children}</ClientRoutingHandler>
+          </Suspense>
         </Providers>
       </body>
     </html>
   )
 }
+
+export default AdminLayout

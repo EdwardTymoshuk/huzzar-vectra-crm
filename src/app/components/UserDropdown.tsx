@@ -10,7 +10,7 @@ import {
 import { signOut, useSession } from 'next-auth/react'
 import { CgProfile } from 'react-icons/cg'
 
-export default function UserDropdown() {
+const UserDropdown = () => {
   const { data: session } = useSession()
 
   return (
@@ -45,3 +45,5 @@ export default function UserDropdown() {
     </DropdownMenu>
   )
 }
+
+export default UserDropdown

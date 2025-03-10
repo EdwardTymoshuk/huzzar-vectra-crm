@@ -9,7 +9,7 @@ import SidebarContent from './SidebarContent' // Mobile Sidebar Content
 /**
  * Header component that includes a mobile sidebar toggle.
  */
-export default function Header() {
+const Header = () => {
   return (
     <header className="w-full bg-secondary text-secondary-foreground flex md:hidden items-center justify-between px-4 py-3 md:pl-72 border-b border-border">
       {/* Mobile Menu Button */}
@@ -31,3 +31,5 @@ export default function Header() {
     </header>
   )
 }
+
+export default Header

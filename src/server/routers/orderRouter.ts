@@ -354,11 +354,6 @@ export const orderRouter = router({
 
       if (!order) throw new Error('Zlecenie nie istnieje.')
 
-      const updatedStatus =
-        input.assignedToId && order.status === OrderStatus.PENDING
-          ? OrderStatus.ASSIGNED
-          : order.status
-
       const technicianExists = input.assignedToId
         ? await prisma.user.findUnique({ where: { id: input.assignedToId } })
         : true

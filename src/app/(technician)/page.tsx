@@ -1,13 +1,18 @@
 'use client'
 
+import { Suspense } from 'react'
 import MaxWidthWrapper from '../components/MaxWidthWrapper'
 
-export default function HomePage() {
+const HomePage = () => {
   return (
-    <div className="flex-1 flex flex-col">
-      <MaxWidthWrapper>
-        <h1 className="text-xl font-bold">Main Page</h1>
-      </MaxWidthWrapper>
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <div className="flex-1 flex flex-col">
+        <MaxWidthWrapper>
+          <h1 className="text-xl font-bold">Main Page</h1>
+        </MaxWidthWrapper>
+      </div>
+    </Suspense>
   )
 }
+
+export default HomePage

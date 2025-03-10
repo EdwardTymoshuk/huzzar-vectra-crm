@@ -27,7 +27,7 @@ enum Role {
   ADMIN = 'ADMIN',
 }
 
-export default function LoginForm() {
+const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loginError, setLoginError] = useState('')
   const searchParams = useSearchParams()
@@ -139,3 +139,5 @@ export default function LoginForm() {
     </MaxWidthWrapper>
   )
 }
+
+export default LoginForm

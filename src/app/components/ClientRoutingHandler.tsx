@@ -5,6 +5,7 @@ import MainContainer from '@/app/components/MainContainer'
 import Sidebar from '@/app/components/Sidebar'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
 /**
  * Lazy-load pages dynamically based on active tab
@@ -19,9 +20,7 @@ const pages: Record<string, React.ComponentType> = {
   planning: dynamic(() => import('@/app/admin-panel/orders/planning/page')),
 }
 
-const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({}) => {
   const searchParams = useSearchParams()
   const activeTab = searchParams.get('tab') || 'dashboard'
 
@@ -30,13 +29,15 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <>
-      <Header />
-      <div className="flex h-screen">
-        <Sidebar />
-        <MainContainer>
-          <ActivePage />
-        </MainContainer>
-      </div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Header />
+        <div className="flex h-screen">
+          <Sidebar />
+          <MainContainer>
+            <ActivePage />
+          </MainContainer>
+        </div>
+      </Suspense>
     </>
   )
 }
