@@ -1,5 +1,6 @@
 'use client'
 
+import LoaderSpinner from '@/app/components/LoaderSpinner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,14 +39,13 @@ import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
 import { getTimeSlotLabel, statusColorMap, statusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, Prisma } from '@prisma/client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { MdDelete, MdEdit, MdVisibility } from 'react-icons/md'
 import {
-  MdArrowDownward,
-  MdArrowUpward,
-  MdDelete,
-  MdEdit,
-  MdVisibility,
-} from 'react-icons/md'
+  TiArrowSortedDown,
+  TiArrowSortedUp,
+  TiArrowUnsorted,
+} from 'react-icons/ti'
 import EditOrderModal from './EditOrderModal'
 import OrderDetailsPanel from './OrderDetailsPanel'
 import OrdersFilterSort from './OrdersFilter'
@@ -61,27 +61,37 @@ type OrderWithAssignedTo = Prisma.OrderGetPayload<{
   }
 }>
 
+type SortField = null | 'date' | 'status'
+type SortOrder = null | 'asc' | 'desc'
+
 const OrdersTable = () => {
+  // Current pagination page
   const [currentPage, setCurrentPage] = useState(1)
+  // How many items per page
   const [itemsPerPage, setItemsPerPage] = useState(30)
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [isPanelOpen, setIsPanelOpen] = useState(false)
-  const [sortField, setSortField] = useState<'date' | 'status'>('date')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  // Local states for sorting
+  const [sortField, setSortField] = useState<SortField>(null)
+  const [sortOrder, setSortOrder] = useState<SortOrder>(null)
+
+  // States for filters
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
+
+  // State for details panel
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+
+  // State for "edit order" modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
     null
   )
 
-  // For editing status inline:
+  // Inline edit states (double click on cells)
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
-
-  // For editing technician inline:
   const [editingTechId, setEditingTechId] = useState<string | null>(null)
 
-  // Deletion
+  // Deletion states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [orderToDelete, setOrderToDelete] =
     useState<OrderWithAssignedTo | null>(null)
@@ -89,35 +99,39 @@ const OrdersTable = () => {
   const { searchTerm } = useOrdersSearch()
   const trpcUtils = trpc.useUtils()
 
-  // tRPC queries and mutations
+  // tRPC queries
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
-    sortField,
-    sortOrder,
+    // Only send sort params if not null
+    ...(sortField ? { sortField, sortOrder: sortOrder ?? 'asc' } : {}),
     status: statusFilter || undefined,
     assignedToId: technicianFilter || undefined,
   })
 
-  const updateStatusMutation = trpc.order.toggleOrderStatus.useMutation()
-  const deleteOrderMutation = trpc.order.deleteOrder.useMutation()
-
-  // Example: specialized mutation to assign a technician
-  const assignTechMutation = trpc.order.assignTechnician?.useMutation()
-
-  // If you don't have 'assignTechnician', you can do partial "editOrder" if it allows partial data.
-
+  // We store the actual orders from the query
   const orders = useMemo(() => {
     return (data?.orders ?? []) as OrderWithAssignedTo[]
   }, [data?.orders])
 
+  // Calculate total pages based on totalOrders
   const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
 
-  // For listing all technicians. If you have a user.getAllUsers or similar:
+  // If the user is on a page > totalPages, we correct it automatically
+  useEffect(() => {
+    // Example: if current page is bigger than totalPages, jump back to last page
+    // You could also do `setCurrentPage(1)` if you always want to go back to page 1
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  // For listing technicians
   const { data: technicians } = trpc.user.getAllUsers?.useQuery() || {
     data: [],
   }
 
+  // Searching on the client side as well
   const filteredOrders = useMemo(() => {
     return orders.filter(
       (order) =>
@@ -128,16 +142,24 @@ const OrdersTable = () => {
     )
   }, [orders, searchTerm])
 
+  // Function to cycle sort states (null => asc => desc => null)
   const handleSort = (field: 'date' | 'status') => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
+    if (sortField !== field) {
       setSortField(field)
       setSortOrder('asc')
+    } else {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc')
+      } else if (sortOrder === 'desc') {
+        setSortField(null)
+        setSortOrder(null)
+      } else {
+        setSortOrder('asc')
+      }
     }
   }
 
-  // Opens the "Edit order" modal
+  // Open "Edit order" modal
   const handleEditOrder = (order: OrderWithAssignedTo) => {
     setEditingOrder({
       ...order,
@@ -146,11 +168,11 @@ const OrdersTable = () => {
     setIsEditModalOpen(true)
   }
 
+  // Delete confirmation dialog
   const handleDeleteOrder = (order: OrderWithAssignedTo) => {
     setOrderToDelete(order)
     setIsDeleteModalOpen(true)
   }
-
   const confirmDeleteOrder = async () => {
     if (!orderToDelete) return
     await deleteOrderMutation.mutateAsync({ id: orderToDelete.id })
@@ -158,6 +180,11 @@ const OrdersTable = () => {
     setOrderToDelete(null)
     trpcUtils.order.getOrders.invalidate()
   }
+
+  // Mutations
+  const updateStatusMutation = trpc.order.toggleOrderStatus.useMutation()
+  const deleteOrderMutation = trpc.order.deleteOrder.useMutation()
+  const assignTechMutation = trpc.order.assignTechnician?.useMutation()
 
   // In-line status change
   const handleStatusChange = async (
@@ -185,14 +212,8 @@ const OrdersTable = () => {
       setEditingTechId(null)
       return
     }
-
     const assignedToId = newTechId === 'none' ? undefined : newTechId
-
-    await assignTechMutation.mutateAsync({
-      id: orderId,
-      assignedToId,
-    })
-
+    await assignTechMutation.mutateAsync({ id: orderId, assignedToId })
     trpcUtils.order.getOrders.invalidate()
     setEditingTechId(null)
   }
@@ -200,13 +221,13 @@ const OrdersTable = () => {
   return (
     <div className="overflow-hidden">
       <div className="flex flex-row items-center w-full justify-between py-4">
-        {/* Header with Filtering */}
+        {/* Top filters */}
         <OrdersFilterSort
           setStatusFilter={setStatusFilter}
           setTechnicianFilter={setTechnicianFilter}
         />
 
-        {/* Number of items per page controls */}
+        {/* Items per page controls */}
         <div className="flex justify-end gap-2">
           {[30, 50, 100].map((size) => (
             <Button
@@ -220,7 +241,6 @@ const OrdersTable = () => {
         </div>
       </div>
 
-      {/* Orders Table */}
       <Table className="border rounded-lg">
         <TableHeader>
           <TableRow>
@@ -234,12 +254,12 @@ const OrdersTable = () => {
                 <span>Data</span>
                 {sortField === 'date' ? (
                   sortOrder === 'asc' ? (
-                    <MdArrowUpward className="w-4 h-4 text-gray-500" />
+                    <TiArrowSortedUp className="w-4 h-4 text-gray-500" />
                   ) : (
-                    <MdArrowDownward className="w-4 h-4 text-gray-500" />
+                    <TiArrowSortedDown className="w-4 h-4 text-gray-500" />
                   )
                 ) : (
-                  <MdArrowUpward className="w-4 h-4 text-gray-300" />
+                  <TiArrowUnsorted className="w-4 h-4 text-gray-300 hover:text-gray-400" />
                 )}
               </div>
             </TableHead>
@@ -252,12 +272,12 @@ const OrdersTable = () => {
                 <span>Status</span>
                 {sortField === 'status' ? (
                   sortOrder === 'asc' ? (
-                    <MdArrowUpward className="w-4 h-4 text-gray-500" />
+                    <TiArrowSortedUp className="w-4 h-4 text-gray-500" />
                   ) : (
-                    <MdArrowDownward className="w-4 h-4 text-gray-500" />
+                    <TiArrowSortedDown className="w-4 h-4 text-gray-500" />
                   )
                 ) : (
-                  <MdArrowUpward className="w-4 h-4 text-gray-300" />
+                  <TiArrowUnsorted className="w-4 h-4 text-gray-300 hover:text-gray-400" />
                 )}
               </div>
             </TableHead>
@@ -267,11 +287,12 @@ const OrdersTable = () => {
             <TableHead>Akcje</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {isLoading ? (
             <TableRow>
               <TableCell colSpan={8} className="text-center">
-                Ładowanie...
+                <LoaderSpinner />
               </TableCell>
             </TableRow>
           ) : isError ? (
@@ -322,7 +343,7 @@ const OrdersTable = () => {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-nowrap">
                   {getTimeSlotLabel(order.operator, order.timeSlot)}
                 </TableCell>
                 <TableCell>
@@ -361,7 +382,7 @@ const OrdersTable = () => {
                       </SelectContent>
                     </Select>
                   ) : order.assignedTo ? (
-                    <Badge className="bg-secondary hover:bg-secondary/80">
+                    <Badge className="bg-secondary hover:bg-secondary/80 text-center">
                       {order.assignedTo.name}
                     </Badge>
                   ) : (
@@ -485,7 +506,7 @@ const OrdersTable = () => {
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteOrder}
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="bg-danger text-white hover:bg-danger/80"
             >
               Usuń
             </AlertDialogAction>

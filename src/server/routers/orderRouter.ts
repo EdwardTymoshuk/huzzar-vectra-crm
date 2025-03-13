@@ -21,8 +21,11 @@ export const orderRouter = router({
       z.object({
         page: z.number().optional().default(1),
         limit: z.number().optional().default(30),
-        sortField: z.enum(['date', 'status']).optional().default('date'),
-        sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+        sortField: z
+          .enum(['createdAt', 'date', 'status'])
+          .optional()
+          .default('createdAt'),
+        sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
         status: z.nativeEnum(OrderStatus).optional(),
         assignedToId: z.string().optional(),
       })
@@ -362,10 +365,15 @@ export const orderRouter = router({
         throw new Error('Technik o podanym ID nie istnieje')
       }
 
+      const newStatus = input.assignedToId
+        ? OrderStatus.ASSIGNED
+        : OrderStatus.PENDING
+
       return prisma.order.update({
         where: { id: input.id },
         data: {
           assignedToId: input.assignedToId ?? null,
+          status: newStatus,
         },
       })
     }),

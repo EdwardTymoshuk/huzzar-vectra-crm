@@ -1,6 +1,7 @@
 'use client'
 
 import DatePicker from '@/app/components/DatePicker'
+import LoaderSpinner from '@/app/components/LoaderSpinner'
 import {
   Table,
   TableBody,
@@ -27,22 +28,26 @@ import OrderDetailsPanel from './OrderDetailsPanel'
  * - Supports drag & drop for reassigning orders between technicians.
  */
 const AssignmentsTable = () => {
+  // Local state to manage selected date
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
+  // Local state for order details panel
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
 
+  // Utility object for invalidating queries after mutation
   const utils = trpc.useUtils()
+
+  // Mutation for assigning a new technician to an order
   const updateTechnicianMutation = trpc.order.assignTechnician.useMutation()
 
-  /**
-   * Formats the selected date to match API format (YYYY-MM-DD).
-   */
+  // Helper function to format the selected date for the API (YYYY-MM-DD)
   function formatDate(date?: Date): string | undefined {
     if (!date) return undefined
     return date.toLocaleDateString('en-CA')
   }
 
-  // Fetch assigned orders from API using tRPC
+  // Fetch assigned orders from server using tRPC
   const {
     data: assignments = [],
     isLoading,
@@ -52,18 +57,15 @@ const AssignmentsTable = () => {
   })
 
   /**
-   * Handles the drag-and-drop event.
-   * If an order is moved between technicians, it updates the database.
+   * onDragEnd:
+   * - Called after a drag-and-drop event finishes.
+   * - If an order moves between technicians, we update the database.
    */
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return
-
     const { source, destination, draggableId } = result
 
-    console.log(
-      `Przeniesiono zlecenie ${draggableId} z ${source.droppableId} do ${destination.droppableId}`
-    )
-
+    // If we actually moved to a different droppable, reassign in the DB
     if (source.droppableId !== destination.droppableId) {
       const newTechnicianId =
         destination.droppableId === 'Nieprzypisany'
@@ -74,7 +76,7 @@ const AssignmentsTable = () => {
         newTechnicianId &&
         !assignments.some((t) => t.technicianId === newTechnicianId)
       ) {
-        console.error('Błąd: Technik o podanym ID nie istnieje')
+        console.error('Error: Technician with this ID does not exist.')
         return
       }
 
@@ -83,13 +85,18 @@ const AssignmentsTable = () => {
           id: draggableId,
           assignedToId: newTechnicianId ?? undefined,
         })
-
+        // After mutation, invalidate the query to refresh the data
         utils.order.getAssignedOrders.invalidate()
       } catch (error) {
-        console.error('Błąd podczas przypisywania technika:', error)
+        console.error('Error while assigning technician:', error)
       }
     }
   }
+
+  // Filter out the 'Nieprzypisany' row by ignoring technicianId === null
+  const filteredAssignments = assignments.filter(
+    (tech) => tech.technicianId !== null
+  )
 
   return (
     <div className="space-y-6">
@@ -104,24 +111,21 @@ const AssignmentsTable = () => {
       {/* Drag & Drop Context */}
       <DragDropContext onDragEnd={onDragEnd}>
         {isLoading ? (
-          <p className="text-center">Ładowanie...</p>
+          <LoaderSpinner />
         ) : isError ? (
           <p className="text-center text-danger">Błąd ładowania danych.</p>
-        ) : assignments.length > 0 ? (
-          assignments.map((technician: TechnicianAssignment) => (
+        ) : filteredAssignments.length > 0 ? (
+          filteredAssignments.map((technician: TechnicianAssignment) => (
             <div
-              key={technician.technicianId || 'Nieprzypisany'}
+              key={technician.technicianId}
               className="bg-gray-100 p-4 rounded-lg"
             >
               <h2 className="text-lg text-primary font-semibold text-center">
                 {technician.technicianName}
               </h2>
 
-              {/* Droppable for technician */}
-              <Droppable
-                droppableId={technician.technicianId || 'Nieprzypisany'}
-                type="ORDER"
-              >
+              {/* Droppable for each technician */}
+              <Droppable droppableId={technician.technicianId!} type="ORDER">
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.droppableProps}>
                     <Table className="border rounded-lg mt-2">
@@ -135,6 +139,7 @@ const AssignmentsTable = () => {
                           </TableHead>
                         </TableRow>
                       </TableHeader>
+
                       <TableBody>
                         {technician.slots.length > 0 ? (
                           technician.slots.map((slot) => (
@@ -143,20 +148,15 @@ const AssignmentsTable = () => {
                               <TableCell className="text-center font-semibold w-1/3">
                                 {timeSlotMap[slot.timeSlot] ?? slot.timeSlot}
                               </TableCell>
-
-                              {/* Orders + Status */}
+                              {/* Orders */}
                               <TableCell className="w-2/3">
                                 {slot.orders.length > 0 ? (
                                   <div className="min-h-[50px]">
-                                    {slot.orders.map((order) => (
+                                    {slot.orders.map((order, index) => (
                                       <Draggable
                                         key={order.id}
                                         draggableId={order.id}
-                                        index={assignments
-                                          .flatMap((a) =>
-                                            a.slots.flatMap((s) => s.orders)
-                                          )
-                                          .findIndex((o) => o.id === order.id)}
+                                        index={index}
                                       >
                                         {(provided) => (
                                           <div
@@ -222,7 +222,7 @@ const AssignmentsTable = () => {
         )}
       </DragDropContext>
 
-      {/* Order details panel */}
+      {/* Order details side panel */}
       <OrderDetailsPanel
         orderId={selectedOrderId}
         open={isPanelOpen}

@@ -1,5 +1,6 @@
 'use client'
 
+import LoaderSpinner from '@/app/components/LoaderSpinner'
 import {
   FormControl,
   FormField,
@@ -446,7 +447,7 @@ export function OrderFormFields({
                 <SelectItem value="none">Nieprzypisany</SelectItem>
                 {isLoading ? (
                   <SelectItem disabled value="">
-                    Ładowanie...
+                    <LoaderSpinner />
                   </SelectItem>
                 ) : (
                   technicians?.map((tech) => (

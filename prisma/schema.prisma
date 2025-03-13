@@ -34,14 +34,14 @@ model User {
 /// The order model, representing job assignments in the system.
 model Order {
   id                String         @id @default(uuid())
-  operator          Operator       // Defines the operator handling the order
+  operator          Operator      
   type              OrderType
-  orderNumber       String         @unique
+  orderNumber       String         
   date              DateTime
   timeSlot          TimeSlot
   standard          Standard?
-  contractRequired  Boolean
-  equipmentNeeded   String[]
+  contractRequired  Boolean       
+  equipmentNeeded   String[]      @default([])
   clientPhoneNumber String?
   notes             String?
   status            OrderStatus    @default(PENDING)
@@ -56,6 +56,7 @@ model Order {
   assignedTo        User?          @relation(fields: [assignedToId], references: [id])
   history           OrderHistory[]
   assignedEquipment Warehouse[]    @relation("WarehouseAssignedToOrder")
+  @@unique([orderNumber, date])
 }
 
 /// Tracks changes in order statuses.

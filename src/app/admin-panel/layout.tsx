@@ -4,6 +4,7 @@ import '@/app/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Suspense } from 'react'
+import LoaderLogo from '../components/LoaderLogo'
 
 // Fonts configuration
 const geistSans = Geist({
@@ -32,7 +33,7 @@ const AdminLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          <Suspense fallback={<div>Loading...</div>}>
+          <Suspense fallback={<LoaderLogo />}>
             <ClientRoutingHandler>{children}</ClientRoutingHandler>
           </Suspense>
         </Providers>
