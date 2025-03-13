@@ -40,6 +40,7 @@ import { getTimeSlotLabel, statusColorMap, statusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, Prisma } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
+import Highlight from 'react-highlight-words'
 import { MdDelete, MdEdit, MdVisibility } from 'react-icons/md'
 import {
   TiArrowSortedDown,
@@ -305,7 +306,14 @@ const OrdersTable = () => {
             filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell>{order.operator}</TableCell>
-                <TableCell>{order.orderNumber}</TableCell>
+                <TableCell>
+                  <Highlight
+                    highlightClassName="bg-yellow-200"
+                    searchWords={[searchTerm]}
+                    autoEscape={true}
+                    textToHighlight={order.orderNumber}
+                  />
+                </TableCell>
                 <TableCell>
                   {new Date(order.date).toLocaleDateString()}
                 </TableCell>
@@ -347,7 +355,12 @@ const OrdersTable = () => {
                   {getTimeSlotLabel(order.operator, order.timeSlot)}
                 </TableCell>
                 <TableCell>
-                  {order.city}, {order.street}
+                  <Highlight
+                    highlightClassName="bg-yellow-200"
+                    searchWords={[searchTerm]}
+                    autoEscape={true}
+                    textToHighlight={`${order.city}, ${order.street}`}
+                  />
                 </TableCell>
 
                 {/* TECHNICIAN - in-line editing */}
