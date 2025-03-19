@@ -6,20 +6,35 @@ import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { LuMoonStar, LuSunMedium } from 'react-icons/lu'
 
+/**
+ * ThemeToggle component
+ *
+ * This component renders a toggle switch that allows the user to change the theme
+ * between light and dark modes. It uses the "next-themes" library to manage themes,
+ * and "framer-motion" to animate the icons and the switch.
+ */
 const ThemeToggle = () => {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const isDark = theme === 'dark'
+  // Get theme, resolvedTheme (actual applied theme), and setTheme function from next-themes
+  const { theme, resolvedTheme, setTheme } = useTheme()
 
+  // Local state to track if the component has mounted (to prevent mismatches between SSR and client)
+  const [mounted, setMounted] = useState(false)
+
+  // Determine if the current theme is dark by checking resolvedTheme.
+  // Using resolvedTheme ensures the actual theme is used, even if defaultTheme is set to 'system'.
+  const isDark = resolvedTheme === 'dark'
+
+  // Set the mounted flag to true when the component has been mounted on the client side.
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  // Prevent rendering on the server or before mounting, to avoid theme mismatch errors.
   if (!mounted) return null
 
   return (
     <div className="flex items-center space-x-3">
-      {/* Sun Icon */}
+      {/* Sun Icon with entry animation */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -32,9 +47,11 @@ const ThemeToggle = () => {
         />
       </motion.div>
 
-      {/* Switch Button with animated colors */}
+      {/* Switch Button with animated movement */}
       <Switch
+        // The switch is checked if the current theme is dark.
         checked={isDark}
+        // When the switch value changes, set the theme accordingly.
         onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
         className={`
           relative w-11 h-6 transition-all rounded-full
@@ -45,6 +62,7 @@ const ThemeToggle = () => {
           }
         `}
       >
+        {/* Animated circle that moves to indicate the toggle state */}
         <motion.div
           className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform"
           initial={{ x: 0 }}
@@ -53,7 +71,7 @@ const ThemeToggle = () => {
         />
       </Switch>
 
-      {/* Moon Icon */}
+      {/* Moon Icon with entry animation */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}

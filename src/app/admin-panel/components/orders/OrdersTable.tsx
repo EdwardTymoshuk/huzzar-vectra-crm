@@ -36,7 +36,8 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
-import { getTimeSlotLabel, statusColorMap, statusMap } from '@/lib/constants'
+import { statusColorMap, statusMap } from '@/lib/constants'
+import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, Prisma } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'

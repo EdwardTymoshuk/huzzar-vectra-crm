@@ -14,8 +14,9 @@ import { MdCalendarToday } from 'react-icons/md'
 
 /**
  * DatePicker component:
- * - Allows selecting a date
- * - Uses Popover & Calendar for UI consistency
+ * - Allows selecting a date.
+ * - Uses Popover & Calendar for UI consistency.
+ * - Closes the calendar after a date is selected.
  */
 interface DatePickerProps {
   selected: Date | undefined
@@ -39,7 +40,10 @@ const DatePicker: React.FC<DatePickerProps> = ({ selected, onChange }) => {
         <Calendar
           mode="single"
           selected={selected}
-          onSelect={(day) => onChange(day ?? undefined)}
+          onSelect={(day) => {
+            onChange(day ?? undefined)
+            setIsOpen(false) // Close the calendar popover after selecting a date.
+          }}
         />
       </PopoverContent>
     </Popover>

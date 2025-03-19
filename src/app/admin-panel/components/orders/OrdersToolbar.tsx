@@ -3,6 +3,7 @@
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { MdAdd, MdCalendarMonth } from 'react-icons/md'
@@ -30,21 +31,21 @@ const OrdersToolbar = () => {
 
         <ImportOrders />
 
-        <Button
-          variant="danger"
-          onClick={() => router.push('/admin-panel/orders?tab=planning')}
-        >
-          <MdCalendarMonth />
-          <span className="hidden lg:inline">Planowanie</span>
-        </Button>
+        <Link href="/admin-panel?tab=planning">
+          <Button variant="danger">
+            <MdCalendarMonth />
+            <span className="hidden lg:inline">Planowanie</span>
+          </Button>
+        </Link>
       </div>
 
-      {/* Universal Search Input */}
-      <SearchInput
-        placeholder="Szukaj po nr zlecenia lub adresie"
-        onSearch={setSearchTerm}
-      />
-
+      {/* Search Input */}
+      <div className="w-full sm:w-1/2 lg:w-1/4 ">
+        <SearchInput
+          placeholder="Szukaj po nr zlecenia lub adresie"
+          onSearch={setSearchTerm}
+        />
+      </div>
       {/* Add Order Modal */}
       <AddOrderModal
         open={isModalOpen}

@@ -1,7 +1,6 @@
 // src/lib/constants.ts
 
 import { MenuItem } from '@/types'
-import { Operator, TimeSlot } from '@prisma/client'
 import {
   MdAssignment,
   MdOutlineSettings,
@@ -127,34 +126,9 @@ export const timeSlotOptions = {
 }
 
 /**
- * Returns a human-readable time slot label based on the specified operator and time slot enum value.
- *
- * @param operator - The operator in question (e.g., 'V' or 'MMP').
- * @param slotValue - The time slot value as defined by the Prisma enum (e.g., 'EIGHT_TEN').
- * @returns The corresponding label (e.g., '08:00 - 10:00') if found, or the original value as a fallback.
- */
-export function getTimeSlotLabel(
-  operator: Operator,
-  slotValue: TimeSlot
-): string {
-  // Get the array of time slot objects for the given operator, e.g. timeSlotOptions['V'] or timeSlotOptions['MMP']
-  const slotsForOperator = timeSlotOptions[operator]
-
-  // If there's no matching operator in timeSlotOptions, return the raw value as a fallback
-  if (!slotsForOperator) {
-    return slotValue
-  }
-
-  // Find the object whose 'value' matches the slotValue, e.g. { value: 'EIGHT_TEN', label: '08:00 - 10:00' }
-  const foundSlot = slotsForOperator.find((item) => item.value === slotValue)
-
-  // Return the label if found; otherwise, return the raw value
-  return foundSlot ? foundSlot.label : slotValue
-}
-
-/**
  * timeSlotMap (for displaying) – simple mapping "EIGHT_TEN" -> "08:00 - 10:00"
  */
+
 export const timeSlotMap: Record<string, string> = {
   EIGHT_TEN: '08:00 - 10:00',
   TEN_TWELVE: '10:00 - 12:00',
@@ -166,4 +140,30 @@ export const timeSlotMap: Record<string, string> = {
   TWELVE_FIFTEEN: '12:00 - 15:00',
   FIFTEEN_EIGHTEEN: '15:00 - 18:00',
   EIGHTEEN_TWENTYONE: '18:00 - 21:00',
+}
+
+export const operatorColors: Record<string, string> = {
+  V: '#2B9FD8',
+  MMP: '#f94500',
+}
+
+export const timeSlotColorsV: Record<string, string> = {
+  EIGHT_TEN: '#B3D9F0', // Lightest variant
+  TEN_TWELVE: '#80C3E5',
+  TWELVE_FOURTEEN: '#4DAEDB',
+  FOURTEEN_SIXTEEN: '#2B9FD8', // Base color for V
+  SIXTEEN_EIGHTEEN: '#2388C2',
+  EIGHTEEN_TWENTY: '#1D73AD', // Darkest variant
+}
+
+export const timeSlotColorsMMP: Record<string, string> = {
+  NINE_TWELVE: '#ffb199', // Lightest variant
+  TWELVE_FIFTEEN: '#f9763b',
+  FIFTEEN_EIGHTEEN: '#f94500', // Base color for MMP
+  EIGHTEEN_TWENTYONE: '#d13e00', // Darkest variant
+}
+
+export const timeSlotColors: Record<string, Record<string, string>> = {
+  V: timeSlotColorsV,
+  MMP: timeSlotColorsMMP,
 }

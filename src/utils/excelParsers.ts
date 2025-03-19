@@ -138,8 +138,12 @@ export async function parseUnifiedOrdersFromExcel(
           startTime = (start ?? '').trim() || '00:00'
           endTime = (end ?? '').trim() || '00:00'
         }
-        const timeSlot = determineTimeSlot(operator, startTime, endTime)
-
+        const timeSlot: TimeSlot = determineTimeSlot(
+          operator,
+          startTime,
+          endTime
+        )
+        const timeSlotFormatted = `${startTime}-${endTime}`
         // 6: "Technik"
         const assignedTech = String(row[6] ?? '').trim()
         const assignedToId = parseTechnician(assignedTech)
@@ -205,15 +209,27 @@ function convertDateDotFormat(dateStr: string): string | null {
  * Splits an address into [city, postalCode, street].
  */
 function parseAddress(location: string): [string, string, string] {
-  const [cityPart, streetPart] = location.split(',', 2).map((s) => s.trim())
+  // Podziel adres na dwie części – przed i po przecinku
+  const parts = location.split(',', 2).map((s) => s.trim())
+  if (parts.length < 2) {
+    return [location, '', '']
+  }
 
-  if (!cityPart) {
-    return [location, '00-000', '']
+  // Pierwsza część: "Gdynia 81-185"
+  const cityPart = parts[0]
+  // Wzorzec: grupa z nazwą miasta (wszystko aż do ostatniej spacji) oraz grupa z kodem pocztowym
+  const regex = /^(.*)\s+(\d{2}-\d{3})$/
+  const match = cityPart.match(regex)
+  let city = cityPart
+  let postalCode = ''
+  if (match) {
+    city = match[1]
+    postalCode = match[2]
   }
-  if (!streetPart) {
-    return [cityPart, '00-000', '']
-  }
-  return [cityPart, '00-000', streetPart]
+  // Druga część to reszta, czyli ulica z numerem
+  const street = parts[1]
+
+  return [city, postalCode, street]
 }
 
 /**

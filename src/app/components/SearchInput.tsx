@@ -27,7 +27,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ placeholder, onSearch }) => {
   }, [searchTerm, onSearch])
 
   return (
-    <div className="relative w-full sm:w-1/2 lg:w-1/4">
+    <div className="relative w-full">
       <MdOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
       <Input
         placeholder={placeholder}

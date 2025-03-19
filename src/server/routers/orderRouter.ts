@@ -1,4 +1,5 @@
 import { TechnicianAssignment } from '@/types'
+import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { prisma } from '@/utils/prisma'
 import {
   Operator,
@@ -57,126 +58,6 @@ export const orderRouter = router({
       const totalOrders = await prisma.order.count({ where: filters })
 
       return { orders, totalOrders }
-    }),
-
-  /**
-   * Create a new order.
-   */
-  createOrder: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
-    .input(
-      z.object({
-        operator: z.nativeEnum(Operator),
-        type: z.nativeEnum(OrderType),
-        orderNumber: z.string().min(3),
-        date: z.string(),
-        timeSlot: z.nativeEnum(TimeSlot),
-        standard: z.nativeEnum(Standard).optional(),
-        contractRequired: z.boolean(),
-        equipmentNeeded: z.array(z.string()).optional(),
-        clientPhoneNumber: z.string().optional(),
-        notes: z.string().optional(),
-        status: z.nativeEnum(OrderStatus).default(OrderStatus.PENDING),
-        county: z.string().min(2).or(z.literal('')).optional(),
-        municipality: z.string().min(2).or(z.literal('')).optional(),
-        city: z.string().min(2),
-        street: z.string().min(3),
-        postalCode: z.string().min(5),
-        assignedToId: z.string().optional(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      return prisma.order.create({
-        data: {
-          operator: input.operator,
-          type: input.type,
-          orderNumber: input.orderNumber,
-          date: new Date(input.date),
-          timeSlot: input.timeSlot,
-          standard: input.standard || undefined,
-          contractRequired: input.contractRequired,
-          equipmentNeeded: input.equipmentNeeded || [],
-          clientPhoneNumber: input.clientPhoneNumber,
-          notes: input.notes,
-          status: input.status,
-          county: input.county,
-          municipality: input.municipality,
-          city: input.city,
-          street: input.street,
-          postalCode: input.postalCode,
-          assignedToId: input.assignedToId || null,
-        },
-      })
-    }),
-
-  /**
-   * Edit an existing order.
-   */
-  editOrder: roleProtectedProcedure(['ADMIN'])
-    .input(
-      z.object({
-        id: z.string(),
-        orderNumber: z.string().min(3),
-        date: z.string(),
-        timeSlot: z.nativeEnum(TimeSlot),
-        contractRequired: z.boolean(),
-        equipmentNeeded: z.array(z.string()).optional(),
-        clientPhoneNumber: z.string().optional(),
-        notes: z.string().optional(),
-        status: z.nativeEnum(OrderStatus),
-        county: z.string().optional(),
-        municipality: z.string().optional(),
-        city: z.string(),
-        street: z.string(),
-        postalCode: z.string(),
-        assignedToId: z.string().optional(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      return prisma.order.update({
-        where: { id: input.id },
-        data: {
-          orderNumber: input.orderNumber,
-          date: new Date(input.date),
-          timeSlot: input.timeSlot,
-          contractRequired: input.contractRequired,
-          equipmentNeeded: input.equipmentNeeded,
-          clientPhoneNumber: input.clientPhoneNumber,
-          notes: input.notes,
-          status: input.status,
-          county: input.county,
-          municipality: input.municipality,
-          city: input.city,
-          street: input.street,
-          postalCode: input.postalCode,
-          assignedToId: input.assignedToId || null,
-        },
-      })
-    }),
-
-  /**
-   * Delete an order by ID.
-   */
-  deleteOrder: roleProtectedProcedure(['ADMIN'])
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
-      return prisma.order.delete({ where: { id: input.id } })
-    }),
-
-  /**
-   * Toggle order status.
-   */
-  toggleOrderStatus: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
-    .input(
-      z.object({
-        id: z.string(),
-        status: z.nativeEnum(OrderStatus),
-      })
-    )
-    .mutation(async ({ input }) => {
-      return prisma.order.update({
-        where: { id: input.id },
-        data: { status: input.status },
-      })
     }),
 
   getOrderById: protectedProcedure
@@ -340,6 +221,171 @@ export const orderRouter = router({
       }
 
       return result
+    }),
+
+  /**
+   * Fetches all unassigned orders (orders that are not yet assigned to a technician).
+   * These orders are needed for planning and can be dragged to technicians.
+   */
+  getUnassignedOrders: protectedProcedure.query(async () => {
+    /**
+     * Fetch unassigned orders from the database.
+     * - Orders are considered "unassigned" if `assignedToId` is NULL.
+     * - We select only the necessary fields to optimize database queries.
+     * - Orders are sorted by `timeSlot` to ensure logical order.
+     */
+    const unassignedOrders = await prisma.order.findMany({
+      where: {
+        assignedToId: null, // Only orders that are not yet assigned
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        city: true,
+        street: true,
+        operator: true,
+        timeSlot: true,
+        status: true,
+        postalCode: true,
+      },
+      orderBy: { timeSlot: 'asc' },
+    })
+
+    const enrichedOrders = await Promise.all(
+      unassignedOrders.map(async (order) => {
+        const cleanedStreet = cleanStreetName(order.street)
+        const fullAddress = `${cleanedStreet}, ${order.postalCode}, ${order.city}`
+        const coordinates = await getCoordinatesFromAddress(fullAddress)
+
+        return {
+          ...order,
+          lat: coordinates?.lat ?? null,
+          lng: coordinates?.lng ?? null,
+        }
+      })
+    )
+
+    return enrichedOrders
+  }),
+
+  /**
+   * Create a new order.
+   */
+  createOrder: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(
+      z.object({
+        operator: z.nativeEnum(Operator),
+        type: z.nativeEnum(OrderType),
+        orderNumber: z.string().min(3),
+        date: z.string(),
+        timeSlot: z.nativeEnum(TimeSlot),
+        standard: z.nativeEnum(Standard).optional(),
+        contractRequired: z.boolean(),
+        equipmentNeeded: z.array(z.string()).optional(),
+        clientPhoneNumber: z.string().optional(),
+        notes: z.string().optional(),
+        status: z.nativeEnum(OrderStatus).default(OrderStatus.PENDING),
+        county: z.string().min(2).or(z.literal('')).optional(),
+        municipality: z.string().min(2).or(z.literal('')).optional(),
+        city: z.string().min(2),
+        street: z.string().min(3),
+        postalCode: z.string().min(5),
+        assignedToId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return prisma.order.create({
+        data: {
+          operator: input.operator,
+          type: input.type,
+          orderNumber: input.orderNumber,
+          date: new Date(input.date),
+          timeSlot: input.timeSlot,
+          standard: input.standard || undefined,
+          contractRequired: input.contractRequired,
+          equipmentNeeded: input.equipmentNeeded || [],
+          clientPhoneNumber: input.clientPhoneNumber,
+          notes: input.notes,
+          status: input.status,
+          county: input.county,
+          municipality: input.municipality,
+          city: input.city,
+          street: input.street,
+          postalCode: input.postalCode,
+          assignedToId: input.assignedToId || null,
+        },
+      })
+    }),
+
+  /**
+   * Edit an existing order.
+   */
+  editOrder: roleProtectedProcedure(['ADMIN'])
+    .input(
+      z.object({
+        id: z.string(),
+        orderNumber: z.string().min(3),
+        date: z.string(),
+        timeSlot: z.nativeEnum(TimeSlot),
+        contractRequired: z.boolean(),
+        equipmentNeeded: z.array(z.string()).optional(),
+        clientPhoneNumber: z.string().optional(),
+        notes: z.string().optional(),
+        status: z.nativeEnum(OrderStatus),
+        county: z.string().optional(),
+        municipality: z.string().optional(),
+        city: z.string(),
+        street: z.string(),
+        postalCode: z.string(),
+        assignedToId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return prisma.order.update({
+        where: { id: input.id },
+        data: {
+          orderNumber: input.orderNumber,
+          date: new Date(input.date),
+          timeSlot: input.timeSlot,
+          contractRequired: input.contractRequired,
+          equipmentNeeded: input.equipmentNeeded,
+          clientPhoneNumber: input.clientPhoneNumber,
+          notes: input.notes,
+          status: input.status,
+          county: input.county,
+          municipality: input.municipality,
+          city: input.city,
+          street: input.street,
+          postalCode: input.postalCode,
+          assignedToId: input.assignedToId || null,
+        },
+      })
+    }),
+
+  /**
+   * Delete an order by ID.
+   */
+  deleteOrder: roleProtectedProcedure(['ADMIN'])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      return prisma.order.delete({ where: { id: input.id } })
+    }),
+
+  /**
+   * Toggle order status.
+   */
+  toggleOrderStatus: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.nativeEnum(OrderStatus),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return prisma.order.update({
+        where: { id: input.id },
+        data: { status: input.status },
+      })
     }),
 
   assignTechnician: roleProtectedProcedure(['ADMIN'])
