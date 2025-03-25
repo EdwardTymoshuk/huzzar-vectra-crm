@@ -1,6 +1,7 @@
 // src/lib/constants.ts
 
 import { MenuItem } from '@/types'
+import { TimeSlot } from '@prisma/client'
 import {
   MdAssignment,
   MdOutlineSettings,
@@ -90,11 +91,11 @@ export const statusMap: Record<string, string> = {
  */
 export const statusColorMap: Record<string, string> = {
   PENDING: 'bg-muted hover:bg-muted/80 text-text-secodnary text-center',
-  IN_PROGRESS: 'bg-black text-white text-center',
+  IN_PROGRESS: 'bg-primary hover:bg-primary/80 text-white text-center',
   ASSIGNED: 'bg-warning hover:bg-warning/80 text-white text-center',
-  COMPLETED: 'bg-success text-white text-center',
-  NOT_COMPLETED: 'bg-danger text-white text-center',
-  CANCELED: 'bg-secondary text-white text-center',
+  COMPLETED: 'bg-success hover:bg-success/80 text-white text-center',
+  NOT_COMPLETED: 'bg-danger hover:bg-danger/80 text-white text-center',
+  CANCELED: 'bg-secondary hover:bg-secondary/80 text-white text-center',
 }
 
 /**
@@ -141,6 +142,19 @@ export const timeSlotMap: Record<string, string> = {
   FIFTEEN_EIGHTEEN: '15:00 - 18:00',
   EIGHTEEN_TWENTYONE: '18:00 - 21:00',
 }
+
+export const sortedTimeSlotsByHour: TimeSlot[] = [
+  'EIGHT_TEN',
+  'NINE_TWELVE',
+  'TEN_TWELVE',
+  'TWELVE_FOURTEEN',
+  'TWELVE_FIFTEEN',
+  'FOURTEEN_SIXTEEN',
+  'FIFTEEN_EIGHTEEN',
+  'SIXTEEN_EIGHTEEN',
+  'EIGHTEEN_TWENTY',
+  'EIGHTEEN_TWENTYONE',
+]
 
 export const operatorColors: Record<string, string> = {
   V: '#2B9FD8',

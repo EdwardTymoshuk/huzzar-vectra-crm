@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { getTimeSlotLabel, statusMap } from '@/lib/constants'
+import { statusMap, timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OrderHistory } from '@prisma/client'
 import { MdClose } from 'react-icons/md'
@@ -94,7 +94,7 @@ const OrderDetailsPanel = ({
               </p>
               <p>
                 <strong>Przedział czasowy:</strong>{' '}
-                {getTimeSlotLabel(order.operator, order.timeSlot)}
+                {timeSlotMap[order.timeSlot]}
               </p>
               <p>
                 <strong>Adres:</strong> {order.city}, {order.street}

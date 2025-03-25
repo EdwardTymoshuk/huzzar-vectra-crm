@@ -1,3 +1,4 @@
+import { sortedTimeSlotsByHour } from '@/lib/constants'
 import { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { prisma } from '@/utils/prisma'
@@ -97,7 +98,7 @@ export const orderRouter = router({
       const end = endOfDay(selectedDate)
 
       const technicians = await ctx.prisma.user.findMany({
-        // where: { role: 'TECHNICIAN' },
+        where: { role: 'TECHNICIAN' },
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
       })
@@ -165,7 +166,11 @@ export const orderRouter = router({
         return {
           technicianName: tech.name,
           technicianId: tech.id,
-          slots: Object.values(slotsMap),
+          slots: Object.values(slotsMap).sort(
+            (a, b) =>
+              sortedTimeSlotsByHour.indexOf(a.timeSlot) -
+              sortedTimeSlotsByHour.indexOf(b.timeSlot)
+          ),
         }
       })
 
@@ -216,7 +221,11 @@ export const orderRouter = router({
         result.push({
           technicianName: 'Nieprzypisany',
           technicianId: null,
-          slots: Object.values(slotsMap),
+          slots: Object.values(slotsMap).sort(
+            (a, b) =>
+              sortedTimeSlotsByHour.indexOf(a.timeSlot) -
+              sortedTimeSlotsByHour.indexOf(b.timeSlot)
+          ),
         })
       }
 
