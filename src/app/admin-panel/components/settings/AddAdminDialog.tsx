@@ -63,7 +63,7 @@ const AddAdminDialog = () => {
   const createUserMutation = trpc.user.createUser.useMutation({
     onSuccess: () => {
       toast.success('Administrator został dodany.')
-      utils.user.getAllUsers.invalidate() // Refresh user list after adding
+      utils.user.getAdmins.invalidate() // Refresh user list after adding
       setOpen(false)
     },
     onError: () => toast.error('Błąd podczas dodawania administratora.'),

@@ -129,7 +129,7 @@ const OrdersTable = () => {
   }, [currentPage, totalPages])
 
   // For listing technicians
-  const { data: technicians } = trpc.user.getAllUsers?.useQuery() || {
+  const { data: technicians } = trpc.user.getTechnicians?.useQuery() || {
     data: [],
   }
 

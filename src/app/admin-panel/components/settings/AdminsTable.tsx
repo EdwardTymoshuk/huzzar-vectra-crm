@@ -60,7 +60,6 @@ type AdminUser = Prisma.UserGetPayload<{
   select: {
     id: true
     email: true
-    password: true
     phoneNumber: true
     name: true
     role: true
@@ -111,13 +110,13 @@ const AdminsTable = () => {
   const { data: session } = useSession()
 
   // Fetch all admins (users)
-  const { data: admins, isLoading, isError } = trpc.user.getAllUsers.useQuery()
+  const { data: admins, isLoading, isError } = trpc.user.getAdmins.useQuery()
 
   // Toggle status mutation (ACTIVE <-> SUSPENDED)
   const toggleStatusMutation = trpc.user.toggleUserStatus.useMutation({
     onSuccess: () => {
       toast.success('Status użytkownika został zaktualizowany.')
-      utils.user.getAllUsers.invalidate()
+      utils.user.getAdmins.invalidate()
     },
     onError: () => toast.error('Błąd podczas aktualizacji statusu.'),
   })
@@ -126,7 +125,7 @@ const AdminsTable = () => {
   const deleteUserMutation = trpc.user.deleteUser.useMutation({
     onSuccess: () => {
       toast.success('Użytkownik został usunięty.')
-      utils.user.getAllUsers.invalidate()
+      utils.user.getAdmins.invalidate()
       setDeleteDialogOpen(false)
     },
     onError: () => toast.error('Błąd podczas usuwania użytkownika.'),
@@ -136,7 +135,7 @@ const AdminsTable = () => {
   const editUserMutation = trpc.user.editUser.useMutation({
     onSuccess: () => {
       toast.success('Dane użytkownika zostały zaktualizowane.')
-      utils.user.getAllUsers.invalidate()
+      utils.user.getAdmins.invalidate()
       setEditDialogOpen(false)
     },
     onError: () => toast.error('Błąd podczas aktualizacji danych użytkownika.'),
@@ -224,7 +223,7 @@ const AdminsTable = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {admins?.map((admin: AdminUser) => {
+          {admins?.map((admin) => {
             const isCurrentUser = admin.id === session?.user.id
             return (
               <TableRow key={admin.id}>

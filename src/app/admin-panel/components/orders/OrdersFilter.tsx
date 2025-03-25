@@ -35,7 +35,7 @@ const OrdersFilter = ({
     null
   )
 
-  const { data: technicians } = trpc.user.getAllUsers.useQuery() // Pobranie listy techników
+  const { data: technicians } = trpc.user.getTechnicians.useQuery()
 
   return (
     <Popover>

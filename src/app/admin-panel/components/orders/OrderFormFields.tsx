@@ -104,9 +104,9 @@ export function OrderFormFields({
   // Watch the operator value to filter time slots
   const operatorValue = useWatch({ control, name: 'operator' })
 
-  // For listing all technicians. If you have a user.getAllUsers or similar:
+  // For listing all technicians. If you have a user.getTechnicians or similar:
   const { data: technicians, isLoading } =
-    trpc.user.getAllUsers?.useQuery() || {
+    trpc.user.getTechnicians?.useQuery() || {
       data: [],
     }
 

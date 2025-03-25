@@ -18,13 +18,34 @@ export const userRouter = router({
     })
   }),
 
-  // Fetch all users (Admin only)
-  getAllUsers: roleProtectedProcedure(['ADMIN']).query(async () => {
+  // Fetch all technicians
+  getTechnicians: roleProtectedProcedure(['ADMIN']).query(async () => {
     return prisma.user.findMany({
+      where: { role: 'TECHNICIAN' },
+      orderBy: { name: 'asc' },
       select: {
         id: true,
         email: true,
-        password: true,
+        phoneNumber: true,
+        name: true,
+        role: true,
+        status: true,
+        identyficator: true,
+      },
+    })
+  }),
+
+  // Fetch all administrators (Coordinator, Warehouseman, Admin)
+  getAdmins: roleProtectedProcedure(['ADMIN']).query(async () => {
+    return prisma.user.findMany({
+      where: {
+        role: {
+          in: ['COORDINATOR', 'WAREHOUSEMAN', 'ADMIN'],
+        },
+      },
+      select: {
+        id: true,
+        email: true,
         phoneNumber: true,
         name: true,
         role: true,
@@ -32,6 +53,33 @@ export const userRouter = router({
       },
     })
   }),
+
+  // Fetch a user by ID (Admin only)
+  getUserById: roleProtectedProcedure(['ADMIN'])
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const user = await prisma.user.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          role: true,
+          status: true,
+          identyficator: true,
+        },
+      })
+
+      if (!user) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Użytkownik nie istnieje.',
+        })
+      }
+
+      return user
+    }),
 
   // Create a new user (Admin only)
   createUser: roleProtectedProcedure(['ADMIN'])

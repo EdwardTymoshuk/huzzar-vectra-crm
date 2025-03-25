@@ -167,3 +167,21 @@ export const timeSlotColors: Record<string, Record<string, string>> = {
   V: timeSlotColorsV,
   MMP: timeSlotColorsMMP,
 }
+
+/**
+ * Mapping of user status to polish.
+ */
+export const userStatusNameMap: Record<string, string> = {
+  ACTIVE: 'AKTYWNY',
+  INACTIVE: 'NIEAKTYWNY',
+  SUSPENDED: 'ZABLOKOWANY',
+}
+
+/**
+ * Mapping of user status colors.
+ */
+export const userStatusColorMap: Record<string, string> = {
+  ACTIVE: 'bg-success hover:bg-success text-white text-center',
+  INACTIVE: 'bg-danger hover:bg-danger text-white text-center',
+  SUSPENDED: 'bg-warning hover:bg-warning text-white text-center',
+}
