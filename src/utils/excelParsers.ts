@@ -143,7 +143,6 @@ export async function parseUnifiedOrdersFromExcel(
           startTime,
           endTime
         )
-        const timeSlotFormatted = `${startTime}-${endTime}`
         // 6: "Technik"
         const assignedTech = String(row[6] ?? '').trim()
         const assignedToId = parseTechnician(assignedTech)

@@ -4,7 +4,6 @@ import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { MdAdd, MdCalendarMonth } from 'react-icons/md'
 import AddOrderModal from './AddOrderModal'
@@ -17,7 +16,6 @@ import ImportOrders from './ImportOrders'
  */
 const OrdersToolbar = () => {
   const { setSearchTerm } = useOrdersSearch()
-  const router = useRouter()
   const [isModalOpen, setModalOpen] = useState(false)
 
   return (

@@ -186,7 +186,7 @@ const PlanningPage = () => {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
           <TechniciansList />
-          <OrdersList onOrderDrop={handleOrderDrop} />
+          <OrdersList />
         </div>
       </DragDropContext>
     </MaxWidthWrapper>

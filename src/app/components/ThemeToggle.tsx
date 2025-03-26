@@ -15,7 +15,7 @@ import { LuMoonStar, LuSunMedium } from 'react-icons/lu'
  */
 const ThemeToggle = () => {
   // Get theme, resolvedTheme (actual applied theme), and setTheme function from next-themes
-  const { theme, resolvedTheme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
 
   // Local state to track if the component has mounted (to prevent mismatches between SSR and client)
   const [mounted, setMounted] = useState(false)

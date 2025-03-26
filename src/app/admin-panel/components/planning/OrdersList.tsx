@@ -20,13 +20,8 @@ const MapView = dynamic(() => import('../../components/planning/MapView'), {
  * OrdersList displays unassigned orders in two views:
  * a table view and a map view. Users can switch between tabs.
  *
- * @param onOrderDrop - Callback function to handle order drop events.
  */
-const OrdersList = ({
-  onOrderDrop,
-}: {
-  onOrderDrop: (orderId: string, technicianId: string) => void
-}) => {
+const OrdersList = () => {
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'list' | 'assignments'>('list')
 

@@ -134,7 +134,7 @@ const EmployeeEditDialog = ({
         password: '',
       })
     }
-  }, [employee])
+  }, [employee, form])
 
   if (!employee) return null
 
