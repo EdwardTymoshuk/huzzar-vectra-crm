@@ -101,6 +101,11 @@ model DeviceDefinition {
   name     String
 }
 
+model MaterialDefinition {
+  id   String @id @default(uuid())
+  name String @unique
+}
+
 /// Represents rate definitions for different services.
 model RateDefinition {
   id     String @id @default(uuid())
@@ -199,9 +204,9 @@ enum WarehouseItemType {
 enum DeviceCategory {
   MODEM
   DECODER
-  OTHER
-  AMPLIFIER
   ONT
+  AMPLIFIER
+  OTHER
 }
 
 /// Defines measurement units for warehouse items.

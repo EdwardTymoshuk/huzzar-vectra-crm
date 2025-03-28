@@ -1,5 +1,6 @@
 import { router } from '../trpc'
 import { deviceDefinitionRouter } from './deviceDefinition'
+import { materialDefinitionRouter } from './materialDefinitionRouter'
 import { orderRouter } from './orderRouter'
 import { rateDefinitionRouter } from './rateDefinition'
 import { userRouter } from './user'
@@ -10,6 +11,7 @@ export const appRouter = router({
   deviceDefinition: deviceDefinitionRouter,
   rateDefinition: rateDefinitionRouter,
   order: orderRouter,
+  materialDefinition: materialDefinitionRouter,
 })
 
 // Export the API router type for client-side usage
