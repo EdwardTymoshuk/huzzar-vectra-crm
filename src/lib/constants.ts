@@ -199,3 +199,23 @@ export const userStatusColorMap: Record<string, string> = {
   INACTIVE: 'bg-danger hover:bg-danger text-white text-center',
   SUSPENDED: 'bg-warning hover:bg-warning text-white text-center',
 }
+
+/**
+ * Mapping of user status to polish.
+ */
+export const devicesTypeMap: Record<string, string> = {
+  MODEM: 'MODEM',
+  DECODER: 'DEKODER',
+  AMPLIFIER: 'WZMACNIACZ',
+  ONT: 'ONT',
+  OTHER: 'INNE',
+}
+/**
+ * Mapping of devices status to polish.
+ */
+export const devicesStayuseMap: Record<string, string> = {
+  AVAILABLE: 'DOSTĘPNY',
+  ASSIGNED: 'PRZYPISANY DO TECHNIKA',
+  RETURNED: 'ZWRÓCONY',
+  ASSIGNED_TO_ORDER: 'WYDANY',
+}

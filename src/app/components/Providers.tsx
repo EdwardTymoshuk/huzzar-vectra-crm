@@ -5,6 +5,7 @@ import { SessionProvider } from 'next-auth/react'
 import { ReactNode, useState } from 'react'
 
 import { Toaster } from 'sonner'
+import { SearchProvider } from '../context/SearchContext'
 import Noop from './Noop'
 import { ThemeProvider } from './ThemeProvider'
 
@@ -14,10 +15,12 @@ const Providers = ({ children }: { children: ReactNode }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <Noop>
-          <ThemeProvider>{children}</ThemeProvider>
-        </Noop>
-        <Toaster position="top-center" richColors />
+        <SearchProvider>
+          <Noop>
+            <ThemeProvider>{children}</ThemeProvider>
+          </Noop>
+          <Toaster position="top-center" richColors />
+        </SearchProvider>
       </SessionProvider>
     </QueryClientProvider>
   )

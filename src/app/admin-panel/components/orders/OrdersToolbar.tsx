@@ -2,7 +2,7 @@
 
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
-import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
+import { useSearch } from '@/app/context/SearchContext'
 import Link from 'next/link'
 import { useState } from 'react'
 import { MdAdd, MdCalendarMonth } from 'react-icons/md'
@@ -15,7 +15,7 @@ import ImportOrders from './ImportOrders'
  * - Uses universal SearchInput component.
  */
 const OrdersToolbar = () => {
-  const { setSearchTerm } = useOrdersSearch()
+  const { setSearchTerm } = useSearch()
   const [isModalOpen, setModalOpen] = useState(false)
 
   return (

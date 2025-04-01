@@ -4,7 +4,8 @@
 
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import PageHeader from '@/app/components/PageHeader'
-import OrdersContainer from '../components/orders/OrdersContainer'
+import OrdersTabs from '../components/orders/OrdersTabs'
+import OrdersToolbar from '../components/orders/OrdersToolbar'
 
 /**
  * OrdersPage component:
@@ -14,7 +15,10 @@ const OrdersPage = () => {
   return (
     <MaxWidthWrapper>
       <PageHeader title="Zlecenia" />
-      <OrdersContainer />
+      <div className="space-y-6">
+        <OrdersToolbar />
+        <OrdersTabs />
+      </div>
     </MaxWidthWrapper>
   )
 }

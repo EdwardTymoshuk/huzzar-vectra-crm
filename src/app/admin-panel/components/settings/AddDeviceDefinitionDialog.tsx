@@ -107,7 +107,7 @@ const AddDeviceDefinitionDialog: FC = () => {
 
           <div>
             <Label>Nazwa podkategorii</Label>
-            <Input placeholder="np. FunBox 6" {...register('name')} />
+            <Input placeholder="np. HUAWEI EG8145X6" {...register('name')} />
             {errors.name && (
               <p className="text-danger text-sm">{errors.name.message}</p>
             )}

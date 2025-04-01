@@ -157,7 +157,6 @@ export const userRouter = router({
         updateData.role = input.role
       }
 
-      console.log('Aktualizowane dane:', updateData)
       return prisma.user.update({
         where: { id: input.id },
         data: updateData,

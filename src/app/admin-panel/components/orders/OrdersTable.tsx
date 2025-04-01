@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { useOrdersSearch } from '@/app/context/OrdersSearchContext'
+import { useSearch } from '@/app/context/SearchContext'
 import { statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
@@ -98,7 +98,7 @@ const OrdersTable = () => {
   const [orderToDelete, setOrderToDelete] =
     useState<OrderWithAssignedTo | null>(null)
 
-  const { searchTerm } = useOrdersSearch()
+  const { searchTerm } = useSearch()
   const trpcUtils = trpc.useUtils()
 
   // tRPC queries

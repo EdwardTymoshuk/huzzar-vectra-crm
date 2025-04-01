@@ -21,6 +21,7 @@ import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -57,7 +58,9 @@ const AddMaterialDefinitionDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Dodaj materiał</Button>
+        <Button>
+          <MdAdd /> Dodaj materiał
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
