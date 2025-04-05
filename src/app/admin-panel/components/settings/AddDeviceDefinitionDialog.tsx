@@ -61,14 +61,22 @@ const AddDeviceDefinitionDialog: FC = () => {
   })
 
   const onSubmit = (data: CreateDefinitionFormData) => {
-    createMutation.mutate(data)
+    const cleanedData: CreateDefinitionFormData = {
+      ...data,
+      name: data.name.trim(),
+    }
+
+    createMutation.mutate(cleanedData)
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <MdAdd /> Dodaj podkategorię
+          <span>
+            <MdAdd />
+          </span>
+          Dodaj podkategorię
         </Button>
       </DialogTrigger>
       <DialogContent>

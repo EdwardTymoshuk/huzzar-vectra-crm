@@ -1,6 +1,6 @@
 //sec/types/index.ts
 
-import { TimeSlot } from '@prisma/client'
+import { Order, TimeSlot, User, Warehouse } from '@prisma/client'
 import { IconType } from 'react-icons'
 
 export interface TechnicianAssignment {
@@ -25,4 +25,9 @@ export interface MenuItem {
   name: string
   icon: IconType
   href: string
+}
+
+export type WarehouseWithRelations = Warehouse & {
+  assignedTo?: User | null
+  assignedOrder?: Order | null
 }

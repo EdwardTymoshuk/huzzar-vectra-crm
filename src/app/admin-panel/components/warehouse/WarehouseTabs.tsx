@@ -19,7 +19,7 @@ const WarehouseTabs = () => {
       <TabsList className="w-full grid grid-cols-3">
         <TabsTrigger value="devices">Urządzenia</TabsTrigger>
         <TabsTrigger value="materials">Materiały</TabsTrigger>
-        <TabsTrigger value="za">ZA</TabsTrigger>
+        <TabsTrigger value="ua">UA</TabsTrigger>
       </TabsList>
 
       {/* Devices tab */}
@@ -31,8 +31,8 @@ const WarehouseTabs = () => {
         <WarehouseTable itemType="MATERIAL" />
       </TabsContent>
 
-      <TabsContent value="za">
-        <WarehouseTable itemType="DEVICE" subcategoryFilter="ZA" />
+      <TabsContent value="ua">
+        <WarehouseTable itemType="DEVICE" subcategoryFilter="UA" />
       </TabsContent>
     </Tabs>
   )

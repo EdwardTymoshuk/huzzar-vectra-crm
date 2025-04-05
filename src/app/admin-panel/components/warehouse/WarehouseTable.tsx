@@ -148,8 +148,8 @@ const WarehouseTable = ({ itemType, subcategoryFilter }: Props) => {
                 <TableCell>
                   <Button asChild size="sm" variant="ghost">
                     <Link
-                      href={`/warehouse/details/${encodeURIComponent(
-                        item.name
+                      href={`/admin-panel/warehouse/details/${encodeURIComponent(
+                        item.name.trim()
                       )}`}
                     >
                       <MdKeyboardArrowRight />

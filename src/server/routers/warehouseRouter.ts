@@ -44,17 +44,9 @@ export const warehouseRouter = router({
         // Create warehouse history entry
         await prisma.warehouseHistory.create({
           data: {
-            warehouseItem: {
-              connect: {
-                id: createdItem.id,
-              },
-            },
+            warehouseItemId: createdItem.id,
             action: 'RECEIVED',
-            performedBy: {
-              connect: {
-                id: ctx.user.id,
-              },
-            },
+            performedById: ctx.user.id,
           },
         })
       }
@@ -178,5 +170,38 @@ export const warehouseRouter = router({
       })
 
       return { success: true }
+    }),
+
+  // 📦 Get all warehouse items by name
+  getItemsByName: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+    .input(z.object({ name: z.string().min(1) }))
+    .query(async ({ input }) => {
+      return prisma.warehouse.findMany({
+        where: {
+          name: input.name,
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+    }),
+
+  // 📦 Get all warehouse items with history by name
+  getByNameWithHistory: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+    .input(z.object({ name: z.string() }))
+    .query(async ({ input }) => {
+      return prisma.warehouse.findMany({
+        where: { name: input.name },
+        include: {
+          history: {
+            include: {
+              performedBy: true,
+              assignedTo: true,
+            },
+            orderBy: { actionDate: 'asc' },
+          },
+          assignedTo: true,
+          assignedOrder: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      })
     }),
 })

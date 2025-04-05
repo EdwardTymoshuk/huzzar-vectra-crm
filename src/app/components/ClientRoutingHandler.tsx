@@ -4,7 +4,7 @@ import Header from '@/app/components/Header'
 import MainContainer from '@/app/components/MainContainer'
 import Sidebar from '@/app/components/Sidebar'
 import dynamic from 'next/dynamic'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 /**
  * Lazy-load pages dynamically based on active tab
@@ -19,11 +19,20 @@ const pages: Record<string, React.ComponentType> = {
   planning: dynamic(() => import('@/app/admin-panel/orders/planning/page')),
 }
 
-const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({}) => {
+/**
+ * ClientRoutingHandler:
+ * - Dynamically renders the page based on `tab` query param.
+ * - If on subroute like `/warehouse/details/[name]`, it renders `children` instead.
+ */
+const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const activeTab = searchParams.get('tab') || 'dashboard'
 
-  // Select the corresponding page component, defaulting to dashboard
+  const isSubPage = pathname.includes('/warehouse/details/')
+
   const ActivePage = pages[activeTab] || pages.dashboard
 
   return (
@@ -31,11 +40,10 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({}) => {
       <Header />
       <div className="flex h-screen">
         <Sidebar />
-        <MainContainer>
-          <ActivePage />
-        </MainContainer>
+        <MainContainer>{isSubPage ? children : <ActivePage />}</MainContainer>
       </div>
     </>
   )
 }
+
 export default ClientRoutingHandler

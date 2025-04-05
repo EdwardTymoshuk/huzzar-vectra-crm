@@ -201,7 +201,7 @@ export const userStatusColorMap: Record<string, string> = {
 }
 
 /**
- * Mapping of user status to polish.
+ * Mapping of devices type to polish.
  */
 export const devicesTypeMap: Record<string, string> = {
   MODEM: 'MODEM',
@@ -213,7 +213,7 @@ export const devicesTypeMap: Record<string, string> = {
 /**
  * Mapping of devices status to polish.
  */
-export const devicesStayuseMap: Record<string, string> = {
+export const devicesStatusMap: Record<string, string> = {
   AVAILABLE: 'DOSTĘPNY',
   ASSIGNED: 'PRZYPISANY DO TECHNIKA',
   RETURNED: 'ZWRÓCONY',
