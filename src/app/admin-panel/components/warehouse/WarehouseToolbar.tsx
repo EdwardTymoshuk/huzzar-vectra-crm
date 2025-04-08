@@ -2,7 +2,6 @@
 
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
-import { useSearch } from '@/app/context/SearchContext'
 import { useState } from 'react'
 import {
   HiOutlineArrowDownOnSquare,
@@ -10,16 +9,20 @@ import {
 } from 'react-icons/hi2'
 import { MdAdd } from 'react-icons/md'
 import AddModal from './AddModal'
+import IssueModal from './issue/IssueModal'
 
 /**
  * WarehouseToolbar component:
  * - Contains top action buttons with a responsive layout.
  * - Uses a universal SearchInput component for filtering.
  */
-const WarehouseToolbar = () => {
-  // Local state to manage search term
-  const { setSearchTerm } = useSearch()
 
+type Props = {
+  searchTerm: string
+  setSearchTerm: (value: string) => void
+}
+
+const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
   // Local state controlling modal visibility
   const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [isIssueModalOpen, setIssueModalOpen] = useState(false)
@@ -49,7 +52,8 @@ const WarehouseToolbar = () => {
       <div className="w-full sm:w-1/2 lg:w-1/4">
         <SearchInput
           placeholder="Szukaj urządzenie lub materiał"
-          onSearch={setSearchTerm}
+          value={searchTerm}
+          onChange={setSearchTerm}
         />
       </div>
 
@@ -60,10 +64,10 @@ const WarehouseToolbar = () => {
       />
 
       {/* Issue Modal */}
-      {/* <IssueModal
+      <IssueModal
         open={isIssueModalOpen}
         onCloseAction={() => setIssueModalOpen(false)}
-      /> */}
+      />
 
       {/* Return Modal */}
       {/* <ReturnModal

@@ -8,38 +8,27 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/app/components/ui/table'
-import { timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
-import { Draggable, Droppable } from '@hello-pangea/dnd'
+import { Droppable } from '@hello-pangea/dnd'
 import { useEffect, useState } from 'react'
-import { MdClose } from 'react-icons/md'
+import TechnicianTable from './TechnicianTable'
 
 /**
- * Displays a list of technicians (multiple accordions).
- * Each assigned order is Draggable.
- * Has a button "X" to unassign the order (move it back to unassigned).
+ * TechniciansList displays a list of technicians (accordion layout).
+ * Each technician shows assigned orders grouped by time slot.
+ * Allows unassigning orders and drag-n-drop reassignment.
  */
 const TechniciansList = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [searchTerm, setSearchTerm] = useState<string>('')
   const [expandedTechnicians, setExpandedTechnicians] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
 
   const trpcUtils = trpc.useUtils()
 
-  // Query assigned orders for chosen date
   const { data: assignments = [] } = trpc.order.getAssignedOrders.useQuery({
     date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : undefined,
   })
 
-  // Mutation for assigning/unassigning orders
   const assignMutation = trpc.order.assignTechnician.useMutation({
     onSuccess: () => {
       trpcUtils.order.getUnassignedOrders.invalidate()
@@ -47,12 +36,10 @@ const TechniciansList = () => {
     },
   })
 
-  // unassign => assignedToId = undefined
   const unassignOrder = async (orderId: string) => {
     await assignMutation.mutateAsync({ id: orderId, assignedToId: undefined })
   }
 
-  // Filter out invalid technicians and apply search
   const existingTechnicians = assignments.filter(
     (tech) => tech.technicianId && tech.technicianName
   )
@@ -60,7 +47,6 @@ const TechniciansList = () => {
     tech.technicianName.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  // Multiple open accordion
   const handleAccordionChange = (techValue: string) => {
     if (expandedTechnicians.includes(techValue)) {
       setExpandedTechnicians((prev) => prev.filter((v) => v !== techValue))
@@ -69,18 +55,12 @@ const TechniciansList = () => {
     }
   }
 
-  // Function to expand accordion if not already expanded.
   const expandAccordion = (techId: string) => {
     setExpandedTechnicians((prev) =>
       prev.includes(techId) ? prev : [...prev, techId]
     )
   }
 
-  /**
-   * DroppableContent component:
-   * - Wraps the droppable area.
-   * - Uses useEffect to automatically open the accordion when an order is dragged over.
-   */
   const DroppableContent: React.FC<{
     technicianId: string
     isDraggingOver: boolean
@@ -91,15 +71,15 @@ const TechniciansList = () => {
         expandAccordion(technicianId)
       }
     }, [isDraggingOver, technicianId])
+
     return <div>{children}</div>
   }
 
   return (
     <div className="p-4 space-y-4">
-      {/* DatePicker and search input */}
       <div className="flex flex-col w-full items-center gap-4">
         <h2 className="text-lg font-semibold">Technicy</h2>
-        <div className={`w-full ${selectedDate ? 'text-primary' : ''}`}>
+        <div className="w-full">
           <DatePicker
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date ?? undefined)}
@@ -108,7 +88,8 @@ const TechniciansList = () => {
         <div className="w-full">
           <SearchInput
             placeholder="Szukaj technika"
-            onSearch={(value) => setSearchTerm(value)}
+            value={searchTerm}
+            onChange={setSearchTerm}
           />
         </div>
       </div>
@@ -135,101 +116,29 @@ const TechniciansList = () => {
                 </AccordionTrigger>
                 <AccordionContent>
                   <Droppable droppableId={technicianId} type="ORDER">
-                    {(provided, snapshot) => {
-                      return (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={`p-2 border rounded-md transition ${
-                            snapshot.isDraggingOver
-                              ? 'border-blue-500 bg-blue-100'
-                              : 'border-gray-300 bg-white'
-                          }`}
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`p-2 border rounded-md transition ${
+                          snapshot.isDraggingOver
+                            ? 'border-blue-500 bg-blue-100'
+                            : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        <DroppableContent
+                          technicianId={technicianId}
+                          isDraggingOver={snapshot.isDraggingOver}
                         >
-                          {/* Wrap content with DroppableContent to auto-expand on hover */}
-                          <DroppableContent
+                          <TechnicianTable
                             technicianId={technicianId}
-                            isDraggingOver={snapshot.isDraggingOver}
-                          >
-                            <Table className="border rounded-lg w-full">
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="text-center w-1/3">
-                                    Slot czasowy
-                                  </TableHead>
-                                  <TableHead className="text-center w-2/3">
-                                    Zlecenia
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {tech.slots.length > 0 ? (
-                                  tech.slots.map((slot) => (
-                                    <TableRow key={slot.timeSlot}>
-                                      <TableCell className="text-center font-semibold w-1/3">
-                                        {timeSlotMap[slot.timeSlot]}
-                                      </TableCell>
-                                      <TableCell className="w-2/3">
-                                        {slot.orders.length > 0 ? (
-                                          <div className="min-h-[50px]">
-                                            {slot.orders.map((order, index) => (
-                                              <Draggable
-                                                key={order.id}
-                                                draggableId={order.id}
-                                                index={index}
-                                              >
-                                                {(provided) => (
-                                                  <div
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    className="p-2 bg-gray-100 rounded-md text-sm my-1 flex justify-between items-center gap-2"
-                                                  >
-                                                    <div>
-                                                      <strong>
-                                                        {order.orderNumber}
-                                                      </strong>
-                                                      <br />
-                                                      {order.address}
-                                                    </div>
-                                                    <button
-                                                      onClick={() =>
-                                                        unassignOrder(order.id)
-                                                      }
-                                                      className="text-gray-600 hover:text-red-600"
-                                                    >
-                                                      <MdClose />
-                                                    </button>
-                                                  </div>
-                                                )}
-                                              </Draggable>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <p className="text-center text-gray-500">
-                                            Brak zleceń
-                                          </p>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))
-                                ) : (
-                                  <TableRow>
-                                    <TableCell
-                                      colSpan={2}
-                                      className="text-center text-gray-500"
-                                    >
-                                      Brak zleceń
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </TableBody>
-                            </Table>
-                          </DroppableContent>
-                          {provided.placeholder}
-                        </div>
-                      )
-                    }}
+                            slots={tech.slots}
+                            onUnassign={unassignOrder}
+                          />
+                        </DroppableContent>
+                        {provided.placeholder}
+                      </div>
+                    )}
                   </Droppable>
                 </AccordionContent>
               </AccordionItem>

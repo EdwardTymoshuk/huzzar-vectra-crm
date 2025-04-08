@@ -6,19 +6,21 @@ import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { useSearch } from '@/app/context/SearchContext'
 import { trpc } from '@/utils/trpc'
 import { useParams, useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
 import { toast } from 'sonner'
 
 const WarehouseItemPage = () => {
+  const [searchTerm, setSearchTerm] = useState('')
+
   const name = decodeURIComponent(useParams<{ name: string }>().name)
   const { data, isLoading, isError } = trpc.warehouse.getItemsByName.useQuery({
     name,
   })
+
   const router = useRouter()
-  const { setSearchTerm } = useSearch()
 
   if (isLoading) return <Skeleton className="h-[200px] w-full" />
   if (isError || !data) {
@@ -39,7 +41,11 @@ const WarehouseItemPage = () => {
         </Button>
         {/* Search input field */}
         <div className="w-full sm:w-1/2 lg:w-1/4">
-          <SearchInput placeholder="Szukaj" onSearch={setSearchTerm} />
+          <SearchInput
+            placeholder="Szukaj"
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
         </div>
       </div>
       <ItemHeader items={data} />

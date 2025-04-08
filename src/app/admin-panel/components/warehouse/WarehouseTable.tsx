@@ -11,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { useSearch } from '@/app/context/SearchContext'
 import { devicesTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { WarehouseItemType } from '@prisma/client'
@@ -23,6 +22,7 @@ import { MdKeyboardArrowRight } from 'react-icons/md'
 type Props = {
   itemType: WarehouseItemType
   subcategoryFilter?: string
+  searchTerm: string
 }
 
 /**
@@ -32,9 +32,8 @@ type Props = {
  * - Displays quantity badge color-coded based on amount.
  * - Provides action to navigate to detailed view.
  */
-const WarehouseTable = ({ itemType, subcategoryFilter }: Props) => {
+const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
   const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery()
-  const { searchTerm } = useSearch()
 
   // 🧠 Filter items based on type and subcategory (ZA or itemType)
   // - Executed only when data, itemType or subcategoryFilter changes

@@ -13,7 +13,12 @@ import WarehouseTable from './WarehouseTable'
  * - Displays three tabs for managing warehouse inventory: Devices, Materials, and Subscriber Endings (ZA).
  * - Each tab displays a filtered list of items based on their type or subcategory.
  */
-const WarehouseTabs = () => {
+
+type Props = {
+  searchTerm: string
+}
+
+const WarehouseTabs = ({ searchTerm }: Props) => {
   return (
     <Tabs defaultValue="devices" className="w-full">
       <TabsList className="w-full grid grid-cols-3">
@@ -24,15 +29,19 @@ const WarehouseTabs = () => {
 
       {/* Devices tab */}
       <TabsContent value="devices">
-        <WarehouseTable itemType="DEVICE" />
+        <WarehouseTable itemType="DEVICE" searchTerm={searchTerm} />
       </TabsContent>
 
       <TabsContent value="materials">
-        <WarehouseTable itemType="MATERIAL" />
+        <WarehouseTable itemType="MATERIAL" searchTerm={searchTerm} />
       </TabsContent>
 
       <TabsContent value="ua">
-        <WarehouseTable itemType="DEVICE" subcategoryFilter="UA" />
+        <WarehouseTable
+          itemType="DEVICE"
+          subcategoryFilter="UA"
+          searchTerm={searchTerm}
+        />
       </TabsContent>
     </Tabs>
   )

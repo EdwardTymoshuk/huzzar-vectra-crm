@@ -22,8 +22,8 @@ const MapView = dynamic(() => import('../../components/planning/MapView'), {
  *
  */
 const OrdersList = () => {
-  const [searchTerm, setSearchTerm] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'list' | 'assignments'>('list')
+  const [searchTerm, setSearchTerm] = useState('')
 
   return (
     <div className="p-4 space-y-4">
@@ -43,9 +43,10 @@ const OrdersList = () => {
           <TabsContent value="list" className="space-y-4">
             <SearchInput
               placeholder="Szukaj zlecenie"
-              onSearch={(value) => setSearchTerm(value)}
+              value={searchTerm}
+              onChange={setSearchTerm}
             />
-            <OrderTable searchTerm={searchTerm} />
+            <OrderTable />
           </TabsContent>
           <TabsContent value="assignments" className="space-y-4 "></TabsContent>
         </Tabs>

@@ -8,13 +8,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { useSearch } from '@/app/context/SearchContext'
 import { timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
 import Highlight from 'react-highlight-words'
 
-const OrderTable = ({ searchTerm }: { searchTerm: string }) => {
+const OrderTable = () => {
   const { data: orders = [] } = trpc.order.getUnassignedOrders.useQuery()
+  const { searchTerm } = useSearch()
 
   const filteredOrders = orders.filter((order) => {
     const address = `${order.city} ${order.street}`.toLowerCase()

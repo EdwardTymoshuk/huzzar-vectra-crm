@@ -122,6 +122,7 @@ model WarehouseHistory {
   assignedToId    String?
   actionDate      DateTime        @default(now())
   notes           String?
+  quantity        Int?
   assignedTo      User?           @relation("WarehouseHistoryAssignedTo", fields: [assignedToId], references: [id])
   performedBy     User            @relation("WarehouseHistoryPerformedBy", fields: [performedById], references: [id])
   warehouseItem   Warehouse       @relation(fields: [warehouseItemId], references: [id])

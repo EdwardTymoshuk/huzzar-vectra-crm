@@ -14,7 +14,7 @@ import EmployeesList from '../components/employees/EmployeesList'
  * - Allows adding new employees via a modal form.
  */
 const EmployeesPage = () => {
-  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [isAddEmployeeOpen, setIsAddEmployeeOpen] = useState<boolean>(false)
 
   return (
@@ -32,7 +32,8 @@ const EmployeesPage = () => {
         <div className="w-full sm:w-1/2 lg:w-1/4 ">
           <SearchInput
             placeholder="Szukaj pracownika"
-            onSearch={(value) => setSearchTerm(value)}
+            value={searchTerm}
+            onChange={setSearchTerm}
           />
         </div>
       </div>

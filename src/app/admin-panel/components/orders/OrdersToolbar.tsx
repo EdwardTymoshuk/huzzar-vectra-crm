@@ -17,6 +17,7 @@ import ImportOrders from './ImportOrders'
 const OrdersToolbar = () => {
   const { setSearchTerm } = useSearch()
   const [isModalOpen, setModalOpen] = useState(false)
+  const [searchTerm, setsearchTerm] = useState('')
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -41,7 +42,8 @@ const OrdersToolbar = () => {
       <div className="w-full sm:w-1/2 lg:w-1/4 ">
         <SearchInput
           placeholder="Szukaj po nr zlecenia lub adresie"
-          onSearch={setSearchTerm}
+          value={searchTerm}
+          onChange={setSearchTerm}
         />
       </div>
       {/* Add Order Modal */}

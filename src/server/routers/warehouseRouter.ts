@@ -54,38 +54,82 @@ export const warehouseRouter = router({
       return { success: true }
     }),
   // 📤 Issue items (ASSIGNED)
-  issueItem: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
+  issueItems: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
     .input(
       z.object({
-        warehouseItemId: z.string(),
         assignedToId: z.string(),
-        notes: z.string().optional(),
+        items: z.array(
+          z.discriminatedUnion('type', [
+            z.object({
+              type: z.literal('DEVICE'),
+              id: z.string(),
+            }),
+            z.object({
+              type: z.literal('MATERIAL'),
+              id: z.string(),
+              quantity: z.number().min(1),
+            }),
+          ])
+        ),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+      const { assignedToId, items } = input
+      const userId = ctx.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-      const userId = ctx.user.id
+      for (const item of items) {
+        if (item.type === 'DEVICE') {
+          // Update device status and assignment
+          const updated = await prisma.warehouse.update({
+            where: { id: item.id },
+            data: {
+              status: 'ASSIGNED',
+              assignedToId,
+            },
+          })
 
-      const item = await prisma.warehouse.update({
-        where: { id: input.warehouseItemId },
-        data: {
-          assignedToId: input.assignedToId,
-          status: 'ASSIGNED',
-        },
-      })
+          await prisma.warehouseHistory.create({
+            data: {
+              warehouseItemId: updated.id,
+              action: 'ISSUED',
+              performedById: userId,
+              assignedToId,
+            },
+          })
+        } else if (item.type === 'MATERIAL') {
+          // Decrease material quantity
+          const existing = await prisma.warehouse.findUnique({
+            where: { id: item.id },
+          })
 
-      await prisma.warehouseHistory.create({
-        data: {
-          warehouseItemId: item.id,
-          action: 'ISSUED',
-          performedById: userId,
-          assignedToId: input.assignedToId,
-          notes: input.notes,
-        },
-      })
+          if (!existing || existing.quantity < item.quantity) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: `Niewystarczająca ilość materiału: ${existing?.name}`,
+            })
+          }
 
-      return item
+          await prisma.warehouse.update({
+            where: { id: item.id },
+            data: {
+              quantity: { decrement: item.quantity },
+            },
+          })
+
+          await prisma.warehouseHistory.create({
+            data: {
+              warehouseItemId: item.id,
+              action: 'ISSUED',
+              performedById: userId,
+              assignedToId,
+              quantity: item.quantity,
+            },
+          })
+        }
+      }
+
+      return { success: true }
     }),
 
   // 🔁 Return item to warehouse
@@ -203,5 +247,23 @@ export const warehouseRouter = router({
         },
         orderBy: { createdAt: 'asc' },
       })
+    }),
+  // 🔍 Get warehouse item by serial number
+  getBySerialNumber: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
+    .input(z.object({ serial: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const item = await prisma.warehouse.findFirst({
+        where: {
+          serialNumber: {
+            equals: input.serial,
+            mode: 'insensitive',
+          },
+        },
+        include: {
+          assignedTo: true,
+        },
+      })
+
+      return item
     }),
 })
