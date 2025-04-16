@@ -108,7 +108,9 @@ const MaterialIssueTable = ({ onAddMaterial, issuedMaterials }: Props) => {
                 autoEscape={true}
                 textToHighlight={item.name}
               />
-              <Badge variant="outline">Dostępne: {remaining}</Badge>
+              <Badge variant="outline" className="w-fit">
+                Dostępne: {remaining}
+              </Badge>
             </span>
 
             {expandedRows.includes(item.id) ? (

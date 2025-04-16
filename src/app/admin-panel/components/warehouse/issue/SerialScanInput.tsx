@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { IssuedItemDevice } from '@/types'
@@ -20,16 +22,15 @@ const SerialScanInput = ({ onAddDevice }: Props) => {
 
   const handleSubmit = async () => {
     const serial = value.trim()
-    if (!serial) return
+    if (!serial) return toast.error('Wpisz numer seryjny.')
 
     try {
-      // Force lowercase to normalize input
       const res = await utils.warehouse.getBySerialNumber.fetch({
         serial: serial.toLowerCase(),
       })
 
       if (!res) {
-        toast.error('Nie znaleziono urządzenia o podanym numerze.')
+        toast.error('Nie znaleziono urządzenia o tym numerze.')
         return
       }
 
@@ -44,12 +45,11 @@ const SerialScanInput = ({ onAddDevice }: Props) => {
       }
 
       if (res.status !== 'AVAILABLE') {
-        const assignedInfo = res.assignedTo
-          ? ` (${res.assignedTo.name}, ${res.assignedTo.identyficator})`
-          : ''
-        toast.error(
-          `Urządzenie niedostępne. Status: ${res.status}${assignedInfo}`
-        )
+        if (res.assignedTo) {
+          toast.error('To urządzenie jest przypisane do innego technika.')
+        } else {
+          toast.error('To urządzenie nie może zostać zwrócone.')
+        }
         return
       }
 
@@ -60,9 +60,10 @@ const SerialScanInput = ({ onAddDevice }: Props) => {
         serialNumber: res.serialNumber,
         category: res.category ?? 'OTHER',
       })
-      toast.success('Dodano urządzenie')
+
+      toast.success('Dodano urządzenie.')
       setValue('')
-    } catch (err) {
+    } catch {
       toast.error('Wystąpił błąd podczas wyszukiwania urządzenia.')
     }
   }
@@ -78,7 +79,7 @@ const SerialScanInput = ({ onAddDevice }: Props) => {
             handleSubmit()
           }
         }}
-        placeholder="Zeskanuj lub wpisz numer seryjny"
+        placeholder="Wpisz lub zeskanuj numer seryjny urządzenia"
         autoFocus
       />
       <Button variant="secondary" onClick={handleSubmit}>

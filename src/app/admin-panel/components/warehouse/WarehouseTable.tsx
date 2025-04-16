@@ -51,6 +51,8 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
     )
   }, [data, itemType, subcategoryFilter])
 
+  console.log(data)
+
   // 📦 Group filtered items by name (e.g., CG3000T, WTYK F RG-6)
   // - Sum quantities for each group
   // - Store category for display (either `category` or `subcategory`)

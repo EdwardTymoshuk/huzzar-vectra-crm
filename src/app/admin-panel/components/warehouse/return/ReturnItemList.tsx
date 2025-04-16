@@ -20,15 +20,15 @@ type Props = {
   items: IssuedItem[]
   onRemoveItem: (index: number) => void
   onClearAll: () => void
-  onIssue: () => void
-  loading?: boolean
+  onReturn: () => void
+  loading: boolean
 }
 
-const IssuedItemList = ({
+const ReturnItemList = ({
   items,
   onRemoveItem,
   onClearAll,
-  onIssue,
+  onReturn,
   loading,
 }: Props) => {
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -36,34 +36,33 @@ const IssuedItemList = ({
   const devices = items.filter((i) => i.type === 'DEVICE')
   const materials = items.filter((i) => i.type === 'MATERIAL')
 
-  if (items.length === 0) return null
-
   return (
-    <div className="space-y-4 mt-4 bg-gray-100 p-4 rounded-lg">
-      <h2 className="text-lg font-bold">Do wydania:</h2>
+    <div className="space-y-4 bg-gray-100 p-4 rounded-lg mt-4">
+      <h2 className="text-lg font-bold">Do zwrotu:</h2>
+
       {/* Devices */}
       {devices.length > 0 && (
         <div>
           <h4 className="text-md font-semibold mb-2 text-primary">
             Urządzenia ({devices.length})
           </h4>
-          <ul className="space-y-1 max-h-64 overflow-y-auto text-sm">
+          <ul className="space-y-1 text-sm">
             {devices.map((item, idx) => {
-              const device = item as IssuedItemDevice
+              const d = item as IssuedItemDevice
               return (
                 <li
                   key={`device-${idx}`}
-                  className="border rounded p-2 flex justify-between items-center"
+                  className="flex justify-between items-center border rounded p-2"
                 >
                   <span>
-                    {devicesTypeMap[device.category]} | {device.name} | SN:{' '}
-                    {device.serialNumber}
+                    {devicesTypeMap[d.category]} | {d.name} | SN:{' '}
+                    {d.serialNumber}
                   </span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-danger hover:bg-danger hover:text-background"
-                    onClick={() => onRemoveItem(items.indexOf(device))}
+                    onClick={() => onRemoveItem(items.indexOf(item))}
                   >
                     Usuń
                   </Button>
@@ -80,23 +79,23 @@ const IssuedItemList = ({
           <h4 className="text-md font-semibold mb-2 text-primary">
             Materiały ({materials.length})
           </h4>
-          <ul className="space-y-1 max-h-64 overflow-y-auto text-sm">
+          <ul className="space-y-1 text-sm">
             {materials.map((item, idx) => {
-              const material = item as IssuedItemMaterial
+              const m = item as IssuedItemMaterial
               return (
                 <li
                   key={`material-${idx}`}
-                  className="border rounded p-2 flex justify-between items-center"
+                  className="flex justify-between items-center border rounded p-2"
                 >
                   <span>
-                    {material.name} | Ilość:{' '}
-                    <Badge variant="outline">{material.quantity}</Badge>
+                    {m.name} | Ilość:{' '}
+                    <Badge variant="outline">{m.quantity}</Badge>
                   </span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-danger hover:bg-danger hover:text-background"
-                    onClick={() => onRemoveItem(items.indexOf(material))}
+                    onClick={() => onRemoveItem(items.indexOf(item))}
                   >
                     Usuń
                   </Button>
@@ -109,8 +108,8 @@ const IssuedItemList = ({
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="success" onClick={onIssue} disabled={loading}>
-          {loading ? 'Wydawanie...' : 'Wydaj'}
+        <Button onClick={onReturn} disabled={loading} variant="success">
+          {loading ? 'Zwracanie...' : 'Zwróć'}
         </Button>
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogTrigger asChild>
@@ -135,11 +134,9 @@ const IssuedItemList = ({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* Docelowo przycisk "Wydaj" będzie tutaj */}
       </div>
     </div>
   )
 }
 
-export default IssuedItemList
+export default ReturnItemList

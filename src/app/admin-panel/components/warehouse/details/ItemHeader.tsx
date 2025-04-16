@@ -5,6 +5,7 @@
 import { Card } from '@/app/components/ui/card'
 import { devicesTypeMap } from '@/lib/constants'
 import { Warehouse } from '@prisma/client'
+import { useEffect, useState } from 'react'
 
 type Props = {
   items: Warehouse[]
@@ -16,12 +17,18 @@ type Props = {
  * - Aggregates counts for warehouse and technicians.
  */
 const ItemHeader = ({ items }: Props) => {
-  // Get base data from the first item in the group
-  const firstItem = items[0]
+  const [firstItem, setFirstItem] = useState<Warehouse | null>(null)
 
   // Count unassigned (in warehouse) and assigned (with technicians)
   const warehouseCount = items.filter((i) => !i.assignedToId).length
   const technicianCount = items.length - warehouseCount
+
+  useEffect(() => {
+    setFirstItem(items[0])
+    console.log(items)
+  }, [items])
+
+  if (firstItem === null) return <div>Brak urzadzenia</div>
 
   return (
     <Card className="p-4 flex flex-col md:flex-row justify-between gap-4">

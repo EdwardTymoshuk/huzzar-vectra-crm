@@ -8,8 +8,9 @@ import {
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
 import { MdAdd } from 'react-icons/md'
-import AddModal from './AddModal'
+import AddModal from './add/AddModal'
 import IssueModal from './issue/IssueModal'
+import ReturnModal from './return/ReturnModal'
 
 /**
  * WarehouseToolbar component:
@@ -70,10 +71,10 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       />
 
       {/* Return Modal */}
-      {/* <ReturnModal
+      <ReturnModal
         open={isReturnModalOpen}
         onCloseAction={() => setReturnModalOpen(false)}
-      /> */}
+      />
     </div>
   )
 }

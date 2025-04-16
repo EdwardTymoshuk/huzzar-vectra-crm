@@ -106,8 +106,18 @@ const IssueItemsTabs = ({ technicianId }: Props) => {
     <div className="space-y-6">
       <Tabs defaultValue="devices" className="w-full space-y-4">
         <TabsList className="w-full grid grid-cols-2">
-          <TabsTrigger value="devices">Urządzenia</TabsTrigger>
-          <TabsTrigger value="materials">Materiały</TabsTrigger>
+          <TabsTrigger
+            value="devices"
+            className="data-[state=active]:rounded-md"
+          >
+            Urządzenia
+          </TabsTrigger>
+          <TabsTrigger
+            value="materials"
+            className="data-[state=active]:rounded-md"
+          >
+            Materiały
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="devices" className="space-y-4">
@@ -128,6 +138,7 @@ const IssueItemsTabs = ({ technicianId }: Props) => {
           onRemoveItem={handleRemove}
           onClearAll={handleClearAll}
           onIssue={handleIssue}
+          loading={isIssuing}
         />
       )}
     </div>
