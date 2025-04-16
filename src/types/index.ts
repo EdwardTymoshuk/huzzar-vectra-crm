@@ -1,5 +1,6 @@
 //sec/types/index.ts
 
+import { itemSchema } from '@/lib/schema'
 import {
   DeviceCategory,
   Order,
@@ -8,6 +9,7 @@ import {
   Warehouse,
 } from '@prisma/client'
 import { IconType } from 'react-icons'
+import { z } from 'zod'
 
 export interface TechnicianAssignment {
   technicianName: string
@@ -59,3 +61,5 @@ export type IssuedItemMaterial = {
 }
 
 export type IssuedItem = IssuedItemDevice | IssuedItemMaterial
+
+export type ItemFormData = z.infer<typeof itemSchema>
