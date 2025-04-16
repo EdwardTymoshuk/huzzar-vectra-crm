@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { devicesTypeMap } from '@/lib/constants'
+import { devicesStatusMap, devicesTypeMap } from '@/lib/constants'
 import { itemSchema } from '@/lib/schema'
 import { ItemFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
@@ -54,13 +54,35 @@ const AddItemForm = ({
   const { data: allWarehouse = [] } = trpc.warehouse.getAll.useQuery()
 
   const handleSubmit = (data: ItemFormData) => {
-    const isDuplicate =
-      existingItems.some(
-        (i) => i.serialNumber && i.serialNumber === data.serialNumber
-      ) || allWarehouse.some((i) => i.serialNumber === data.serialNumber)
+    if (data.type === 'DEVICE') {
+      const serial = data.serialNumber?.trim().toUpperCase()
+      if (!serial) return toast.error('Wpisz numer seryjny.')
 
-    if (data.type === 'DEVICE' && isDuplicate) {
-      return toast.error('Urządzenie o tym numerze seryjnym już istnieje.')
+      const alreadyInList = existingItems.some(
+        (i) => i.serialNumber?.toUpperCase() === serial
+      )
+
+      const inWarehouse = allWarehouse.find(
+        (i) => i.serialNumber?.toUpperCase() === serial
+      )
+
+      if (alreadyInList) {
+        return toast.error('To urządzenie już znajduje się na liście.')
+      }
+
+      if (inWarehouse) {
+        if (inWarehouse.status === 'AVAILABLE') {
+          return toast.error('Urządzenie już znajduje się w magazynie.')
+        }
+
+        if (inWarehouse.status === 'ASSIGNED' && inWarehouse.assignedToId) {
+          return toast.error(`Urządzenie jest na stanie technika.`)
+        }
+
+        return toast.error(
+          `Urządzenie jest w stanie: ${devicesStatusMap[inWarehouse.status]}`
+        )
+      }
     }
 
     onAddItem(data)
