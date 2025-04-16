@@ -32,7 +32,7 @@ type Props = {
  * TechnicianTable displays assigned orders grouped by time slots for a technician.
  * Each order is draggable and has an "unassign" button.
  */
-const TechnicianTable = ({ technicianId, slots, onUnassign }: Props) => {
+const TechnicianTable = ({ slots, onUnassign }: Props) => {
   return (
     <Table className="border rounded-lg w-full">
       <TableHeader>

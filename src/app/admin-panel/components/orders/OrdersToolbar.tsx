@@ -2,7 +2,6 @@
 
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
-import { useSearch } from '@/app/context/SearchContext'
 import Link from 'next/link'
 import { useState } from 'react'
 import { MdAdd, MdCalendarMonth } from 'react-icons/md'
@@ -14,10 +13,14 @@ import ImportOrders from './ImportOrders'
  * - Contains top action buttons with responsive layout.
  * - Uses universal SearchInput component.
  */
-const OrdersToolbar = () => {
-  const { setSearchTerm } = useSearch()
+
+type Props = {
+  searchTerm: string
+  setSearchTerm: (value: string) => void
+}
+
+const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
   const [isModalOpen, setModalOpen] = useState(false)
-  const [searchTerm, setsearchTerm] = useState('')
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

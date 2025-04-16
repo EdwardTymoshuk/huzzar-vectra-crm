@@ -44,6 +44,12 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     []
   )
 
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
+  const selectedTechnician = useMemo(
+    () => technicians.find((t) => t.id === technicianId) ?? null,
+    [technicians, technicianId]
+  )
+
   const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery()
   const returnMutation = trpc.warehouse.returnToWarehouse.useMutation()
 
@@ -56,34 +62,6 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         i.name.toLowerCase().includes(search.toLowerCase())
     )
   }, [warehouse, technicianId, search])
-
-  const assignedDevices = useMemo(() => {
-    if (!technicianId) return []
-    return warehouse.filter(
-      (i) =>
-        i.itemType === 'DEVICE' &&
-        i.assignedToId === technicianId &&
-        i.serialNumber?.toLowerCase() === serial.trim().toLowerCase()
-    )
-  }, [warehouse, technicianId, serial])
-
-  const handleAddDevice = (deviceId: string) => {
-    const match = assignedDevices.find((i) => i.id === deviceId)
-    if (!match || issuedDevices.find((d) => d.id === match.id)) return
-
-    setIssuedDevices((prev) => [
-      ...prev,
-      {
-        id: match.id,
-        name: match.name,
-        serialNumber: match.serialNumber!,
-        category: match.category ?? 'OTHER',
-        type: 'DEVICE',
-      },
-    ])
-    setSerial('')
-    toast.success('Dodano urządzenie.')
-  }
 
   const handleAddMaterial = (id: string) => {
     const item = assignedMaterials.find((m) => m.id === id)
@@ -197,7 +175,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   return (
     <div className="space-y-6">
       <TechnicianSelector
-        value={technicianId ? ({ id: technicianId } as any) : null}
+        value={selectedTechnician}
         onChange={(tech) => {
           setTechnicianId(tech?.id ?? null)
           setSearch('')

@@ -13,7 +13,12 @@ import OrdersTable from './OrdersTable'
  * OrdersTabs component:
  * - Switches between 'Lista zleceń' and 'Podział zleceń'
  */
-const OrdersTabs = () => {
+
+type Props = {
+  searchTerm: string
+}
+
+const OrdersTabs = ({ searchTerm }: Props) => {
   return (
     <Tabs defaultValue="list" className="w-full">
       <div className="w-full flex justify-center">
@@ -27,10 +32,10 @@ const OrdersTabs = () => {
         </TabsList>
       </div>
       <TabsContent value="list">
-        <OrdersTable />
+        <OrdersTable searchTerm={searchTerm} />
       </TabsContent>
       <TabsContent value="assignments">
-      <AssignmentsTable />
+        <AssignmentsTable />
       </TabsContent>
     </Tabs>
   )

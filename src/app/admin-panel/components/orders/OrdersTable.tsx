@@ -35,7 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { useSearch } from '@/app/context/SearchContext'
 import { statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
@@ -66,7 +65,11 @@ type OrderWithAssignedTo = Prisma.OrderGetPayload<{
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
 
-const OrdersTable = () => {
+type Props = {
+  searchTerm: string
+}
+
+const OrdersTable = ({ searchTerm }: Props) => {
   // Current pagination page
   const [currentPage, setCurrentPage] = useState(1)
   // How many items per page
@@ -98,7 +101,6 @@ const OrdersTable = () => {
   const [orderToDelete, setOrderToDelete] =
     useState<OrderWithAssignedTo | null>(null)
 
-  const { searchTerm } = useSearch()
   const trpcUtils = trpc.useUtils()
 
   // tRPC queries

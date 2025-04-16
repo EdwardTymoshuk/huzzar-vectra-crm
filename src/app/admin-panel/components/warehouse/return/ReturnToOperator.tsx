@@ -20,8 +20,11 @@ import { toast } from 'sonner'
 import ReturnItemList from './ReturnItemList'
 
 type ReturnType = 'DEVICE' | 'MATERIAL'
+type Props = {
+  onClose: () => void
+}
 
-const ReturnToOperator = () => {
+const ReturnToOperator = ({ onClose }: Props) => {
   const utils = trpc.useUtils()
 
   const [mode, setMode] = useState<ReturnType | null>(null)
@@ -152,6 +155,7 @@ const ReturnToOperator = () => {
       toast.error('Błąd przy zwrocie.')
     } finally {
       setLoading(false)
+      onClose()
     }
   }
 

@@ -4,6 +4,7 @@
 
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import PageHeader from '@/app/components/PageHeader'
+import { useState } from 'react'
 import OrdersTabs from '../components/orders/OrdersTabs'
 import OrdersToolbar from '../components/orders/OrdersToolbar'
 
@@ -12,12 +13,13 @@ import OrdersToolbar from '../components/orders/OrdersToolbar'
  * - Main page for displaying all orders content
  */
 const OrdersPage = () => {
+  const [searchTerm, setSearchTerm] = useState('')
   return (
     <MaxWidthWrapper>
       <PageHeader title="Zlecenia" />
       <div className="space-y-6">
-        <OrdersToolbar />
-        <OrdersTabs />
+        <OrdersToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        <OrdersTabs searchTerm={searchTerm} />
       </div>
     </MaxWidthWrapper>
   )
