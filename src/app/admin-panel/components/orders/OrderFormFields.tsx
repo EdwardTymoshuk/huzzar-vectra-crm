@@ -16,109 +16,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { timeSlotOptions } from '@/lib/constants'
+import { allTimeSlotOptions } from '@/lib/constants'
+import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
-import { Operator, OrderStatus, OrderType, TimeSlot } from '@prisma/client'
+import { OrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
-import { Control, useWatch } from 'react-hook-form'
-import { z } from 'zod'
+import { Control } from 'react-hook-form'
 
-/**
- * Zod schema for the order form.
- * We do NOT use .transform() on equipmentNeeded here,
- * so it remains a string (or undefined) in the form.
- */
-export const orderSchema = z.object({
-  type: z.nativeEnum(OrderType, {
-    required_error: 'Typ zlecenia jest wymagany',
-  }),
-  operator: z.nativeEnum(Operator, {
-    required_error: 'Operator jest wymagany',
-  }),
-  orderNumber: z
-    .string({
-      required_error: 'Numer zlecenia jest wymagany',
-    })
-    .min(3, 'Numer zlecenia musi mieć co najmniej 3 znaki'),
-  date: z
-    .string({
-      required_error: 'Data jest wymagana',
-    })
-    .min(1, 'Data nie może być pusta'),
-  timeSlot: z.nativeEnum(TimeSlot, {
-    required_error: 'Przedział czasowy jest wymagany',
-  }),
-  contractRequired: z.boolean({
-    required_error: 'Pole wymagane (Tak/Nie)',
-  }),
-  city: z
-    .string({
-      required_error: 'Miasto jest wymagane',
-    })
-    .min(2, 'Miasto musi mieć co najmniej 2 znaki'),
-  street: z
-    .string({
-      required_error: 'Ulica jest wymagana',
-    })
-    .min(3, 'Ulica musi mieć co najmniej 3 znaki'),
-  postalCode: z
-    .string({
-      required_error: 'Kod pocztowy jest wymagany',
-    })
-    .min(5, 'Kod pocztowy musi mieć co najmniej 5 znaków'),
-
-  // Optional
-  county: z.string().optional(),
-  municipality: z.string().optional(),
-  assignedToId: z.string().optional(),
-  clientPhoneNumber: z.string().optional(),
-  notes: z.string().optional(),
-
-  /**
-   * equipmentNeeded is a simple string in the form,
-   * e.g. "router, kabel". We turn it into an array in onSubmit.
-   */
-  equipmentNeeded: z.string().optional(),
-
-  status: z.nativeEnum(OrderStatus),
-})
-
-/**
- * Type for the form data. Notice that `equipmentNeeded` is now `string | undefined`.
- */
-export type OrderFormData = z.infer<typeof orderSchema>
-
-/**
- * A reusable component for rendering all the fields for an "order" form.
- * Comments in English, UI in Polish.
- */
 export function OrderFormFields({
   control,
 }: {
   control: Control<OrderFormData>
 }) {
-  const [selectedOperator, setSelectedOperator] = useState<Operator | null>(
-    null
-  )
+  const [operatorList, setOperatorList] = useState<string[]>([])
 
-  // Watch the operator value to filter time slots
-  const operatorValue = useWatch({ control, name: 'operator' })
-
-  // For listing all technicians. If you have a user.getTechnicians or similar:
-  const { data: technicians, isLoading } =
-    trpc.user.getTechnicians?.useQuery() || {
-      data: [],
-    }
+  // Fetch dynamic operators
+  const { data: operatorsData, isLoading: isOperatorsLoading } =
+    trpc.operatorDefinition.getAllDefinitions.useQuery()
 
   useEffect(() => {
-    if (operatorValue && operatorValue !== selectedOperator) {
-      setSelectedOperator(operatorValue)
+    if (operatorsData) {
+      setOperatorList(operatorsData.map((op) => op.operator))
     }
-  }, [operatorValue, selectedOperator])
+  }, [operatorsData])
 
-  const availableSlots = selectedOperator
-    ? timeSlotOptions[selectedOperator]
-    : []
+  // Fetch technicians
+  const { data: technicians, isLoading: isTechLoading } =
+    trpc.user.getTechnicians?.useQuery() || { data: [] }
 
   return (
     <>
@@ -145,7 +69,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* OPERATOR */}
+      {/* OPERATOR (z bazy danych) */}
       <FormField
         control={control}
         name="operator"
@@ -155,15 +79,19 @@ export function OrderFormFields({
               Operator <span className="text-danger">*</span>
             </FormLabel>
             <Select
-              onValueChange={(val) => field.onChange(val as Operator)}
+              onValueChange={field.onChange}
               value={field.value}
+              disabled={isOperatorsLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz operatora" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="V">V</SelectItem>
-                <SelectItem value="MMP">MMP</SelectItem>
+                {operatorList.map((op) => (
+                  <SelectItem key={op} value={op}>
+                    {op}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -177,9 +105,7 @@ export function OrderFormFields({
         name="orderNumber"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Numer zlecenia <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Numer zlecenia *</FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. 12345" />
             </FormControl>
@@ -194,9 +120,7 @@ export function OrderFormFields({
         name="date"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Data <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Data *</FormLabel>
             <FormControl>
               <Input type="date" {...field} />
             </FormControl>
@@ -205,21 +129,19 @@ export function OrderFormFields({
         )}
       />
 
-      {/* PRZEDZIAŁ CZASOWY */}
+      {/* PRZEDZIAŁ CZASOWY – WSZYSTKIE SLOTY */}
       <FormField
         control={control}
         name="timeSlot"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Przedział czasowy <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Przedział czasowy *</FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz przedział czasowy" />
               </SelectTrigger>
               <SelectContent>
-                {availableSlots.map((slot) => (
+                {allTimeSlotOptions.map((slot) => (
                   <SelectItem key={slot.value} value={slot.value}>
                     {slot.label}
                   </SelectItem>
@@ -237,9 +159,7 @@ export function OrderFormFields({
         name="contractRequired"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Wymaga umowy? <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Wymaga umowy? *</FormLabel>
             <Select
               onValueChange={(val) => field.onChange(val === 'true')}
               value={String(field.value)}
@@ -263,9 +183,7 @@ export function OrderFormFields({
         name="city"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Miasto <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Miasto *</FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. Gdańsk" />
             </FormControl>
@@ -280,9 +198,7 @@ export function OrderFormFields({
         name="street"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Ulica <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Ulica *</FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. Długa 1" />
             </FormControl>
@@ -297,9 +213,7 @@ export function OrderFormFields({
         name="postalCode"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              Kod pocztowy <span className="text-danger">*</span>
-            </FormLabel>
+            <FormLabel>Kod pocztowy *</FormLabel>
             <FormControl>
               <Input {...field} placeholder="00-000" />
             </FormControl>
@@ -445,7 +359,7 @@ export function OrderFormFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Nieprzypisany</SelectItem>
-                {isLoading ? (
+                {isTechLoading ? (
                   <SelectItem disabled value="">
                     <LoaderSpinner />
                   </SelectItem>

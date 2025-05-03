@@ -127,6 +127,22 @@ export const timeSlotOptions = {
 }
 
 /**
+ * Mapping of all time slots to formatted Polish equivalents.
+ */
+export const allTimeSlotOptions = [
+  { value: 'EIGHT_TEN', label: '08:00 – 10:00' },
+  { value: 'TEN_TWELVE', label: '10:00 – 12:00' },
+  { value: 'TWELVE_FOURTEEN', label: '12:00 – 14:00' },
+  { value: 'FOURTEEN_SIXTEEN', label: '14:00 – 16:00' },
+  { value: 'SIXTEEN_EIGHTEEN', label: '16:00 – 18:00' },
+  { value: 'EIGHTEEN_TWENTY', label: '18:00 – 20:00' },
+  { value: 'NINE_TWELVE', label: '09:00 – 12:00' },
+  { value: 'TWELVE_FIFTEEN', label: '12:00 – 15:00' },
+  { value: 'FIFTEEN_EIGHTEEN', label: '15:00 – 18:00' },
+  { value: 'EIGHTEEN_TWENTYONE', label: '18:00 – 21:00' },
+]
+
+/**
  * timeSlotMap (for displaying) – simple mapping "EIGHT_TEN" -> "08:00 - 10:00"
  */
 

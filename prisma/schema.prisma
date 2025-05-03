@@ -34,7 +34,7 @@ model User {
 /// The order model, representing job assignments in the system.
 model Order {
   id                String         @id @default(uuid())
-  operator          Operator      
+  operator          String      
   type              OrderType
   orderNumber       String         
   date              DateTime
@@ -117,6 +117,10 @@ model MaterialDefinition {
   price         Float?         @default(0)
 }
 
+model OperatorDefinition {
+  operator String @unique
+}
+
 /// Represents rate definitions for different services.
 model RateDefinition {
   id     String @id @default(uuid())
@@ -142,12 +146,6 @@ model WarehouseHistory {
 ////////////////////////////////////////////////////////
 //                      ENUMS
 ////////////////////////////////////////////////////////
-
-/// Defines the operator responsible for an order.
-enum Operator {
-  V
-  MMP
-}
 
 /// Defines user roles within the system.
 enum Role {
