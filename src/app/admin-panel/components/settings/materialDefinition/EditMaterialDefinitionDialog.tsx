@@ -41,22 +41,20 @@ interface Props {
     unit: 'PIECE' | 'METER'
     warningAlert: number
     alarmAlert: number
+    price: number
   }
 }
 
-/**
- * EditMaterialDefinitionDialog:
- * Modal form for editing existing material definitions.
- */
 const EditMaterialDefinitionDialog = ({ open, onClose, item }: Props) => {
   const utils = trpc.useUtils()
+
+  const { data: allMaterials = [] } = trpc.materialDefinition.getAll.useQuery()
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
     defaultValues: item,
   })
 
-  // Sync item props to form after dialog opens
   useEffect(() => {
     form.reset(item)
   }, [item, form])
@@ -71,11 +69,29 @@ const EditMaterialDefinitionDialog = ({ open, onClose, item }: Props) => {
   })
 
   const onSubmit = (data: MaterialFormData) => {
+    const name = data.name.trim()
+    const index = data.index.trim()
+
+    const isNameTaken = allMaterials.some(
+      (m) => m.name === name && m.id !== item.id
+    )
+    const isIndexTaken = allMaterials.some(
+      (m) => m.index === index && m.id !== item.id
+    )
+
+    if (isNameTaken) {
+      return toast.error('Materiał o tej nazwie już istnieje.')
+    }
+
+    if (isIndexTaken) {
+      return toast.error('Materiał o tym indeksie już istnieje.')
+    }
+
     mutation.mutate({
       id: item.id,
       ...data,
-      name: data.name.trim(),
-      index: data.index.trim(),
+      name,
+      index,
     })
   }
 
@@ -154,7 +170,7 @@ const EditMaterialDefinitionDialog = ({ open, onClose, item }: Props) => {
               name="warningAlert"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Alert ostrzegawczy (niski stan)</FormLabel>
+                  <FormLabel>Alert ostrzegawczy</FormLabel>
                   <FormControl>
                     <Input type="number" min={1} {...field} />
                   </FormControl>
@@ -168,7 +184,7 @@ const EditMaterialDefinitionDialog = ({ open, onClose, item }: Props) => {
               name="alarmAlert"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Alert krytyczny (bardzo niski stan)</FormLabel>
+                  <FormLabel>Alert krytyczny</FormLabel>
                   <FormControl>
                     <Input type="number" min={1} {...field} />
                   </FormControl>

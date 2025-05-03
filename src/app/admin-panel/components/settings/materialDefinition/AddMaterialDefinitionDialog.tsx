@@ -36,10 +36,13 @@ import { toast } from 'sonner'
 /**
  * AddMaterialDefinitionDialog:
  * A modal form to create a new material name definition with alerts, unit and index.
+ * Prevents duplicates based on name or index.
  */
 const AddMaterialDefinitionDialog = () => {
   const [open, setOpen] = useState(false)
   const utils = trpc.useUtils()
+
+  const { data: allMaterials } = trpc.materialDefinition.getAll.useQuery()
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -64,6 +67,27 @@ const AddMaterialDefinitionDialog = () => {
   })
 
   const onSubmit = (data: MaterialFormData) => {
+    const trimmedName = data.name.trim().toLowerCase()
+    const trimmedIndex = data.index.trim().toLowerCase()
+
+    const duplicatedName = allMaterials?.some((m) => {
+      const name = m.name?.trim().toLowerCase() || ''
+      return name === trimmedName
+    })
+
+    const duplicatedIndex = allMaterials?.some((m) => {
+      const index = m.index?.trim().toLowerCase() || ''
+      return index === trimmedIndex
+    })
+
+    if (duplicatedName) {
+      return toast.error('Materiał o tej nazwie już istnieje.')
+    }
+
+    if (duplicatedIndex) {
+      return toast.error('Materiał o tym indeksie już istnieje.')
+    }
+
     mutation.mutate({
       ...data,
       name: data.name.trim(),

@@ -45,14 +45,16 @@ interface Props {
 const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
   const utils = trpc.useUtils()
 
+  // Fetch existing device definitions
+  const { data: allDefinitions } =
+    trpc.deviceDefinition.getAllDefinitions.useQuery()
+
   const form = useForm<DeviceFormData>({
     resolver: zodResolver(deviceSchema),
     defaultValues: {
       ...item,
     },
   })
-
-  console.log('form errors:', form.formState.errors)
 
   useEffect(() => {
     form.reset({
@@ -70,6 +72,18 @@ const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
   })
 
   const onSubmit = (data: DeviceFormData) => {
+    const trimmedName = data.name.trim()
+    const alreadyExists = allDefinitions?.some(
+      (def) =>
+        def.name.toLowerCase() === trimmedName.toLowerCase() &&
+        def.category === data.category
+    )
+
+    if (alreadyExists) {
+      toast.error('Takie urządzenie już istnieje w danej kategorii.')
+      return
+    }
+
     mutation.mutate({
       id: item.id,
       ...data,
