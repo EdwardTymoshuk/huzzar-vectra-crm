@@ -21,14 +21,14 @@ import {
 } from '@/app/components/ui/select'
 import { devicesStatusMap, devicesTypeMap } from '@/lib/constants'
 import { itemSchema } from '@/lib/schema'
-import { ItemFormData } from '@/types'
+import { DeviceFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { DeviceCategory } from '@prisma/client'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
-const defaultValues: ItemFormData = {
+const defaultValues: DeviceFormData = {
   type: 'DEVICE',
   category: undefined,
   name: '',
@@ -40,10 +40,10 @@ const AddItemForm = ({
   existingItems,
   onAddItem,
 }: {
-  existingItems: ItemFormData[]
-  onAddItem: (item: ItemFormData) => void
+  existingItems: DeviceFormData[]
+  onAddItem: (item: DeviceFormData) => void
 }) => {
-  const form = useForm<ItemFormData>({
+  const form = useForm<DeviceFormData>({
     resolver: zodResolver(itemSchema),
     defaultValues,
   })
@@ -53,7 +53,7 @@ const AddItemForm = ({
   const { data: materials = [] } = trpc.materialDefinition.getAll.useQuery()
   const { data: allWarehouse = [] } = trpc.warehouse.getAll.useQuery()
 
-  const handleSubmit = (data: ItemFormData) => {
+  const handleSubmit = (data: DeviceFormData) => {
     if (data.type === 'DEVICE') {
       const serial = data.serialNumber?.trim().toUpperCase()
       if (!serial) return toast.error('Wpisz numer seryjny.')

@@ -16,21 +16,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
+import { materialUnitMap } from '@/lib/constants'
+import { MaterialDefinition } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { FC, MouseEvent, useState } from 'react'
 import { MdClose } from 'react-icons/md'
 import { toast } from 'sonner'
 import EditMaterialDefinitionDialog from './EditMaterialDefinitionDialog'
 
-type MaterialDefinition = {
-  id: string
-  name: string
-}
-
 /**
  * MaterialDefinitionsList:
- * - Renders all material names as badges
- * - Supports inline deletion and editing via double-click
+ * - Displays all material definitions as badges
+ * - Supports double-click editing and inline deletion
  */
 const MaterialDefinitionsList: FC = () => {
   const { data, isLoading, isError } = trpc.materialDefinition.getAll.useQuery()
@@ -39,6 +36,7 @@ const MaterialDefinitionsList: FC = () => {
   )
 
   const utils = trpc.useUtils()
+
   const deleteMutation = trpc.materialDefinition.delete.useMutation({
     onSuccess: () => {
       toast.success('Materiał został usunięty.')
@@ -64,17 +62,26 @@ const MaterialDefinitionsList: FC = () => {
     )
   }
 
+  // Apply default values in case something is missing
+  const safeData: MaterialDefinition[] = data.map((item) => ({
+    ...item,
+    index: item.index ?? '',
+    unit: item.unit ?? 'PIECE',
+    warningAlert: item.warningAlert ?? 10,
+    alarmAlert: item.alarmAlert ?? 5,
+  }))
+
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Materiały</CardTitle>
-          <CardDescription>Łącznie: {data.length}</CardDescription>
+          <CardDescription>Łącznie: {safeData.length}</CardDescription>
         </CardHeader>
 
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {data.map((material) => (
+            {safeData.map((material) => (
               <TooltipProvider key={material.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -83,7 +90,7 @@ const MaterialDefinitionsList: FC = () => {
                       className="cursor-pointer flex items-center gap-1"
                       onDoubleClick={() => setEditingItem(material)}
                     >
-                      {material.name}
+                      {material.name} ({materialUnitMap[material.unit]})
                       <MdClose
                         className="text-danger"
                         onClick={(e: MouseEvent) => {

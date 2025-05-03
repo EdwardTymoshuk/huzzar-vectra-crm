@@ -80,9 +80,12 @@ model Warehouse {
   name            String
   category        DeviceCategory?
   subcategory     String?
-  serialNumber    String?            @unique
+  serialNumber    String?           @unique
   quantity        Int
-  unit            MaterialUnit?
+  unit            MaterialUnit     @default(PIECE)
+  index           String?           @unique
+  warningAlert    Int?              @default(10)
+  alarmAlert      Int?              @default(5)
   price           Float
   status          WarehouseStatus
   assignedToId    String?
@@ -99,11 +102,19 @@ model DeviceDefinition {
   id       String         @id @default(uuid())
   category DeviceCategory
   name     String
+  warningAlert  Int?           @default(10)
+  alarmAlert    Int?           @default(5)
+  price         Float?         @default(0)
 }
 
 model MaterialDefinition {
   id   String @id @default(uuid())
   name String @unique
+  warningAlert  Int?           @default(10)
+  alarmAlert    Int?           @default(5)
+  unit          MaterialUnit  @default(PIECE)
+  index         String?
+  price         Float?         @default(0)
 }
 
 /// Represents rate definitions for different services.

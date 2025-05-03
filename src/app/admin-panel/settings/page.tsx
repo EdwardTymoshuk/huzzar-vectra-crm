@@ -1,9 +1,9 @@
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import PageHeader from '@/app/components/PageHeader'
-import AdminsSection from '../components/settings/AdminsSection'
-import DeviceDefinitionsSection from '../components/settings/DeviceDefinitionsSection'
-import MaterialDefinitionsSection from '../components/settings/MaterialDefinitionsSection'
-import RatesSection from '../components/settings/RatesSection'
+import AdminsSection from '../components/settings/adminSection/AdminsSection'
+import DeviceDefinitionsSection from '../components/settings/deviceDefinition/DeviceDefinitionsSection'
+import MaterialDefinitionsSection from '../components/settings/materialDefinition/MaterialDefinitionsSection'
+import RatesSection from '../components/settings/rateSection/RatesSection'
 
 const SettingPage = () => {
   return (

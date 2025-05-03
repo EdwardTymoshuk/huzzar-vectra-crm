@@ -219,3 +219,10 @@ export const devicesStatusMap: Record<string, string> = {
   RETURNED: 'ZWRÓCONY',
   ASSIGNED_TO_ORDER: 'WYDANY',
 }
+/**
+ * Mapping of material units to Polish display names.
+ */
+export const materialUnitMap: Record<string, string> = {
+  PIECE: 'szt',
+  METER: 'mb',
+}

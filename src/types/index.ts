@@ -1,6 +1,6 @@
 //sec/types/index.ts
 
-import { itemSchema } from '@/lib/schema'
+import { deviceSchema, materialSchema } from '@/lib/schema'
 import {
   DeviceCategory,
   Order,
@@ -62,4 +62,23 @@ export type IssuedItemMaterial = {
 
 export type IssuedItem = IssuedItemDevice | IssuedItemMaterial
 
-export type ItemFormData = z.infer<typeof itemSchema>
+export type DeviceFormData = z.infer<typeof deviceSchema>
+export type MaterialFormData = z.infer<typeof materialSchema>
+
+export type DeviceDefinition = {
+  id: string
+  category: 'MODEM' | 'DECODER' | 'ONT' | 'AMPLIFIER' | 'OTHER'
+  price: number
+  name: string
+  warningAlert: number
+  alarmAlert: number
+}
+
+export type MaterialDefinition = {
+  id: string
+  name: string
+  index: string
+  unit: 'PIECE' | 'METER'
+  warningAlert: number
+  alarmAlert: number
+}

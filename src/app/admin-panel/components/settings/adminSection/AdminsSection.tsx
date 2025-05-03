@@ -1,6 +1,6 @@
+import SettingsSection from '../SettingsSection'
 import AddAdminDialog from './AddAdminDialog'
 import AdminsTable from './AdminsTable'
-import SettingsSection from './SettingsSection'
 
 const AdminsSection = ({ title }: { title: string }) => {
   return (

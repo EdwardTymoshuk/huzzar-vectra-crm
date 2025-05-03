@@ -1,5 +1,5 @@
 import { router } from '../trpc'
-import { deviceDefinitionRouter } from './deviceDefinition'
+import { deviceDefinitionRouter } from './deviceDefinitionRouter'
 import { materialDefinitionRouter } from './materialDefinitionRouter'
 import { orderRouter } from './orderRouter'
 import { rateDefinitionRouter } from './rateDefinition'

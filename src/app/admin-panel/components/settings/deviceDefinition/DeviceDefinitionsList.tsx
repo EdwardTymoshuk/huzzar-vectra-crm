@@ -16,17 +16,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
+import { DeviceDefinition } from '@/types'
 import { trpc } from '@/utils/trpc'
-import { FC, MouseEvent, useState } from 'react'
+import { FC, MouseEvent, useMemo, useState } from 'react'
 import { MdClose } from 'react-icons/md'
 import { toast } from 'sonner'
 import EditDeviceDefinitionDialog from './EditDeviceDefinitionDialog'
 
-// Typ podkategorii (np. FunBox 6 w kategorii MODEM)
-type DeviceDefinition = {
-  id: string
-  category: 'MODEM' | 'DECODER' | 'ONT' | 'AMPLIFIER' | 'OTHER'
-  name: string
+const fallbackDefinition: DeviceDefinition = {
+  id: '',
+  name: '',
+  category: 'OTHER',
+  price: 0,
+  warningAlert: 5,
+  alarmAlert: 10,
 }
 
 /**
@@ -38,6 +41,16 @@ const DeviceDefinitionsList: FC = () => {
   // Fetch definitions
   const { data, isLoading, isError } =
     trpc.deviceDefinition.getAllDefinitions.useQuery()
+
+  const safeData = useMemo(() => {
+    if (!data) return []
+    return data.map((def) => ({
+      ...def,
+      warningAlert: def.warningAlert ?? 5,
+      alarmAlert: def.alarmAlert ?? 10,
+      price: def.price ?? 0,
+    }))
+  }, [data])
 
   // State for editing
   const [editingItem, setEditingItem] = useState<DeviceDefinition | null>(null)
@@ -61,6 +74,23 @@ const DeviceDefinitionsList: FC = () => {
     OTHER: 'INNE',
   }
 
+  // Group definitions by category
+  const grouped = safeData.reduce<Record<string, DeviceDefinition[]>>(
+    (acc, def) => {
+      if (!acc[def.category]) {
+        acc[def.category] = []
+      }
+      acc[def.category].push(def)
+      return acc
+    },
+    {}
+  )
+
+  const entries = Object.entries(grouped) as [
+    DeviceDefinition['category'],
+    DeviceDefinition[]
+  ][]
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -80,23 +110,6 @@ const DeviceDefinitionsList: FC = () => {
       </Alert>
     )
   }
-
-  // Group definitions by category
-  const grouped = data.reduce<Record<string, DeviceDefinition[]>>(
-    (acc, def) => {
-      if (!acc[def.category]) {
-        acc[def.category] = []
-      }
-      acc[def.category].push(def)
-      return acc
-    },
-    {}
-  )
-
-  const entries = Object.entries(grouped) as [
-    DeviceDefinition['category'],
-    DeviceDefinition[]
-  ][]
 
   // Render categories as Cards, subcategories as Badges
   return (
@@ -147,13 +160,11 @@ const DeviceDefinitionsList: FC = () => {
       ))}
 
       {/* Dialog to edit subcategory (podkategoria) */}
-      {editingItem && (
-        <EditDeviceDefinitionDialog
-          open={!!editingItem}
-          item={editingItem}
-          onClose={() => setEditingItem(null)}
-        />
-      )}
+      <EditDeviceDefinitionDialog
+        open={!!editingItem}
+        item={editingItem ?? fallbackDefinition}
+        onClose={() => setEditingItem(null)}
+      />
     </>
   )
 }

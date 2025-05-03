@@ -11,7 +11,7 @@ import {
   AlertDialogTrigger,
 } from '@/app/components/ui/alert-dialog'
 import { Button } from '@/app/components/ui/button'
-import { ItemFormData } from '@/types'
+import { DeviceFormData } from '@/types'
 
 const AddedItemList = ({
   items,
@@ -20,7 +20,7 @@ const AddedItemList = ({
   onSave,
   loading,
 }: {
-  items: ItemFormData[]
+  items: DeviceFormData[]
   onRemoveItem: (index: number) => void
   onClearAll: () => void
   onSave: () => void

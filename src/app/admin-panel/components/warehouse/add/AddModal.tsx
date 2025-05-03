@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import { ItemFormData } from '@/types'
+import { DeviceFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -20,7 +20,7 @@ const AddModal = ({
   open: boolean
   onCloseAction: () => void
 }) => {
-  const [items, setItems] = useState<ItemFormData[]>([])
+  const [items, setItems] = useState<DeviceFormData[]>([])
 
   const utils = trpc.useUtils()
   const addMutation = trpc.warehouse.addItems.useMutation({
@@ -33,7 +33,7 @@ const AddModal = ({
     onError: () => toast.error('Błąd podczas zapisywania sprzętu.'),
   })
 
-  const handleAddItem = (item: ItemFormData) => {
+  const handleAddItem = (item: DeviceFormData) => {
     setItems((prev) => [...prev, item])
   }
 

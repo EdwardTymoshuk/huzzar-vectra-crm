@@ -1,6 +1,6 @@
+import SettingsSection from '../SettingsSection'
 import AddDeviceDefinitionDialog from './AddDeviceDefinitionDialog'
 import DeviceDefinitionsList from './DeviceDefinitionsList'
-import SettingsSection from './SettingsSection'
 
 /**
  * DeviceDefinitionsSection:

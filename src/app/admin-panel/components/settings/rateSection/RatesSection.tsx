@@ -1,6 +1,6 @@
+import SettingsSection from '../SettingsSection'
 import AddRateDefinitionDialog from './AddRateDefinitionDialog'
 import RatesTable from './RatesTable'
-import SettingsSection from './SettingsSection'
 
 /**
  * RatesSection component:

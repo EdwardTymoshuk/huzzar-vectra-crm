@@ -1,6 +1,6 @@
+import SettingsSection from '../SettingsSection'
 import AddMaterialDefinitionDialog from './AddMaterialDefinitionDialog'
 import MaterialDefinitionsList from './MaterialDefinitionsList'
-import SettingsSection from './SettingsSection'
 
 /**
  * MaterialDefinitionsSection:
