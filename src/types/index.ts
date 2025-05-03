@@ -67,7 +67,7 @@ export type MaterialFormData = z.infer<typeof materialSchema>
 
 export type DeviceDefinition = {
   id: string
-  category: 'MODEM' | 'DECODER' | 'ONT' | 'AMPLIFIER' | 'OTHER'
+  category: 'MODEM' | 'DECODER' | 'ONT' | 'AMPLIFIER' | 'UA' | 'OTHER'
   price: number
   name: string
   warningAlert: number

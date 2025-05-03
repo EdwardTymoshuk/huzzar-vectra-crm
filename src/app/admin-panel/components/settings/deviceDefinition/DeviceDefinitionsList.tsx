@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
+import { devicesTypeMap } from '@/lib/constants'
 import { DeviceDefinition } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { FC, MouseEvent, useMemo, useState } from 'react'
@@ -65,15 +66,6 @@ const DeviceDefinitionsList: FC = () => {
     onError: () => toast.error('Błąd podczas usuwania.'),
   })
 
-  // Mapping from DB values (English enum) to Polish display text
-  const categoryLabels: Record<DeviceDefinition['category'], string> = {
-    MODEM: 'MODEM',
-    DECODER: 'DEKODER',
-    ONT: 'ONT',
-    AMPLIFIER: 'WZNACNIACZ',
-    OTHER: 'INNE',
-  }
-
   // Group definitions by category
   const grouped = safeData.reduce<Record<string, DeviceDefinition[]>>(
     (acc, def) => {
@@ -117,7 +109,7 @@ const DeviceDefinitionsList: FC = () => {
       {entries.map(([category, items]) => (
         <Card key={category} className="mb-4">
           <CardHeader>
-            <CardTitle>{categoryLabels[category]}</CardTitle>
+            <CardTitle>{devicesTypeMap[category]}</CardTitle>
             <CardDescription>Łącznie: {items.length}</CardDescription>
           </CardHeader>
 

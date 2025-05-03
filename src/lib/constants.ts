@@ -208,6 +208,7 @@ export const devicesTypeMap: Record<string, string> = {
   DECODER: 'DEKODER',
   AMPLIFIER: 'WZMACNIACZ',
   ONT: 'ONT',
+  UA: 'UA',
   OTHER: 'INNE',
 }
 /**

@@ -24,7 +24,6 @@ const WarehouseTabs = ({ searchTerm }: Props) => {
       <TabsList className="w-full grid grid-cols-3">
         <TabsTrigger value="devices">Urządzenia</TabsTrigger>
         <TabsTrigger value="materials">Materiały</TabsTrigger>
-        <TabsTrigger value="ua">UA</TabsTrigger>
       </TabsList>
 
       {/* Devices tab */}
@@ -34,14 +33,6 @@ const WarehouseTabs = ({ searchTerm }: Props) => {
 
       <TabsContent value="materials">
         <WarehouseTable itemType="MATERIAL" searchTerm={searchTerm} />
-      </TabsContent>
-
-      <TabsContent value="ua">
-        <WarehouseTable
-          itemType="DEVICE"
-          subcategoryFilter="UA"
-          searchTerm={searchTerm}
-        />
       </TabsContent>
     </Tabs>
   )

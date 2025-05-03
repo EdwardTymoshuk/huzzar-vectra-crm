@@ -82,7 +82,7 @@ const AddDeviceDefinitionDialog = () => {
         <DialogHeader>
           <DialogTitle>Dodaj nową podkategorię</DialogTitle>
           <DialogDescription>
-            Wybierz kategorię urządzenia, nazwę oraz progi ostrzeżeń.
+            Wybierz kategorię urządzenia, nazwę, cenę oraz progi ostrzeżeń.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -102,6 +102,7 @@ const AddDeviceDefinitionDialog = () => {
                       <SelectItem value="DECODER">Dekoder</SelectItem>
                       <SelectItem value="ONT">ONT</SelectItem>
                       <SelectItem value="AMPLIFIER">Wzmacniacz</SelectItem>
+                      <SelectItem value="UA">UA</SelectItem>
                       <SelectItem value="OTHER">Inne</SelectItem>
                     </SelectContent>
                   </Select>
@@ -117,7 +118,7 @@ const AddDeviceDefinitionDialog = () => {
                 <FormItem>
                   <FormLabel>Nazwa podkategorii</FormLabel>
                   <FormControl>
-                    <Input placeholder="np. FunBox 6" {...field} />
+                    <Input placeholder="np. HUAWEI EG8145X6" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

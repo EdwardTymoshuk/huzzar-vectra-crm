@@ -43,7 +43,14 @@ export const deviceDefinitionRouter = router({
       z
         .object({
           id: z.string(),
-          category: z.enum(['MODEM', 'DECODER', 'ONT', 'AMPLIFIER', 'OTHER']),
+          category: z.enum([
+            'MODEM',
+            'DECODER',
+            'ONT',
+            'AMPLIFIER',
+            'UA',
+            'OTHER',
+          ]),
           name: z.string().min(2),
           warningAlert: z.number().min(1),
           alarmAlert: z.number().min(1),

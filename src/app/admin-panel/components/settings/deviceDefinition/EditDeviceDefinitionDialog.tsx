@@ -70,7 +70,6 @@ const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
   })
 
   const onSubmit = (data: DeviceFormData) => {
-    console.log('Submitting:', data)
     mutation.mutate({
       id: item.id,
       ...data,
@@ -104,6 +103,7 @@ const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
                       <SelectItem value="DECODER">Dekoder</SelectItem>
                       <SelectItem value="ONT">ONT</SelectItem>
                       <SelectItem value="AMPLIFIER">Wzmacniacz</SelectItem>
+                      <SelectItem value="UA">UA</SelectItem>
                       <SelectItem value="OTHER">Inne</SelectItem>
                     </SelectContent>
                   </Select>

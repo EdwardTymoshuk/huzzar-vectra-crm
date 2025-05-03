@@ -210,7 +210,6 @@ enum TimeSlot {
 enum WarehouseItemType {
   DEVICE
   MATERIAL
-  UA
 }
 
 /// Defines categories of devices.
@@ -219,6 +218,7 @@ enum DeviceCategory {
   DECODER
   ONT
   AMPLIFIER
+  UA
   OTHER
 }
 
