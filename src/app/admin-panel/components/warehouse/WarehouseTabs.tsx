@@ -21,7 +21,7 @@ type Props = {
 const WarehouseTabs = ({ searchTerm }: Props) => {
   return (
     <Tabs defaultValue="devices" className="w-full">
-      <TabsList className="w-full grid grid-cols-3">
+      <TabsList className="w-full grid grid-cols-2">
         <TabsTrigger value="devices">Urządzenia</TabsTrigger>
         <TabsTrigger value="materials">Materiały</TabsTrigger>
       </TabsList>

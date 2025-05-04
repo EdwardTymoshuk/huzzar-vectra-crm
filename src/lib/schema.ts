@@ -41,6 +41,22 @@ export const materialSchema = z
     path: ['alarmAlert'],
   })
 
+export const warehouseFormSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('DEVICE'),
+    category: z.nativeEnum(DeviceCategory),
+    name: z.string().min(2),
+    serialNumber: z
+      .string()
+      .min(3, 'Numer seryjny musi mieć min. 3 znaki')
+      .transform((val) => val.toUpperCase()),
+  }),
+  z.object({
+    type: z.literal('MATERIAL'),
+    name: z.string().min(1, 'Wybierz materiał'),
+    quantity: z.coerce.number().min(1, 'Ilość musi być większa niż 0'),
+  }),
+])
 export const operatorSchema = z.object({
   operator: z.string().min(2, 'Nazwa jest wymagana').max(50, 'Za długa nazwa'),
 })

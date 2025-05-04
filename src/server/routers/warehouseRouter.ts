@@ -19,6 +19,7 @@ export const warehouseRouter = router({
             quantity: z.number().optional(), // only required for MATERIAL
           })
         ),
+        notes: z.string().optional(), // 🆕 notes added
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -41,18 +42,20 @@ export const warehouseRouter = router({
           },
         })
 
-        // Create warehouse history entry
+        // Create warehouse history entry with optional notes
         await prisma.warehouseHistory.create({
           data: {
             warehouseItemId: createdItem.id,
             action: 'RECEIVED',
             performedById: ctx.user.id,
+            notes: input.notes || undefined, // 🆕 save notes
           },
         })
       }
 
       return { success: true }
     }),
+
   // 📤 Issue items (ASSIGNED)
   issueItems: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
     .input(
@@ -71,16 +74,16 @@ export const warehouseRouter = router({
             }),
           ])
         ),
+        notes: z.string().optional(), // 🆕 notes added
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { assignedToId, items } = input
+      const { assignedToId, items, notes } = input
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
       for (const item of items) {
         if (item.type === 'DEVICE') {
-          // Assign device to technician and update its status
           const updated = await prisma.warehouse.update({
             where: { id: item.id },
             data: {
@@ -89,13 +92,13 @@ export const warehouseRouter = router({
             },
           })
 
-          // Log assignment in warehouse history
           await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: updated.id,
               action: 'ISSUED',
               performedById: userId,
               assignedToId,
+              notes: notes || undefined, // 🆕 save notes
             },
           })
         } else if (item.type === 'MATERIAL') {
@@ -110,7 +113,6 @@ export const warehouseRouter = router({
             })
           }
 
-          // 1. Decrease material quantity in main warehouse
           await prisma.warehouse.update({
             where: { id: item.id },
             data: {
@@ -118,7 +120,6 @@ export const warehouseRouter = router({
             },
           })
 
-          // 2. Create new warehouse record assigned to technician
           const assignedItem = await prisma.warehouse.create({
             data: {
               itemType: 'MATERIAL',
@@ -133,7 +134,6 @@ export const warehouseRouter = router({
             },
           })
 
-          // 3. Log assignment in warehouse history
           await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: assignedItem.id,
@@ -141,6 +141,7 @@ export const warehouseRouter = router({
               performedById: userId,
               assignedToId,
               quantity: item.quantity,
+              notes: notes || undefined, // 🆕 save notes
             },
           })
         }

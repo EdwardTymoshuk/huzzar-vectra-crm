@@ -13,23 +13,37 @@ import {
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { devicesTypeMap } from '@/lib/constants'
-import { IssuedItem, IssuedItemDevice, IssuedItemMaterial } from '@/types'
+import {
+  IssuedItemDevice,
+  IssuedItemMaterial,
+  WarehouseFormData,
+} from '@/types'
 import { useState } from 'react'
 
 type Props = {
-  items: IssuedItem[]
+  items: WarehouseFormData[]
   onRemoveItem: (index: number) => void
   onClearAll: () => void
-  onReturn: () => void
-  loading: boolean
+  onConfirm: () => void
+  loading?: boolean
+  title: string
+  confirmLabel: string
+  showNotes?: boolean
+  notes?: string
+  setNotes?: (v: string) => void
 }
 
-const ReturnItemList = ({
+const WarehouseSelectedItemsPanel = ({
   items,
   onRemoveItem,
   onClearAll,
-  onReturn,
+  onConfirm,
   loading,
+  title,
+  confirmLabel,
+  showNotes = false,
+  notes,
+  setNotes,
 }: Props) => {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -38,7 +52,7 @@ const ReturnItemList = ({
 
   return (
     <div className="space-y-4 bg-gray-100 p-4 rounded-lg mt-4">
-      <h2 className="text-lg font-bold">Do zwrotu:</h2>
+      <h2 className="text-lg font-bold">{title}</h2>
 
       {/* Devices */}
       {devices.length > 0 && (
@@ -106,10 +120,26 @@ const ReturnItemList = ({
         </div>
       )}
 
+      {/* Notes (optional) */}
+      {showNotes && setNotes && (
+        <div>
+          <label className="text-sm font-medium text-muted-foreground mb-1 block">
+            Uwagi (opcjonalnie)
+          </label>
+          <textarea
+            className="w-full border rounded-md p-2 text-sm resize-none"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Dodaj uwagi do operacji (np. numer dokumentu, powód, opis)"
+          />
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">
-        <Button onClick={onReturn} disabled={loading} variant="success">
-          {loading ? 'Zwracanie...' : 'Zwróć'}
+        <Button onClick={onConfirm} disabled={loading} variant="success">
+          {loading ? `${confirmLabel}...` : confirmLabel}
         </Button>
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogTrigger asChild>
@@ -139,4 +169,4 @@ const ReturnItemList = ({
   )
 }
 
-export default ReturnItemList
+export default WarehouseSelectedItemsPanel

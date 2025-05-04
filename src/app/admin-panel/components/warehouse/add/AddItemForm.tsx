@@ -20,31 +20,30 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { devicesStatusMap, devicesTypeMap } from '@/lib/constants'
-import { itemSchema } from '@/lib/schema'
-import { DeviceFormData } from '@/types'
+import { warehouseFormSchema } from '@/lib/schema'
+import { WarehouseFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { DeviceCategory } from '@prisma/client'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
-const defaultValues: DeviceFormData = {
+const defaultValues: WarehouseFormData = {
   type: 'DEVICE',
-  category: undefined,
+  category: 'OTHER',
   name: '',
   serialNumber: '',
-  quantity: 1,
 }
 
 const AddItemForm = ({
   existingItems,
   onAddItem,
 }: {
-  existingItems: DeviceFormData[]
-  onAddItem: (item: DeviceFormData) => void
+  existingItems: WarehouseFormData[]
+  onAddItem: (item: WarehouseFormData) => void
 }) => {
-  const form = useForm<DeviceFormData>({
-    resolver: zodResolver(itemSchema),
+  const form = useForm<WarehouseFormData>({
+    resolver: zodResolver(warehouseFormSchema),
     defaultValues,
   })
 
@@ -53,13 +52,13 @@ const AddItemForm = ({
   const { data: materials = [] } = trpc.materialDefinition.getAll.useQuery()
   const { data: allWarehouse = [] } = trpc.warehouse.getAll.useQuery()
 
-  const handleSubmit = (data: DeviceFormData) => {
+  const handleSubmit = (data: WarehouseFormData) => {
     if (data.type === 'DEVICE') {
       const serial = data.serialNumber?.trim().toUpperCase()
       if (!serial) return toast.error('Wpisz numer seryjny.')
 
       const alreadyInList = existingItems.some(
-        (i) => i.serialNumber?.toUpperCase() === serial
+        (i) => i.type === 'DEVICE' && i.serialNumber?.toUpperCase() === serial
       )
 
       const inWarehouse = allWarehouse.find(

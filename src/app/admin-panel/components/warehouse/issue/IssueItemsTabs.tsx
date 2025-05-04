@@ -10,7 +10,7 @@ import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import IssuedItemList from './IssuedItemList'
+import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
 import MaterialIssueTable from './MaterialIssueTable'
 import SerialScanInput from './SerialScanInput'
 
@@ -27,6 +27,7 @@ type Props = {
 const IssueItemsTabs = ({ technicianId }: Props) => {
   const [devices, setDevices] = useState<IssuedItemDevice[]>([])
   const [materials, setMaterials] = useState<IssuedItemMaterial[]>([])
+  const [notes, setNotes] = useState('')
 
   const utils = trpc.useUtils()
   const { mutate: issueMany, isLoading: isIssuing } =
@@ -35,6 +36,7 @@ const IssueItemsTabs = ({ technicianId }: Props) => {
         toast.success('Sprzęt wydany do technika')
         setDevices([])
         setMaterials([])
+        setNotes('')
         utils.warehouse.getAll.invalidate()
       },
       onError: () => {
@@ -99,6 +101,7 @@ const IssueItemsTabs = ({ technicianId }: Props) => {
           quantity: m.quantity,
         })),
       ],
+      notes,
     })
   }
 
@@ -128,16 +131,22 @@ const IssueItemsTabs = ({ technicianId }: Props) => {
           <MaterialIssueTable
             onAddMaterial={handleAddMaterial}
             issuedMaterials={materials}
+            technicianId={technicianId}
           />
         </TabsContent>
       </Tabs>
 
       {(devices.length > 0 || materials.length > 0) && (
-        <IssuedItemList
+        <WarehouseSelectedItemsPanel
           items={[...devices, ...materials]}
           onRemoveItem={handleRemove}
           onClearAll={handleClearAll}
-          onIssue={handleIssue}
+          onConfirm={handleIssue}
+          confirmLabel="Wydaj"
+          title="Do wydania"
+          showNotes
+          notes={notes}
+          setNotes={setNotes}
           loading={isIssuing}
         />
       )}

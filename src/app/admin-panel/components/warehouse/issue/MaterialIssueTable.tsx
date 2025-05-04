@@ -5,6 +5,7 @@ import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { sumTechnicianMaterialStock } from '@/lib/warehouse'
 import { IssuedItemMaterial } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
@@ -12,11 +13,16 @@ import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 
 type Props = {
+  technicianId: string
   onAddMaterial: (material: IssuedItemMaterial) => void
-  issuedMaterials: IssuedItemMaterial[] // ⬅️ Dodane!
+  issuedMaterials: IssuedItemMaterial[]
 }
 
-const MaterialIssueTable = ({ onAddMaterial, issuedMaterials }: Props) => {
+const MaterialIssueTable = ({
+  onAddMaterial,
+  issuedMaterials,
+  technicianId,
+}: Props) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [materialQuantities, setMaterialQuantities] = useState<
     Record<string, number>
@@ -35,6 +41,17 @@ const MaterialIssueTable = ({ onAddMaterial, issuedMaterials }: Props) => {
       ) || []
     )
   }, [warehouseItems, searchTerm])
+
+  const technicianStock = useMemo(() => {
+    return (
+      warehouseItems?.filter(
+        (item) =>
+          item.itemType === 'MATERIAL' &&
+          item.status === 'ASSIGNED' &&
+          item.assignedToId === technicianId
+      ) || []
+    )
+  }, [warehouseItems, technicianId])
 
   // Initialize quantities for new material list
   useEffect(() => {
@@ -93,6 +110,11 @@ const MaterialIssueTable = ({ onAddMaterial, issuedMaterials }: Props) => {
           issuedMaterials.find((m) => m.id === item.id)?.quantity ?? 0
         const remaining = item.quantity - alreadyIssued
         const isDisabled = remaining <= 0
+        const technicianQuantity = sumTechnicianMaterialStock(
+          technicianStock,
+          technicianId,
+          item.name
+        )
 
         return (
           <div
@@ -108,9 +130,14 @@ const MaterialIssueTable = ({ onAddMaterial, issuedMaterials }: Props) => {
                 autoEscape={true}
                 textToHighlight={item.name}
               />
-              <Badge variant="outline" className="w-fit">
-                Dostępne: {remaining}
-              </Badge>
+              <div className="flex gap-2">
+                <Badge variant="secondary" className="w-fit">
+                  Magazyn: {remaining}
+                </Badge>
+                <Badge variant="outline" className="w-fit">
+                  Technik: {technicianQuantity}
+                </Badge>
+              </div>
             </span>
 
             {expandedRows.includes(item.id) ? (

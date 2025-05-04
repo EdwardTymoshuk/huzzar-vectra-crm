@@ -5,6 +5,7 @@ import {
   materialSchema,
   operatorSchema,
   orderSchema,
+  warehouseFormSchema,
 } from '@/lib/schema'
 import {
   DeviceCategory,
@@ -90,3 +91,4 @@ export type MaterialDefinition = {
 }
 
 export type OrderFormData = z.infer<typeof orderSchema>
+export type WarehouseFormData = z.infer<typeof warehouseFormSchema>

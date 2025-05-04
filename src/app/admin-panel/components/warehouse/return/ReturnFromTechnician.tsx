@@ -11,14 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
+import { sumTechnicianMaterialStock } from '@/lib/warehouse'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
+import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
 import TechnicianSelector from '../issue/TechnicianSelector'
-import ReturnItemList from './ReturnItemList'
 
 type Props = {
   onClose: () => void
@@ -27,6 +28,7 @@ type Props = {
 const ReturnFromTechnician = ({ onClose }: Props) => {
   const utils = trpc.useUtils()
 
+  // State
   const [technicianId, setTechnicianId] = useState<string | null>(null)
   const [returnType, setReturnType] = useState<'DEVICE' | 'MATERIAL' | null>(
     null
@@ -43,6 +45,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   const [issuedMaterials, setIssuedMaterials] = useState<IssuedItemMaterial[]>(
     []
   )
+  const [notes, setNotes] = useState('')
 
   const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
   const selectedTechnician = useMemo(
@@ -53,56 +56,70 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery()
   const returnMutation = trpc.warehouse.returnToWarehouse.useMutation()
 
-  const assignedMaterials = useMemo(() => {
+  // Extract unique material names assigned to technician
+  const assignedMaterialNames = useMemo(() => {
     if (!technicianId) return []
-    return warehouse.filter(
-      (i) =>
-        i.itemType === 'MATERIAL' &&
-        i.assignedToId === technicianId &&
-        i.name.toLowerCase().includes(search.toLowerCase())
-    )
+    return [
+      ...new Set(
+        warehouse
+          .filter(
+            (item) =>
+              item.itemType === 'MATERIAL' && item.assignedToId === technicianId
+          )
+          .map((item) => item.name)
+      ),
+    ].filter((name) => name.toLowerCase().includes(search.toLowerCase()))
   }, [warehouse, technicianId, search])
 
-  const handleAddMaterial = (id: string) => {
-    const item = assignedMaterials.find((m) => m.id === id)
-    if (!item) return
+  // Add material to return list
+  const handleAddMaterial = (materialName: string) => {
+    const technicianQty = sumTechnicianMaterialStock(
+      warehouse,
+      technicianId!,
+      materialName
+    )
+    const alreadyAddedQty =
+      issuedMaterials.find((m) => m.name === materialName)?.quantity ?? 0
+    const qty = materialQuantities[materialName] ?? 1
 
-    const qty = materialQuantities[id] ?? 1
-    if (qty > item.quantity) return
+    if (qty > technicianQty - alreadyAddedQty) return
 
-    const existing = issuedMaterials.find((m) => m.id === id)
+    const existing = issuedMaterials.find((m) => m.name === materialName)
     if (existing) {
       setIssuedMaterials((prev) =>
         prev.map((m) =>
-          m.id === id ? { ...m, quantity: m.quantity + qty } : m
+          m.name === materialName ? { ...m, quantity: m.quantity + qty } : m
         )
       )
     } else {
       setIssuedMaterials((prev) => [
         ...prev,
-        { id: item.id, type: 'MATERIAL', name: item.name, quantity: qty },
+        { id: '', type: 'MATERIAL', name: materialName, quantity: qty },
       ])
     }
 
-    setMaterialQuantities((prev) => ({ ...prev, [id]: 1 }))
-    setExpandedRows((prev) => prev.filter((r) => r !== id))
+    setMaterialQuantities((prev) => ({ ...prev, [materialName]: 1 }))
+    setExpandedRows((prev) => prev.filter((r) => r !== materialName))
   }
 
+  // Remove item from return list
   const handleRemoveItem = (index: number) => {
     const all = [...issuedDevices, ...issuedMaterials]
     const item = all[index]
     if (item.type === 'DEVICE') {
       setIssuedDevices((prev) => prev.filter((d) => d.id !== item.id))
     } else {
-      setIssuedMaterials((prev) => prev.filter((m) => m.id !== item.id))
+      setIssuedMaterials((prev) => prev.filter((m) => m.name !== item.name))
     }
   }
 
+  // Clear all return items
   const handleClearAll = () => {
     setIssuedDevices([])
     setIssuedMaterials([])
   }
 
+  // Validate and add device by serial number
   const validateAndAddDevice = () => {
     if (!serial.trim()) return toast.error('Wpisz numer seryjny.')
 
@@ -112,21 +129,13 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         i.serialNumber?.toLowerCase() === serial.trim().toLowerCase()
     )
 
-    if (!device) {
-      return toast.error('Nie znaleziono urządzenia o tym numerze.')
-    }
-
-    if (device.status !== 'ASSIGNED') {
+    if (!device) return toast.error('Nie znaleziono urządzenia o tym numerze.')
+    if (device.status !== 'ASSIGNED')
       return toast.error('To urządzenie nie jest przypisane do technika.')
-    }
-
-    if (device.assignedToId !== technicianId) {
+    if (device.assignedToId !== technicianId)
       return toast.error('To urządzenie jest przypisane do innego technika.')
-    }
-
-    if (issuedDevices.some((d) => d.id === device.id)) {
+    if (issuedDevices.some((d) => d.id === device.id))
       return toast.warning('To urządzenie zostało już dodane.')
-    }
 
     setIssuedDevices((prev) => [
       ...prev,
@@ -142,6 +151,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     toast.success('Dodano urządzenie.')
   }
 
+  // Finalize the return operation
   const handleReturn = async () => {
     if (!technicianId) return
     if (issuedDevices.length === 0 && issuedMaterials.length === 0) {
@@ -154,11 +164,13 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         items: [
           ...issuedDevices.map((d) => ({ id: d.id, type: 'DEVICE' as const })),
           ...issuedMaterials.map((m) => ({
-            id: m.id,
+            id: '', // handled by backend using name
+            name: m.name,
             type: 'MATERIAL' as const,
             quantity: m.quantity,
           })),
         ],
+        notes,
       })
 
       toast.success('Zwrot przyjęty.')
@@ -174,6 +186,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
 
   return (
     <div className="space-y-6">
+      {/* Technician selection */}
       <TechnicianSelector
         value={selectedTechnician}
         onChange={(tech) => {
@@ -184,6 +197,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         }}
       />
 
+      {/* Type selector */}
       {technicianId && (
         <Select
           value={returnType ?? ''}
@@ -199,7 +213,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         </Select>
       )}
 
-      {/* DEVICE RETURN */}
+      {/* Device return input */}
       {technicianId && returnType === 'DEVICE' && (
         <div className="flex gap-2">
           <Input
@@ -219,7 +233,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         </div>
       )}
 
-      {/* MATERIAL RETURN */}
+      {/* Material return list */}
       {technicianId && returnType === 'MATERIAL' && (
         <div className="space-y-3">
           <SearchInput
@@ -228,21 +242,26 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
             placeholder="Szukaj materiał"
           />
 
-          {assignedMaterials.length === 0 ? (
+          {assignedMaterialNames.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Brak materiałów przypisanych do technika.
             </p>
           ) : (
-            assignedMaterials.map((item) => {
+            assignedMaterialNames.map((materialName) => {
+              const assignedQty = sumTechnicianMaterialStock(
+                warehouse,
+                technicianId!,
+                materialName
+              )
               const alreadyReturned = issuedMaterials.find(
-                (m) => m.id === item.id
+                (m) => m.name === materialName
               )
               const remainingQty =
-                item.quantity - (alreadyReturned?.quantity || 0)
+                assignedQty - (alreadyReturned?.quantity || 0)
 
               return (
                 <div
-                  key={item.id}
+                  key={materialName}
                   className={`flex justify-between items-center border rounded px-3 py-2 text-sm ${
                     remainingQty === 0 ? 'opacity-50 pointer-events-none' : ''
                   }`}
@@ -252,31 +271,33 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
                       highlightClassName="bg-yellow-200"
                       searchWords={[search]}
                       autoEscape
-                      textToHighlight={item.name}
+                      textToHighlight={materialName}
                     />
-                    <Badge variant="outline">Ilość: {remainingQty}</Badge>
+                    <Badge className="w-fit" variant="secondary">
+                      Ilość: {remainingQty}
+                    </Badge>
                   </div>
-                  {expandedRows.includes(item.id) ? (
+                  {expandedRows.includes(materialName) ? (
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         min={1}
                         max={remainingQty}
                         className="w-20 h-8 text-sm"
-                        value={materialQuantities[item.id] ?? 1}
+                        value={materialQuantities[materialName] ?? 1}
                         onChange={(e) => {
                           const val = parseInt(e.target.value) || 1
                           const clamped = Math.min(val, remainingQty)
                           setMaterialQuantities((prev) => ({
                             ...prev,
-                            [item.id]: clamped,
+                            [materialName]: clamped,
                           }))
                         }}
                       />
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => handleAddMaterial(item.id)}
+                        onClick={() => handleAddMaterial(materialName)}
                       >
                         Dodaj
                       </Button>
@@ -286,7 +307,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
                       size="sm"
                       variant="success"
                       onClick={() =>
-                        setExpandedRows((prev) => [...prev, item.id])
+                        setExpandedRows((prev) => [...prev, materialName])
                       }
                     >
                       <MdAdd />
@@ -299,12 +320,18 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         </div>
       )}
 
+      {/* Summary list and return button */}
       {(issuedDevices.length > 0 || issuedMaterials.length > 0) && (
-        <ReturnItemList
+        <WarehouseSelectedItemsPanel
           items={[...issuedDevices, ...issuedMaterials]}
           onRemoveItem={handleRemoveItem}
           onClearAll={handleClearAll}
-          onReturn={handleReturn}
+          onConfirm={handleReturn}
+          confirmLabel="Zwróć"
+          title="Do zwrotu"
+          showNotes
+          notes={notes}
+          setNotes={setNotes}
           loading={loading}
         />
       )}

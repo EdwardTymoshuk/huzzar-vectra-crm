@@ -17,7 +17,7 @@ import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
-import ReturnItemList from './ReturnItemList'
+import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
 
 type ReturnType = 'DEVICE' | 'MATERIAL'
 type Props = {
@@ -40,6 +40,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
   const [issuedMaterials, setIssuedMaterials] = useState<IssuedItemMaterial[]>(
     []
   )
+  const [notes, setNotes] = useState('')
 
   const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery()
   const returnMutation = trpc.warehouse.returnToOperator.useMutation()
@@ -146,6 +147,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
             quantity: m.quantity,
           })),
         ],
+        notes,
       })
 
       toast.success('Zwrócono sprzęt do operatora.')
@@ -233,7 +235,9 @@ const ReturnToOperator = ({ onClose }: Props) => {
                       autoEscape
                       textToHighlight={item.name}
                     />
-                    <Badge variant="outline">Dostępne: {remainingQty}</Badge>
+                    <Badge className="w-fit" variant="secondary">
+                      Dostępne: {remainingQty}
+                    </Badge>
                   </div>
                   {expandedRows.includes(item.id) ? (
                     <div className="flex items-center gap-2">
@@ -279,11 +283,16 @@ const ReturnToOperator = ({ onClose }: Props) => {
       )}
 
       {(issuedDevices.length > 0 || issuedMaterials.length > 0) && (
-        <ReturnItemList
+        <WarehouseSelectedItemsPanel
           items={[...issuedDevices, ...issuedMaterials]}
           onRemoveItem={handleRemoveItem}
           onClearAll={handleClearAll}
-          onReturn={handleReturn}
+          onConfirm={handleReturn}
+          confirmLabel="Zwróć"
+          title="Do zwrotu"
+          showNotes
+          notes={notes}
+          setNotes={setNotes}
           loading={loading}
         />
       )}
