@@ -11,8 +11,8 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { WarehouseHistoryWithUser } from '@/types'
+import { formatDateTime } from '@/utils/formatDateTime'
 import { trpc } from '@/utils/trpc'
-import { format } from 'date-fns'
 
 type Props =
   | { warehouseItemId: string; name?: never; dataOverride?: never }
@@ -61,7 +61,7 @@ const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
         </TableHeader>
         <TableBody>
           {rows.map((entry) => {
-            const date = format(new Date(entry.actionDate), 'dd.MM.yyyy')
+            const date = formatDateTime(entry.actionDate)
             const from = entry.performedBy?.name ?? '—'
             const to =
               entry.action === 'RETURNED'

@@ -10,8 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { formatDateTime } from '@/utils/formatDateTime'
 import { trpc } from '@/utils/trpc'
-import { format } from 'date-fns'
 
 type Props = {
   name: string
@@ -38,7 +38,7 @@ const MaterialHistoryTable = ({ name }: Props) => {
   }
 
   const mappedRows = data.map((entry) => {
-    const date = format(new Date(entry.actionDate), 'dd.MM.yyyy')
+    const date = formatDateTime(entry.actionDate)
     const from = entry.performedBy?.name ?? '—'
     const to =
       entry.action === 'RETURNED'

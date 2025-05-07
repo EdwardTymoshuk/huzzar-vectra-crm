@@ -329,26 +329,23 @@ export const warehouseRouter = router({
       })
     }),
 
-  // 📜 Get history for a specific warehouse item by name (materials)
+  // 📜 Get all history entries by item name (for materials)
   getHistoryByName: protectedProcedure
     .input(z.object({ name: z.string() }))
-    .query(async ({ input }) => {
-      const items = await prisma.warehouse.findMany({
-        where: { name: input.name.trim() },
-      })
-
-      const history = await prisma.warehouseHistory.findMany({
+    .query(({ input }) => {
+      return prisma.warehouseHistory.findMany({
         where: {
-          warehouseItemId: { in: items.map((i) => i.id) },
+          warehouseItem: {
+            name: input.name,
+          },
         },
         include: {
           performedBy: true,
           assignedTo: true,
+          assignedOrder: true,
         },
         orderBy: { actionDate: 'desc' },
       })
-
-      return history
     }),
 
   // ❌ Delete warehouse item and related history

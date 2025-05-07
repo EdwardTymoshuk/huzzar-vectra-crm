@@ -1,7 +1,7 @@
 // utils/excelParsers.ts
 
-import { OrderFormData } from '@/app/admin-panel/components/orders/OrderFormFields'
-import { Operator, TimeSlot } from '@prisma/client'
+import { OrderFormData } from '@/types'
+import { TimeSlot } from '@prisma/client'
 import * as XLSX from 'xlsx'
 
 /**
@@ -114,7 +114,9 @@ export async function parseUnifiedOrdersFromExcel(
         const operatorStr = String(row[0] ?? '')
           .trim()
           .toUpperCase()
-        const operator: Operator = operatorStr === 'MMP' ? 'MMP' : 'V'
+        const operator = String(row[0] ?? '')
+          .trim()
+          .toUpperCase()
 
         // 1: "Nr zlecenia"
         const orderNumber = String(row[1] ?? '').trim() || 'BRAK_NUMERU'
@@ -244,7 +246,7 @@ function parseTechnician(techStr: string): string | undefined {
  * Determines a TimeSlot from a start-end time range, based on operator 'V' or 'MMP'.
  */
 function determineTimeSlot(
-  operator: Operator,
+  operator: string,
   start: string,
   end: string
 ): TimeSlot {
