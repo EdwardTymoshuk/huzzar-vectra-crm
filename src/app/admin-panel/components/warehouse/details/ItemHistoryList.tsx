@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge } from '@/app/components/ui/badge'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import {
   Table,
@@ -9,28 +10,39 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { WarehouseHistoryWithUser } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { format } from 'date-fns'
 
-type Props = {
-  warehouseItemId: string
-}
+type Props =
+  | { warehouseItemId: string; name?: never; dataOverride?: never }
+  | {
+      name: string
+      warehouseItemId?: never
+      dataOverride?: WarehouseHistoryWithUser[]
+    }
 
 /**
  * ItemHistoryList:
- * - Displays a full transaction history for a given warehouse item.
- * - Renders as a clean table with columns: Date, From, To, Notes.
+ * - Displays history either for a specific item (by ID) or for all matching items (by name).
+ * - Optional `dataOverride` allows manual filtering (for tabs).
  */
-const ItemHistoryList = ({ warehouseItemId }: Props) => {
-  const { data, isLoading, isError } = trpc.warehouse.getHistory.useQuery({
-    warehouseItemId,
-  })
+const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
+  const isByName = !!name
 
-  if (isLoading) return <Skeleton className="h-32 w-full" />
-  if (isError || !data || data.length === 0)
+  const historyQuery = isByName
+    ? trpc.warehouse.getHistoryByName.useQuery({ name: name! })
+    : trpc.warehouse.getHistory.useQuery({ warehouseItemId: warehouseItemId! })
+
+  const { data, isLoading, isError } = historyQuery
+
+  const rows = dataOverride ?? data
+
+  if (isLoading || !rows) return <Skeleton className="h-32 w-full" />
+  if (isError || rows.length === 0)
     return (
       <p className="text-sm text-muted-foreground text-center">
-        Brak historii dla tego urządzenia.
+        Brak historii dla tego elementu.
       </p>
     )
 
@@ -40,18 +52,17 @@ const ItemHistoryList = ({ warehouseItemId }: Props) => {
         <TableHeader>
           <TableRow>
             <TableHead>Data</TableHead>
+            <TableHead>Typ</TableHead>
             <TableHead>Od</TableHead>
             <TableHead>Do</TableHead>
+            <TableHead>Ilość</TableHead>
             <TableHead>Uwagi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((entry) => {
+          {rows.map((entry) => {
             const date = format(new Date(entry.actionDate), 'dd.MM.yyyy')
-
-            // Determine from/to based on action
-            const from = entry.performedBy?.name ?? '-'
-
+            const from = entry.performedBy?.name ?? '—'
             const to =
               entry.action === 'RETURNED'
                 ? 'Magazyn'
@@ -59,11 +70,32 @@ const ItemHistoryList = ({ warehouseItemId }: Props) => {
                 ? entry.assignedTo?.name ?? 'Nieznane'
                 : 'Magazyn'
 
+            let label = ''
+            let variant: 'success' | 'warning' | 'destructive' = 'success'
+            switch (entry.action) {
+              case 'RECEIVED':
+                label = 'Przyjęcie'
+                variant = 'success'
+                break
+              case 'ISSUED':
+                label = 'Wydanie'
+                variant = 'warning'
+                break
+              case 'RETURNED':
+                label = 'Zwrot'
+                variant = 'destructive'
+                break
+            }
+
             return (
               <TableRow key={entry.id}>
                 <TableCell>{date}</TableCell>
+                <TableCell>
+                  <Badge variant={variant}>{label}</Badge>
+                </TableCell>
                 <TableCell>{from}</TableCell>
                 <TableCell>{to}</TableCell>
+                <TableCell>{entry.quantity ?? '—'}</TableCell>
                 <TableCell>{entry.notes ?? '—'}</TableCell>
               </TableRow>
             )

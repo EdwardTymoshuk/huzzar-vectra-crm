@@ -1,5 +1,3 @@
-//src/app/admin-panel/components/warehouse/ItemHeader.tsx
-
 'use client'
 
 import { Card } from '@/app/components/ui/card'
@@ -13,51 +11,107 @@ type Props = {
 
 /**
  * ItemHeader:
- * - Displays summary info about a specific warehouse item (name, category, stock).
- * - Aggregates counts for warehouse and technicians.
+ * - Displays summary info about a specific warehouse item.
+ * - Handles both DEVICE and MATERIAL types.
+ * - Shows warehouse/technician stock, total used in orders, price, index, and total values.
  */
 const ItemHeader = ({ items }: Props) => {
   const [firstItem, setFirstItem] = useState<Warehouse | null>(null)
 
-  // Count unassigned (in warehouse) and assigned (with technicians)
-  const warehouseCount = items.filter((i) => !i.assignedToId).length
-  const technicianCount = items.length - warehouseCount
-
   useEffect(() => {
     setFirstItem(items[0])
-    console.log(items)
   }, [items])
 
-  if (firstItem === null) return <div>Brak urzadzenia</div>
+  if (!firstItem) return <div>Brak pozycji</div>
+
+  const isDevice = firstItem.itemType === 'DEVICE'
+
+  const warehouseItems = items.filter(
+    (i) => !i.assignedToId && !i.assignedOrderId
+  )
+  const technicianItems = items.filter(
+    (i) => i.assignedToId && !i.assignedOrderId
+  )
+
+  const warehouseCount = isDevice
+    ? warehouseItems.length
+    : warehouseItems.reduce((sum, i) => sum + i.quantity, 0)
+
+  const technicianCount = isDevice
+    ? technicianItems.length
+    : technicianItems.reduce((sum, i) => sum + i.quantity, 0)
+
+  const usedOnOrders = isDevice
+    ? items.filter((i) => i.assignedOrderId !== null).length
+    : items
+        .filter((i) => i.assignedOrderId !== null)
+        .reduce((sum, i) => sum + i.quantity, 0)
+
+  const price = firstItem.price?.toFixed(2) ?? '—'
+  const index = firstItem.index ?? '—'
+
+  // Total value calculations (materials only)
+  const warehouseValue = !isDevice
+    ? warehouseItems.reduce((sum, i) => sum + i.quantity * (i.price ?? 0), 0)
+    : null
+
+  const technicianValue = !isDevice
+    ? technicianItems.reduce((sum, i) => sum + i.quantity * (i.price ?? 0), 0)
+    : null
 
   return (
     <Card className="p-4 flex flex-col md:flex-row justify-between gap-4">
-      {/* Device info */}
-      <div className="flex flex-col space-y-4 w-1/2">
+      {/* Item info */}
+      <div className="flex flex-col space-y-4 w-full md:w-1/2">
         <div className="flex gap-2 items-center">
           <p className="font-bold uppercase text-sm">Nazwa:</p>
           <p className="text-base">{firstItem.name}</p>
         </div>
 
-        <div className="flex gap-2 items-center bg">
-          <p className="font-bold uppercase text-sm">Kategoria:</p>
-          <p className="text-base">
-            {devicesTypeMap[firstItem.category ?? ''] ||
-              devicesTypeMap[firstItem.subcategory ?? ''] ||
-              '—'}
+        <div className="flex gap-2 items-center">
+          <p className="font-bold uppercase text-sm">
+            {isDevice ? 'Kategoria:' : 'Index:'}
           </p>
+          <p className="text-base">
+            {isDevice ? devicesTypeMap[firstItem.category ?? ''] ?? '—' : index}
+          </p>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <p className="font-bold uppercase text-sm">Cena jednostkowa:</p>
+          <p className="text-base">{price} zł</p>
         </div>
       </div>
 
-      {/* Stock summary */}
-      <div className="flex flex-col space-y-4 w-1/2">
-        <div className="flex gap-2 items-center">
-          <p className="font-bold uppercase text-sm">Stan magazynowy:</p>
-          <p className="text-base">{warehouseCount}</p>
+      {/* Stock info */}
+      <div className="flex flex-col space-y-4 w-full md:w-1/2">
+        <div className="flex flex-col">
+          <div className="flex gap-2 items-center">
+            <p className="font-bold uppercase text-sm">Stan magazynowy:</p>
+            <p className="text-base">{warehouseCount}</p>
+          </div>
+          {!isDevice && warehouseValue !== null && (
+            <p className="text-xs text-muted-foreground">
+              Wartość: {warehouseValue.toFixed(2)} zł
+            </p>
+          )}
         </div>
+
+        <div className="flex flex-col">
+          <div className="flex gap-2 items-center">
+            <p className="font-bold uppercase text-sm">Stan techników:</p>
+            <p className="text-base">{technicianCount}</p>
+          </div>
+          {!isDevice && technicianValue !== null && (
+            <p className="text-xs text-muted-foreground">
+              Wartość: {technicianValue.toFixed(2)} zł
+            </p>
+          )}
+        </div>
+
         <div className="flex gap-2 items-center">
-          <p className="font-bold uppercase text-sm">Stan techników:</p>
-          <p className="text-base">{technicianCount}</p>
+          <p className="font-bold uppercase text-sm">Wydane na zleceniach:</p>
+          <p className="text-base">{usedOnOrders}</p>
         </div>
       </div>
     </Card>

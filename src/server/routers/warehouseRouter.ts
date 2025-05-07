@@ -16,57 +16,102 @@ export const warehouseRouter = router({
             name: z.string(),
             category: z.nativeEnum(DeviceCategory).optional(),
             serialNumber: z.string().optional(),
-            quantity: z.number().optional(), // only required for MATERIAL
+            quantity: z.number().optional(), // only for MATERIAL
           })
         ),
-        notes: z.string().optional(), // 🆕 notes added
+        notes: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.user) {
-        throw new Error('Unauthorized')
-      }
+      if (!ctx.user) throw new Error('Unauthorized')
 
       for (const item of input.items) {
-        // Create warehouse item
-        const createdItem = await prisma.warehouse.create({
-          data: {
-            itemType: item.type,
-            name: item.name,
-            category: item.type === 'DEVICE' ? item.category : undefined,
-            serialNumber:
-              item.type === 'DEVICE' ? item.serialNumber : undefined,
-            quantity: item.type === 'MATERIAL' ? item.quantity ?? 1 : 1,
-            price: 0,
-            status: 'AVAILABLE',
-          },
-        })
+        if (item.type === 'DEVICE') {
+          const def = await prisma.deviceDefinition.findFirst({
+            where: {
+              name: item.name,
+              category: item.category ?? 'OTHER',
+            },
+          })
 
-        // Create warehouse history entry with optional notes
-        await prisma.warehouseHistory.create({
-          data: {
-            warehouseItemId: createdItem.id,
-            action: 'RECEIVED',
-            performedById: ctx.user.id,
-            notes: input.notes || undefined, // 🆕 save notes
-          },
-        })
+          if (!def || def.price === null) {
+            throw new Error(
+              `Missing device definition or price for ${item.name}`
+            )
+          }
+
+          const created = await prisma.warehouse.create({
+            data: {
+              itemType: 'DEVICE',
+              name: item.name,
+              category: item.category,
+              serialNumber: item.serialNumber?.trim().toUpperCase(),
+              quantity: 1,
+              price: def.price,
+              warningAlert: def.warningAlert,
+              alarmAlert: def.alarmAlert,
+              status: 'AVAILABLE',
+            },
+          })
+
+          await prisma.warehouseHistory.create({
+            data: {
+              warehouseItemId: created.id,
+              action: 'RECEIVED',
+              performedById: ctx.user.id,
+              notes: input.notes || undefined,
+            },
+          })
+        }
+
+        if (item.type === 'MATERIAL') {
+          const def = await prisma.materialDefinition.findFirst({
+            where: { name: item.name },
+          })
+
+          if (!def || def.price === null) {
+            throw new Error(
+              `Missing material definition or price for ${item.name}`
+            )
+          }
+
+          const created = await prisma.warehouse.create({
+            data: {
+              itemType: 'MATERIAL',
+              name: item.name,
+              quantity: item.quantity ?? 1,
+              unit: def.unit,
+              index: def.index,
+              price: def.price,
+              warningAlert: def.warningAlert,
+              alarmAlert: def.alarmAlert,
+              status: 'AVAILABLE',
+            },
+          })
+
+          await prisma.warehouseHistory.create({
+            data: {
+              warehouseItemId: created.id,
+              action: 'RECEIVED',
+              performedById: ctx.user.id,
+              quantity: item.quantity ?? 1,
+              notes: input.notes || undefined,
+            },
+          })
+        }
       }
 
       return { success: true }
     }),
 
-  // 📤 Issue items (ASSIGNED)
+  // 📤 Issue items to technician (ASSIGNED)
   issueItems: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
     .input(
       z.object({
         assignedToId: z.string(),
         items: z.array(
           z.discriminatedUnion('type', [
-            z.object({
-              type: z.literal('DEVICE'),
-              id: z.string(),
-            }),
+            z.object({ type: z.literal('DEVICE'), id: z.string() }),
             z.object({
               type: z.literal('MATERIAL'),
               id: z.string(),
@@ -74,7 +119,7 @@ export const warehouseRouter = router({
             }),
           ])
         ),
-        notes: z.string().optional(), // 🆕 notes added
+        notes: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -98,50 +143,56 @@ export const warehouseRouter = router({
               action: 'ISSUED',
               performedById: userId,
               assignedToId,
-              notes: notes || undefined, // 🆕 save notes
+              notes: notes || undefined,
             },
           })
-        } else if (item.type === 'MATERIAL') {
-          const existing = await prisma.warehouse.findUnique({
+        }
+
+        if (item.type === 'MATERIAL') {
+          const warehouseMaterial = await prisma.warehouse.findUnique({
             where: { id: item.id },
           })
 
-          if (!existing || existing.quantity < item.quantity) {
+          if (
+            !warehouseMaterial ||
+            warehouseMaterial.quantity < item.quantity
+          ) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
-              message: `Not enough material in stock: ${existing?.name}`,
+              message: `Not enough material: ${warehouseMaterial?.name}`,
             })
           }
 
+          // Decrease quantity in warehouse
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: {
-              quantity: { decrement: item.quantity },
-            },
+            data: { quantity: { decrement: item.quantity } },
           })
 
-          const assignedItem = await prisma.warehouse.create({
+          // Create assigned copy for technician
+          await prisma.warehouse.create({
             data: {
               itemType: 'MATERIAL',
-              name: existing.name,
+              name: warehouseMaterial.name,
               quantity: item.quantity,
-              unit: existing.unit,
-              price: existing.price,
-              category: existing.category,
-              subcategory: existing.subcategory,
+              unit: warehouseMaterial.unit,
+              index: warehouseMaterial.index,
+              price: warehouseMaterial.price,
+              category: warehouseMaterial.category,
               assignedToId,
               status: 'ASSIGNED',
             },
           })
 
+          // 🧾 Save history using the original warehouse item ID
           await prisma.warehouseHistory.create({
             data: {
-              warehouseItemId: assignedItem.id,
+              warehouseItemId: item.id, // 👈 this is key: reference original item
               action: 'ISSUED',
               performedById: userId,
               assignedToId,
               quantity: item.quantity,
-              notes: notes || undefined, // 🆕 save notes
+              notes: notes || undefined,
             },
           })
         }
@@ -150,16 +201,13 @@ export const warehouseRouter = router({
       return { success: true }
     }),
 
-  // 🔁 Zwrot urządzeń i materiałów do magazynu
+  // 🔁 Return material/device from technician
   returnToWarehouse: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
     .input(
       z.object({
         items: z.array(
           z.discriminatedUnion('type', [
-            z.object({
-              type: z.literal('DEVICE'),
-              id: z.string(),
-            }),
+            z.object({ type: z.literal('DEVICE'), id: z.string() }),
             z.object({
               type: z.literal('MATERIAL'),
               id: z.string(),
@@ -176,34 +224,9 @@ export const warehouseRouter = router({
 
       for (const item of input.items) {
         if (item.type === 'DEVICE') {
-          const existing = await prisma.warehouse.findUnique({
-            where: { id: item.id },
-          })
-
-          if (!existing) {
-            throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: 'Urządzenie nie istnieje.',
-            })
-          }
-
-          if (
-            existing.status !== 'ASSIGNED' &&
-            existing.status !== 'RETURNED'
-          ) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message:
-                'Urządzenie nie może zostać zwrócone – nie jest przypisane.',
-            })
-          }
-
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: {
-              assignedToId: null,
-              status: 'AVAILABLE',
-            },
+            data: { assignedToId: null, status: 'AVAILABLE' },
           })
 
           await prisma.warehouseHistory.create({
@@ -214,20 +237,22 @@ export const warehouseRouter = router({
               notes: input.notes,
             },
           })
-        } else if (item.type === 'MATERIAL') {
-          const existing = await prisma.warehouse.findUnique({
+        }
+
+        if (item.type === 'MATERIAL') {
+          const technicianItem = await prisma.warehouse.findUnique({
             where: { id: item.id },
           })
 
-          if (!existing) {
+          if (!technicianItem) {
             throw new TRPCError({
               code: 'NOT_FOUND',
-              message: 'Materiał nie istnieje.',
+              message: 'Material not found',
             })
           }
 
-          // 1. Zmniejsz ilość u technika (lub usuń jeśli oddaje całość)
-          if (existing.quantity <= item.quantity) {
+          // Delete or reduce technician item
+          if (technicianItem.quantity <= item.quantity) {
             await prisma.warehouse.delete({ where: { id: item.id } })
           } else {
             await prisma.warehouse.update({
@@ -236,44 +261,45 @@ export const warehouseRouter = router({
             })
           }
 
-          // 2. Dodaj ilość do rekordu magazynowego (centralnego)
+          // Add back to central warehouse
           const centralItem = await prisma.warehouse.findFirst({
             where: {
               itemType: 'MATERIAL',
-              name: existing.name,
+              name: technicianItem.name,
               assignedToId: null,
             },
           })
 
-          if (centralItem) {
-            await prisma.warehouse.update({
-              where: { id: centralItem.id },
-              data: {
-                quantity: { increment: item.quantity },
-              },
-            })
-          } else {
-            await prisma.warehouse.create({
-              data: {
-                itemType: 'MATERIAL',
-                name: existing.name,
-                quantity: item.quantity,
-                unit: existing.unit,
-                price: existing.price,
-                category: existing.category,
-                subcategory: existing.subcategory,
-                status: 'AVAILABLE',
-              },
-            })
-          }
+          const targetId =
+            centralItem?.id ??
+            (
+              await prisma.warehouse.create({
+                data: {
+                  itemType: 'MATERIAL',
+                  name: technicianItem.name,
+                  quantity: 0,
+                  unit: technicianItem.unit,
+                  index: technicianItem.index,
+                  price: technicianItem.price,
+                  category: technicianItem.category,
+                  status: 'AVAILABLE',
+                },
+              })
+            ).id
 
+          await prisma.warehouse.update({
+            where: { id: targetId },
+            data: { quantity: { increment: item.quantity } },
+          })
+
+          // History zapisujemy dla centralnego ID
           await prisma.warehouseHistory.create({
             data: {
-              warehouseItemId: item.id,
+              warehouseItemId: targetId,
               action: 'RETURNED',
               performedById: userId,
-              notes: input.notes,
               quantity: item.quantity,
+              notes: input.notes,
             },
           })
         }
@@ -282,101 +308,14 @@ export const warehouseRouter = router({
       return { success: true }
     }),
 
-  // 📦 Zwrot urządzenia do operatora (np. uszkodzone)
-  returnToOperator: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
-    .input(
-      z.object({
-        items: z.array(
-          z.discriminatedUnion('type', [
-            z.object({
-              type: z.literal('DEVICE'),
-              id: z.string(),
-            }),
-            z.object({
-              type: z.literal('MATERIAL'),
-              id: z.string(),
-              quantity: z.number().min(1),
-            }),
-          ])
-        ),
-        notes: z.string().optional(),
-      })
-    )
-    .mutation(async ({ input, ctx }) => {
-      const userId = ctx.user?.id
-      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
-
-      for (const item of input.items) {
-        if (item.type === 'DEVICE') {
-          const existing = await prisma.warehouse.findUnique({
-            where: { id: item.id },
-          })
-
-          if (!existing) {
-            throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: 'Urządzenie nie istnieje.',
-            })
-          }
-
-          await prisma.warehouse.update({
-            where: { id: item.id },
-            data: {
-              status: 'RETURNED',
-              assignedToId: null,
-            },
-          })
-
-          await prisma.warehouseHistory.create({
-            data: {
-              warehouseItemId: item.id,
-              action: 'RETURNED',
-              performedById: userId,
-              notes: input.notes,
-            },
-          })
-        } else if (item.type === 'MATERIAL') {
-          const existing = await prisma.warehouse.findUnique({
-            where: { id: item.id },
-          })
-
-          if (!existing) {
-            throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: 'Materiał nie istnieje.',
-            })
-          }
-
-          await prisma.warehouse.update({
-            where: { id: item.id },
-            data: {
-              quantity: { decrement: item.quantity },
-            },
-          })
-
-          await prisma.warehouseHistory.create({
-            data: {
-              warehouseItemId: item.id,
-              action: 'RETURNED',
-              performedById: userId,
-              notes: input.notes,
-              quantity: item.quantity,
-            },
-          })
-        }
-      }
-
-      return { success: true }
-    }),
-
-  // 📄 Get all warehouse items
+  // 📦 Get all warehouse items
   getAll: protectedProcedure.query(() => {
     return prisma.warehouse.findMany({
       orderBy: { createdAt: 'desc' },
     })
   }),
 
-  // 📜 Get history for a specific warehouse item
+  // 📜 Get history for a specific warehouse item by id (devices)
   getHistory: protectedProcedure
     .input(z.object({ warehouseItemId: z.string() }))
     .query(({ input }) => {
@@ -390,62 +329,61 @@ export const warehouseRouter = router({
       })
     }),
 
-  // ❌ Delete item from warehouse
+  // 📜 Get history for a specific warehouse item by name (materials)
+  getHistoryByName: protectedProcedure
+    .input(z.object({ name: z.string() }))
+    .query(async ({ input }) => {
+      const items = await prisma.warehouse.findMany({
+        where: { name: input.name.trim() },
+      })
+
+      const history = await prisma.warehouseHistory.findMany({
+        where: {
+          warehouseItemId: { in: items.map((i) => i.id) },
+        },
+        include: {
+          performedBy: true,
+          assignedTo: true,
+        },
+        orderBy: { actionDate: 'desc' },
+      })
+
+      return history
+    }),
+
+  // ❌ Delete warehouse item and related history
   deleteItem: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      if (!ctx.user) {
-        throw new TRPCError({ code: 'UNAUTHORIZED' })
-      }
+      if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-      const item = await prisma.warehouse.findUnique({
-        where: { id: input.id },
-      })
-
-      if (!item) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Item not found' })
-      }
-
-      // Delete all related history entries first
       await prisma.warehouseHistory.deleteMany({
         where: { warehouseItemId: input.id },
       })
-
-      // Delete item from warehouse
-      await prisma.warehouse.delete({
-        where: { id: input.id },
-      })
+      await prisma.warehouse.delete({ where: { id: input.id } })
 
       return { success: true }
     }),
 
-  // 📦 Get all warehouse items by name
+  // 📦 Get all items by name (grouped detail)
   getItemsByName: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
     .input(z.object({ name: z.string().min(1) }))
-    .query(async ({ input }) => {
+    .query(({ input }) => {
       return prisma.warehouse.findMany({
-        where: {
-          name: {
-            equals: input.name.trim(),
-            mode: 'insensitive',
-          },
-        },
+        where: { name: { equals: input.name.trim(), mode: 'insensitive' } },
         orderBy: { createdAt: 'asc' },
       })
     }),
 
-  // 📦 Get all warehouse items with history by name
+  // 📦 Get all items + history by name
   getByNameWithHistory: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
     .input(z.object({ name: z.string() }))
-    .query(async ({ input }) => {
+    .query(({ input }) => {
       return prisma.warehouse.findMany({
         where: { name: input.name },
         include: {
           history: {
-            include: {
-              performedBy: true,
-              assignedTo: true,
-            },
+            include: { performedBy: true, assignedTo: true },
             orderBy: { actionDate: 'asc' },
           },
           assignedTo: true,
@@ -454,22 +392,14 @@ export const warehouseRouter = router({
         orderBy: { createdAt: 'asc' },
       })
     }),
+
   // 🔍 Get warehouse item by serial number
   getBySerialNumber: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
     .input(z.object({ serial: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const item = await prisma.warehouse.findFirst({
-        where: {
-          serialNumber: {
-            equals: input.serial,
-            mode: 'insensitive',
-          },
-        },
-        include: {
-          assignedTo: true,
-        },
+    .query(({ input }) => {
+      return prisma.warehouse.findFirst({
+        where: { serialNumber: { equals: input.serial, mode: 'insensitive' } },
+        include: { assignedTo: true },
       })
-
-      return item
     }),
 })

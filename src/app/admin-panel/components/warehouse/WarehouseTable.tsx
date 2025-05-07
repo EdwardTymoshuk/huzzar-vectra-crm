@@ -57,13 +57,17 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
   const grouped = useMemo(() => {
     return Object.values(
       filtered.reduce<
-        Record<string, { name: string; category: string; quantity: number }>
+        Record<
+          string,
+          { name: string; category: string; quantity: number; price: number }
+        >
       >((acc, item) => {
         if (!acc[item.name]) {
           acc[item.name] = {
             name: item.name,
             category: item.category ?? item.subcategory ?? '—',
             quantity: 0,
+            price: item.price,
           }
         }
         acc[item.name].quantity += item.quantity
@@ -79,6 +83,16 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [grouped, searchTerm])
+
+  const totalValue = filteredItems.reduce(
+    (acc, item) => acc + item.price * item.quantity,
+    0
+  )
+
+  const totalWarehouseValue = data?.reduce(
+    (acc, item) => acc + (item.price ?? 0) * item.quantity,
+    0
+  )
 
   if (isLoading) {
     return (
@@ -108,14 +122,16 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
 
   // Return table of grouped items
   return (
-    <div className="border rounded-md">
+    <div className="border rounded-md mb-4">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Nazwa</TableHead>
             {itemType === 'DEVICE' && <TableHead>Kategoria</TableHead>}
             <TableHead>Ilość dostępna</TableHead>
-            <TableHead>Akcje</TableHead>
+            <TableHead>Cena j.</TableHead>
+            <TableHead>Wartość</TableHead>
+            <TableHead>Więcej</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -144,6 +160,11 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
                 <TableCell>
                   <Badge variant={variant}>{item.quantity}</Badge>
                 </TableCell>
+                <TableCell>{item.price?.toFixed(2)} zł</TableCell>
+                <TableCell>
+                  {(item.price * item.quantity).toFixed(2)} zł
+                </TableCell>
+
                 <TableCell>
                   <Button asChild size="sm" variant="ghost">
                     <Link

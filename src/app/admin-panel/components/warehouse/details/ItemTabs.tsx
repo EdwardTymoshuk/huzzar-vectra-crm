@@ -6,6 +6,7 @@ import {
 } from '@/app/components/ui/tabs'
 import { Warehouse } from '@prisma/client'
 import ItemAccordionList from './ItemAccordion'
+import MaterialHistoryByTabs from './MaterialHistoryByTabs'
 
 type Props = {
   items: Warehouse[]
@@ -29,13 +30,33 @@ const ItemTabs = ({ items }: Props) => {
       </TabsList>
 
       <TabsContent value="warehouse">
-        <ItemAccordionList items={warehouseItems} />
+        {warehouseItems[0]?.itemType === 'MATERIAL' ? (
+          <MaterialHistoryByTabs
+            name={warehouseItems[0].name}
+            type="warehouse"
+          />
+        ) : (
+          <ItemAccordionList items={warehouseItems} />
+        )}
       </TabsContent>
+
       <TabsContent value="technicians">
-        <ItemAccordionList items={technicianItems} />
+        {warehouseItems[0]?.itemType === 'MATERIAL' ? (
+          <MaterialHistoryByTabs
+            name={warehouseItems[0].name}
+            type="technicians"
+          />
+        ) : (
+          <ItemAccordionList items={technicianItems} />
+        )}
       </TabsContent>
+
       <TabsContent value="orders">
-        <ItemAccordionList items={assignedToOrders} mode="orders" />
+        {warehouseItems[0]?.itemType === 'MATERIAL' ? (
+          <MaterialHistoryByTabs name={warehouseItems[0].name} type="orders" />
+        ) : (
+          <ItemAccordionList items={assignedToOrders} mode="orders" />
+        )}
       </TabsContent>
     </Tabs>
   )

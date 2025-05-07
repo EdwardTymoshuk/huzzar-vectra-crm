@@ -75,6 +75,7 @@ const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
     const trimmedName = data.name.trim()
     const alreadyExists = allDefinitions?.some(
       (def) =>
+        def.id !== item.id &&
         def.name.toLowerCase() === trimmedName.toLowerCase() &&
         def.category === data.category
     )

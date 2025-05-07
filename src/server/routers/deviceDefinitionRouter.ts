@@ -61,8 +61,9 @@ export const deviceDefinitionRouter = router({
           path: ['alarmAlert'],
         })
     )
-    .mutation(({ input }) => {
-      return prisma.deviceDefinition.update({
+    .mutation(async ({ input }) => {
+      // ✏️ Update the device definition entry
+      await prisma.deviceDefinition.update({
         where: { id: input.id },
         data: {
           category: input.category,
@@ -72,6 +73,22 @@ export const deviceDefinitionRouter = router({
           price: input.price,
         },
       })
+
+      // 🔄 Also update all matching warehouse items
+      await prisma.warehouse.updateMany({
+        where: {
+          itemType: 'DEVICE',
+          category: input.category,
+          name: input.name.trim(),
+        },
+        data: {
+          price: input.price,
+          warningAlert: input.warningAlert,
+          alarmAlert: input.alarmAlert,
+        },
+      })
+
+      return { success: true }
     }),
 
   // ❌ Delete definition

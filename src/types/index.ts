@@ -13,6 +13,7 @@ import {
   TimeSlot,
   User,
   Warehouse,
+  WarehouseHistory,
 } from '@prisma/client'
 import { IconType } from 'react-icons'
 import { z } from 'zod'
@@ -92,3 +93,9 @@ export type MaterialDefinition = {
 
 export type OrderFormData = z.infer<typeof orderSchema>
 export type WarehouseFormData = z.infer<typeof warehouseFormSchema>
+
+export type WarehouseHistoryWithUser = WarehouseHistory & {
+  performedBy: User
+  assignedTo: User | null
+  assignedOrder: Order | null
+}
