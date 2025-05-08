@@ -162,7 +162,7 @@ const MaterialIssueTable = ({
                   disabled={isDisabled}
                   className="transition-all duration-300"
                 >
-                  Wydaj
+                  Dodaj
                 </Button>
               </div>
             ) : (

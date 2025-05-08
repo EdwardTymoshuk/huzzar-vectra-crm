@@ -16,6 +16,7 @@ import SerialScanInput from './SerialScanInput'
 
 type Props = {
   technicianId: string
+  onCloseAction: () => void
 }
 
 /**
@@ -24,7 +25,7 @@ type Props = {
  * - Handles local state for added devices/materials.
  * - Performs issue mutation on confirmation.
  */
-const IssueItemsTabs = ({ technicianId }: Props) => {
+const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
   const [devices, setDevices] = useState<IssuedItemDevice[]>([])
   const [materials, setMaterials] = useState<IssuedItemMaterial[]>([])
   const [notes, setNotes] = useState('')
@@ -37,6 +38,7 @@ const IssueItemsTabs = ({ technicianId }: Props) => {
         setDevices([])
         setMaterials([])
         setNotes('')
+        onCloseAction()
         utils.warehouse.getAll.invalidate()
       },
       onError: () => {

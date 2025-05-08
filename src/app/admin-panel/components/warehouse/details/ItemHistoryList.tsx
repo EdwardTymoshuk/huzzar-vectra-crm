@@ -64,14 +64,17 @@ const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
             const date = formatDateTime(entry.actionDate)
             const from = entry.performedBy?.name ?? '—'
             const to =
-              entry.action === 'RETURNED'
+              entry.action === 'RETURNED_TO_OPERATOR'
+                ? 'Operator'
+                : entry.action === 'RETURNED'
                 ? 'Magazyn'
                 : entry.action === 'ISSUED'
                 ? entry.assignedTo?.name ?? 'Nieznane'
                 : 'Magazyn'
 
             let label = ''
-            let variant: 'success' | 'warning' | 'destructive' = 'success'
+            let variant: 'success' | 'warning' | 'destructive' | 'danger' =
+              'success'
             switch (entry.action) {
               case 'RECEIVED':
                 label = 'Przyjęcie'
@@ -82,6 +85,10 @@ const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
                 variant = 'warning'
                 break
               case 'RETURNED':
+                label = 'Zwrot'
+                variant = 'danger'
+                break
+              case 'RETURNED_TO_OPERATOR':
                 label = 'Zwrot'
                 variant = 'destructive'
                 break
@@ -96,7 +103,12 @@ const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
                 <TableCell>{from}</TableCell>
                 <TableCell>{to}</TableCell>
                 <TableCell>{entry.quantity ?? '—'}</TableCell>
-                <TableCell>{entry.notes ?? '—'}</TableCell>
+                <TableCell
+                  className="max-w-[300px] truncate"
+                  title={entry.notes ?? ''}
+                >
+                  {entry.notes ?? '—'}
+                </TableCell>
               </TableRow>
             )
           })}

@@ -71,6 +71,7 @@ const SerialScanInput = ({ onAddDevice }: Props) => {
   return (
     <div className="flex gap-2">
       <Input
+        className="[text-transform:uppercase] placeholder:normal-case"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {

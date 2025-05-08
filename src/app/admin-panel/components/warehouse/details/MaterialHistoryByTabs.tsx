@@ -7,7 +7,7 @@ import ItemHistoryList from './ItemHistoryList'
 
 type Props = {
   name: string
-  type: 'warehouse' | 'technicians' | 'orders'
+  type: 'warehouse' | 'technicians' | 'orders' | 'returned'
 }
 
 /**
@@ -21,12 +21,19 @@ const MaterialHistoryByTabs = ({ name, type }: Props) => {
 
   let filtered: WarehouseHistoryWithUser[] = []
 
-  if (type === 'warehouse') {
-    filtered = data.filter((h) => !h.assignedToId && h.action === 'RECEIVED')
-  } else if (type === 'technicians') {
-    filtered = data.filter((h) => h.assignedToId && !h.assignedOrderId)
-  } else if (type === 'orders') {
-    filtered = data.filter((h) => h.assignedOrderId !== null)
+  switch (type) {
+    case 'warehouse':
+      filtered = data.filter((h) => h.action === 'RECEIVED')
+      break
+    case 'technicians':
+      filtered = data.filter((h) => h.assignedToId && !h.assignedOrderId)
+      break
+    case 'orders':
+      filtered = data.filter((h) => h.assignedOrderId !== null)
+      break
+    case 'returned':
+      filtered = data.filter((h) => h.action === 'RETURNED_TO_OPERATOR')
+      break
   }
 
   return <ItemHistoryList name={name} dataOverride={filtered} />

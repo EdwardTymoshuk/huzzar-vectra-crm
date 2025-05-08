@@ -90,7 +90,10 @@ const IssueModal = ({ open, onCloseAction }: Props) => {
 
         {/* Issue tabs always visible once technician selected */}
         {selectedTechnician && (
-          <IssueItemsTabs technicianId={selectedTechnician.id} />
+          <IssueItemsTabs
+            technicianId={selectedTechnician.id}
+            onCloseAction={onCloseAction}
+          />
         )}
       </DialogContent>
     </Dialog>

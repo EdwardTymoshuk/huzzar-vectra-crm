@@ -184,6 +184,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
       {mode === 'DEVICE' && (
         <div className="flex gap-2">
           <Input
+            className="[text-transform:uppercase] placeholder:normal-case"
             placeholder="Wpisz lub zeskanuj numer seryjny urządzenia"
             value={serial}
             onChange={(e) => setSerial(e.target.value)}

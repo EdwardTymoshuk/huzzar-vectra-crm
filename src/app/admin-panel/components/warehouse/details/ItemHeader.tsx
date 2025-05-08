@@ -27,10 +27,10 @@ const ItemHeader = ({ items }: Props) => {
   const isDevice = firstItem.itemType === 'DEVICE'
 
   const warehouseItems = items.filter(
-    (i) => !i.assignedToId && !i.assignedOrderId
+    (i) => i.status === 'AVAILABLE' && !i.assignedToId && !i.assignedOrderId
   )
   const technicianItems = items.filter(
-    (i) => i.assignedToId && !i.assignedOrderId
+    (i) => i.status === 'ASSIGNED' && i.assignedToId && !i.assignedOrderId
   )
 
   const warehouseCount = isDevice

@@ -16,7 +16,7 @@ import ItemHistoryList from './ItemHistoryList'
 
 type Props = {
   items: WarehouseWithRelations[]
-  mode?: 'warehouse' | 'technicians' | 'orders'
+  mode?: 'warehouse' | 'technicians' | 'orders' | 'returned'
 }
 
 /**

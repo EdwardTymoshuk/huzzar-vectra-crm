@@ -308,6 +308,86 @@ export const warehouseRouter = router({
       return { success: true }
     }),
 
+  // 🔁 Return damaged/obsolete items back to the operator (not to warehouse)
+  returnToOperator: roleProtectedProcedure(['WAREHOUSEMAN', 'ADMIN'])
+    .input(
+      z.object({
+        items: z.array(
+          z.discriminatedUnion('type', [
+            z.object({ type: z.literal('DEVICE'), id: z.string() }),
+            z.object({
+              type: z.literal('MATERIAL'),
+              id: z.string(),
+              quantity: z.number().min(1),
+            }),
+          ])
+        ),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      for (const item of input.items) {
+        if (item.type === 'DEVICE') {
+          await prisma.warehouse.update({
+            where: { id: item.id },
+            data: {
+              assignedToId: null,
+              status: 'RETURNED_TO_OPERATOR',
+            },
+          })
+
+          await prisma.warehouseHistory.create({
+            data: {
+              warehouseItemId: item.id,
+              action: 'RETURNED_TO_OPERATOR',
+              performedById: userId,
+              notes: input.notes,
+            },
+          })
+        }
+
+        if (item.type === 'MATERIAL') {
+          const material = await prisma.warehouse.findUnique({
+            where: { id: item.id },
+          })
+
+          if (!material) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'Material not found',
+            })
+          }
+
+          if (material.quantity <= item.quantity) {
+            await prisma.warehouse.update({
+              where: { id: item.id },
+              data: { quantity: 0 },
+            })
+          } else {
+            await prisma.warehouse.update({
+              where: { id: item.id },
+              data: { quantity: { decrement: item.quantity } },
+            })
+          }
+
+          await prisma.warehouseHistory.create({
+            data: {
+              warehouseItemId: item.id,
+              action: 'RETURNED_TO_OPERATOR',
+              performedById: userId,
+              quantity: item.quantity,
+              notes: input.notes,
+            },
+          })
+        }
+      }
+
+      return { success: true }
+    }),
+
   // 📦 Get all warehouse items
   getAll: protectedProcedure.query(() => {
     return prisma.warehouse.findMany({

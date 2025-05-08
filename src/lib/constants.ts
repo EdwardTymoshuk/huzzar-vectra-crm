@@ -234,6 +234,7 @@ export const devicesStatusMap: Record<string, string> = {
   AVAILABLE: 'DOSTĘPNY',
   ASSIGNED: 'PRZYPISANY DO TECHNIKA',
   RETURNED: 'ZWRÓCONY',
+  RETURNED_TO_OPERATOR: 'ZWRÓCONY',
   ASSIGNED_TO_ORDER: 'WYDANY',
 }
 /**
