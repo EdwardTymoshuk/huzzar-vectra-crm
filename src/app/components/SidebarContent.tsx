@@ -28,6 +28,7 @@ const SidebarContent = () => {
 
     // 👇 Obsługa tras podstronowych (np. /admin-panel/warehouse/details/[name])
     if (pathname?.includes('/admin-panel/warehouse/details')) return 'warehouse'
+    if (pathname?.includes('/admin-panel/warehouse/history')) return 'warehouse'
 
     return tabParam || 'dashboard'
   }, [searchParams, pathname])

@@ -13,6 +13,7 @@ import {
   TimeSlot,
   User,
   Warehouse,
+  WarehouseAction,
   WarehouseHistory,
 } from '@prisma/client'
 import { IconType } from 'react-icons'
@@ -98,4 +99,26 @@ export type WarehouseHistoryWithUser = WarehouseHistory & {
   performedBy: User
   assignedTo: User | null
   assignedOrder: Order | null
+}
+
+export type WarehouseHistoryWithRelations = WarehouseHistory & {
+  warehouseItem: Warehouse
+  performedBy: User
+  assignedTo: User | null
+  assignedOrder: Order | null
+}
+
+export type GroupedWarehouseHistory = {
+  id: string
+  action: WarehouseAction
+  actionDate: Date
+  performedBy: User
+  notes?: string
+  entries: {
+    id: string
+    warehouseItem: Warehouse
+    assignedTo?: User | null
+    assignedOrder?: Order | null
+    quantity?: number
+  }[]
 }

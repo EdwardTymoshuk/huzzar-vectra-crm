@@ -6,9 +6,7 @@ import Sidebar from '@/app/components/Sidebar'
 import dynamic from 'next/dynamic'
 import { usePathname, useSearchParams } from 'next/navigation'
 
-/**
- * Lazy-load pages dynamically based on active tab
- */
+// Lazy-load all tabbed routes
 const pages: Record<string, React.ComponentType> = {
   dashboard: dynamic(() => import('@/app/admin-panel/page')),
   orders: dynamic(() => import('@/app/admin-panel/orders/page')),
@@ -21,17 +19,32 @@ const pages: Record<string, React.ComponentType> = {
 
 /**
  * ClientRoutingHandler:
- * - Dynamically renders the page based on `tab` query param.
- * - If on subroute like `/warehouse/details/[name]`, it renders `children` instead.
+ * - Renders layout with Sidebar/Header.
+ * - Uses query param `tab` to load the correct main page.
+ * - For subroutes (e.g., warehouse details or history), renders `children`.
  */
 const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const searchParams = useSearchParams()
   const pathname = usePathname()
-  const activeTab = searchParams.get('tab') || 'dashboard'
 
-  const isSubPage = pathname.includes('/warehouse/details/')
+  const getActiveKeyFromPathname = (pathname: string): string => {
+    if (pathname.includes('/warehouse')) return 'warehouse'
+    if (pathname.includes('/orders')) return 'orders'
+    if (pathname.includes('/employees')) return 'employees'
+    if (pathname.includes('/billing')) return 'billing'
+    if (pathname.includes('/settings')) return 'settings'
+    return 'dashboard'
+  }
+
+  const activeTab =
+    searchParams.get('tab') || getActiveKeyFromPathname(pathname)
+
+  // Subpages that shouldn't render via dynamic `tab` routing
+  const isSubPage =
+    pathname.includes('/warehouse/details/') ||
+    pathname.includes('/warehouse/history')
 
   const ActivePage = pages[activeTab] || pages.dashboard
 

@@ -3,9 +3,11 @@
 import ItemHeader from '@/app/admin-panel/components/warehouse/details/ItemHeader'
 import ItemTabs from '@/app/admin-panel/components/warehouse/details/ItemTabs'
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
+import PageHeader from '@/app/components/PageHeader'
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { devicesTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -32,8 +34,11 @@ const WarehouseItemPage = () => {
     )
   }
 
+  const headerString = `${data && devicesTypeMap[data[0].category!]} ${name}`
+
   return (
     <MaxWidthWrapper className="space-y-4">
+      <PageHeader title={headerString} />
       <div className="flex justify-between w-full">
         <Button variant="ghost" onClick={() => router.back()} className="">
           <MdKeyboardArrowLeft />

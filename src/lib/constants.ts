@@ -1,7 +1,7 @@
 // src/lib/constants.ts
 
 import { MenuItem } from '@/types'
-import { TimeSlot } from '@prisma/client'
+import { TimeSlot, WarehouseAction } from '@prisma/client'
 import {
   MdAssignment,
   MdOutlineSettings,
@@ -243,4 +243,20 @@ export const devicesStatusMap: Record<string, string> = {
 export const materialUnitMap: Record<string, string> = {
   PIECE: 'szt',
   METER: 'mb',
+}
+
+/**
+ * Mapping of warehouse action types to label and badge color.
+ */
+export const warehouseActionMap: Record<
+  WarehouseAction,
+  {
+    label: string
+    variant: 'success' | 'warning' | 'destructive' | 'danger'
+  }
+> = {
+  RECEIVED: { label: 'Przyjęcie', variant: 'success' },
+  ISSUED: { label: 'Wydanie', variant: 'warning' },
+  RETURNED: { label: 'Zwrot', variant: 'destructive' },
+  RETURNED_TO_OPERATOR: { label: 'Zwrot do operatora', variant: 'danger' },
 }

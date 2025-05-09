@@ -1,5 +1,9 @@
 import { prisma } from '@/utils/prisma'
-import { DeviceCategory, WarehouseItemType } from '@prisma/client'
+import {
+  DeviceCategory,
+  WarehouseAction,
+  WarehouseItemType,
+} from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { protectedProcedure, roleProtectedProcedure } from '../middleware'
@@ -478,5 +482,57 @@ export const warehouseRouter = router({
         where: { serialNumber: { equals: input.serial, mode: 'insensitive' } },
         include: { assignedTo: true },
       })
+    }),
+
+  // 📜 Paginated and filterable warehouse history
+  getWarehouseHistory: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(30),
+        actions: z.array(z.nativeEnum(WarehouseAction)).optional(),
+        performerId: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const { page, limit, actions, performerId, startDate, endDate } = input
+
+      const whereClause: any = {
+        ...(actions && actions.length > 0 ? { action: { in: actions } } : {}),
+        ...(performerId ? { performedById: performerId } : {}),
+        ...(startDate || endDate
+          ? {
+              actionDate: {
+                ...(startDate ? { gte: new Date(startDate) } : {}),
+                ...(endDate ? { lte: new Date(endDate) } : {}),
+              },
+            }
+          : {}),
+      }
+
+      const [data, total] = await Promise.all([
+        prisma.warehouseHistory.findMany({
+          where: whereClause,
+          include: {
+            warehouseItem: true,
+            performedBy: true,
+            assignedTo: true,
+            assignedOrder: true,
+          },
+          orderBy: { actionDate: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.warehouseHistory.count({ where: whereClause }),
+      ])
+
+      return {
+        data,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      }
     }),
 })

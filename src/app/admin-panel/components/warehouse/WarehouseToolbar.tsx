@@ -2,11 +2,19 @@
 
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/app/components/ui/tooltip'
+import Link from 'next/link'
 import { useState } from 'react'
 import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
+import { LiaHistorySolid } from 'react-icons/lia'
 import { MdAdd } from 'react-icons/md'
 import AddModal from './add/AddModal'
 import IssueModal from './issue/IssueModal'
@@ -47,6 +55,26 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
           <HiOutlineArrowDownOnSquare />
           <span className="hidden lg:inline">Zwrot</span>
         </Button>
+        <div className="flex justify-end ml-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/admin-panel/warehouse/history">
+                  <Button
+                    variant="ghost"
+                    className="p-2"
+                    aria-label="Historia magazynu"
+                  >
+                    <LiaHistorySolid className="!w-8 !h-8 text-muted-foreground" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="bg-white">
+                <p>Sprawdź całą historię</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Search input field */}

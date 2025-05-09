@@ -14,13 +14,6 @@ import {
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/app/components/ui/pagination'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -47,6 +40,7 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
+import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderDetailsPanel from './OrderDetailsPanel'
 import OrdersFilterSort from './OrdersFilter'
@@ -447,41 +441,12 @@ const OrdersTable = ({ searchTerm }: Props) => {
         </TableBody>
       </Table>
 
-      {/* Pagination */}
-      {orders.length > 0 && (
-        <Pagination className="p-4">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href={currentPage > 1 ? '#' : undefined}
-                onClick={() =>
-                  currentPage > 1 && setCurrentPage((prev) => prev - 1)
-                }
-                className={
-                  currentPage === 1 ? 'pointer-events-none opacity-50' : ''
-                }
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <span className="px-3 py-1 border rounded">
-                Page {currentPage} of {totalPages}
-              </span>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext
-                href={currentPage < totalPages ? '#' : undefined}
-                onClick={() =>
-                  currentPage < totalPages && setCurrentPage((prev) => prev + 1)
-                }
-                className={
-                  currentPage === totalPages
-                    ? 'pointer-events-none opacity-50'
-                    : ''
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+      {data && (
+        <PaginationControls
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       {/* Order details side panel */}
