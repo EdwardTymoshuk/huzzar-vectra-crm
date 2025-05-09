@@ -151,6 +151,13 @@ const HistoryTable = ({ entries }: Props) => {
                     })}
                   </TableBody>
                 </Table>
+
+                {first.notes && (
+                  <div className="py-2">
+                    <span className="font-bold">Uwagi: </span>
+                    <span className="text-muted-foreground">{first.notes}</span>
+                  </div>
+                )}
               </AccordionContent>
             </AccordionItem>
           )
