@@ -535,4 +535,12 @@ export const warehouseRouter = router({
         totalPages: Math.ceil(total / limit),
       }
     }),
+  // 🔍 Get items assigned to tchnician
+  getTechnicianStock: protectedProcedure
+    .input(z.object({ technicianId: z.string() }))
+    .query(async ({ input }) => {
+      return await prisma.warehouse.findMany({
+        where: { assignedToId: input.technicianId },
+      })
+    }),
 })

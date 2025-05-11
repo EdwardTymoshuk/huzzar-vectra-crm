@@ -16,31 +16,29 @@ import {
 } from 'react-icons/hi2'
 import { LiaHistorySolid } from 'react-icons/lia'
 import { MdAdd } from 'react-icons/md'
+import TechnicianStockSheet from './TechnicianStockSheet'
 import AddModal from './add/AddModal'
 import IssueModal from './issue/IssueModal'
 import ReturnModal from './return/ReturnModal'
-
-/**
- * WarehouseToolbar component:
- * - Contains top action buttons with a responsive layout.
- * - Uses a universal SearchInput component for filtering.
- */
 
 type Props = {
   searchTerm: string
   setSearchTerm: (value: string) => void
 }
 
+/**
+ * WarehouseToolbar:
+ * - Top action panel for warehouse: delivery, issue, return, technician stock, and history.
+ */
 const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
-  // Local state controlling modal visibility
   const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [isIssueModalOpen, setIssueModalOpen] = useState(false)
   const [isReturnModalOpen, setReturnModalOpen] = useState(false)
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-      {/* Action buttons */}
-      <div className="flex flex-wrap gap-2">
+      {/* Left side: actions and grouped buttons */}
+      <div className="flex flex-wrap gap-2 items-center justify-center md:justify-none">
         <Button onClick={() => setAddModalOpen(true)} variant="success">
           <MdAdd />
           <span className="hidden lg:inline">Dostawa</span>
@@ -55,7 +53,11 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
           <HiOutlineArrowDownOnSquare />
           <span className="hidden lg:inline">Zwrot</span>
         </Button>
-        <div className="flex justify-end ml-4">
+
+        {/* Grouped extra actions */}
+        <div className="flex items-center gap-2 ml-8">
+          <TechnicianStockSheet />
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -65,7 +67,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
                     className="p-2"
                     aria-label="Historia magazynu"
                   >
-                    <LiaHistorySolid className="!w-8 !h-8 text-muted-foreground" />
+                    <LiaHistorySolid className="!w-6 !h-6 text-muted-foreground" />
                   </Button>
                 </Link>
               </TooltipTrigger>
@@ -77,7 +79,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         </div>
       </div>
 
-      {/* Search input field */}
+      {/* Search field */}
       <div className="w-full sm:w-1/2 lg:w-1/4">
         <SearchInput
           placeholder="Szukaj urządzenie lub materiał"
@@ -86,19 +88,15 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         />
       </div>
 
-      {/* Add (Delivery) Modal */}
+      {/* Modals */}
       <AddModal
         open={isAddModalOpen}
         onCloseAction={() => setAddModalOpen(false)}
       />
-
-      {/* Issue Modal */}
       <IssueModal
         open={isIssueModalOpen}
         onCloseAction={() => setIssueModalOpen(false)}
       />
-
-      {/* Return Modal */}
       <ReturnModal
         open={isReturnModalOpen}
         onCloseAction={() => setReturnModalOpen(false)}
