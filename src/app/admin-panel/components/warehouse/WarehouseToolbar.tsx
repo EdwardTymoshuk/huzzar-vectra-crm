@@ -3,19 +3,21 @@
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/app/components/ui/tooltip'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { useState } from 'react'
 import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
-import { LiaHistorySolid } from 'react-icons/lia'
 import { MdAdd } from 'react-icons/md'
+import { PiDotsThreeOutlineVerticalFill, PiUserListFill } from 'react-icons/pi'
+import { TbHistory, TbListSearch } from 'react-icons/tb'
+import DeviceCheckSheet from './DeviceCheckSheet'
 import TechnicianStockSheet from './TechnicianStockSheet'
 import AddModal from './add/AddModal'
 import IssueModal from './issue/IssueModal'
@@ -28,17 +30,20 @@ type Props = {
 
 /**
  * WarehouseToolbar:
- * - Top action panel for warehouse: delivery, issue, return, technician stock, and history.
+ * - Top action panel for warehouse: delivery, issue, return, plus sheets for extra tools.
  */
 const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
   const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [isIssueModalOpen, setIssueModalOpen] = useState(false)
   const [isReturnModalOpen, setReturnModalOpen] = useState(false)
 
+  const [isStockSheetOpen, setStockSheetOpen] = useState(false)
+  const [isSerialSheetOpen, setSerialSheetOpen] = useState(false)
+
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-      {/* Left side: actions and grouped buttons */}
-      <div className="flex flex-wrap gap-2 items-center justify-center md:justify-none">
+      {/* Left section: core actions + dropdown */}
+      <div className="flex flex-wrap gap-2 items-center">
         <Button onClick={() => setAddModalOpen(true)} variant="success">
           <MdAdd />
           <span className="hidden lg:inline">Dostawa</span>
@@ -54,32 +59,36 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
           <span className="hidden lg:inline">Zwrot</span>
         </Button>
 
-        {/* Grouped extra actions */}
-        <div className="flex items-center gap-2 ml-8">
-          <TechnicianStockSheet />
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link href="/admin-panel/warehouse/history">
-                  <Button
-                    variant="ghost"
-                    className="p-2"
-                    aria-label="Historia magazynu"
-                  >
-                    <LiaHistorySolid className="!w-6 !h-6 text-muted-foreground" />
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white">
-                <p>Sprawdź całą historię</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        {/* More options dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Więcej">
+              <PiDotsThreeOutlineVerticalFill className="w-6 h-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-white border shadow-md cursor-pointer">
+            <DropdownMenuItem onClick={() => setStockSheetOpen(true)}>
+              <PiUserListFill className="mr-2 h-4 w-4" />
+              Stan technika
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSerialSheetOpen(true)}>
+              <TbListSearch className="mr-2 h-4 w-4" />
+              Sprawdź urządzenie (SN)
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/admin-panel/warehouse/history"
+                className="flex items-center"
+              >
+                <TbHistory className="mr-2 h-4 w-4" />
+                Historia magazynu
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Search field */}
+      {/* Search input */}
       <div className="w-full sm:w-1/2 lg:w-1/4">
         <SearchInput
           placeholder="Szukaj urządzenie lub materiał"
@@ -88,7 +97,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         />
       </div>
 
-      {/* Modals */}
+      {/* Action modals */}
       <AddModal
         open={isAddModalOpen}
         onCloseAction={() => setAddModalOpen(false)}
@@ -100,6 +109,16 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       <ReturnModal
         open={isReturnModalOpen}
         onCloseAction={() => setReturnModalOpen(false)}
+      />
+
+      {/* Sheets */}
+      <TechnicianStockSheet
+        open={isStockSheetOpen}
+        onClose={() => setStockSheetOpen(false)}
+      />
+      <DeviceCheckSheet
+        open={isSerialSheetOpen}
+        onClose={() => setSerialSheetOpen(false)}
       />
     </div>
   )

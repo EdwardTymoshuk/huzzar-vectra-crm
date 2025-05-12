@@ -2,7 +2,6 @@
 
 import LoaderSpinner from '@/app/components/LoaderSpinner'
 import SearchInput from '@/app/components/SearchInput'
-import { Button } from '@/app/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -15,20 +14,22 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/app/components/ui/sheet'
 import { trpc } from '@/utils/trpc'
-import { useState } from 'react'
-import { MdInventory2 } from 'react-icons/md'
+import { useEffect, useState } from 'react'
 import TechnicianStockTabs from './TechnicianStockTabs'
+
+type Props = {
+  open: boolean
+  onClose: () => void
+}
 
 /**
  * TechnicianStockSheet:
- * - Side panel that lets user view technician's current stock.
- * - Includes technician selector and local search input.
+ * - Displays a side sheet with technician stock info.
+ * - Allows selection of technician and searching items.
  */
-const TechnicianStockSheet = () => {
-  const [open, setOpen] = useState(false)
+const TechnicianStockSheet = ({ open, onClose }: Props) => {
   const [technicianId, setTechnicianId] = useState<string | undefined>()
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -39,20 +40,20 @@ const TechnicianStockSheet = () => {
       { enabled: !!technicianId }
     )
 
-  // Filter items by search term (case-insensitive)
+  // Reset selection when sheet closes
+  useEffect(() => {
+    if (!open) {
+      setTechnicianId(undefined)
+      setSearchTerm('')
+    }
+  }, [open])
+
   const filteredData = stockData?.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <MdInventory2 className="h-5 w-5" />
-          Stan technika
-        </Button>
-      </SheetTrigger>
-
+    <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
         side="right"
         className="w-full md:max-w-[700px] overflow-auto"
@@ -62,11 +63,11 @@ const TechnicianStockSheet = () => {
         </SheetHeader>
 
         <div className="my-4 space-y-4">
-          {/* Technician select */}
+          {/* Technician selector */}
           <Select
             onValueChange={(val) => {
               setTechnicianId(val)
-              setSearchTerm('') // Reset search on technician change
+              setSearchTerm('')
             }}
             value={technicianId}
           >
@@ -82,7 +83,7 @@ const TechnicianStockSheet = () => {
             </SelectContent>
           </Select>
 
-          {/* Search input */}
+          {/* Search field */}
           {technicianId && (
             <SearchInput
               placeholder="Szukaj po nazwie..."
@@ -91,7 +92,7 @@ const TechnicianStockSheet = () => {
             />
           )}
 
-          {/* Stock display */}
+          {/* Stock results */}
           {technicianId && filteredData && (
             <TechnicianStockTabs items={filteredData} searchTerm={searchTerm} />
           )}

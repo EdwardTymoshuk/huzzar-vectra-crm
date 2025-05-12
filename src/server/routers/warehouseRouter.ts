@@ -543,4 +543,38 @@ export const warehouseRouter = router({
         where: { assignedToId: input.technicianId },
       })
     }),
+  // 🔍 Get device by serial number + last history entry
+  checkDeviceBySerialNumber: protectedProcedure
+    .input(z.object({ serialNumber: z.string().min(3) }))
+    .query(async ({ input, ctx }) => {
+      const item = await ctx.prisma.warehouse.findFirst({
+        where: {
+          serialNumber: input.serialNumber.trim(),
+          itemType: WarehouseItemType.DEVICE,
+        },
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+          assignedOrder: { select: { id: true, orderNumber: true } },
+          history: {
+            orderBy: { actionDate: 'desc' },
+            take: 1,
+            select: { action: true, actionDate: true },
+          },
+        },
+      })
+
+      if (!item) throw new Error('Device not found')
+
+      const last = item.history[0] // 👈 newest entry (if any)
+
+      return {
+        id: item.id,
+        name: item.name,
+        status: item.status,
+        assignedTo: item.assignedTo,
+        assignedOrder: item.assignedOrder,
+        lastAction: last?.action ?? null,
+        lastActionDate: last?.actionDate ?? null,
+      }
+    }),
 })
