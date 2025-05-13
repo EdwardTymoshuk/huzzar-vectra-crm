@@ -66,16 +66,24 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
               <PiDotsThreeOutlineVerticalFill className="w-6 h-6" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-white border shadow-md cursor-pointer">
-            <DropdownMenuItem onClick={() => setStockSheetOpen(true)}>
+          <DropdownMenuContent className="bg-background text-foreground border border-border shadow-md cursor-pointer !bg-opacity-100 !backdrop-blur-none">
+            <DropdownMenuItem
+              onClick={() => setStockSheetOpen(true)}
+              className="cursor-pointer"
+            >
               <PiUserListFill className="mr-2 h-4 w-4" />
               Stan technika
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSerialSheetOpen(true)}>
+
+            <DropdownMenuItem
+              onClick={() => setSerialSheetOpen(true)}
+              className="cursor-pointer"
+            >
               <TbListSearch className="mr-2 h-4 w-4" />
               Sprawdź urządzenie (SN)
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
+
+            <DropdownMenuItem asChild className="cursor-pointer">
               <Link
                 href="/admin-panel/warehouse/history"
                 className="flex items-center"

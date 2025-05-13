@@ -157,7 +157,7 @@ const AddEmployeeDialog = ({
                   <FormControl>
                     <select
                       {...field}
-                      className="border rounded-md p-2 w-full bg-white"
+                      className="border border-input bg-background text-foreground rounded-md p-2 w-full"
                     >
                       <option value="TECHNICIAN">Technik</option>
                       <option value="COORDINATOR">Koordynator</option>

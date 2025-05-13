@@ -13,11 +13,6 @@ import { Droppable } from '@hello-pangea/dnd'
 import { useEffect, useState } from 'react'
 import TechnicianTable from './TechnicianTable'
 
-/**
- * TechniciansList displays a list of technicians (accordion layout).
- * Each technician shows assigned orders grouped by time slot.
- * Allows unassigning orders and drag-n-drop reassignment.
- */
 const TechniciansList = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [expandedTechnicians, setExpandedTechnicians] = useState<string[]>([])
@@ -96,7 +91,7 @@ const TechniciansList = () => {
 
       {filteredTechnicians.length === 0 ? (
         <div className="flex w-full h-52 items-center justify-center">
-          <p className="text-center text-gray-500">Brak techników</p>
+          <p className="text-center text-muted-foreground">Brak techników</p>
         </div>
       ) : (
         <Accordion
@@ -120,10 +115,10 @@ const TechniciansList = () => {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`p-2 border rounded-md transition ${
+                        className={`p-2 rounded-md transition border ${
                           snapshot.isDraggingOver
-                            ? 'border-blue-500 bg-blue-100'
-                            : 'border-gray-300 bg-white'
+                            ? 'border-blue-500 bg-muted'
+                            : 'border-border bg-card'
                         }`}
                       >
                         <DroppableContent

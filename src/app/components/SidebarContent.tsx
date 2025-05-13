@@ -16,7 +16,12 @@ import UserDropdown from './UserDropdown'
  * - Highlights the active menu based on `tab` query or current URL pathname.
  * - Ensures that detail subpages (like /admin-panel/warehouse/details/[name]) also show correct sidebar highlight.
  */
-const SidebarContent = () => {
+
+type SidebarContentProps = {
+  onSelect?: () => void // Optional callback to close sheet on mobile
+}
+
+const SidebarContent = ({ onSelect }: SidebarContentProps) => {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -66,7 +71,10 @@ const SidebarContent = () => {
           return (
             <div
               key={item.key}
-              onClick={() => router.push(`/admin-panel?tab=${item.key}`)}
+              onClick={() => {
+                router.push(`/admin-panel?tab=${item.key}`)
+                onSelect?.()
+              }}
               className={cn(
                 'flex items-center p-3 transition cursor-pointer text-background',
                 isActive

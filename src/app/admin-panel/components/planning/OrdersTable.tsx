@@ -34,12 +34,12 @@ const OrderTable = () => {
           className={`min-h-52 p-2 border rounded-md transition ${
             snapshot.isDraggingOver
               ? 'border-blue-500 bg-blue-100'
-              : 'border-gray-300 bg-white'
+              : 'border-border bg-card text-card-foreground'
           }`}
         >
           {filteredOrders.length === 0 ? (
             <div className="flex w-full h-52 items-center justify-center">
-              <p className="text-center text-gray-500">Brak zleceń</p>
+              <p className="text-center text-muted-foreground">Brak zleceń</p>
             </div>
           ) : (
             <Table>
@@ -62,7 +62,7 @@ const OrderTable = () => {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className="cursor-grab hover:bg-gray-100 transition"
+                        className="cursor-grab hover:bg-muted transition"
                       >
                         <TableCell>
                           {' '}

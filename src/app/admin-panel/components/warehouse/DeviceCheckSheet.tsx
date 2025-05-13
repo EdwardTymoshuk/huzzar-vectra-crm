@@ -56,7 +56,7 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
 
   return (
     <Sheet open={open} onOpenChange={(val) => !val && handleClose()}>
-      <SheetContent side="right" className="w-full md:max-w-md">
+      <SheetContent side="right" className="w-[95%] md:max-w-md">
         <SheetHeader>
           <SheetTitle>Sprawdź sprzęt po numerze seryjnym</SheetTitle>
         </SheetHeader>

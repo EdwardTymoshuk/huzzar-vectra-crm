@@ -1,4 +1,3 @@
-// components/planning/TechnicianTable.tsx
 'use client'
 
 import {
@@ -34,7 +33,7 @@ type Props = {
  */
 const TechnicianTable = ({ slots, onUnassign }: Props) => {
   return (
-    <Table className="border rounded-lg w-full">
+    <Table className="border border-border rounded-lg w-full bg-card text-card-foreground">
       <TableHeader>
         <TableRow>
           <TableHead className="text-center w-1/3">Slot czasowy</TableHead>
@@ -62,16 +61,18 @@ const TechnicianTable = ({ slots, onUnassign }: Props) => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className="p-2 bg-gray-100 rounded-md text-sm my-1 flex justify-between items-center gap-2"
+                            className="p-2 bg-muted text-muted-foreground rounded-md text-sm my-1 flex justify-between items-center gap-2"
                           >
                             <div>
-                              <strong>{order.orderNumber}</strong>
+                              <strong className="text-foreground">
+                                {order.orderNumber}
+                              </strong>
                               <br />
                               {order.address}
                             </div>
                             <button
                               onClick={() => onUnassign(order.id)}
-                              className="text-gray-600 hover:text-red-600"
+                              className="text-muted-foreground hover:text-destructive"
                             >
                               <MdClose />
                             </button>
@@ -81,14 +82,19 @@ const TechnicianTable = ({ slots, onUnassign }: Props) => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-gray-500">Brak zleceń</p>
+                  <p className="text-center text-muted-foreground">
+                    Brak zleceń
+                  </p>
                 )}
               </TableCell>
             </TableRow>
           ))
         ) : (
           <TableRow>
-            <TableCell colSpan={2} className="text-center text-gray-500">
+            <TableCell
+              colSpan={2}
+              className="text-center text-muted-foreground"
+            >
               Brak zleceń
             </TableCell>
           </TableRow>

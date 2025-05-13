@@ -54,10 +54,7 @@ const TechnicianStockSheet = ({ open, onClose }: Props) => {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent
-        side="right"
-        className="w-full md:max-w-[700px] overflow-auto"
-      >
+      <SheetContent side="right" className="w-[95%] md:max-w-md overflow-auto">
         <SheetHeader>
           <SheetTitle>Stan magazynowy technika</SheetTitle>
         </SheetHeader>

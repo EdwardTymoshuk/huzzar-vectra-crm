@@ -54,7 +54,7 @@ const OrderDetailsPanel = ({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full max-w-lg p-6 space-y-4">
+      <SheetContent side="right" className="w-[95%] md:max-w-md p-6 space-y-4">
         {/* Header */}
         <SheetHeader className="flex flex-row justify-between items-center">
           <SheetTitle>Szczegóły zlecenia</SheetTitle>
