@@ -109,37 +109,33 @@ export const orderType: Record<string, string> = {
 /**
  * Mapping of time slots to formatted Polish equivalents.
  */
-export const timeSlotOptions = {
-  V: [
-    { value: 'EIGHT_TEN', label: '08:00 - 10:00' },
-    { value: 'TEN_TWELVE', label: '10:00 - 12:00' },
-    { value: 'TWELVE_FOURTEEN', label: '12:00 - 14:00' },
-    { value: 'FOURTEEN_SIXTEEN', label: '14:00 - 16:00' },
-    { value: 'SIXTEEN_EIGHTEEN', label: '16:00 - 18:00' },
-    { value: 'EIGHTEEN_TWENTY', label: '18:00 - 20:00' },
-  ],
-  MMP: [
-    { value: 'NINE_TWELVE', label: '09:00 - 12:00' },
-    { value: 'TWELVE_FIFTEEN', label: '12:00 - 15:00' },
-    { value: 'FIFTEEN_EIGHTEEN', label: '15:00 - 18:00' },
-    { value: 'EIGHTEEN_TWENTYONE', label: '18:00 - 21:00' },
-  ],
-}
+export const timeSlotOptions = [
+  // one hour time slots
+  { value: 'EIGHT_NINE', label: '08:00 - 09:00' },
+  { value: 'NINE_TEN', label: '09:00 - 10:00' },
+  { value: 'TEN_ELEVEN', label: '10:00 - 11:00' },
+  { value: 'ELEVEN_TWELVE', label: '11:00 - 12:00' },
+  { value: 'TWELVE_THIRTEEN', label: '12:00 - 13:00' },
+  { value: 'THIRTEEN_FOURTEEN', label: '13:00 - 14:00' },
+  { value: 'FOURTEEN_FIFTEEN', label: '14:00 - 15:00' },
+  { value: 'FIFTEEN_SIXTEEN', label: '15:00 - 16:00' },
+  { value: 'SIXTEEN_SEVENTEEN', label: '16:00 - 17:00' },
+  { value: 'SEVENTEEN_EIGHTEEN', label: '17:00 - 18:00' },
+  { value: 'EIGHTEEN_NINETEEN', label: '18:00 - 19:00' },
+  { value: 'NINETEEN_TWENTY', label: '19:00 - 20:00' },
+  { value: 'TWENTY_TWENTYONE', label: '20:00 - 21:00' },
 
-/**
- * Mapping of all time slots to formatted Polish equivalents.
- */
-export const allTimeSlotOptions = [
-  { value: 'EIGHT_TEN', label: '08:00 – 10:00' },
-  { value: 'TEN_TWELVE', label: '10:00 – 12:00' },
-  { value: 'TWELVE_FOURTEEN', label: '12:00 – 14:00' },
-  { value: 'FOURTEEN_SIXTEEN', label: '14:00 – 16:00' },
-  { value: 'SIXTEEN_EIGHTEEN', label: '16:00 – 18:00' },
-  { value: 'EIGHTEEN_TWENTY', label: '18:00 – 20:00' },
-  { value: 'NINE_TWELVE', label: '09:00 – 12:00' },
-  { value: 'TWELVE_FIFTEEN', label: '12:00 – 15:00' },
-  { value: 'FIFTEEN_EIGHTEEN', label: '15:00 – 18:00' },
-  { value: 'EIGHTEEN_TWENTYONE', label: '18:00 – 21:00' },
+  // two and three hour time slots
+  { value: 'EIGHT_TEN', label: '08:00 - 10:00' },
+  { value: 'TEN_TWELVE', label: '10:00 - 12:00' },
+  { value: 'TWELVE_FOURTEEN', label: '12:00 - 14:00' },
+  { value: 'FOURTEEN_SIXTEEN', label: '14:00 - 16:00' },
+  { value: 'SIXTEEN_EIGHTEEN', label: '16:00 - 18:00' },
+  { value: 'EIGHTEEN_TWENTY', label: '18:00 - 20:00' },
+  { value: 'NINE_TWELVE', label: '09:00 - 12:00' },
+  { value: 'TWELVE_FIFTEEN', label: '12:00 - 15:00' },
+  { value: 'FIFTEEN_EIGHTEEN', label: '15:00 - 18:00' },
+  { value: 'EIGHTEEN_TWENTYONE', label: '18:00 - 21:00' },
 ]
 
 /**
@@ -147,6 +143,20 @@ export const allTimeSlotOptions = [
  */
 
 export const timeSlotMap: Record<string, string> = {
+  EIGHT_NINE: '08:00 - 09:00',
+  NINE_TEN: '09:00 - 10:00',
+  TEN_ELEVEN: '10:00 - 11:00',
+  ELEVEN_TWELVE: '11:00 - 12:00',
+  TWELVE_THIRTEEN: '12:00 - 13:00',
+  THIRTEEN_FOURTEEN: '13:00 - 14:00',
+  FOURTEEN_FIFTEEN: '14:00 - 15:00',
+  FIFTEEN_SIXTEEN: '15:00 - 16:00',
+  SIXTEEN_SEVENTEEN: '16:00 - 17:00',
+  SEVENTEEN_EIGHTEEN: '17:00 - 18:00',
+  EIGHTEEN_NINETEEN: '18:00 - 19:00',
+  NINETEEN_TWENTY: '19:00 - 20:00',
+  TWENTY_TWENTYONE: '20:00 - 21:00',
+
   EIGHT_TEN: '08:00 - 10:00',
   TEN_TWELVE: '10:00 - 12:00',
   TWELVE_FOURTEEN: '12:00 - 14:00',
@@ -160,16 +170,54 @@ export const timeSlotMap: Record<string, string> = {
 }
 
 export const sortedTimeSlotsByHour: TimeSlot[] = [
+  // 08:00
+  'EIGHT_NINE',
   'EIGHT_TEN',
+
+  // 09:00
+  'NINE_TEN',
   'NINE_TWELVE',
+
+  // 10:00
+  'TEN_ELEVEN',
   'TEN_TWELVE',
+
+  // 11:00
+  'ELEVEN_TWELVE',
+
+  // 12:00
+  'TWELVE_THIRTEEN',
   'TWELVE_FOURTEEN',
   'TWELVE_FIFTEEN',
+
+  // 13:00
+  'THIRTEEN_FOURTEEN',
+
+  // 14:00
+  'FOURTEEN_FIFTEEN',
   'FOURTEEN_SIXTEEN',
+
+  // 15:00
+  'FIFTEEN_SIXTEEN',
   'FIFTEEN_EIGHTEEN',
+
+  // 16:00
+  'SIXTEEN_SEVENTEEN',
   'SIXTEEN_EIGHTEEN',
+
+  // 17:00
+  'SEVENTEEN_EIGHTEEN',
+
+  // 18:00
+  'EIGHTEEN_NINETEEN',
   'EIGHTEEN_TWENTY',
   'EIGHTEEN_TWENTYONE',
+
+  // 19:00
+  'NINETEEN_TWENTY',
+
+  // 20:00
+  'TWENTY_TWENTYONE',
 ]
 
 export const operatorColors: Record<string, string> = {

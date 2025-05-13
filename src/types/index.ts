@@ -88,6 +88,7 @@ export type MaterialDefinition = {
   name: string
   index: string
   unit: 'PIECE' | 'METER'
+  price: number
   warningAlert: number
   alarmAlert: number
 }

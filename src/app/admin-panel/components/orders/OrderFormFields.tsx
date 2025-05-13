@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { allTimeSlotOptions } from '@/lib/constants'
+import { timeSlotOptions } from '@/lib/constants'
 import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus } from '@prisma/client'
@@ -141,7 +141,7 @@ export function OrderFormFields({
                 <SelectValue placeholder="Wybierz przedział czasowy" />
               </SelectTrigger>
               <SelectContent>
-                {allTimeSlotOptions.map((slot) => (
+                {timeSlotOptions.map((slot) => (
                   <SelectItem key={slot.value} value={slot.value}>
                     {slot.label}
                   </SelectItem>

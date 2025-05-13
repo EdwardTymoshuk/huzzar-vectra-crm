@@ -2,13 +2,7 @@ import { sortedTimeSlotsByHour } from '@/lib/constants'
 import { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { prisma } from '@/utils/prisma'
-import {
-  Operator,
-  OrderStatus,
-  OrderType,
-  Standard,
-  TimeSlot,
-} from '@prisma/client'
+import { OrderStatus, OrderType, Standard, TimeSlot } from '@prisma/client'
 import { endOfDay, startOfDay } from 'date-fns'
 import { z } from 'zod'
 import { protectedProcedure, roleProtectedProcedure } from '../middleware'
@@ -283,7 +277,7 @@ export const orderRouter = router({
   createOrder: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
     .input(
       z.object({
-        operator: z.nativeEnum(Operator),
+        operator: z.string(),
         type: z.nativeEnum(OrderType),
         orderNumber: z.string().min(3),
         date: z.string(),

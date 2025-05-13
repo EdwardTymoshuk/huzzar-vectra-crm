@@ -192,7 +192,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
         <TableBody>
           {sortedItems.map((item) => {
             const value = item.price * item.quantity
-            let variant: 'default' | 'success' | 'warning' | 'danger' =
+            const variant: 'default' | 'success' | 'warning' | 'danger' =
               item.quantity <= 5
                 ? 'danger'
                 : item.quantity <= 15

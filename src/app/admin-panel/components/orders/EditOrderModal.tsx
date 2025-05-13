@@ -8,13 +8,15 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { Form } from '@/app/components/ui/form'
+import { orderSchema } from '@/lib/schema'
+import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { OrderStatus, Prisma } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { OrderFormData, OrderFormFields, orderSchema } from './OrderFormFields'
+import { OrderFormFields } from './OrderFormFields'
 
 /**
  * Define a type for the order with assigned technician info, etc.

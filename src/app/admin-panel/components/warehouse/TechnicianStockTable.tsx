@@ -48,10 +48,6 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const price = item.price ?? 0
-            const quantity = itemType === 'DEVICE' ? 1 : item.quantity
-            const total = price * quantity
-
             return (
               <TableRow key={item.id}>
                 <TableCell>

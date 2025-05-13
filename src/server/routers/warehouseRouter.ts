@@ -1,6 +1,7 @@
 import { prisma } from '@/utils/prisma'
 import {
   DeviceCategory,
+  Prisma,
   WarehouseAction,
   WarehouseItemType,
 } from '@prisma/client'
@@ -499,7 +500,7 @@ export const warehouseRouter = router({
     .query(async ({ input }) => {
       const { page, limit, actions, performerId, startDate, endDate } = input
 
-      const whereClause: any = {
+      const whereClause: Prisma.WarehouseHistoryWhereInput = {
         ...(actions && actions.length > 0 ? { action: { in: actions } } : {}),
         ...(performerId ? { performedById: performerId } : {}),
         ...(startDate || endDate

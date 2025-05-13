@@ -111,9 +111,6 @@ export async function parseUnifiedOrdersFromExcel(
       // Map each row to our OrderFormData
       const parsed: OrderFormData[] = rows.map((row) => {
         // 0: "Grafik" (MMP/V)
-        const operatorStr = String(row[0] ?? '')
-          .trim()
-          .toUpperCase()
         const operator = String(row[0] ?? '')
           .trim()
           .toUpperCase()

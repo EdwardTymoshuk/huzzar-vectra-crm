@@ -69,6 +69,7 @@ const MaterialDefinitionsList: FC = () => {
     unit: item.unit ?? 'PIECE',
     warningAlert: item.warningAlert ?? 10,
     alarmAlert: item.alarmAlert ?? 5,
+    price: item.price ?? 0,
   }))
 
   return (

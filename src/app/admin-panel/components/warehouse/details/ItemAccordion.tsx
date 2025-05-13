@@ -25,7 +25,7 @@ type Props = {
  * - Devices use serial number as identifier; materials use quantity and index.
  * - Expands each row to show full history using ItemHistoryList.
  */
-const ItemAccordionList = ({ items, mode }: Props) => {
+const ItemAccordionList = ({ items }: Props) => {
   const { searchTerm } = useSearch()
 
   const isMaterial = items?.[0]?.itemType === 'MATERIAL'

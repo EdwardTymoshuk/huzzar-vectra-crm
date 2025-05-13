@@ -1,6 +1,5 @@
 'use client'
 
-import { OrderFormData } from '@/app/admin-panel/components/orders/OrderFormFields'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -9,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
+import { OrderFormData } from '@/types'
 import { parseUnifiedOrdersFromExcel } from '@/utils/excelParsers'
 import { trpc } from '@/utils/trpc'
 import { DragEvent, useState } from 'react'

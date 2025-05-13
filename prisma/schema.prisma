@@ -194,18 +194,34 @@ enum Standard {
 
 /// Defines time slots for order scheduling.
 enum TimeSlot {
-  EIGHT_TEN        @map("8-10") // 08:00 - 10:00
-  TEN_TWELVE       @map("10-12") // 10:00 - 12:00
-  TWELVE_FOURTEEN  @map("12-14") // 12:00 - 14:00
-  FOURTEEN_SIXTEEN @map("14-16") // 14:00 - 16:00
-  SIXTEEN_EIGHTEEN @map("16-18") // 16:00 - 18:00
-  EIGHTEEN_TWENTY  @map("18-20") // 18:00 - 20:00
+  // === 1h slots ===
+  EIGHT_NINE         @map("8-9")     // 08:00 - 09:00
+  NINE_TEN           @map("9-10")    // 09:00 - 10:00
+  TEN_ELEVEN         @map("10-11")   // 10:00 - 11:00
+  ELEVEN_TWELVE      @map("11-12")   // 11:00 - 12:00
+  TWELVE_THIRTEEN    @map("12-13")   // 12:00 - 13:00
+  THIRTEEN_FOURTEEN  @map("13-14")   // 13:00 - 14:00
+  FOURTEEN_FIFTEEN   @map("14-15")   // 14:00 - 15:00
+  FIFTEEN_SIXTEEN    @map("15-16")   // 15:00 - 16:00
+  SIXTEEN_SEVENTEEN  @map("16-17")   // 16:00 - 17:00
+  SEVENTEEN_EIGHTEEN @map("17-18")   // 17:00 - 18:00
+  EIGHTEEN_NINETEEN  @map("18-19")   // 18:00 - 19:00
+  NINETEEN_TWENTY    @map("19-20")   // 19:00 - 20:00
+  TWENTY_TWENTYONE   @map("20-21")   // 20:00 - 21:00
 
-  NINE_TWELVE        @map("9-12") // 09:00 - 12:00
-  TWELVE_FIFTEEN     @map("12-15") // 12:00 - 15:00
-  FIFTEEN_EIGHTEEN   @map("15-18") // 15:00 - 18:00
-  EIGHTEEN_TWENTYONE @map("18-21") // 18:00 - 21:00
+  // === 2–3h slots ===
+  EIGHT_TEN          @map("8-10")     // 08:00 - 10:00
+  TEN_TWELVE         @map("10-12")    // 10:00 - 12:00
+  TWELVE_FOURTEEN    @map("12-14")    // 12:00 - 14:00
+  FOURTEEN_SIXTEEN   @map("14-16")    // 14:00 - 16:00
+  SIXTEEN_EIGHTEEN   @map("16-18")    // 16:00 - 18:00
+  EIGHTEEN_TWENTY    @map("18-20")    // 18:00 - 20:00
+  NINE_TWELVE        @map("9-12")     // 09:00 - 12:00
+  TWELVE_FIFTEEN     @map("12-15")    // 12:00 - 15:00
+  FIFTEEN_EIGHTEEN   @map("15-18")    // 15:00 - 18:00
+  EIGHTEEN_TWENTYONE @map("18-21")    // 18:00 - 21:00
 }
+
 
 /// Defines item types in the warehouse.
 enum WarehouseItemType {

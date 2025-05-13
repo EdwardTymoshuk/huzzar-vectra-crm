@@ -349,7 +349,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
                   )}
                 </TableCell>
                 <TableCell className="text-nowrap">
-                  {getTimeSlotLabel(order.operator, order.timeSlot)}
+                  {getTimeSlotLabel(order.timeSlot)}
                 </TableCell>
                 <TableCell>
                   <Highlight
