@@ -1,5 +1,6 @@
 'use client'
 
+import { Badge } from '@/app/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -42,8 +43,7 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
             {itemType === 'DEVICE' && <TableHead>SN</TableHead>}
             {itemType === 'MATERIAL' && <TableHead>Ilość</TableHead>}
             {itemType === 'MATERIAL' && <TableHead>Jm</TableHead>}
-            <TableHead>Cena j.</TableHead>
-            <TableHead>Wartość</TableHead>
+            {itemType === 'DEVICE' && <TableHead>Dni na stanie</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -77,8 +77,32 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
                 {itemType === 'MATERIAL' && (
                   <TableCell>{materialUnitMap[item.unit] ?? '—'}</TableCell>
                 )}
-                <TableCell>{price.toFixed(2)} zł</TableCell>
-                <TableCell>{total.toFixed(2)} zł</TableCell>
+                {itemType === 'DEVICE' && (
+                  <TableCell>
+                    {(() => {
+                      const assignedDate = new Date(item.updatedAt)
+                      const daysOnStock = Math.floor(
+                        (Date.now() - assignedDate.getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      )
+
+                      let variant:
+                        | 'default'
+                        | 'success'
+                        | 'warning'
+                        | 'destructive' = 'default'
+                      if (daysOnStock <= 15) variant = 'success'
+                      else if (daysOnStock <= 30) variant = 'warning'
+                      else variant = 'destructive'
+
+                      return (
+                        <div className="w-fit text-center">
+                          <Badge variant={variant}>{daysOnStock}</Badge>
+                        </div>
+                      )
+                    })()}
+                  </TableCell>
+                )}
               </TableRow>
             )
           })}
