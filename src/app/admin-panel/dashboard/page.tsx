@@ -3,9 +3,9 @@
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import PageHeader from '@/app/components/PageHeader'
 import { useState } from 'react'
-import DashboardFilters from './components/dashboard/DashboardFilters'
-import OrderStatsSection from './components/dashboard/OrderStatsSection'
-import TechnicianEfficiencyTable from './components/dashboard/TechnicianEfficiencyTable'
+import DashboardFilters from '../components/dashboard/DashboardFilters'
+import OrderStatsSection from '../components/dashboard/OrderStatsSection'
+import TechnicianEfficiencyTable from '../components/dashboard/TechnicianEfficiencyTable'
 
 const DashboardPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())

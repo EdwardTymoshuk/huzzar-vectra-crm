@@ -308,3 +308,19 @@ export const warehouseActionMap: Record<
   RETURNED: { label: 'Zwrot', variant: 'destructive' },
   RETURNED_TO_OPERATOR: { label: 'Zwrot do operatora', variant: 'danger' },
 }
+
+//polish monthes
+export const polishMonthsNominative = [
+  'styczeń',
+  'luty',
+  'marzec',
+  'kwiecień',
+  'maj',
+  'czerwiec',
+  'lipiec',
+  'sierpień',
+  'wrzesień',
+  'październik',
+  'listopad',
+  'grudzień',
+]

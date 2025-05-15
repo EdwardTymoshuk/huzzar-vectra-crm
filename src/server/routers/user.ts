@@ -1,4 +1,5 @@
 import { prisma } from '@/utils/prisma'
+import { OrderStatus } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
@@ -183,5 +184,92 @@ export const userRouter = router({
       return prisma.user.delete({
         where: { id: input.id },
       })
+    }),
+
+  // Get yechnician efficiency
+  getTechnicianEfficiency: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(
+      z.object({
+        date: z.string(),
+        range: z.enum(['day', 'month', 'year']),
+      })
+    )
+    .query(async ({ input }) => {
+      const date = new Date(input.date)
+      const start = new Date(date)
+      const end = new Date(date)
+
+      if (input.range === 'day') {
+        start.setHours(0, 0, 0, 0)
+        end.setHours(23, 59, 59, 999)
+      } else if (input.range === 'month') {
+        start.setDate(1)
+        start.setHours(0, 0, 0, 0)
+        end.setMonth(end.getMonth() + 1, 0)
+        end.setHours(23, 59, 59, 999)
+      } else if (input.range === 'year') {
+        start.setMonth(0, 1)
+        start.setHours(0, 0, 0, 0)
+        end.setMonth(11, 31)
+        end.setHours(23, 59, 59, 999)
+      }
+
+      const relevantStatuses: OrderStatus[] = [
+        'COMPLETED',
+        'NOT_COMPLETED',
+        'IN_PROGRESS',
+        'CANCELED',
+      ]
+
+      const orders = await prisma.order.findMany({
+        where: {
+          assignedToId: { not: null },
+          status: { in: relevantStatuses },
+          date: { gte: start, lte: end },
+        },
+        select: {
+          assignedToId: true,
+          status: true,
+          assignedTo: { select: { name: true } },
+        },
+      })
+
+      const resultMap = new Map<
+        string,
+        {
+          technicianId: string
+          technicianName: string
+          completed: number
+          notCompleted: number
+          inProgress: number
+          canceled: number
+        }
+      >()
+
+      for (const order of orders) {
+        const id = order.assignedToId!
+        const name = order.assignedTo?.name ?? 'Nieznany'
+
+        if (!resultMap.has(id)) {
+          resultMap.set(id, {
+            technicianId: id,
+            technicianName: name,
+            completed: 0,
+            notCompleted: 0,
+            inProgress: 0,
+            canceled: 0,
+          })
+        }
+
+        const entry = resultMap.get(id)!
+        if (order.status === 'COMPLETED') entry.completed++
+        else if (order.status === 'NOT_COMPLETED') entry.notCompleted++
+        else if (order.status === 'IN_PROGRESS') entry.inProgress++
+        else if (order.status === 'CANCELED') entry.canceled++
+      }
+
+      return Array.from(resultMap.values()).sort(
+        (a, b) => b.completed + b.notCompleted - (a.completed + a.notCompleted)
+      )
     }),
 })

@@ -426,4 +426,111 @@ export const orderRouter = router({
         },
       })
     }),
+  //get orders stats
+  getOrderStats: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(
+      z.object({
+        date: z.string(),
+        range: z.enum(['day', 'month', 'year']),
+      })
+    )
+    .query(async ({ input }) => {
+      const date = new Date(input.date)
+
+      const getRange = (d: Date, r: 'day' | 'month' | 'year') => {
+        const start = new Date(d)
+        const end = new Date(d)
+
+        if (r === 'day') {
+          start.setHours(0, 0, 0, 0)
+          end.setHours(23, 59, 59, 999)
+        } else if (r === 'month') {
+          start.setDate(1)
+          start.setHours(0, 0, 0, 0)
+          end.setMonth(end.getMonth() + 1, 0)
+          end.setHours(23, 59, 59, 999)
+        } else if (r === 'year') {
+          start.setMonth(0, 1)
+          start.setHours(0, 0, 0, 0)
+          end.setMonth(11, 31)
+          end.setHours(23, 59, 59, 999)
+        }
+
+        return { start, end }
+      }
+
+      const getStats = async (start: Date, end: Date) => {
+        const orders = await prisma.order.findMany({
+          where: {
+            date: { gte: start, lte: end },
+            assignedToId: { not: null },
+          },
+          select: { status: true },
+        })
+
+        let completed = 0
+        let failed = 0
+        let inProgress = 0
+        let canceled = 0
+
+        for (const order of orders) {
+          switch (order.status) {
+            case 'COMPLETED':
+              completed++
+              break
+            case 'NOT_COMPLETED':
+              failed++
+              break
+            case 'IN_PROGRESS':
+              inProgress++
+              break
+            case 'CANCELED':
+              canceled++
+              break
+          }
+        }
+
+        const total = completed + failed + inProgress + canceled
+        const totalForSuccess = completed + failed
+        const successRate =
+          totalForSuccess > 0
+            ? Math.round((completed / totalForSuccess) * 100)
+            : 0
+
+        return {
+          total,
+          completed,
+          failed,
+          inProgress,
+          canceled,
+          successRate,
+        }
+      }
+
+      const current = getRange(date, input.range)
+
+      // Wyliczamy datę poprzedniego okresu
+      const prevDate = new Date(date)
+      if (input.range === 'day') prevDate.setDate(prevDate.getDate() - 1)
+      else if (input.range === 'month')
+        prevDate.setMonth(prevDate.getMonth() - 1)
+      else if (input.range === 'year')
+        prevDate.setFullYear(prevDate.getFullYear() - 1)
+
+      const previous = getRange(prevDate, input.range)
+
+      const [currentStats, prevStats] = await Promise.all([
+        getStats(current.start, current.end),
+        getStats(previous.start, previous.end),
+      ])
+
+      return {
+        ...currentStats,
+        prevTotal: prevStats.total,
+        prevCompleted: prevStats.completed,
+        prevFailed: prevStats.failed,
+        prevInProgress: prevStats.inProgress,
+        prevCanceled: prevStats.canceled,
+      }
+    }),
 })
