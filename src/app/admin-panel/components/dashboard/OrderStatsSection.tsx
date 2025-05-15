@@ -20,12 +20,6 @@ const OrderStatsSection = ({ date, range }: Props) => {
     range,
   })
 
-  const rangeLabelMap = {
-    day: 'Dzień',
-    month: 'Miesiąc',
-    year: 'Rok',
-  }
-
   const formatChange = (value: number) => {
     const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight
     const color = value >= 0 ? 'text-green-600' : 'text-red-600'

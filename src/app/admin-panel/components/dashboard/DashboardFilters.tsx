@@ -45,7 +45,10 @@ const DashboardFilters = ({
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 my-4">
       {/* Tabs for selecting range */}
       <div className="flex flex-col gap-2 items-center sm:items-start">
-        <Tabs value={range} onValueChange={(val) => onChangeRange(val as any)}>
+        <Tabs
+          value={range}
+          onValueChange={(val) => onChangeRange(val as typeof range)}
+        >
           <TabsList>
             <TabsTrigger value="day">Dzień</TabsTrigger>
             <TabsTrigger value="month">Miesiąc</TabsTrigger>
