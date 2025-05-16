@@ -1,41 +1,45 @@
 'use client'
 
+import SearchInput from '@/app/components/SearchInput'
 import { Alert, AlertTitle } from '@/app/components/ui/alert'
-import { Badge } from '@/app/components/ui/badge'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/app/components/ui/card'
+import { Button } from '@/app/components/ui/button'
+import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/app/components/ui/tooltip'
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/app/components/ui/table'
 import { materialUnitMap } from '@/lib/constants'
 import { MaterialDefinition } from '@/types'
 import { trpc } from '@/utils/trpc'
-import { FC, MouseEvent, useState } from 'react'
-import { MdClose } from 'react-icons/md'
+import { useMemo, useState } from 'react'
+import { MdEdit, MdOutlineDelete } from 'react-icons/md'
+import {
+  TiArrowSortedDown,
+  TiArrowSortedUp,
+  TiArrowUnsorted,
+} from 'react-icons/ti'
 import { toast } from 'sonner'
+import AddMaterialDefinitionDialog from './AddMaterialDefinitionDialog'
 import EditMaterialDefinitionDialog from './EditMaterialDefinitionDialog'
 
-/**
- * MaterialDefinitionsList:
- * - Displays all material definitions as badges
- * - Supports double-click editing and inline deletion
- */
-const MaterialDefinitionsList: FC = () => {
-  const { data, isLoading, isError } = trpc.materialDefinition.getAll.useQuery()
+type SortField = 'name' | 'unit' | null
+type SortOrder = 'asc' | 'desc' | null
+
+const MaterialDefinitionsList = () => {
   const [editingItem, setEditingItem] = useState<MaterialDefinition | null>(
     null
   )
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortField, setSortField] = useState<SortField>(null)
+  const [sortOrder, setSortOrder] = useState<SortOrder>(null)
 
   const utils = trpc.useUtils()
+  const { data, isLoading, isError } = trpc.materialDefinition.getAll.useQuery()
 
   const deleteMutation = trpc.materialDefinition.delete.useMutation({
     onSuccess: () => {
@@ -45,11 +49,51 @@ const MaterialDefinitionsList: FC = () => {
     onError: () => toast.error('Błąd podczas usuwania.'),
   })
 
+  const safeData = useMemo(() => {
+    return (data ?? []).map((item) => ({
+      ...item,
+      warningAlert: item.warningAlert ?? 10,
+      alarmAlert: item.alarmAlert ?? 5,
+      price: item.price ?? 0,
+      unit: item.unit ?? 'PIECE',
+      index: item.index ?? '',
+    }))
+  }, [data])
+
+  const filtered = useMemo(() => {
+    return safeData.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [safeData, searchTerm])
+
+  const sorted = useMemo(() => {
+    if (!sortField || !sortOrder) return filtered
+    return [...filtered].sort((a, b) => {
+      const aVal = a[sortField] ?? ''
+      const bVal = b[sortField] ?? ''
+      return sortOrder === 'asc'
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal)
+    })
+  }, [filtered, sortField, sortOrder])
+
+  const handleSort = (field: SortField) => {
+    if (sortField !== field) {
+      setSortField(field)
+      setSortOrder('asc')
+    } else {
+      setSortOrder((prev) =>
+        prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc'
+      )
+      if (sortOrder === 'desc') setSortField(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
       </div>
     )
   }
@@ -57,58 +101,113 @@ const MaterialDefinitionsList: FC = () => {
   if (isError || !data) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Nie udało się załadować danych materiałów.</AlertTitle>
+        <AlertTitle>Nie udało się załadować definicji materiałów.</AlertTitle>
       </Alert>
     )
   }
 
-  // Apply default values in case something is missing
-  const safeData: MaterialDefinition[] = data.map((item) => ({
-    ...item,
-    index: item.index ?? '',
-    unit: item.unit ?? 'PIECE',
-    warningAlert: item.warningAlert ?? 10,
-    alarmAlert: item.alarmAlert ?? 5,
-    price: item.price ?? 0,
-  }))
-
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Materiały</CardTitle>
-          <CardDescription>Łącznie: {safeData.length}</CardDescription>
-        </CardHeader>
+    <div className="space-y-4 p-2">
+      <div className="w-full flex flex-col lg:flex-row justify-between text-base font-normal">
+        <AddMaterialDefinitionDialog />
+        <SearchInput
+          className="w-full lg:w-1/2 mt-2 lg:mt-0"
+          onChange={setSearchTerm}
+          value={searchTerm}
+          placeholder="Szukaj materiał"
+        />
+      </div>
 
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {safeData.map((material) => (
-              <TooltipProvider key={material.id}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge
-                      variant="secondary"
-                      className="cursor-pointer flex items-center gap-1"
-                      onDoubleClick={() => setEditingItem(material)}
+      <Card className="overflow-x-auto">
+        <div className="min-w-[800px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Nazwa</span>
+                    {sortField === 'name' ? (
+                      sortOrder === 'asc' ? (
+                        <TiArrowSortedUp className="w-4 h-4" />
+                      ) : (
+                        <TiArrowSortedDown className="w-4 h-4" />
+                      )
+                    ) : (
+                      <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </TableHead>
+
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('unit')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Jm</span>
+                    {sortField === 'unit' ? (
+                      sortOrder === 'asc' ? (
+                        <TiArrowSortedUp className="w-4 h-4" />
+                      ) : (
+                        <TiArrowSortedDown className="w-4 h-4" />
+                      )
+                    ) : (
+                      <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </TableHead>
+
+                <TableHead>Index</TableHead>
+                <TableHead>Alert (ostrzeżenie)</TableHead>
+                <TableHead>Alert (krytyczny)</TableHead>
+                <TableHead>Cena</TableHead>
+                <TableHead>Akcje</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="text-sm">
+              {sorted.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="whitespace-nowrap">
+                    {item.name}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {materialUnitMap[item.unit]}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {item.index}
+                  </TableCell>
+                  <TableCell>{item.warningAlert}</TableCell>
+                  <TableCell>{item.alarmAlert}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {item.price.toFixed(2)} zł
+                  </TableCell>
+                  <TableCell className="space-x-1 whitespace-nowrap">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setEditingItem(item)}
+                      aria-label="Edytuj"
+                      className="w-7 h-7"
                     >
-                      {material.name} ({materialUnitMap[material.unit]})
-                      <MdClose
-                        className="text-danger"
-                        onClick={(e: MouseEvent) => {
-                          e.stopPropagation()
-                          deleteMutation.mutate({ id: material.id })
-                        }}
-                      />
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">Kliknij dwukrotnie, aby edytować</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ))}
-          </div>
-        </CardContent>
+                      <MdEdit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      onClick={() => deleteMutation.mutate({ id: item.id })}
+                      aria-label="Usuń"
+                      className="w-7 h-7"
+                    >
+                      <MdOutlineDelete className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {editingItem && (
@@ -118,7 +217,7 @@ const MaterialDefinitionsList: FC = () => {
           onClose={() => setEditingItem(null)}
         />
       )}
-    </>
+    </div>
   )
 }
 

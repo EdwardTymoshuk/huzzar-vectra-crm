@@ -1,5 +1,4 @@
 import SettingsSection from '../SettingsSection'
-import AddMaterialDefinitionDialog from './AddMaterialDefinitionDialog'
 import MaterialDefinitionsList from './MaterialDefinitionsList'
 
 /**
@@ -10,9 +9,6 @@ const MaterialDefinitionsSection = ({ title }: { title: string }) => {
   return (
     <SettingsSection title={title}>
       <MaterialDefinitionsList />
-      <div className="flex justify-end mt-4">
-        <AddMaterialDefinitionDialog />
-      </div>
     </SettingsSection>
   )
 }
