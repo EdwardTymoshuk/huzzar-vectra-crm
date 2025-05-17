@@ -24,6 +24,7 @@ export const orderRouter = router({
         sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
         status: z.nativeEnum(OrderStatus).optional(),
         assignedToId: z.string().optional(),
+        type: z.nativeEnum(OrderType).optional(),
       })
     )
     .query(async ({ input }) => {
@@ -32,6 +33,7 @@ export const orderRouter = router({
       const filters: {
         status?: OrderStatus
         assignedToId?: string | null
+        type?: OrderType
       } = {}
 
       if (status) filters.status = status
@@ -39,6 +41,7 @@ export const orderRouter = router({
         filters.assignedToId =
           assignedToId === 'unassigned' ? null : assignedToId
       }
+      if (input.type) filters.type = input.type
 
       const orders = await prisma.order.findMany({
         where: filters,

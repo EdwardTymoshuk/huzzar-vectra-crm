@@ -101,7 +101,7 @@ export const statusColorMap: Record<string, string> = {
 /**
  * Mapping of order type to formatted Polish equivalents.
  */
-export const orderType: Record<string, string> = {
+export const orderTypeMap: Record<string, string> = {
   INSTALATION: 'Instalacja',
   SERVICE: 'Serwis',
 }

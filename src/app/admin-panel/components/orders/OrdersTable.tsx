@@ -14,6 +14,12 @@ import {
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,13 +34,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { statusColorMap, statusMap } from '@/lib/constants'
+import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, Prisma } from '@prisma/client'
+import { OrderStatus, OrderType, Prisma } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdDelete, MdEdit, MdVisibility } from 'react-icons/md'
+import { PiDotsThreeOutlineVerticalFill } from 'react-icons/pi'
 import {
   TiArrowSortedDown,
   TiArrowSortedUp,
@@ -75,6 +82,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
   // States for filters
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
+  const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | null>(null)
 
   // State for details panel
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -105,6 +113,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
     ...(sortField ? { sortField, sortOrder: sortOrder ?? 'asc' } : {}),
     status: statusFilter || undefined,
     assignedToId: technicianFilter || undefined,
+    type: orderTypeFilter || undefined,
   })
 
   // We store the actual orders from the query
@@ -223,6 +232,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
         <OrdersFilterSort
           setStatusFilter={setStatusFilter}
           setTechnicianFilter={setTechnicianFilter}
+          setOrderTypeFilter={setOrderTypeFilter}
         />
 
         {/* Items per page controls */}
@@ -243,6 +253,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
         <TableHeader>
           <TableRow>
             <TableHead>Operator</TableHead>
+            <TableHead>Typ</TableHead>
             <TableHead>Nr zlecenia</TableHead>
             <TableHead
               onClick={() => handleSort('date')}
@@ -303,6 +314,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
             filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell>{order.operator}</TableCell>
+                <TableCell>{orderTypeMap[order.type]}</TableCell>
                 <TableCell>
                   <Highlight
                     highlightClassName="bg-yellow-200"
@@ -400,34 +412,40 @@ const OrdersTable = ({ searchTerm }: Props) => {
                   )}
                 </TableCell>
 
-                <TableCell className="flex gap-2">
-                  {/* View details */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setSelectedOrderId(order.id)
-                      setIsPanelOpen(true)
-                    }}
-                  >
-                    <MdVisibility className="w-5 h-5 text-warning" />
-                  </Button>
-                  {/* Edit modal */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleEditOrder(order)}
-                  >
-                    <MdEdit className="w-5 h-5 text-success" />
-                  </Button>
-                  {/* Delete */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDeleteOrder(order)}
-                  >
-                    <MdDelete className="w-5 h-5 text-danger" />
-                  </Button>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost">
+                        <PiDotsThreeOutlineVerticalFill className="w-6 h-6" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-background text-foreground border border-border shadow-md cursor-pointer !bg-opacity-100 !backdrop-blur-none">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedOrderId(order.id)
+                          setIsPanelOpen(true)
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <MdVisibility className="w-4 h-4 mr-2 text-warning" />
+                        Podgląd
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleEditOrder(order)}
+                        className="cursor-pointer"
+                      >
+                        <MdEdit className="w-4 h-4 mr-2 text-success" />
+                        Edytuj
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteOrder(order)}
+                        className="text-danger cursor-pointer"
+                      >
+                        <MdDelete className="w-4 h-4 mr-2 text-danger" />
+                        Usuń
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))

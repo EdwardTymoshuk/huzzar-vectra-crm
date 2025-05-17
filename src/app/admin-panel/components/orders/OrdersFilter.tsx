@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus } from '@prisma/client'
+import { OrderStatus, OrderType } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
@@ -26,9 +26,11 @@ import { MdFilterList } from 'react-icons/md'
 const OrdersFilter = ({
   setStatusFilter,
   setTechnicianFilter,
+  setOrderTypeFilter,
 }: {
   setStatusFilter: (status: OrderStatus | null) => void
   setTechnicianFilter: (technician: string | null) => void
+  setOrderTypeFilter: (type: OrderType | null) => void
 }) => {
   const [statusFilter, setStatusFilterState] = useState<string | null>(null)
   const [technicianFilter, setTechnicianFilterState] = useState<string | null>(
@@ -45,6 +47,25 @@ const OrdersFilter = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 bg-background">
+        <p className="text-sm font-medium mt-4 mb-2">
+          Filtruj po typie zlecenia
+        </p>
+        <Select
+          onValueChange={(value) => {
+            setOrderTypeFilter(value === 'all' ? null : (value as OrderType))
+          }}
+          defaultValue="all"
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Typ zlecenia" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie</SelectItem>
+            <SelectItem value="INSTALATION">Instalacja</SelectItem>
+            <SelectItem value="SERVICE">Serwis</SelectItem>
+          </SelectContent>
+        </Select>
+
         <p className="text-sm font-medium mb-2">Filtruj po statusie</p>
         <Select
           onValueChange={(value) => {
