@@ -4,47 +4,61 @@ import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import PageHeader from '@/app/components/PageHeader'
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/app/components/ui/tabs'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
 import AddEmployeeDialog from '../components/employees/AddEmployeeDialog'
-import EmployeesList from '../components/employees/EmployeesList'
-/**
- * EmployeesPage component:
- * - Displays a list of employees with search functionality.
- * - Allows adding new employees via a modal form.
- */
+import EmployeesTable from '../components/employees/EmployeesTable'
+
 const EmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [isAddEmployeeOpen, setIsAddEmployeeOpen] = useState<boolean>(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
   return (
     <MaxWidthWrapper>
       <PageHeader title="Pracownicy" />
 
-      {/* Top Panel: Add Button & Search Input */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-2">
-          <Button variant="success" onClick={() => setIsAddEmployeeOpen(true)}>
-            <MdAdd className="" />
-            Dodaj
-          </Button>
-        </div>
-        <div className="w-full sm:w-1/2 lg:w-1/4 ">
-          <SearchInput
-            placeholder="Szukaj pracownika"
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-        </div>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 my-4">
+        <Button variant="success" onClick={() => setIsAddDialogOpen(true)}>
+          <MdAdd className="mr-2" />
+          Dodaj pracownika
+        </Button>
+        <SearchInput
+          className="w-full sm:w-1/2 lg:w-1/3"
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Szukaj pracownika"
+        />
       </div>
 
-      {/* Employees List */}
-      <EmployeesList searchTerm={searchTerm} />
+      <Tabs defaultValue="active" className="w-full">
+        <div className="w-full flex justify-center">
+          <TabsList className="w-full md:w-1/2 lg:w-1/4 justify-center">
+            <TabsTrigger value="active" className="w-full">
+              Aktywni
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="w-full">
+              Zarchiwizowani
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      {/* Add Employee Modal */}
+        <TabsContent value="active">
+          <EmployeesTable searchTerm={searchTerm} status="ACTIVE" />
+        </TabsContent>
+        <TabsContent value="archived">
+          <EmployeesTable searchTerm={searchTerm} status="INACTIVE" />
+        </TabsContent>
+      </Tabs>
+
       <AddEmployeeDialog
-        open={isAddEmployeeOpen}
-        onClose={() => setIsAddEmployeeOpen(false)}
+        open={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
       />
     </MaxWidthWrapper>
   )

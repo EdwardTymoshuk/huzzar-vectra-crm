@@ -272,4 +272,22 @@ export const userRouter = router({
         (a, b) => b.completed + b.notCompleted - (a.completed + a.notCompleted)
       )
     }),
+
+  archiveUser: roleProtectedProcedure(['ADMIN'])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      return prisma.user.update({
+        where: { id: input.id },
+        data: { status: 'INACTIVE' },
+      })
+    }),
+
+  restoreUser: roleProtectedProcedure(['ADMIN'])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      return prisma.user.update({
+        where: { id: input.id },
+        data: { status: 'ACTIVE' },
+      })
+    }),
 })

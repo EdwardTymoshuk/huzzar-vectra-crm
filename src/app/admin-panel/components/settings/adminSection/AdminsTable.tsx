@@ -1,5 +1,6 @@
 'use client'
 
+import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
 import { Alert, AlertTitle } from '@/app/components/ui/alert'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
@@ -420,33 +421,15 @@ const AdminsTable = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Czy na pewno chcesz usunąć tego użytkownika?
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex justify-end gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Anuluj
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (!selectedUser) return
-                deleteUserMutation.mutate({ id: selectedUser.id })
-              }}
-            >
-              Usuń
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={isDeleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => {
+          if (!selectedUser) return
+          deleteUserMutation.mutate({ id: selectedUser.id })
+        }}
+        description={`Czy na pewno chcesz  usunąć użytkownika ${selectedUser?.name}?`}
+      />
     </>
   )
 }
