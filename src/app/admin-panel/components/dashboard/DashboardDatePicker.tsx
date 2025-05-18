@@ -7,10 +7,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/app/components/ui/popover'
-import { format } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { useState } from 'react'
-import { MdCalendarToday, MdRestore } from 'react-icons/md'
+import { FaClockRotateLeft, FaRegClock } from 'react-icons/fa6'
+import { MdCalendarToday } from 'react-icons/md'
 
 type Props = {
   selected: Date | undefined
@@ -132,17 +133,30 @@ const DashboardDatePicker = ({ selected, onChange, range }: Props) => {
         {range === 'month' && renderMonthGrid()}
         {range === 'year' && renderYearGrid()}
 
-        <Button
-          onClick={() => {
-            onChange(today)
-            setOpen(false)
-          }}
-          variant="ghost"
-          size="sm"
-          className="w-full justify-center text-muted-foreground"
-        >
-          <MdRestore className="mr-1" /> Dzisiaj
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              onChange(subDays(today, 1))
+              setOpen(false)
+            }}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center text-muted-foreground"
+          >
+            <FaClockRotateLeft /> Wczoraj
+          </Button>
+          <Button
+            onClick={() => {
+              onChange(today)
+              setOpen(false)
+            }}
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center text-muted-foreground"
+          >
+            <FaRegClock /> Dzisiaj
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   )

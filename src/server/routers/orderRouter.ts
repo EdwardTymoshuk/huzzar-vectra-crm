@@ -2,8 +2,9 @@ import { sortedTimeSlotsByHour } from '@/lib/constants'
 import { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { prisma } from '@/utils/prisma'
+import { writeToBuffer } from '@/utils/writeToBuffer'
 import { OrderStatus, OrderType, Standard, TimeSlot } from '@prisma/client'
-import { endOfDay, startOfDay } from 'date-fns'
+import { endOfDay, format, startOfDay } from 'date-fns'
 import { z } from 'zod'
 import { protectedProcedure, roleProtectedProcedure } from '../middleware'
 import { router } from '../trpc'
@@ -535,5 +536,42 @@ export const orderRouter = router({
         prevInProgress: prevStats.inProgress,
         prevCanceled: prevStats.canceled,
       }
+    }),
+  generateDailyReport: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(z.object({ date: z.string() }))
+    .mutation(async ({ input }) => {
+      const targetDate = new Date(input.date)
+      const start = new Date(targetDate)
+      const end = new Date(targetDate)
+      start.setHours(0, 0, 0, 0)
+      end.setHours(23, 59, 59, 999)
+
+      const orders = await prisma.order.findMany({
+        where: { date: { gte: start, lte: end } },
+        include: { assignedTo: true },
+        orderBy: { date: 'asc' },
+      })
+
+      if (orders.length === 0) {
+        // Zwróć null (frontend to obsłuży i pokaże toast)
+        return null
+      }
+
+      const rows = orders.map((o, idx) => ({
+        Lp: idx + 1,
+        'Nr zlecenia': o.orderNumber,
+        Adres: `${o.city} ${o.postalCode}, ${o.street}`,
+        Wykonana: o.status === 'COMPLETED' ? 'TAK' : 'NIE',
+        'Powód niewykonania': o.status === 'NOT_COMPLETED' ? o.notes ?? '' : '',
+        Technik: o.assignedTo?.name ?? 'Nieprzypisany',
+        Operator: o.operator,
+      }))
+
+      const buffer = await writeToBuffer(
+        rows,
+        `Raport ${format(start, 'yyyy-MM-dd')}`
+      )
+
+      return buffer.toString('base64')
     }),
 })

@@ -2,17 +2,23 @@
 
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { useState } from 'react'
-import { MdAdd, MdCalendarMonth } from 'react-icons/md'
+import {
+  MdAdd,
+  MdCalendarMonth,
+  MdDownload,
+  MdUploadFile,
+} from 'react-icons/md'
 import AddOrderModal from './AddOrderModal'
-import ImportOrders from './ImportOrders'
-
-/**
- * OrdersToolbar component:
- * - Contains top action buttons with responsive layout.
- * - Uses universal SearchInput component.
- */
+import ImportOrdersModal from './ImportOrdersModal'
+import ReportDialog from './ReportDialog'
 
 type Props = {
   searchTerm: string
@@ -20,39 +26,73 @@ type Props = {
 }
 
 const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
-  const [isModalOpen, setModalOpen] = useState(false)
+  const [isAddModalOpen, setAddModalOpen] = useState(false)
+  const [isReportDialogOpen, setReportDialogOpen] = useState(false)
+  const [isImportModalOpen, setImportModalOpen] = useState(false)
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-      {/* Action buttons */}
+      {/* LEFT ACTIONS */}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setModalOpen(true)} variant="success">
-          <MdAdd />
-          <span className="hidden lg:inline">Dodaj</span>
-        </Button>
+        {/* ADD DROPDOWN */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="success">
+              <MdAdd className="mr-2" />
+              <span className="hidden lg:inline">Dodaj</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => setAddModalOpen(true)}>
+              <MdAdd className="mr-2" />
+              Dodaj ręcznie
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setImportModalOpen(true)}>
+              <MdUploadFile className="mr-2" />
+              Wczytaj z Excela
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-        <ImportOrders />
-
+        {/* PLANOWANIE */}
         <Link href="/admin-panel?tab=planning">
           <Button variant="danger">
-            <MdCalendarMonth />
+            <MdCalendarMonth className="mr-2" />
             <span className="hidden lg:inline">Planowanie</span>
           </Button>
         </Link>
+
+        {/* RAPORT */}
+        <Button variant="outline" onClick={() => setReportDialogOpen(true)}>
+          <MdDownload className="mr-2" />
+          <span className="hidden lg:inline">Raport</span>
+        </Button>
       </div>
 
-      {/* Search Input */}
-      <div className="w-full sm:w-1/2 lg:w-1/4 ">
+      {/* SEARCH */}
+      <div className="w-full sm:w-1/2 lg:w-1/4">
         <SearchInput
           placeholder="Szukaj po nr zlecenia lub adresie"
           value={searchTerm}
           onChange={setSearchTerm}
         />
       </div>
-      {/* Add Order Modal */}
+
+      {/* MODAL: Dodaj ręcznie */}
       <AddOrderModal
-        open={isModalOpen}
-        onCloseAction={() => setModalOpen(false)}
+        open={isAddModalOpen}
+        onCloseAction={() => setAddModalOpen(false)}
+      />
+
+      {/* DIALOG: Raport */}
+      <ReportDialog
+        open={isReportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+      />
+
+      <ImportOrdersModal
+        open={isImportModalOpen}
+        onClose={() => setImportModalOpen(false)}
       />
     </div>
   )
