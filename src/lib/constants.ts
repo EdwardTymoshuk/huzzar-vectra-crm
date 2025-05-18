@@ -246,6 +246,14 @@ export const timeSlotColors: Record<string, Record<string, string>> = {
   MMP: timeSlotColorsMMP,
 }
 
+export const userRoleMap: Record<string, string> = {
+  TECHNICIAN: 'TECHNIK',
+  ADMIN: 'ADMINISTRATOR',
+  COORDINATOR: 'KOORDYNATOR',
+  WAREHOUSEMAN: 'MAGAZYNIER',
+  USER: 'UŻYTKOWNIK',
+}
+
 /**
  * Mapping of user status to polish.
  */

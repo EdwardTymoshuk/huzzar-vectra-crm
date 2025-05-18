@@ -11,7 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { userStatusColorMap, userStatusNameMap } from '@/lib/constants'
+import {
+  userRoleMap,
+  userStatusColorMap,
+  userStatusNameMap,
+} from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { Prisma, UserStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
@@ -168,7 +172,7 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.phoneNumber}</TableCell>
-                  <TableCell>{user.role}</TableCell>
+                  <TableCell>{userRoleMap[user.role]}</TableCell>
                   <TableCell>
                     <Badge className={userStatusColorMap[user.status]}>
                       {userStatusNameMap[user.status]}

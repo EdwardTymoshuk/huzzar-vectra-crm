@@ -10,6 +10,7 @@ import {
 import {
   DeviceCategory,
   Order,
+  PrismaClient,
   TimeSlot,
   User,
   Warehouse,
@@ -18,6 +19,20 @@ import {
 } from '@prisma/client'
 import { IconType } from 'react-icons'
 import { z } from 'zod'
+
+// context type trpc
+export interface Context {
+  user?: {
+    id: string
+    name?: string
+    email?: string
+    phoneNumber?: string
+    identyficator?: number | null
+    role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
+    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  } | null
+  prisma: PrismaClient
+}
 
 export interface TechnicianAssignment {
   technicianName: string

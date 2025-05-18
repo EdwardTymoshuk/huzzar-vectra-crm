@@ -65,7 +65,7 @@ type EmployeeData = {
   name: string
   email: string
   phoneNumber: string
-  role: 'ADMIN' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN'
+  role: 'ADMIN' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'USER'
 }
 
 /**

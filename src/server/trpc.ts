@@ -1,15 +1,20 @@
-// src/server/trpc
-
+import { Context } from '@/types'
 import { initTRPC } from '@trpc/server'
 import superjson from 'superjson'
 
-// Initialize tRPC with superjson for proper serialization of Date, Map, Set, etc.
-const t = initTRPC.create({
+/**
+ * Create a typed tRPC instance with application context and superjson transformer.
+ * This ensures support for Date, Map, Set and other native types.
+ */
+export const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  errorFormatter({ shape }) {
+    return shape
+  },
 })
 
-// Create a base router
+/** Base router factory */
 export const router = t.router
 
-// Define public procedures (endpoints available to all users)
+/** Public procedure (does not require authentication) */
 export const publicProcedure = t.procedure

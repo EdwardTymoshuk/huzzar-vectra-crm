@@ -1,27 +1,13 @@
-import { prisma } from '@/utils/prisma'
-// src/server/middleware
-
 import { authOptions } from '@/lib/authOptions'
-import { PrismaClient } from '@prisma/client'
-import { TRPCError, initTRPC } from '@trpc/server'
+import { Context } from '@/types'
+import { prisma } from '@/utils/prisma'
+import { TRPCError } from '@trpc/server'
 import { getServerSession } from 'next-auth'
-import superjson from 'superjson'
+import { t } from './trpc'
 
-// Typ kontekstu dla tRPC
-interface Context {
-  user?: {
-    id: string
-    name?: string
-    email?: string
-    phoneNumber?: string
-    identyficator?: number | null
-    role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
-    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
-  } | null
-  prisma: PrismaClient
-}
-
-// Tworzenie kontekstu dla tRPC
+/**
+ * Creates a tRPC context containing the authenticated user and Prisma client.
+ */
 export const createContext = async (): Promise<Context> => {
   const session = await getServerSession(authOptions)
   return {
@@ -30,15 +16,10 @@ export const createContext = async (): Promise<Context> => {
   }
 }
 
-// Inicjalizacja tRPC z kontekstem
-const t = initTRPC.context<Context>().create({
-  transformer: superjson,
-  errorFormatter({ shape }) {
-    return shape
-  },
-})
-
-// Middleware do sprawdzania autoryzacji
+/**
+ * Middleware that ensures the user is authenticated and active.
+ * Throws UNAUTHORIZED or FORBIDDEN errors otherwise.
+ */
 export const isAuthenticated = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({
@@ -57,7 +38,10 @@ export const isAuthenticated = t.middleware(async ({ ctx, next }) => {
   return next()
 })
 
-// Middleware do sprawdzania ról użytkownika
+/**
+ * Middleware that ensures the user has one of the allowed roles.
+ * Throws FORBIDDEN error if not authorized.
+ */
 export const hasRole = (roles: string[]) =>
   t.middleware(async ({ ctx, next }) => {
     if (!ctx.user || !roles.includes(ctx.user.role)) {
@@ -70,9 +54,12 @@ export const hasRole = (roles: string[]) =>
     return next()
   })
 
-// Middleware do ochrony API (wymagana autoryzacja)
+/** Procedure wrapper that requires a logged-in and active user */
 export const protectedProcedure = t.procedure.use(isAuthenticated)
 
-// Middleware do ochrony API z rolami
+/**
+ * Procedure wrapper that requires both authentication and specific roles.
+ * Accepts an array of allowed role names.
+ */
 export const roleProtectedProcedure = (roles: string[]) =>
   t.procedure.use(isAuthenticated).use(hasRole(roles))

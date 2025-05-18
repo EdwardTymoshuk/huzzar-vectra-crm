@@ -157,6 +157,7 @@ enum Role {
   COORDINATOR
   WAREHOUSEMAN
   ADMIN
+  USER
 }
 
 /// Defines the status of a user.
