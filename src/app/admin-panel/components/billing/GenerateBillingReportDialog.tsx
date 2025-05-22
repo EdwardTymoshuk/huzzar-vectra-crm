@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
+import { UserWithBasic } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useState } from 'react'
 import { MdDownload } from 'react-icons/md'
@@ -36,8 +37,7 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
   >(undefined)
 
   // Pobierz listę techników do wyboru (możesz zamienić endpoint jeśli inny)
-  const { data: technicians = [], isLoading: isLoadingTechnicians } =
-    trpc.user.getTechnicians.useQuery()
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
 
   // Mutacje
   const reportMutation = trpc.settlement.generateMonthlyReport.useMutation()
@@ -92,6 +92,7 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
       toast.success('Raport został wygenerowany.')
       onClose()
     } catch (error) {
+      console.error(error)
       toast.error('Nie udało się wygenerować raportu.')
     }
   }
@@ -147,7 +148,7 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
                 <SelectValue placeholder="Wybierz technika" />
               </SelectTrigger>
               <SelectContent>
-                {technicians.map((t: any) => (
+                {technicians.map((t: UserWithBasic) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>

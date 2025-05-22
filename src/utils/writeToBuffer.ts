@@ -6,8 +6,8 @@ import ExcelJS from 'exceljs'
  * @param sheetName - Sheet name (optional, default: 'Raport').
  * @returns Buffer with Excel file content (.xlsx)
  */
-export const writeToBuffer = async (
-  rows: Record<string, any>[],
+export const writeToBuffer = async <T extends Record<string, unknown>>(
+  rows: T[],
   sheetName = 'Raport'
 ): Promise<Buffer> => {
   const workbook = new ExcelJS.Workbook()

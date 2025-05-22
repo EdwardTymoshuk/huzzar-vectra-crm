@@ -58,6 +58,7 @@ const ReportDialog = ({ open, onClose }: Props) => {
       toast.success('Raport został wygenerowany.')
       onClose()
     } catch (err) {
+      console.error(err)
       toast.error('Nie udało się wygenerować raportu.')
     }
   }
@@ -75,8 +76,6 @@ const ReportDialog = ({ open, onClose }: Props) => {
     }
     return new Blob(byteArrays, { type: mime })
   }
-
-  const today = format(new Date(), 'yyyy-MM-dd')
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

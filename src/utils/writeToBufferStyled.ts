@@ -61,7 +61,7 @@ export const writeToBufferStyled = async (
     const rowData = headers.map((key) => row[key] ?? '')
     const addedRow = worksheet.addRow(rowData)
 
-    addedRow.eachCell((cell, colNumber) => {
+    addedRow.eachCell((cell) => {
       cell.alignment = {
         horizontal: 'center',
         vertical: 'middle',

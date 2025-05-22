@@ -49,7 +49,7 @@ const TechnicianMonthlyDetailsPage = ({ technicianId }: Props) => {
       `/admin-panel/billing/technician/${technicianId}?from=${from}&to=${to}`,
       { scroll: false }
     )
-  }, [selectedMonth, technicianId])
+  }, [from, to, router, selectedMonth, technicianId])
 
   const { data, isLoading } =
     trpc.settlement.getTechnicianMonthlyDetails.useQuery({

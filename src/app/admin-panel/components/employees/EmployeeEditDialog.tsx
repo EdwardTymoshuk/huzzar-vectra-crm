@@ -130,7 +130,7 @@ const EmployeeEditDialog = ({
         name: employee.name,
         email: employee.email,
         phoneNumber: employee.phoneNumber,
-        role: employee.role,
+        role: employee.role === 'USER' ? undefined : employee.role,
         password: '',
       })
     }

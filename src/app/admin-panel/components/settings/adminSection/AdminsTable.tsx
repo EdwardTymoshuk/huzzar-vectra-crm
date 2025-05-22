@@ -149,7 +149,6 @@ const AdminsTable = () => {
 
   /**
    * Handles the click on the edit button.
-   * We set selectedUser and fill the form with existing data (password = '', etc.).
    */
   const handleEdit = (admin: AdminUser) => {
     setSelectedUser(admin)
@@ -157,8 +156,8 @@ const AdminsTable = () => {
       name: admin.name,
       email: admin.email,
       phoneNumber: admin.phoneNumber,
-      password: '', // Empty by default so we won't re-validate the hash
-      role: admin.role, // Pre-fill with current role
+      password: '',
+      role: admin.role === 'USER' ? undefined : admin.role,
     })
     setEditDialogOpen(true)
   }

@@ -29,14 +29,6 @@ const DashboardDatePicker = ({ selected, onChange, range }: Props) => {
   const [open, setOpen] = useState(false)
   const [yearViewOffset, setYearViewOffset] = useState(0)
 
-  const label = selected
-    ? range === 'year'
-      ? format(selected, 'yyyy', { locale: pl })
-      : range === 'month'
-      ? format(selected, 'MMMM yyyy', { locale: pl })
-      : format(selected, 'dd MMMM yyyy', { locale: pl })
-    : 'Wybierz datę'
-
   const handleSelect = (date: Date) => {
     if (date > today) return
     let normalized = date

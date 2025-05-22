@@ -249,7 +249,7 @@ export const settlementRouter = router({
       // Count summary numbers
       let totalCompleted = 0
       let totalNotCompleted = 0
-      let totalAssigned = orders.length
+      const totalAssigned = orders.length
 
       // Suma wszystkich kwot z rozliczeń
       const totalAmount = orders.reduce(
