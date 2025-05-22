@@ -79,8 +79,8 @@ const OrderStatsSection = ({ date, range }: Props) => {
       : 'destructive'
 
   const pieData = [
-    { name: 'Skuteczne', value: completed },
-    { name: 'Nieskuteczne', value: failed },
+    { name: 'Wykonane', value: completed },
+    { name: 'Niewykonane', value: failed },
   ]
 
   return (
@@ -122,16 +122,16 @@ const OrderStatsSection = ({ date, range }: Props) => {
           {formatChange(percentDiff(total, prevTotal))}
         </Card>
 
-        {/* Góra: skuteczne / nieskuteczne */}
+        {/* Góra: skuteczne / Niewykonane */}
         <div className="grid grid-cols-2 col-span-2 gap-4">
           <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Skuteczne</p>
+            <p className="text-sm text-muted-foreground">Wykonane</p>
             <p className="text-2xl font-bold text-green-600">{completed}</p>
             {formatChange(percentDiff(completed, prevCompleted))}
           </Card>
 
           <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Nieskuteczne</p>
+            <p className="text-sm text-muted-foreground">Niewykonane</p>
             <p className="text-2xl font-bold text-red-600">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
           </Card>

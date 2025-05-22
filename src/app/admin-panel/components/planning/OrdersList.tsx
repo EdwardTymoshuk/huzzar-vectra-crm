@@ -1,6 +1,6 @@
 'use client'
 
-import SearchInput from '@/app/components/SearchInput'
+import SearchInput from '@/app/components/shared/SearchInput'
 import {
   Tabs,
   TabsContent,

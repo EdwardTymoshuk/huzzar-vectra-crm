@@ -57,9 +57,23 @@ model Order {
   history           OrderHistory[]
   warehouseHistory  WarehouseHistory[] @relation("OrderToWarehouseHistory")
   assignedEquipment Warehouse[]        @relation("OrderToWarehouse")
+  settlementEntries  OrderSettlementEntry[]
 
   @@unique([orderNumber, date])
 }
+
+model OrderSettlementEntry {
+  id       String @id @default(uuid())
+  orderId  String
+  code     String
+  quantity Int
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rate  RateDefinition @relation(fields: [code], references: [code], name: "RateDefinitionToSettlement")
+
+  @@index([orderId])
+}
+
 
 /// Tracks changes in order statuses.
 model OrderHistory {
@@ -126,8 +140,10 @@ model OperatorDefinition {
 /// Represents rate definitions for different services.
 model RateDefinition {
   id     String @id @default(uuid())
-  code   String
+  code   String @unique
   amount Float
+
+  settlements OrderSettlementEntry[] @relation("RateDefinitionToSettlement")
 }
 
 /// Tracks warehouse operations like receiving, issuing, or returning items.

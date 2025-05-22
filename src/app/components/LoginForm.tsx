@@ -7,10 +7,10 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { MdVisibility, MdVisibilityOff } from 'react-icons/md'
 import { z } from 'zod'
-import MaxWidthWrapper from '../components/MaxWidthWrapper'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import Logo from './Logo'
+import MaxWidthWrapper from './shared/MaxWidthWrapper'
 
 // Zod validation schema
 const loginSchema = z.object({

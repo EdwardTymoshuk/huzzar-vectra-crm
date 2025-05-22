@@ -34,6 +34,7 @@ const SidebarContent = ({ onSelect }: SidebarContentProps) => {
     // 👇 Obsługa tras podstronowych (np. /admin-panel/warehouse/details/[name])
     if (pathname?.includes('/admin-panel/warehouse/details')) return 'warehouse'
     if (pathname?.includes('/admin-panel/warehouse/history')) return 'warehouse'
+    if (pathname?.includes('/admin-panel/billing/technician')) return 'billing'
 
     return tabParam || 'dashboard'
   }, [searchParams, pathname])

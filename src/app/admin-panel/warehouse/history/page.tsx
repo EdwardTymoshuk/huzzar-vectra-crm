@@ -2,9 +2,9 @@
 
 import HistoryFilters from '@/app/admin-panel/components/warehouse/history/HistoryFilters'
 import HistoryTable from '@/app/admin-panel/components/warehouse/history/HistoryTable'
-import LoaderSpinner from '@/app/components/LoaderSpinner'
-import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
-import PageHeader from '@/app/components/PageHeader'
+import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
+import PageHeader from '@/app/components/shared/PageHeader'
 import { Button } from '@/app/components/ui/button'
 import { trpc } from '@/utils/trpc'
 import { WarehouseAction } from '@prisma/client'
@@ -22,8 +22,8 @@ const WarehouseHistoryPage = () => {
 
   const [actions, setActions] = useState<WarehouseAction[] | undefined>()
   const [performerId, setPerformerId] = useState<string | undefined>()
-  const [startDate, setStartDate] = useState<string | undefined>()
-  const [endDate, setEndDate] = useState<string | undefined>()
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [endDate, setEndDate] = useState<Date | undefined>()
 
   const { data, isLoading, isError } =
     trpc.warehouse.getWarehouseHistory.useQuery({
@@ -31,8 +31,8 @@ const WarehouseHistoryPage = () => {
       limit,
       actions,
       performerId,
-      startDate,
-      endDate,
+      startDate: startDate?.toISOString().split('T')[0],
+      endDate: endDate?.toISOString().split('T')[0],
     })
 
   return (

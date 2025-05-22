@@ -42,9 +42,11 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
     searchParams.get('tab') || getActiveKeyFromPathname(pathname)
 
   // Subpages that shouldn't render via dynamic `tab` routing
-  const isSubPage =
-    pathname.includes('/warehouse/details/') ||
-    pathname.includes('/warehouse/history')
+  const isSubPage = [
+    '/warehouse/details/',
+    '/warehouse/history',
+    '/billing/technician/',
+  ].some((sub) => pathname.includes(sub))
 
   const ActivePage = pages[activeTab] || pages.dashboard
 

@@ -1,7 +1,7 @@
 'use client'
 
-import LoaderSpinner from '@/app/components/LoaderSpinner'
-import SearchInput from '@/app/components/SearchInput'
+import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import SearchInput from '@/app/components/shared/SearchInput'
 import {
   Select,
   SelectContent,

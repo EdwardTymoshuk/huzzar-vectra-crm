@@ -1,8 +1,8 @@
 import { operatorSchema } from '@/lib/schema'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
-import { roleProtectedProcedure } from '../middleware'
-import { router } from '../trpc'
+import { roleProtectedProcedure } from '../../middleware'
+import { router } from '../../trpc'
 
 export const operatorDefinitionRouter = router({
   // 📄 Get all operators definitions

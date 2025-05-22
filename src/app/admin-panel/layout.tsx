@@ -4,7 +4,7 @@ import '@/app/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Suspense } from 'react'
-import LoaderLogo from '../components/LoaderLogo'
+import LoaderLogo from '../components/shared/LoaderLogo'
 
 // Fonts configuration
 const geistSans = Geist({

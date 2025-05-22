@@ -1,7 +1,7 @@
 'use client'
 
-import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
-import PageHeader from '@/app/components/PageHeader'
+import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
+import PageHeader from '@/app/components/shared/PageHeader'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { useSession } from 'next-auth/react'
 import AdminsSection from '../components/settings/adminSection/AdminsSection'

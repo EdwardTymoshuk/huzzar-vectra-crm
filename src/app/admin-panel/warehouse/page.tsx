@@ -1,7 +1,7 @@
 'use client'
 
-import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
-import PageHeader from '@/app/components/PageHeader'
+import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
+import PageHeader from '@/app/components/shared/PageHeader'
 import { useState } from 'react'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import WarehouseTabs from '../components/warehouse/WarehouseTabs'

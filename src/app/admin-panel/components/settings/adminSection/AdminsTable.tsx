@@ -1,6 +1,6 @@
 'use client'
 
-import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
+import ConfirmDeleteDialog from '@/app/components/shared/ConfirmDeleteDialog'
 import { Alert, AlertTitle } from '@/app/components/ui/alert'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'

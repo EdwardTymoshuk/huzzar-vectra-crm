@@ -1,6 +1,6 @@
 'use client'
 
-import LoaderSpinner from '@/app/components/LoaderSpinner'
+import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import {
   AlertDialog,
   AlertDialogAction,

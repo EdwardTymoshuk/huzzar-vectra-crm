@@ -72,6 +72,9 @@ export const orderRouter = router({
             },
             orderBy: { changeDate: 'desc' },
           },
+          settlementEntries: {
+            include: { rate: true },
+          },
         },
       })
 
@@ -573,5 +576,77 @@ export const orderRouter = router({
       )
 
       return buffer.toString('base64')
+    }),
+  /**
+   * getBillingMonthlySummary
+   * Returns a monthly summary: one row per technician,
+   * all codes as columns (summed), and totalAmount.
+   */
+  getBillingMonthlySummary: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(
+      z.object({
+        from: z.string(), // e.g. "2025-03-01"
+        to: z.string(), // e.g. "2025-03-31"
+        operator: z.string().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const { from, to, operator } = input
+
+      // Get all rate definitions (for columns)
+      const allRates = await prisma.rateDefinition.findMany()
+      const allCodes = allRates.map((r) => r.code)
+
+      // Get all installation orders with settlements, grouped by technician
+      const orders = await prisma.order.findMany({
+        where: {
+          type: 'INSTALATION',
+          date: { gte: new Date(from), lte: new Date(to) },
+          ...(operator && { operator }),
+          status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
+          assignedToId: { not: null },
+        },
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+          settlementEntries: { include: { rate: true } },
+        },
+      })
+
+      // Map by technicianId
+      const techMap: Record<
+        string,
+        {
+          technicianId: string
+          technicianName: string
+          codes: Record<string, number>
+          totalAmount: number
+        }
+      > = {}
+
+      for (const order of orders) {
+        const tech = order.assignedTo
+        if (!tech) continue
+        if (!techMap[tech.id]) {
+          techMap[tech.id] = {
+            technicianId: tech.id, // <- to pole jest wymagane!
+            technicianName: tech.name,
+            codes: {},
+            totalAmount: 0,
+          }
+          allCodes.forEach((code) => (techMap[tech.id].codes[code] = 0))
+        }
+        for (const entry of order.settlementEntries) {
+          if (entry.code && techMap[tech.id].codes[entry.code] !== undefined) {
+            techMap[tech.id].codes[entry.code] += entry.quantity
+            techMap[tech.id].totalAmount +=
+              (entry.rate?.amount ?? 0) * entry.quantity
+          }
+        }
+      }
+
+      // Return as array, sorted by name
+      return Object.values(techMap).sort((a, b) =>
+        a.technicianName.localeCompare(b.technicianName)
+      )
     }),
 })

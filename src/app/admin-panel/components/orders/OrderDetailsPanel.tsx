@@ -1,6 +1,5 @@
 'use client'
 
-import { Button } from '@/app/components/ui/button'
 import {
   Sheet,
   SheetContent,
@@ -18,7 +17,6 @@ import {
 import { statusMap, timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OrderHistory } from '@prisma/client'
-import { MdClose } from 'react-icons/md'
 
 /**
  * OrderDetailsPanel component:
@@ -54,13 +52,10 @@ const OrderDetailsPanel = ({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-[95%] md:max-w-md p-6 space-y-4">
+      <SheetContent side="right" className="w-[95%] md:max-w-md">
         {/* Header */}
         <SheetHeader className="flex flex-row justify-between items-center">
           <SheetTitle>Szczegóły zlecenia</SheetTitle>
-          <Button size="icon" variant="ghost" onClick={onClose}>
-            <MdClose className="w-5 h-5" />
-          </Button>
         </SheetHeader>
 
         {/* Loading / Error Handling */}

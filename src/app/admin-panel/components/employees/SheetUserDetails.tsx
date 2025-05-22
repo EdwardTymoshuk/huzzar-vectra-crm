@@ -32,7 +32,7 @@ type Props = {
 const SheetUserDetails = ({ user, open, onClose }: Props) => {
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-[400px] sm:w-[540px]">
+      <SheetContent side="right" className="w-[95%] md:max-w-md">
         <SheetHeader>
           <SheetTitle>{user.name}</SheetTitle>
         </SheetHeader>

@@ -1,8 +1,8 @@
 'use client'
 
-import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
-import PageHeader from '@/app/components/PageHeader'
-import SearchInput from '@/app/components/SearchInput'
+import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
+import PageHeader from '@/app/components/shared/PageHeader'
+import SearchInput from '@/app/components/shared/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import {
   Tabs,

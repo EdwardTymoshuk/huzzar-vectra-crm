@@ -1,5 +1,7 @@
+'use client'
+
+import DateRangePicker from '@/app/components/shared/DateRangePicker'
 import { Button } from '@/app/components/ui/button'
-import { Input } from '@/app/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -17,10 +19,10 @@ interface Props {
   setActions: (val: WarehouseAction[] | undefined) => void
   performerId?: string
   setPerformerId: (val: string | undefined) => void
-  startDate?: string
-  setStartDate: (val: string | undefined) => void
-  endDate?: string
-  setEndDate: (val: string | undefined) => void
+  startDate?: Date
+  setStartDate: (val: Date | undefined) => void
+  endDate?: Date
+  setEndDate: (val: Date | undefined) => void
 }
 
 const HistoryFilters = ({
@@ -86,23 +88,14 @@ const HistoryFilters = ({
         </Select>
       </div>
 
-      {/* Date range */}
+      {/* Date range using DateRangePicker (ShadCN-based) */}
       <div className="flex flex-col space-y-1">
-        <label className="text-xs text-muted-foreground">Od</label>
-        <Input
-          type="date"
-          value={startDate ?? ''}
-          onChange={(e) => setStartDate(e.target.value || undefined)}
-          className={cn(startDate && 'border-2 border-primary')}
-        />
-      </div>
-      <div className="flex flex-col space-y-1">
-        <label className="text-xs text-muted-foreground">Do</label>
-        <Input
-          type="date"
-          value={endDate ?? ''}
-          onChange={(e) => setEndDate(e.target.value || undefined)}
-          className={cn(endDate && 'border-2 border-primary')}
+        <label className="text-xs text-muted-foreground">Zakres dat</label>
+        <DateRangePicker
+          from={startDate}
+          to={endDate}
+          setFrom={setStartDate}
+          setTo={setEndDate}
         />
       </div>
 

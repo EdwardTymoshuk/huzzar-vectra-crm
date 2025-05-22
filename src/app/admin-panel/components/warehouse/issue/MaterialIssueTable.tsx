@@ -1,6 +1,6 @@
 'use client'
 
-import SearchInput from '@/app/components/SearchInput'
+import SearchInput from '@/app/components/shared/SearchInput'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'

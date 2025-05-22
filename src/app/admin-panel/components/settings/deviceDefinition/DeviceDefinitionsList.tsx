@@ -1,6 +1,6 @@
 'use client'
 
-import SearchInput from '@/app/components/SearchInput'
+import SearchInput from '@/app/components/shared/SearchInput'
 import { Alert, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
 import { Card } from '@/app/components/ui/card'

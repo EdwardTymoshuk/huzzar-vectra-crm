@@ -1,7 +1,7 @@
 'use client'
 
-import DatePicker from '@/app/components/DatePicker'
-import SearchInput from '@/app/components/SearchInput'
+import DatePicker from '@/app/components/shared/DatePicker'
+import SearchInput from '@/app/components/shared/SearchInput'
 import {
   Accordion,
   AccordionContent,

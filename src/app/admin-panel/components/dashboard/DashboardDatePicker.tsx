@@ -7,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/app/components/ui/popover'
+import { polishMonthsNominative } from '@/lib/constants'
 import { format, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { useState } from 'react'
@@ -113,7 +114,11 @@ const DashboardDatePicker = ({ selected, onChange, range }: Props) => {
       <PopoverTrigger asChild>
         <Button variant="outline" className="flex items-center gap-2">
           <MdCalendarToday className="w-5 h-5" />
-          {label}
+          {selected
+            ? `${
+                polishMonthsNominative[selected.getMonth()]
+              } ${selected.getFullYear()}`
+            : 'Wybierz datę'}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2 space-y-2 bg-background border border-border shadow-md rounded-md">

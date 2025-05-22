@@ -1,7 +1,7 @@
 'use client'
 
-import DatePicker from '@/app/components/DatePicker'
-import LoaderSpinner from '@/app/components/LoaderSpinner'
+import DatePicker from '@/app/components/shared/DatePicker'
+import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import {
   Table,
   TableBody,

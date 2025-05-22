@@ -2,8 +2,8 @@
 import { materialSchema } from '@/lib/schema'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
-import { roleProtectedProcedure } from '../middleware'
-import { router } from '../trpc'
+import { roleProtectedProcedure } from '../../middleware'
+import { router } from '../../trpc'
 
 export const materialDefinitionRouter = router({
   // 📦 Get all material definitions
