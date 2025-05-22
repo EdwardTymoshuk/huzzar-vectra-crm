@@ -44,11 +44,11 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => setAddModalOpen(true)}>
-              <MdAdd className="mr-2" />
+              <MdAdd />
               Dodaj ręcznie
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setImportModalOpen(true)}>
-              <MdUploadFile className="mr-2" />
+              <MdUploadFile />
               Wczytaj z Excela
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -56,15 +56,15 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
 
         {/* PLANOWANIE */}
         <Link href="/admin-panel?tab=planning">
-          <Button variant="danger">
-            <MdCalendarMonth className="mr-2" />
+          <Button variant="warning">
+            <MdCalendarMonth />
             <span className="hidden lg:inline">Planowanie</span>
           </Button>
         </Link>
 
         {/* RAPORT */}
-        <Button variant="outline" onClick={() => setReportDialogOpen(true)}>
-          <MdDownload className="mr-2" />
+        <Button variant="default" onClick={() => setReportDialogOpen(true)}>
+          <MdDownload />
           <span className="hidden lg:inline">Raport</span>
         </Button>
       </div>

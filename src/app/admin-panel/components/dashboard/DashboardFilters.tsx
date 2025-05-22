@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { polishMonthsNominative } from '@/lib/constants'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import DashboardDatePicker from './DashboardDatePicker'
+import DatePicker from '../../../components/shared/DatePicker'
 
 type Props = {
   selectedDate: Date | undefined
@@ -63,7 +63,7 @@ const DashboardFilters = ({
       </div>
 
       {/* Calendar based on selected range */}
-      <DashboardDatePicker
+      <DatePicker
         selected={selectedDate}
         onChange={onChangeDate}
         range={range}

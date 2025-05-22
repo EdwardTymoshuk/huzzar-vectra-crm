@@ -13,7 +13,7 @@ import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
 import { MdDownload } from 'react-icons/md'
 import { toast } from 'sonner'
-import DashboardDatePicker from '../dashboard/DashboardDatePicker'
+import DatePicker from '../../../components/shared/DatePicker'
 
 type Props = {
   open: boolean
@@ -79,7 +79,7 @@ const ReportDialog = ({ open, onClose }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-full max-w-md">
         <DialogHeader>
           <DialogTitle>Generowanie raportu dziennego</DialogTitle>
           <DialogDescription>
@@ -87,18 +87,16 @@ const ReportDialog = ({ open, onClose }: Props) => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 mt-2">
+        <div className="flex flex-col space-y-4 mt-2 w-full">
           {/* Date input with max = today */}
-          <div>
-            <label className="text-sm font-medium mb-1 block">
-              Data raportu:
-            </label>
-            <DashboardDatePicker
+          <div className="w-full text-center">
+            <DatePicker
               selected={date ? new Date(date) : undefined}
               onChange={(d) => {
                 if (d) setDate(format(d, 'yyyy-MM-dd'))
               }}
               range="day"
+              fullWidth
             />
           </div>
 

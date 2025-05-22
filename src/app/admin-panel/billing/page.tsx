@@ -24,7 +24,7 @@ const BillingsPage = () => {
       <div className="flex flex-wrap gap-4 items-center mb-4">
         <Button onClick={() => setReportDialogOpen(true)}>
           <MdFileDownload />
-          Generuj raport
+          Raport
         </Button>
 
         <div className="ml-auto">

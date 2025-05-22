@@ -1,6 +1,5 @@
 'use client'
 
-import DatePicker from '@/app/components/shared/DatePicker'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import {
   Table,
@@ -20,6 +19,7 @@ import {
   Droppable,
 } from '@hello-pangea/dnd'
 import { useState } from 'react'
+import DatePicker from '../../../components/shared/DatePicker'
 import OrderDetailsPanel from './OrderDetailsPanel'
 
 /**
@@ -105,6 +105,7 @@ const AssignmentsTable = () => {
         <DatePicker
           selected={selectedDate}
           onChange={(date) => setSelectedDate(date ?? undefined)}
+          range="day"
         />
       </div>
 

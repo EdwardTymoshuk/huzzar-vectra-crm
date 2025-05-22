@@ -76,6 +76,7 @@ const TechniciansList = () => {
         <h2 className="text-lg font-semibold">Technicy</h2>
         <div className="w-full">
           <DatePicker
+            range="day"
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date ?? undefined)}
           />
