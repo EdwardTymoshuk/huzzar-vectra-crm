@@ -2,6 +2,7 @@ import { sortedTimeSlotsByHour } from '@/lib/constants'
 import { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { prisma } from '@/utils/prisma'
+import { sortCodes } from '@/utils/sortCodes'
 import { writeToBuffer } from '@/utils/writeToBuffer'
 import { OrderStatus, OrderType, Standard, TimeSlot } from '@prisma/client'
 import { endOfDay, format, startOfDay } from 'date-fns'
@@ -595,7 +596,7 @@ export const orderRouter = router({
 
       // Get all rate definitions (for columns)
       const allRates = await prisma.rateDefinition.findMany()
-      const allCodes = allRates.map((r) => r.code)
+      const allCodes = sortCodes(allRates.map((r) => r.code))
 
       // Get all installation orders with settlements, grouped by technician
       const orders = await prisma.order.findMany({

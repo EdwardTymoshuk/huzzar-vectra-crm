@@ -1,4 +1,5 @@
 import { prisma } from '@/utils/prisma'
+import { sortCodes } from '@/utils/sortCodes'
 import { format } from 'date-fns'
 import { z } from 'zod'
 import { roleProtectedProcedure } from '../middleware'
@@ -233,7 +234,7 @@ export const settlementRouter = router({
 
       // Fetch all work codes from system (even if 0 for this technician!)
       const allRates = await prisma.rateDefinition.findMany()
-      const allCodes = allRates.map((r) => r.code)
+      const allCodes = sortCodes(allRates.map((r) => r.code))
 
       // Fetch all orders for the technician in the selected month
       const orders = await prisma.order.findMany({

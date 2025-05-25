@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { sortCodes } from '@/utils/sortCodes'
 import { trpc } from '@/utils/trpc'
 import Link from 'next/link'
 import { MdKeyboardArrowRight } from 'react-icons/md'
@@ -30,7 +31,7 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
   })
   // Fetch all possible work codes for dynamic columns
   const { data: allRates = [] } = trpc.rateDefinition.getAllRates.useQuery()
-  const allCodes = allRates.map((r) => r.code)
+  const allCodes = sortCodes(allRates.map((r) => r.code))
 
   if (isLoading) return <LoaderSpinner />
   if (!data?.length) {

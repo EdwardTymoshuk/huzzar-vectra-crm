@@ -58,7 +58,7 @@ const TechnicianMonthlyDetailsPage = ({ technicianId }: Props) => {
       to,
     })
 
-  const allCodes = Object.keys(data?.summary ?? {})
+  const allCodes = sortCodes(Object.keys(data?.summary ?? {}))
 
   const totalCompleted =
     data?.days.reduce(
