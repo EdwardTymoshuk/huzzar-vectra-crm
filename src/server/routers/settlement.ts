@@ -1,5 +1,10 @@
 import { prisma } from '@/utils/prisma'
 import { sortCodes } from '@/utils/sortCodes'
+import { writeTechnicianSummaryReport } from '@/utils/writeTechnicianSummaryReport'
+import {
+  WorkCodeSummaryRow,
+  writeWorkCodeExecutionReport,
+} from '@/utils/writeWorkCodeExecutionReport'
 import { format } from 'date-fns'
 import { z } from 'zod'
 import { roleProtectedProcedure } from '../middleware'
@@ -316,6 +321,178 @@ export const settlementRouter = router({
         workCodes: allCodes,
         orderDetails,
       })
+
+      return buffer.toString('base64')
+    }),
+  generateTechniciansMonthlySummary: roleProtectedProcedure([
+    'ADMIN',
+    'COORDINATOR',
+  ])
+    .input(
+      z.object({ month: z.number().min(1).max(12), year: z.number().min(2020) })
+    )
+    .mutation(async ({ input }) => {
+      const { year, month } = input
+      const start = new Date(year, month - 1, 1)
+      const end = new Date(year, month, 0, 23, 59, 59, 999)
+
+      const orders = await prisma.order.findMany({
+        where: {
+          type: 'INSTALATION',
+          date: { gte: start, lte: end },
+          assignedToId: { not: null },
+          status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
+        },
+        include: {
+          settlementEntries: { include: { rate: true } },
+          assignedTo: { select: { name: true } },
+        },
+      })
+
+      // Get all rate codes to preserve column order
+      const allRates = await prisma.rateDefinition.findMany()
+      const allCodes = sortCodes(allRates.map((r) => r.code))
+
+      type Row = Record<string, string | number>
+      const rows: Row[] = []
+
+      const grouped: Record<
+        string,
+        {
+          received: number
+          done: number
+          failed: number
+          codes: Record<string, number>
+          amount: number
+        }
+      > = {}
+
+      for (const order of orders) {
+        const techName = order.assignedTo?.name || 'Nieznany'
+        if (!grouped[techName]) {
+          grouped[techName] = {
+            received: 0,
+            done: 0,
+            failed: 0,
+            codes: {},
+            amount: 0,
+          }
+        }
+
+        grouped[techName].received++
+        if (order.status === 'COMPLETED') grouped[techName].done++
+        if (order.status === 'NOT_COMPLETED') grouped[techName].failed++
+
+        for (const entry of order.settlementEntries) {
+          grouped[techName].codes[entry.code] =
+            (grouped[techName].codes[entry.code] || 0) + entry.quantity
+          grouped[techName].amount += (entry.rate?.amount || 0) * entry.quantity
+        }
+      }
+
+      for (const [name, data] of Object.entries(grouped)) {
+        const ratio =
+          data.received > 0
+            ? `${((data.done / data.received) * 100).toFixed(2)}%`
+            : '0.00%'
+
+        const row: Row = {
+          Technik: name,
+          Otrzymane: data.received,
+          Wykonane: data.done,
+          Niewykonane: data.failed,
+          Kompletacja: ratio,
+        }
+
+        for (const code of allCodes) {
+          row[code] = data.codes[code] ?? 0
+        }
+
+        row['Kwota'] = `${data.amount.toFixed(2)} zł`
+        rows.push(row)
+      }
+
+      // Sort columns using helper if needed
+      const sortedCodes = sortCodes(allCodes)
+      const finalColumns = [
+        'Technik',
+        'Otrzymane',
+        'Wykonane',
+        'Niewykonane',
+        'Kompletacja',
+        ...sortedCodes,
+        'Kwota',
+      ]
+
+      const buffer = await writeTechnicianSummaryReport(
+        rows,
+        `Rozliczenie_${year}_${month}`,
+        finalColumns
+      )
+      return buffer.toString('base64')
+    }),
+
+  generateWorkCodeSummaryReport: roleProtectedProcedure([
+    'ADMIN',
+    'COORDINATOR',
+  ])
+    .input(z.object({ month: z.number(), year: z.number() }))
+    .mutation(async ({ input }) => {
+      const { month, year } = input
+      const start = new Date(year, month - 1, 1)
+      const end = new Date(year, month, 0, 23, 59, 59)
+
+      // Get all defined work codes to preserve full column order
+      const rateDefinitions = await prisma.rateDefinition.findMany()
+      const allCodes = sortCodes(rateDefinitions.map((r) => r.code))
+
+      // Fetch all COMPLETED installation orders in the month
+      const orders = await prisma.order.findMany({
+        where: {
+          type: 'INSTALATION',
+          status: 'COMPLETED',
+          date: { gte: start, lte: end },
+        },
+        include: { settlementEntries: true },
+        orderBy: { date: 'asc' },
+      })
+
+      // Group settlement codes by day
+      const byDate: Record<string, Record<string, number>> = {}
+
+      for (const order of orders) {
+        const dateKey = order.date.toISOString().split('T')[0]
+        if (!byDate[dateKey]) byDate[dateKey] = {}
+
+        for (const entry of order.settlementEntries) {
+          byDate[dateKey][entry.code] =
+            (byDate[dateKey][entry.code] ?? 0) + entry.quantity
+        }
+      }
+
+      // Build rows for export – one row per day
+      const rows = Object.entries(byDate).map(([date, codes]) => {
+        const row: WorkCodeSummaryRow = {
+          date: new Date(date).toLocaleDateString('pl-PL'),
+        }
+
+        for (const code of allCodes) {
+          row[code] = codes[code] ?? 0
+        }
+
+        return row
+      })
+
+      // Generate the Excel report
+      const buffer = await writeWorkCodeExecutionReport(
+        rows,
+        allCodes,
+        `Zestawienie_kodow_${year}_${String(month).padStart(2, '0')}`,
+        {
+          from: format(start, 'dd.MM.yyyy'),
+          to: format(end, 'dd.MM.yyyy'),
+        }
+      )
 
       return buffer.toString('base64')
     }),

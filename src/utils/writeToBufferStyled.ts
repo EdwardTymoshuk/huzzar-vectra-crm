@@ -24,9 +24,9 @@ export const writeToBufferStyled = async (
   const headers = [
     'tydzień',
     'data',
-    'Ilość instalacji otrzymanych',
-    'Ilość instalacji wykonanych',
-    'Ilość instalacji niewykonanych',
+    'Otrzymane',
+    'Wykonane',
+    'Niewykonane',
     'Kompletacja',
   ]
 
@@ -111,14 +111,13 @@ export const writeToBufferStyled = async (
 
   // Dynamically set column widths to fit longest content
   worksheet.columns.forEach((column, i) => {
-    let max = headers[i]?.length || 10
-    if (column && column.eachCell) {
-      column.eachCell({ includeEmpty: true }, (cell) => {
-        const val = cell.value ? cell.value.toString() : ''
-        if (val.length > max) max = val.length
-      })
-    }
-    column.width = max + 2
+    let maxLength = 10
+    column.eachCell?.({ includeEmpty: false }, (cell) => {
+      const value =
+        typeof cell.value === 'string' ? cell.value : String(cell.value ?? '')
+      maxLength = Math.max(maxLength, value.length)
+    })
+    column.width = maxLength // no extra padding
   })
 
   // Add right-side weekly summary table, if provided

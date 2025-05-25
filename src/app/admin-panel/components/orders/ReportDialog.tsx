@@ -1,5 +1,7 @@
 'use client'
 
+import DatePicker from '@/app/components/shared/DatePicker'
+import MonthPicker from '@/app/components/shared/MonthPicker'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -8,43 +10,88 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { format } from 'date-fns'
+import { format, startOfMonth } from 'date-fns'
 import { useEffect, useState } from 'react'
 import { MdDownload } from 'react-icons/md'
 import { toast } from 'sonner'
-import DatePicker from '../../../components/shared/DatePicker'
 
 type Props = {
   open: boolean
   onClose: () => void
 }
 
+type ReportRange = 'day' | 'month'
+
+/**
+ * ReportDialog
+ * -----------------------------------
+ * Allows the user to generate a daily or monthly Excel report from the Orders module.
+ * - The user selects the type: "day" or "month"
+ * - Based on the type, either a day picker or a month picker is shown
+ * - The appropriate tRPC mutation is triggered
+ * - The generated base64 is downloaded as an Excel file
+ */
 const ReportDialog = ({ open, onClose }: Props) => {
-  const [date, setDate] = useState('')
-  const reportMutation = trpc.order.generateDailyReport.useMutation()
+  const [range, setRange] = useState<ReportRange>('day')
+  const [day, setDay] = useState<string>('') // format: yyyy-MM-dd
+  const [month, setMonth] = useState<Date>(startOfMonth(new Date()))
 
+  // tRPC mutations
+  const dailyReportMutation = trpc.order.generateDailyReport.useMutation()
+  const monthlyReportMutation =
+    trpc.settlement.generateMonthlyReport.useMutation()
+
+  /**
+   * Sets the default selected day on initial open
+   */
   useEffect(() => {
-    if (!date) {
+    if (!day) {
       const today = format(new Date(), 'yyyy-MM-dd')
-      setDate(today)
+      setDay(today)
     }
-  }, [date])
+  }, [day])
 
+  /**
+   * Handles generating and downloading the report based on the selected range
+   */
   const handleDownload = async () => {
-    if (!date) return toast.warning('Wybierz datę raportu.')
-
     try {
-      const base64 = await reportMutation.mutateAsync({ date })
+      let base64: string | undefined
+      let filename = ''
 
-      // Plik pusty lub bardzo mały = brak danych
+      if (range === 'day') {
+        if (!day) return toast.warning('Wybierz datę.')
+        base64 = (await dailyReportMutation.mutateAsync({ date: day })) as
+          | string
+          | undefined
+        filename = `Raport-zlecenia-${day}.xlsx`
+      } else {
+        const year = month.getFullYear()
+        const monthNum = month.getMonth() + 1
+        base64 = await monthlyReportMutation.mutateAsync({
+          year,
+          month: monthNum,
+        })
+        filename = `Raport-zlecenia-${year}-${String(monthNum).padStart(
+          2,
+          '0'
+        )}.xlsx`
+      }
+
       if (!base64 || base64.length < 100) {
-        toast.info(
-          'Brak zleceń w wybranym dniu – raport nie został wygenerowany.'
-        )
+        toast.info('Brak danych do raportu.')
         return
       }
 
+      // Convert base64 string to Blob and download
       const blob = base64ToBlob(
         base64,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -52,7 +99,7 @@ const ReportDialog = ({ open, onClose }: Props) => {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Raport-${date}.xlsx`
+      a.download = filename
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Raport został wygenerowany.')
@@ -63,6 +110,9 @@ const ReportDialog = ({ open, onClose }: Props) => {
     }
   }
 
+  /**
+   * Converts a base64-encoded string to a Blob for file download
+   */
   const base64ToBlob = (base64: string, mime: string): Blob => {
     const byteCharacters = atob(base64)
     const byteArrays = []
@@ -81,32 +131,56 @@ const ReportDialog = ({ open, onClose }: Props) => {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-md">
         <DialogHeader>
-          <DialogTitle>Generowanie raportu dziennego</DialogTitle>
+          <DialogTitle>Generowanie raportu</DialogTitle>
           <DialogDescription>
-            Wybierz dzień, z którego chcesz wygenerować zestawienie zleceń.
+            Wybierz typ raportu (dzienny lub miesięczny) oraz datę.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col space-y-4 mt-2 w-full">
-          {/* Date input with max = today */}
-          <div className="w-full text-center">
+          {/* Report type selector */}
+          <Select
+            value={range}
+            onValueChange={(val) => setRange(val as ReportRange)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Typ raportu" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Dzienny</SelectItem>
+              <SelectItem value="month">Miesięczny</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Dynamic date/month picker */}
+          {range === 'day' ? (
             <DatePicker
-              selected={date ? new Date(date) : undefined}
+              selected={day ? new Date(day) : undefined}
               onChange={(d) => {
-                if (d) setDate(format(d, 'yyyy-MM-dd'))
+                if (d) setDay(format(d, 'yyyy-MM-dd'))
               }}
               range="day"
               fullWidth
             />
-          </div>
+          ) : (
+            <MonthPicker
+              selected={month}
+              onChange={(date) => setMonth(startOfMonth(date))}
+            />
+          )}
 
+          {/* Download button */}
           <Button
             onClick={handleDownload}
-            disabled={reportMutation.isLoading}
+            disabled={
+              dailyReportMutation.isLoading || monthlyReportMutation.isLoading
+            }
             className="w-full"
           >
             <MdDownload className="mr-2" />
-            {reportMutation.isLoading ? 'Generowanie...' : 'Generuj i pobierz'}
+            {dailyReportMutation.isLoading || monthlyReportMutation.isLoading
+              ? 'Generowanie...'
+              : 'Generuj i pobierz'}
           </Button>
         </div>
       </DialogContent>

@@ -27,76 +27,35 @@ type Props = {
   onClose: () => void
 }
 
-type ReportType = 'GENERAL' | 'TECHNICIAN'
+// Available report types
+type ReportType = 'TECHNICIAN' | 'SUMMARY' | 'CODE_BREAKDOWN'
 
+/**
+ * GenerateBillingReportDialog
+ * ------------------------------------------------
+ * Dialog for generating Excel reports:
+ * - TECHNICIAN: single technician
+ * - SUMMARY: monthly summary for all technicians
+ * - CODE_BREAKDOWN: daily breakdown of codes with bottom summary
+ */
 const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
-  const [reportType, setReportType] = useState<ReportType>('GENERAL')
+  const [reportType, setReportType] = useState<ReportType>('TECHNICIAN')
+  const [selectedTechnician, setSelectedTechnician] = useState<string>()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [selectedTechnician, setSelectedTechnician] = useState<
-    string | undefined
-  >(undefined)
 
-  // Pobierz listę techników do wyboru (możesz zamienić endpoint jeśli inny)
   const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
 
-  // Mutacje
-  const reportMutation = trpc.settlement.generateMonthlyReport.useMutation()
+  // Mutations
   const technicianReportMutation =
     trpc.settlement.generateTechnicianMonthlyReport.useMutation()
+  const monthlySummaryMutation =
+    trpc.settlement.generateTechniciansMonthlySummary.useMutation()
+  const codeBreakdownMutation =
+    trpc.settlement.generateWorkCodeSummaryReport.useMutation()
 
-  const handleDownload = async () => {
-    if (!selectedDate) {
-      toast.warning('Wybierz miesiąc.')
-      return
-    }
-    const month = selectedDate.getMonth() + 1
-    const year = selectedDate.getFullYear()
-
-    try {
-      let base64: string | undefined
-      if (reportType === 'GENERAL') {
-        base64 = await reportMutation.mutateAsync({ month, year })
-      } else if (reportType === 'TECHNICIAN' && selectedTechnician) {
-        base64 = await technicianReportMutation.mutateAsync({
-          month,
-          year,
-          technicianId: selectedTechnician,
-        })
-      } else {
-        toast.warning('Wybierz technika.')
-        return
-      }
-
-      if (!base64 || base64.length < 100) {
-        toast.info('Brak danych rozliczeń dla wybranego miesiąca.')
-        return
-      }
-      // Blob download
-      const blob = base64ToBlob(
-        base64,
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      )
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download =
-        reportType === 'GENERAL'
-          ? `Raport-rozliczen-${year}-${String(month).padStart(2, '0')}.xlsx`
-          : `Raport-rozliczen-${year}-${String(month).padStart(2, '0')}-${
-              technicians.find((t) => t.id === selectedTechnician)?.name ||
-              'technik'
-            }.xlsx`
-
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success('Raport został wygenerowany.')
-      onClose()
-    } catch (error) {
-      console.error(error)
-      toast.error('Nie udało się wygenerować raportu.')
-    }
-  }
-
+  /**
+   * Converts base64 string to downloadable Blob
+   */
   const base64ToBlob = (base64: string, mime: string): Blob => {
     const byteCharacters = atob(base64)
     const byteArrays = []
@@ -111,7 +70,68 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
     return new Blob(byteArrays, { type: mime })
   }
 
-  // Po zamknięciu dialogu resetuj wybór technika
+  /**
+   * Handle Excel download
+   */
+  const handleDownload = async () => {
+    const month = selectedDate.getMonth() + 1
+    const year = selectedDate.getFullYear()
+    let base64: string | undefined
+
+    try {
+      if (reportType === 'TECHNICIAN') {
+        if (!selectedTechnician) {
+          toast.warning('Wybierz technika.')
+          return
+        }
+
+        base64 = await technicianReportMutation.mutateAsync({
+          technicianId: selectedTechnician,
+          month,
+          year,
+        })
+      } else if (reportType === 'SUMMARY') {
+        base64 = await monthlySummaryMutation.mutateAsync({ month, year })
+      } else if (reportType === 'CODE_BREAKDOWN') {
+        base64 = await codeBreakdownMutation.mutateAsync({ month, year })
+      }
+
+      if (!base64 || base64.length < 100) {
+        toast.info('Brak danych dla wybranego miesiąca.')
+        return
+      }
+
+      const blob = base64ToBlob(
+        base64,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+
+      // File name generation
+      const baseName =
+        reportType === 'TECHNICIAN'
+          ? `Raport-rozliczen-${year}-${String(month).padStart(2, '0')}-${
+              technicians.find((t) => t.id === selectedTechnician)?.name ||
+              'technik'
+            }`
+          : reportType === 'SUMMARY'
+          ? `Rozliczenie-${year}-${String(month).padStart(2, '0')}`
+          : `Zestawienie_kodow_${year}_${String(month).padStart(2, '0')}`
+
+      a.download = `${baseName}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Raport został wygenerowany.')
+      onClose()
+    } catch (err) {
+      console.error(err)
+      toast.error('Nie udało się wygenerować raportu.')
+    }
+  }
+
+  // Reset technician on close
   useEffect(() => {
     if (!open) setSelectedTechnician(undefined)
   }, [open])
@@ -122,11 +142,12 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
         <DialogHeader>
           <DialogTitle>Raport miesięczny</DialogTitle>
           <DialogDescription>
-            Wybierz typ raportu i miesiąc. Dla raportu technika wybierz także
-            technika.
+            Wybierz typ raportu, miesiąc oraz – jeśli dotyczy – technika.
           </DialogDescription>
         </DialogHeader>
+
         <div className="flex flex-col gap-4">
+          {/* Report type selection */}
           <Select
             value={reportType}
             onValueChange={(val) => setReportType(val as ReportType)}
@@ -135,10 +156,15 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
               <SelectValue placeholder="Typ raportu" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="GENERAL">Raport ogólny</SelectItem>
               <SelectItem value="TECHNICIAN">Raport technika</SelectItem>
+              <SelectItem value="SUMMARY">Rozliczenie zbiorcze</SelectItem>
+              <SelectItem value="CODE_BREAKDOWN">
+                Zestawienie wykonanych prac
+              </SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Technician selector only for technician report */}
           {reportType === 'TECHNICIAN' && (
             <Select
               value={selectedTechnician}
@@ -156,20 +182,30 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
               </SelectContent>
             </Select>
           )}
-          <MonthPicker onChange={setSelectedDate} selected={selectedDate} />
+
+          {/* Month selection */}
+          <MonthPicker selected={selectedDate} onChange={setSelectedDate} />
+
+          {/* Download button */}
           <Button
             onClick={handleDownload}
             disabled={
               (reportType === 'TECHNICIAN' && !selectedTechnician) ||
-              reportMutation.isLoading ||
-              technicianReportMutation.isLoading
+              technicianReportMutation.isLoading ||
+              monthlySummaryMutation.isLoading ||
+              codeBreakdownMutation.isLoading
             }
             className="w-full"
           >
             <MdDownload className="mr-2" />
-            {reportMutation.isLoading || technicianReportMutation.isLoading
-              ? 'Generowanie...'
-              : 'Generuj i pobierz'}
+            {(technicianReportMutation.isLoading ||
+              monthlySummaryMutation.isLoading ||
+              codeBreakdownMutation.isLoading) &&
+              'Generowanie...'}
+            {!technicianReportMutation.isLoading &&
+              !monthlySummaryMutation.isLoading &&
+              !codeBreakdownMutation.isLoading &&
+              'Generuj i pobierz'}
           </Button>
         </div>
       </DialogContent>
