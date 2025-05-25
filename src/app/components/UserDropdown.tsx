@@ -9,6 +9,7 @@ import {
 } from '@/app/components/ui/dropdown-menu'
 import { signOut, useSession } from 'next-auth/react'
 import { CgProfile } from 'react-icons/cg'
+import { CiLogout } from 'react-icons/ci'
 
 const UserDropdown = () => {
   const { data: session } = useSession()
@@ -27,19 +28,19 @@ const UserDropdown = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-40 bg-background border-border rounded-xl">
-        <DropdownMenuItem asChild>
+        {/* <DropdownMenuItem asChild>
           <a
             href="/profile"
             className="w-full font-semibold cursor-pointer rounded-t-md"
           >
             Mój profil
           </a>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
         <DropdownMenuItem
           className="text-danger hover:text-danger focus:text-danger cursor-pointer rounded-b-md"
           onClick={() => signOut()}
         >
-          Wyloguj
+          <CiLogout /> Wyloguj
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

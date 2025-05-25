@@ -226,7 +226,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
   }
 
   return (
-    <div className="overflow-hidden">
+    <div>
       <div className="flex flex-row items-center w-full justify-between py-4">
         {/* Top filters */}
         <OrdersFilterSort

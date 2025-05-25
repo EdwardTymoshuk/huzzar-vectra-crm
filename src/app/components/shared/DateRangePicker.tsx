@@ -1,4 +1,9 @@
+// components/shared/DateRangePicker.tsx
 'use client'
+
+/**
+ * DateRangePicker – two-month range selector.
+ */
 
 import { Button } from '@/app/components/ui/button'
 import { Calendar } from '@/app/components/ui/calendar'
@@ -27,7 +32,8 @@ const DateRangePicker = ({ from, to, setFrom, setTo }: Props) => {
           id="date"
           variant="outline"
           className={cn(
-            'w-[260px] justify-start text-left font-normal',
+            /* w-full on mobile, 260 px on desktop */
+            'w-full md:w-[260px] justify-start text-left font-normal',
             !from && 'text-muted-foreground'
           )}
         >
@@ -42,6 +48,7 @@ const DateRangePicker = ({ from, to, setFrom, setTo }: Props) => {
           )}
         </Button>
       </PopoverTrigger>
+
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           initialFocus

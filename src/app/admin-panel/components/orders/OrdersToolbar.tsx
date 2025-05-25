@@ -38,7 +38,7 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="success">
-              <MdAdd className="mr-2" />
+              <MdAdd />
               <span className="hidden lg:inline">Dodaj</span>
             </Button>
           </DropdownMenuTrigger>

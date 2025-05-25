@@ -32,7 +32,7 @@ const TechnicianEfficiencyTable = ({ date, range }: Props) => {
 
   if (isLoading || !data) {
     return (
-      <Card className="p-4 mt-6">
+      <Card className="p-4 my-6">
         <h2 className="text-lg font-semibold mb-4">Ranking techników</h2>
         <Skeleton className="h-8 w-full mb-2" />
         <Skeleton className="h-8 w-full mb-2" />
@@ -50,7 +50,7 @@ const TechnicianEfficiencyTable = ({ date, range }: Props) => {
   }
 
   return (
-    <Card className="p-4 mt-6 overflow-x-auto">
+    <Card className="p-4 my-6 overflow-x-auto">
       <h2 className="text-lg font-semibold mb-4">Ranking techników</h2>
       <Table>
         <TableHeader>

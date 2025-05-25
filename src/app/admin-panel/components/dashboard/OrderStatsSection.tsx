@@ -12,7 +12,7 @@ type Props = {
   range: 'day' | 'month' | 'year'
 }
 
-const COLORS = ['#16a34a', '#dc2626'] // green, red
+const COLORS = ['#16a34a', '#dc2626'] // zielony, czerwony
 
 const OrderStatsSection = ({ date, range }: Props) => {
   const { data, isLoading, isError } = trpc.order.getOrderStats.useQuery({
@@ -20,6 +20,7 @@ const OrderStatsSection = ({ date, range }: Props) => {
     range,
   })
 
+  // Render change indicator with icon and color
   const formatChange = (value: number) => {
     const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight
     const color = value >= 0 ? 'text-green-600' : 'text-red-600'
@@ -31,6 +32,7 @@ const OrderStatsSection = ({ date, range }: Props) => {
     )
   }
 
+  // Calculate percentage difference between current and previous value
   const percentDiff = (current: number, prev: number) => {
     if (prev === 0) return current > 0 ? 100 : 0
     return Math.round(((current - prev) / prev) * 100)
@@ -85,9 +87,9 @@ const OrderStatsSection = ({ date, range }: Props) => {
 
   return (
     <div className="mb-6 space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* PieChart */}
-        <Card className="col-span-1 md:col-span-2 row-span-3 flex items-center justify-center">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* PieChart with success rate badge */}
+        <Card className="flex flex-col items-center justify-center md:col-span-2">
           <div className="w-full h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -107,14 +109,14 @@ const OrderStatsSection = ({ date, range }: Props) => {
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-            <div className="mt-4 text-center">
-              <Badge variant={variant}>{successRate}% skuteczność</Badge>
-            </div>
+          </div>
+          <div className="my-4 text-center">
+            <Badge variant={variant}>{successRate}% skuteczność</Badge>
           </div>
         </Card>
 
-        {/* Łączna liczba */}
-        <Card className="col-span-1 md:col-span-2 p-4 text-center flex flex-col justify-center items-center">
+        {/* Total orders */}
+        <Card className="p-4 text-center flex flex-col justify-center items-center md:col-span-2">
           <p className="text-sm text-muted-foreground mb-1">
             Wszystkie zlecenia
           </p>
@@ -122,8 +124,8 @@ const OrderStatsSection = ({ date, range }: Props) => {
           {formatChange(percentDiff(total, prevTotal))}
         </Card>
 
-        {/* Góra: skuteczne / Niewykonane */}
-        <div className="grid grid-cols-2 col-span-2 gap-4">
+        {/* Completed and failed orders */}
+        <div className="grid grid-cols-2 gap-4 md:col-span-2">
           <Card className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Wykonane</p>
             <p className="text-2xl font-bold text-green-600">{completed}</p>
@@ -137,8 +139,8 @@ const OrderStatsSection = ({ date, range }: Props) => {
           </Card>
         </div>
 
-        {/* Dół: w trakcie / wycofane */}
-        <div className="grid grid-cols-2 col-span-2 gap-4">
+        {/* In progress and canceled orders */}
+        <div className="grid grid-cols-2 gap-4 md:col-span-2">
           <Card className="p-4 text-center">
             <p className="text-sm text-muted-foreground">W trakcie</p>
             <p className="text-2xl font-bold text-yellow-500">{inProgress}</p>

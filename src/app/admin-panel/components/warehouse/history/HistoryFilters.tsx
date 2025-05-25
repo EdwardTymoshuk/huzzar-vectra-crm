@@ -1,4 +1,9 @@
+// components/warehouse/history/HistoryFilters.tsx
 'use client'
+
+/**
+ * HistoryFilters – warehouse-history filter controls.
+ */
 
 import DateRangePicker from '@/app/components/shared/DateRangePicker'
 import { Button } from '@/app/components/ui/button'
@@ -35,21 +40,31 @@ const HistoryFilters = ({
   endDate,
   setEndDate,
 }: Props) => {
+  // Fetch list of users that can appear in "performer" dropdown
   const { data: users = [] } = trpc.user.getAdmins.useQuery()
 
   return (
-    <div className="flex flex-wrap gap-4 items-end">
-      {/* Action filter */}
-      <div className="flex flex-col space-y-1">
+    <form
+      /* Mobile = column; Desktop = original row layout */
+      className="
+        flex flex-col gap-3
+        md:flex-row md:flex-wrap md:items-end md:gap-4
+      "
+    >
+      {/* ---- ACTION FILTER -------------------------------------------------- */}
+      <div className="flex flex-col space-y-1 w-full md:w-auto">
         <label className="text-xs text-muted-foreground">Typ operacji</label>
         <Select
+          value={actions?.[0] ?? ''}
           onValueChange={(val) =>
             setActions(val ? [val as WarehouseAction] : undefined)
           }
-          value={actions?.[0] ?? ''}
         >
           <SelectTrigger
-            className={cn('w-[180px]', actions && 'border-2 border-primary')}
+            className={cn(
+              'w-full md:w-[180px]',
+              actions && 'border-2 border-primary'
+            )}
           >
             <SelectValue placeholder="Wszystkie" />
           </SelectTrigger>
@@ -63,16 +78,16 @@ const HistoryFilters = ({
         </Select>
       </div>
 
-      {/* Performer filter */}
-      <div className="flex flex-col space-y-1">
+      {/* ---- PERFORMER FILTER ---------------------------------------------- */}
+      <div className="flex flex-col space-y-1 w-full md:w-auto">
         <label className="text-xs text-muted-foreground">Wykonane przez</label>
         <Select
+          value={performerId ?? ''}
           onValueChange={(val) => setPerformerId(val || undefined)}
-          value={performerId || ''}
         >
           <SelectTrigger
             className={cn(
-              'w-[200px]',
+              'w-full md:w-[200px]',
               performerId && 'border-2 border-primary'
             )}
           >
@@ -88,8 +103,8 @@ const HistoryFilters = ({
         </Select>
       </div>
 
-      {/* Date range using DateRangePicker (ShadCN-based) */}
-      <div className="flex flex-col space-y-1">
+      {/* ---- DATE RANGE PICKER --------------------------------------------- */}
+      <div className="flex flex-col space-y-1 w-full md:w-auto">
         <label className="text-xs text-muted-foreground">Zakres dat</label>
         <DateRangePicker
           from={startDate}
@@ -99,8 +114,11 @@ const HistoryFilters = ({
         />
       </div>
 
+      {/* ---- RESET BUTTON --------------------------------------------------- */}
       <Button
+        type="button"
         variant="secondary"
+        className="w-full md:w-auto"
         onClick={() => {
           setActions(undefined)
           setPerformerId(undefined)
@@ -110,7 +128,7 @@ const HistoryFilters = ({
       >
         Wyczyść filtry
       </Button>
-    </div>
+    </form>
   )
 }
 

@@ -38,7 +38,11 @@ const WarehouseHistoryPage = () => {
   return (
     <MaxWidthWrapper className="space-y-6">
       <PageHeader title="Historia magazynu" />
-      <Button variant="ghost" onClick={() => router.back()} className="">
+      <Button
+        variant="ghost"
+        onClick={() => router.back()}
+        className="mr-auto w-fit"
+      >
         <MdKeyboardArrowLeft />
         Powrót
       </Button>

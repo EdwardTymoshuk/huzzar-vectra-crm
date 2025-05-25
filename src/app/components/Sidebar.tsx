@@ -8,7 +8,7 @@ import SidebarContent from './SidebarContent'
  */
 const Sidebar = () => {
   return (
-    <aside className="hidden md:flex h-screen w-64 bg-secondary text-secondary-foreground flex-col border-r border-border">
+    <aside className="hidden md:flex h-full w-64 bg-secondary text-secondary-foreground flex-col border-r border-border">
       <SidebarContent />
     </aside>
   )

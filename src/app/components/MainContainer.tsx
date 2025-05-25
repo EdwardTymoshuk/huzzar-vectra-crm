@@ -1,3 +1,5 @@
+'use client'
+
 import { cn } from '@/lib/utils'
 import { ReactNode } from 'react'
 
@@ -11,7 +13,7 @@ const MainContainer = ({
   return (
     <main
       className={cn(
-        'flex h-screen w-full flex-row items-stretch bg-background text-foreground overflow-auto',
+        'flex flex-col flex-1 w-full min-h-screen md:h-full md:overflow-y-auto bg-background text-foreground px-2 md:px-6 pt-4',
         className
       )}
     >

@@ -53,7 +53,7 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
   return (
     <>
       <Header />
-      <div className="flex h-screen">
+      <div className="flex md:h-screen md:overflow-hidden">
         <Sidebar />
         <MainContainer>{isSubPage ? children : <ActivePage />}</MainContainer>
       </div>
