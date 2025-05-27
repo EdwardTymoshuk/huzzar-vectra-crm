@@ -110,7 +110,7 @@ export const writeToBufferStyled = async (
   }
 
   // Dynamically set column widths to fit longest content
-  worksheet.columns.forEach((column, i) => {
+  worksheet.columns.forEach((column) => {
     let maxLength = 10
     column.eachCell?.({ includeEmpty: false }, (cell) => {
       const value =
