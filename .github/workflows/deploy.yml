@@ -19,7 +19,7 @@ jobs:
           host: 185.242.135.184 # IP Twojego serwera
           username: root # Jeśli używasz innego użytkownika, zmień na `user`
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-           port: 2223 
+          port: 2223 
           script: |
             cd /var/www/huzzar-vectra-crm
             git pull origin main
