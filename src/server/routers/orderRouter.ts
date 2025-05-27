@@ -66,7 +66,9 @@ export const orderRouter = router({
       const order = await prisma.order.findUnique({
         where: { id: input.id },
         include: {
-          assignedTo: { select: { id: true, name: true } },
+          assignedTo: {
+            select: { id: true, name: true },
+          },
           history: {
             include: {
               changedBy: { select: { id: true, name: true } },
@@ -76,6 +78,12 @@ export const orderRouter = router({
           settlementEntries: {
             include: { rate: true },
           },
+          usedMaterials: {
+            include: {
+              material: true,
+            },
+          },
+          assignedEquipment: true,
         },
       })
 
@@ -649,5 +657,57 @@ export const orderRouter = router({
       return Object.values(techMap).sort((a, b) =>
         a.technicianName.localeCompare(b.technicianName)
       )
+    }),
+
+  getOrderDetails: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+    .input(z.object({ orderId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const order = await prisma.order.findUnique({
+        where: { id: input.orderId },
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+          settlementEntries: {
+            include: {
+              rate: { select: { amount: true } },
+            },
+          },
+          usedMaterials: {
+            include: {
+              material: true,
+            },
+          },
+          assignedEquipment: true,
+        },
+      })
+      if (!order) return null
+
+      const codes = order.settlementEntries.map((entry) => ({
+        code: entry.code,
+        quantity: entry.quantity,
+        amount: (entry.rate?.amount ?? 0) * entry.quantity,
+      }))
+
+      const materials = order.usedMaterials.map((mat) => ({
+        name: mat.material.name,
+        quantity: mat.quantity,
+        unit: mat.unit,
+      }))
+
+      const equipment = order.assignedEquipment.map((item) => ({
+        name: item.name,
+        serialNumber: item.serialNumber,
+      }))
+
+      return {
+        orderId: order.id,
+        technician: order.assignedTo?.name ?? 'Nieznany',
+        status: order.status,
+        closedAt: order.closedAt,
+        failureReason: order.failureReason,
+        notes: order.notes,
+        codes,
+        materials,
+        equipment,
+      }
     }),
 })

@@ -44,22 +44,50 @@ model Order {
   equipmentNeeded   String[]           @default([])
   clientPhoneNumber String?
   notes             String?
+
+  /// order life-cycle
   status            OrderStatus        @default(PENDING)
+  closedAt          DateTime?          /// set when technician marks COMPLETED / NOT_COMPLETED
+  failureReason     String?            /// required only for NOT_COMPLETED
+
+  /// address
   county            String?
   municipality      String?
   city              String
   street            String
   postalCode        String
+
+  /// relations
   assignedToId      String?
+  assignedTo        User?              @relation(fields: [assignedToId], references: [id])
+  settlementEntries OrderSettlementEntry[]
+  usedMaterials     OrderMaterial[]    /// materials consumed on this job
+  assignedEquipment Warehouse[]        @relation("OrderToWarehouse")
+  warehouseHistory  WarehouseHistory[] @relation("OrderToWarehouseHistory")
+  history           OrderHistory[]
+
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  assignedTo        User?              @relation(fields: [assignedToId], references: [id])
-  history           OrderHistory[]
-  warehouseHistory  WarehouseHistory[] @relation("OrderToWarehouseHistory")
-  assignedEquipment Warehouse[]        @relation("OrderToWarehouse")
-  settlementEntries  OrderSettlementEntry[]
 
   @@unique([orderNumber, date])
+}
+
+/// Material consumed during order execution.
+model OrderMaterial {
+  id          String @id @default(uuid())
+
+  /// order reference
+  orderId     String
+  order       Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// material reference (definition)
+  materialId  String
+  material    MaterialDefinition @relation("MaterialToOrderMaterial", fields: [materialId], references: [id])
+
+  quantity    Int
+  unit        MaterialUnit
+
+  @@index([orderId])
 }
 
 model OrderSettlementEntry {
@@ -73,6 +101,8 @@ model OrderSettlementEntry {
 
   @@index([orderId])
 }
+
+
 
 
 /// Tracks changes in order statuses.
@@ -131,6 +161,9 @@ model MaterialDefinition {
   unit         MaterialUnit @default(PIECE)
   index        String?
   price        Float?       @default(0)
+  
+  /// materials consumed in orders
+  orderMaterials OrderMaterial[] @relation("MaterialToOrderMaterial")
 }
 
 model OperatorDefinition {

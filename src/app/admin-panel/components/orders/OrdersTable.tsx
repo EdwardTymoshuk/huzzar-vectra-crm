@@ -2,6 +2,12 @@
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/app/components/ui/accordion'
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,14 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/app/components/ui/table'
 import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
@@ -49,416 +47,387 @@ import {
 } from 'react-icons/ti'
 import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
+import OrderAccordionDetails from './OrderAccordionDetails'
 import OrderDetailsPanel from './OrderDetailsPanel'
 import OrdersFilterSort from './OrdersFilter'
 
+/* --------------------------- types ---------------------------------- */
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
-  include: {
-    assignedTo: {
-      select: {
-        id: true
-        name: true
-      }
-    }
-  }
+  include: { assignedTo: { select: { id: true; name: true } } }
 }>
-
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
+type Props = { searchTerm: string }
 
-type Props = {
-  searchTerm: string
-}
-
+/* --------------------------- component ------------------------------ */
 const OrdersTable = ({ searchTerm }: Props) => {
-  // Current pagination page
+  /* local state ----------------------------------------------------- */
   const [currentPage, setCurrentPage] = useState(1)
-  // How many items per page
   const [itemsPerPage, setItemsPerPage] = useState(30)
-  // Local states for sorting
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
-
-  // States for filters
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
   const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | null>(null)
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
+  const [editingTechId, setEditingTechId] = useState<string | null>(null)
+  const [openRowId, setOpenRowId] = useState<string | null>(null)
 
-  // State for details panel
+  /* dialogs / side-panels ------------------------------------------- */
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
-
-  // State for "edit order" modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
     null
   )
-
-  // Inline edit states (double click on cells)
-  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
-  const [editingTechId, setEditingTechId] = useState<string | null>(null)
-
-  // Deletion states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [orderToDelete, setOrderToDelete] =
     useState<OrderWithAssignedTo | null>(null)
 
-  const trpcUtils = trpc.useUtils()
+  /* grid konfiguration */
+  const GRID =
+    'grid grid-cols-[120px_90px_140px_110px_120px_110px_minmax(260px,2fr)_minmax(160px,1fr)_max-content]'
 
-  // tRPC queries
+  /* data ------------------------------------------------------------ */
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
-    // Only send sort params if not null
     ...(sortField ? { sortField, sortOrder: sortOrder ?? 'asc' } : {}),
     status: statusFilter || undefined,
     assignedToId: technicianFilter || undefined,
     type: orderTypeFilter || undefined,
   })
 
-  // We store the actual orders from the query
-  const orders = useMemo(() => {
-    return (data?.orders ?? []) as OrderWithAssignedTo[]
-  }, [data?.orders])
+  const orders = useMemo(
+    () => (data?.orders ?? []) as OrderWithAssignedTo[],
+    [data?.orders]
+  )
 
-  // Calculate total pages based on totalOrders
   const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
-
-  // If the user is on a page > totalPages, we correct it automatically
   useEffect(() => {
-    // Example: if current page is bigger than totalPages, jump back to last page
-    // You could also do `setCurrentPage(1)` if you always want to go back to page 1
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
+    if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  // For listing technicians
-  const { data: technicians } = trpc.user.getTechnicians?.useQuery() || {
-    data: [],
-  }
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
 
-  // Searching on the client side as well
-  const filteredOrders = useMemo(() => {
-    return orders.filter(
-      (order) =>
-        order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        `${order.city} ${order.street}`
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-    )
-  }, [orders, searchTerm])
+  const filtered = useMemo(
+    () =>
+      orders.filter(
+        (o) =>
+          o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          `${o.city} ${o.street}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
+      ),
+    [orders, searchTerm]
+  )
 
-  // Function to cycle sort states (null => asc => desc => null)
+  /* mutations -------------------------------------------------------- */
+  const utils = trpc.useUtils()
+  const updateStatus = trpc.order.toggleOrderStatus.useMutation()
+  const deleteOrder = trpc.order.deleteOrder.useMutation()
+  const assignTech = trpc.order.assignTechnician?.useMutation()
+
+  /* handlers --------------------------------------------------------- */
   const handleSort = (field: 'date' | 'status') => {
     if (sortField !== field) {
       setSortField(field)
       setSortOrder('asc')
     } else {
-      if (sortOrder === 'asc') {
-        setSortOrder('desc')
-      } else if (sortOrder === 'desc') {
-        setSortField(null)
-        setSortOrder(null)
-      } else {
-        setSortOrder('asc')
-      }
+      setSortOrder(
+        sortOrder === 'asc' ? 'desc' : sortOrder === 'desc' ? null : 'asc'
+      )
+      if (sortOrder === 'desc') setSortField(null)
     }
   }
 
-  // Open "Edit order" modal
-  const handleEditOrder = (order: OrderWithAssignedTo) => {
-    setEditingOrder({
-      ...order,
-      assignedTo: order.assignedTo || null,
-    })
-    setIsEditModalOpen(true)
-  }
-
-  // Delete confirmation dialog
-  const handleDeleteOrder = (order: OrderWithAssignedTo) => {
-    setOrderToDelete(order)
-    setIsDeleteModalOpen(true)
-  }
-  const confirmDeleteOrder = async () => {
-    if (!orderToDelete) return
-    await deleteOrderMutation.mutateAsync({ id: orderToDelete.id })
-    setIsDeleteModalOpen(false)
-    setOrderToDelete(null)
-    trpcUtils.order.getOrders.invalidate()
-  }
-
-  // Mutations
-  const updateStatusMutation = trpc.order.toggleOrderStatus.useMutation()
-  const deleteOrderMutation = trpc.order.deleteOrder.useMutation()
-  const assignTechMutation = trpc.order.assignTechnician?.useMutation()
-
-  // In-line status change
-  const handleStatusChange = async (
-    orderId: string,
-    newStatus: OrderStatus
-  ) => {
-    const order = orders.find((o) => o.id === orderId)
-    if (!order) return
-
-    const finalStatus =
-      newStatus === OrderStatus.PENDING && order.assignedToId
-        ? OrderStatus.ASSIGNED
-        : newStatus
-
-    await updateStatusMutation.mutateAsync({ id: orderId, status: finalStatus })
-
-    trpcUtils.order.getOrders.invalidate()
-    setEditingStatusId(null)
-  }
-
-  // In-line technician change
-  const handleTechChange = async (orderId: string, newTechId: string) => {
-    if (!assignTechMutation) {
-      console.warn('No "assignTechnician" mutation found in the router.')
-      setEditingTechId(null)
-      return
-    }
-    const assignedToId = newTechId === 'none' ? undefined : newTechId
-    await assignTechMutation.mutateAsync({ id: orderId, assignedToId })
-    trpcUtils.order.getOrders.invalidate()
-    setEditingTechId(null)
-  }
+  /* ------------------------------------------------------------------ */
+  /* ----------------------------- RENDER ----------------------------- */
+  /* ------------------------------------------------------------------ */
 
   return (
     <div>
-      <div className="flex flex-row items-center w-full justify-between py-4">
-        {/* Top filters */}
+      {/* Filters & page size */}
+      <div className="flex items-center justify-between py-4">
         <OrdersFilterSort
           setStatusFilter={setStatusFilter}
           setTechnicianFilter={setTechnicianFilter}
           setOrderTypeFilter={setOrderTypeFilter}
         />
-
-        {/* Items per page controls */}
-        <div className="flex justify-end gap-2">
-          {[30, 50, 100].map((size) => (
+        <div className="flex gap-2">
+          {[30, 50, 100].map((n) => (
             <Button
-              key={size}
-              variant={itemsPerPage === size ? 'default' : 'outline'}
-              onClick={() => setItemsPerPage(size)}
+              key={n}
+              variant={itemsPerPage === n ? 'default' : 'outline'}
+              onClick={() => setItemsPerPage(n)}
             >
-              {size}
+              {n}
             </Button>
           ))}
         </div>
       </div>
 
-      <Table className="border rounded-lg">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Operator</TableHead>
-            <TableHead>Typ</TableHead>
-            <TableHead>Nr zlecenia</TableHead>
-            <TableHead
+      {/* Scroll wrapper */}
+      <div className="w-full min-w-[1250px] overflow-x-auto">
+        <div className=" w-full">
+          {/* HEADER – 9 columns (ostatnia 32 px na chevron) */}
+          <div
+            className={`${GRID} gap-2 px-4 py-2 border-b text-sm text-start font-normal text-muted-foreground select-none`}
+          >
+            <span>Operator</span>
+            <span>Typ</span>
+            <span>Nr zlecenia</span>
+
+            <span
+              className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('date')}
-              className="cursor-pointer whitespace-nowrap px-4 py-2"
             >
-              <div className="flex items-center gap-1">
-                <span>Data</span>
-                {sortField === 'date' ? (
-                  sortOrder === 'asc' ? (
-                    <TiArrowSortedUp className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <TiArrowSortedDown className="w-4 h-4 text-gray-500" />
-                  )
+              Data
+              {sortField === 'date' ? (
+                sortOrder === 'asc' ? (
+                  <TiArrowSortedUp />
                 ) : (
-                  <TiArrowUnsorted className="w-4 h-4 text-gray-300 hover:text-gray-400" />
-                )}
-              </div>
-            </TableHead>
+                  <TiArrowSortedDown />
+                )
+              ) : (
+                <TiArrowUnsorted className="opacity-60" />
+              )}
+            </span>
 
-            <TableHead
+            <span
+              className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('status')}
-              className="cursor-pointer whitespace-nowrap px-4 py-2"
             >
-              <div className="flex items-center gap-1">
-                <span>Status</span>
-                {sortField === 'status' ? (
-                  sortOrder === 'asc' ? (
-                    <TiArrowSortedUp className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <TiArrowSortedDown className="w-4 h-4 text-gray-500" />
-                  )
+              Status
+              {sortField === 'status' ? (
+                sortOrder === 'asc' ? (
+                  <TiArrowSortedUp />
                 ) : (
-                  <TiArrowUnsorted className="w-4 h-4 text-gray-300 hover:text-gray-400" />
-                )}
-              </div>
-            </TableHead>
-            <TableHead>Slot czasowy</TableHead>
-            <TableHead>Adres</TableHead>
-            <TableHead>Technik</TableHead>
-            <TableHead>Akcje</TableHead>
-          </TableRow>
-        </TableHeader>
+                  <TiArrowSortedDown />
+                )
+              ) : (
+                <TiArrowUnsorted className="opacity-60" />
+              )}
+            </span>
 
-        <TableBody>
+            <span>Slot</span>
+            <span>Adres</span>
+            <span>Technik</span>
+            <span>Akcje</span>
+            <span />
+          </div>
+
+          {/* LISTA / STANY */}
           {isLoading ? (
-            <TableRow>
-              <TableCell colSpan={8} className="text-center">
-                <LoaderSpinner />
-              </TableCell>
-            </TableRow>
+            <div className="py-10 text-center">
+              <LoaderSpinner />
+            </div>
           ) : isError ? (
-            <TableRow>
-              <TableCell colSpan={8} className="text-center text-danger">
-                Błąd ładowania danych.
-              </TableCell>
-            </TableRow>
-          ) : orders.length ? (
-            filteredOrders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell>{order.operator}</TableCell>
-                <TableCell>{orderTypeMap[order.type]}</TableCell>
-                <TableCell>
-                  <Highlight
-                    highlightClassName="bg-yellow-200"
-                    searchWords={[searchTerm]}
-                    autoEscape={true}
-                    textToHighlight={order.orderNumber}
-                  />
-                </TableCell>
-                <TableCell>
-                  {new Date(order.date).toLocaleDateString()}
-                </TableCell>
-                {/* STATUS - in-line editing */}
-                <TableCell
-                  onDoubleClick={() => setEditingStatusId(order.id)}
-                  className="cursor-pointer"
-                >
-                  {editingStatusId === order.id ? (
-                    <Select
-                      defaultValue={order.status}
-                      onValueChange={(value) =>
-                        handleStatusChange(order.id, value as OrderStatus)
-                      }
-                      onOpenChange={(isOpen) => {
-                        if (!isOpen) {
-                          setEditingStatusId(null)
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(statusMap).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge className={statusColorMap[order.status]}>
-                      {statusMap[order.status]}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-nowrap">
-                  {getTimeSlotLabel(order.timeSlot)}
-                </TableCell>
-                <TableCell>
-                  <Highlight
-                    highlightClassName="bg-yellow-200"
-                    searchWords={[searchTerm]}
-                    autoEscape={true}
-                    textToHighlight={`${order.city}, ${order.street}`}
-                  />
-                </TableCell>
-
-                {/* TECHNICIAN - in-line editing */}
-                <TableCell
-                  onDoubleClick={() => setEditingTechId(order.id)}
-                  className="cursor-pointer"
-                >
-                  {editingTechId === order.id ? (
-                    <Select
-                      defaultValue={
-                        order.assignedTo?.id ? order.assignedTo.id : 'none'
-                      }
-                      onValueChange={(value) =>
-                        handleTechChange(order.id, value)
-                      }
-                      onOpenChange={(isOpen) => {
-                        if (!isOpen) {
-                          setEditingTechId(null)
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nieprzypisany</SelectItem>
-                        {technicians?.map((tech) => (
-                          <SelectItem key={tech.id} value={tech.id}>
-                            {tech.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : order.assignedTo ? (
-                    <Badge className="bg-secondary hover:bg-secondary/80 text-center">
-                      {order.assignedTo.name}
-                    </Badge>
-                  ) : (
-                    'Nieprzypisany'
-                  )}
-                </TableCell>
-
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost">
-                        <PiDotsThreeOutlineVerticalFill className="w-6 h-6" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-background text-foreground border border-border shadow-md cursor-pointer !bg-opacity-100 !backdrop-blur-none">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedOrderId(order.id)
-                          setIsPanelOpen(true)
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <MdVisibility className="w-4 h-4 mr-2 text-warning" />
-                        Podgląd
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleEditOrder(order)}
-                        className="cursor-pointer"
-                      >
-                        <MdEdit className="w-4 h-4 mr-2 text-success" />
-                        Edytuj
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteOrder(order)}
-                        className="text-danger cursor-pointer"
-                      >
-                        <MdDelete className="w-4 h-4 mr-2 text-danger" />
-                        Usuń
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
+            <p className="py-10 text-center text-danger">
+              Błąd ładowania danych.
+            </p>
+          ) : !filtered.length ? (
+            <p className="py-10 text-center text-muted-foreground">
+              Brak danych do wyświetlenia.
+            </p>
           ) : (
-            <TableRow>
-              <TableCell colSpan={8} className="text-center">
-                Brak danych do wyświetlenia.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            <Accordion type="multiple">
+              {filtered.map((o) => {
+                const open = openRowId === o.id
 
+                return (
+                  <AccordionItem key={o.id} value={o.id}>
+                    {/* ROW (Trigger) */}
+                    <AccordionTrigger
+                      className=" px-4 py-3 hover:bg-muted/50 justify-start"
+                      onClick={() => setOpenRowId(open ? null : o.id)}
+                    >
+                      <div
+                        className={`${GRID} w-full gap-2 items-center text-start text-sm`}
+                      >
+                        <span>{o.operator}</span>
+                        <span>{orderTypeMap[o.type]}</span>
+
+                        <span
+                          className="min-w-0 whitespace-normal break-words"
+                          title={o.orderNumber}
+                        >
+                          <Highlight
+                            searchWords={[searchTerm]}
+                            textToHighlight={o.orderNumber}
+                            autoEscape
+                          />
+                        </span>
+
+                        <span>{new Date(o.date).toLocaleDateString()}</span>
+
+                        {/* status (inline) */}
+                        <span
+                          onDoubleClick={(e) => {
+                            e.stopPropagation()
+                            setEditingStatusId(o.id)
+                          }}
+                        >
+                          {editingStatusId === o.id ? (
+                            <Select
+                              defaultValue={o.status}
+                              onValueChange={(v) =>
+                                updateStatus.mutate(
+                                  { id: o.id, status: v as OrderStatus },
+                                  {
+                                    onSuccess: () =>
+                                      utils.order.getOrders.invalidate(),
+                                  }
+                                )
+                              }
+                              onOpenChange={(isO) =>
+                                !isO && setEditingStatusId(null)
+                              }
+                            >
+                              <SelectTrigger className="w-[110px] h-7">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(statusMap).map(([k, l]) => (
+                                  <SelectItem key={k} value={k}>
+                                    {l}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge
+                              className={statusColorMap[o.status] + ' w-fit'}
+                            >
+                              {statusMap[o.status]}
+                            </Badge>
+                          )}
+                        </span>
+
+                        <span>{getTimeSlotLabel(o.timeSlot)}</span>
+
+                        {/* Adres */}
+                        <span
+                          className="min-w-0 w-full whitespace-normal break-words"
+                          title={`${o.city}, ${o.street}`}
+                        >
+                          <Highlight
+                            searchWords={[searchTerm]}
+                            textToHighlight={`${o.city}, ${o.street}`}
+                            autoEscape
+                          />
+                        </span>
+
+                        {/* technician (inline) */}
+                        <span
+                          onDoubleClick={(e) => {
+                            e.stopPropagation()
+                            setEditingTechId(o.id)
+                          }}
+                        >
+                          {editingTechId === o.id ? (
+                            <Select
+                              defaultValue={o.assignedTo?.id || 'none'}
+                              onValueChange={(v) =>
+                                assignTech?.mutate(
+                                  {
+                                    id: o.id,
+                                    assignedToId: v === 'none' ? undefined : v,
+                                  },
+                                  {
+                                    onSuccess: () =>
+                                      utils.order.getOrders.invalidate(),
+                                  }
+                                )
+                              }
+                              onOpenChange={(isO) =>
+                                !isO && setEditingTechId(null)
+                              }
+                            >
+                              <SelectTrigger className="w-[150px] h-7">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">
+                                  Nieprzypisany
+                                </SelectItem>
+                                {technicians.map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>
+                                    {t.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : o.assignedTo ? (
+                            <Badge className="bg-secondary">
+                              {o.assignedTo.name}
+                            </Badge>
+                          ) : (
+                            <span className="italic text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                        </span>
+
+                        {/* actions */}
+                        <span className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost">
+                                <PiDotsThreeOutlineVerticalFill className="w-5 h-5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-background">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedOrderId(o.id)
+                                  setIsPanelOpen(true)
+                                }}
+                              >
+                                <MdVisibility className="mr-2 w-4 h-4 text-warning" />
+                                Podgląd
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingOrder(o)
+                                  setIsEditModalOpen(true)
+                                }}
+                              >
+                                <MdEdit className="mr-2 w-4 h-4 text-success" />
+                                Edytuj
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOrderToDelete(o)
+                                  setIsDeleteModalOpen(true)
+                                }}
+                                className="text-danger"
+                              >
+                                <MdDelete className="mr-2 w-4 h-4 text-danger" />
+                                Usuń
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+
+                    {/* DETAILS */}
+                    <AccordionContent className="bg-muted/40 px-4 py-3">
+                      <OrderAccordionDetails order={{ id: o.id }} />
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              })}
+            </Accordion>
+          )}
+        </div>
+      </div>
+
+      {/* PAGINATION */}
       {data && (
         <PaginationControls
           page={currentPage}
@@ -467,14 +436,14 @@ const OrdersTable = ({ searchTerm }: Props) => {
         />
       )}
 
-      {/* Order details side panel */}
+      {/* SIDE PANEL */}
       <OrderDetailsPanel
         orderId={selectedOrderId}
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
       />
 
-      {/* Edit modal */}
+      {/* EDIT MODAL */}
       {isEditModalOpen && editingOrder && (
         <EditOrderModal
           open={isEditModalOpen}
@@ -483,7 +452,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
         />
       )}
 
-      {/* DELETE ALERT DIALOG */}
+      {/* DELETE DIALOG */}
       <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -491,12 +460,10 @@ const OrdersTable = ({ searchTerm }: Props) => {
               Czy na pewno chcesz usunąć to zlecenie?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="text-danger text-base">
-                Usunięcie tego zlecenia jest nieodwracalne.
-              </span>
+              Tej operacji nie można cofnąć.
               <br />
+              <strong>Nr:</strong> {orderToDelete?.orderNumber}
               <br />
-              <strong>Nr zlecenia:</strong> {orderToDelete?.orderNumber} <br />
               <strong>Adres:</strong> {orderToDelete?.city},{' '}
               {orderToDelete?.street}
             </AlertDialogDescription>
@@ -504,8 +471,13 @@ const OrdersTable = ({ searchTerm }: Props) => {
           <AlertDialogFooter>
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteOrder}
               className="bg-danger text-white hover:bg-danger/80"
+              onClick={async () => {
+                if (!orderToDelete) return
+                await deleteOrder.mutateAsync({ id: orderToDelete.id })
+                utils.order.getOrders.invalidate()
+                setIsDeleteModalOpen(false)
+              }}
             >
               Usuń
             </AlertDialogAction>
