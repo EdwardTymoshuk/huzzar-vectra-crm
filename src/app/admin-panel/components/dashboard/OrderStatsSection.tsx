@@ -16,7 +16,9 @@ const COLORS = ['#16a34a', '#dc2626'] // zielony, czerwony
 
 const OrderStatsSection = ({ date, range }: Props) => {
   const { data, isLoading, isError } = trpc.order.getOrderStats.useQuery({
-    date: date?.toISOString() ?? new Date().toISOString(),
+    date: date
+      ? date.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
     range,
   })
 

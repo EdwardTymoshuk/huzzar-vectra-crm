@@ -446,12 +446,13 @@ export const orderRouter = router({
   getOrderStats: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
     .input(
       z.object({
-        date: z.string(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         range: z.enum(['day', 'month', 'year']),
       })
     )
     .query(async ({ input }) => {
-      const date = new Date(input.date)
+      const [y, m, d] = input.date.split('-').map(Number)
+      const date = new Date(y, m - 1, d)
 
       const getRange = (d: Date, r: 'day' | 'month' | 'year') => {
         const start = new Date(d)

@@ -5,6 +5,7 @@ import MainContainer from '@/app/components/MainContainer'
 import Sidebar from '@/app/components/Sidebar'
 import dynamic from 'next/dynamic'
 import { usePathname, useSearchParams } from 'next/navigation'
+import RouteProgress from './shared/RouteProgress'
 
 // Lazy-load all tabbed routes
 const pages: Record<string, React.ComponentType> = {
@@ -52,6 +53,7 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <>
+      <RouteProgress />
       <Header />
       <div className="flex md:h-screen md:overflow-hidden">
         <Sidebar />
