@@ -3,6 +3,7 @@
 import { Badge } from '@/app/components/ui/badge'
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { buildDateParam } from '@/utils/buildDateParam'
 import { trpc } from '@/utils/trpc'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
@@ -15,10 +16,10 @@ type Props = {
 const COLORS = ['#16a34a', '#dc2626'] // zielony, czerwony
 
 const OrderStatsSection = ({ date, range }: Props) => {
+  const dateParam = buildDateParam(date, range)
+
   const { data, isLoading, isError } = trpc.order.getOrderStats.useQuery({
-    date: date
-      ? date.toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
+    date: dateParam,
     range,
   })
 
