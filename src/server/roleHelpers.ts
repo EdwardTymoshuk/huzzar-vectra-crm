@@ -1,11 +1,10 @@
+// src/server/roleHelper.ts
+
 import type { Role } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { t } from './trpc'
 
-/**
- * Middleware factory that ensures the user has one of the specified roles.
- * Accepts a list of roles and checks against ctx.user.role.
- */
+/* ---------- Middleware factory for role validation ---------- */
 export const requireRole = (...allowed: Role[]) =>
   t.middleware(({ ctx, next }) => {
     const role = ctx.user?.role
@@ -15,13 +14,28 @@ export const requireRole = (...allowed: Role[]) =>
     return next()
   })
 
-/** Procedure only accessible by users with the ADMIN role */
+/* ---------- Handy role presets ---------- */
+
+// 👑 Full access for admin only
 export const adminOnly = t.procedure.use(requireRole('ADMIN'))
 
-/** Procedure accessible by users with either ADMIN or COORDINATOR role */
+// 🔧 Admin + Coordinator
 export const adminOrCoord = t.procedure.use(requireRole('ADMIN', 'COORDINATOR'))
 
-/** Procedure accessible by any authenticated role */
+// 📦 Admin + Warehouseman
+export const adminOrWarehouse = t.procedure.use(
+  requireRole('ADMIN', 'WAREHOUSEMAN')
+)
+
+// 🔧 Admin + Coordinator + Warehouseman
+export const adminCoordOrWarehouse = t.procedure.use(
+  requireRole('ADMIN', 'COORDINATOR', 'WAREHOUSEMAN')
+)
+
+// 🧑‍🔧 Technician only
+export const technicianOnly = t.procedure.use(requireRole('TECHNICIAN'))
+
+// ✅ All authenticated roles (including read-only users)
 export const loggedInEveryone = t.procedure.use(
   requireRole('ADMIN', 'COORDINATOR', 'TECHNICIAN', 'WAREHOUSEMAN', 'USER')
 )

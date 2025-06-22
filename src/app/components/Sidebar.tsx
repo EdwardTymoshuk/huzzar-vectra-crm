@@ -1,15 +1,23 @@
 'use client'
 
+import { useSession } from 'next-auth/react'
+import SidebarContentTechnician from '../(technician)/components/SidebarContentTechnician'
 import SidebarContent from './SidebarContent'
 
 /**
- * Sidebar component wraps the dynamic SidebarContent
- * and provides a consistent layout.
+ * Sidebar component renders the correct sidebar content
+ * depending on the current user's role.
  */
 const Sidebar = () => {
+  const { data: session, status } = useSession()
+
+  if (!session?.user) return null
+
+  const isTechnician = session.user.role === 'TECHNICIAN'
+
   return (
     <aside className="hidden md:flex h-full w-64 bg-secondary text-secondary-foreground flex-col border-r border-border">
-      <SidebarContent />
+      {isTechnician ? <SidebarContentTechnician /> : <SidebarContent />}
     </aside>
   )
 }

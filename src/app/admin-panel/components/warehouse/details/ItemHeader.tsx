@@ -2,11 +2,12 @@
 
 import { Card } from '@/app/components/ui/card'
 import { devicesTypeMap } from '@/lib/constants'
+import { WarehouseWithRelations } from '@/types'
 import { Warehouse } from '@prisma/client'
 import { useEffect, useState } from 'react'
 
 type Props = {
-  items: Warehouse[]
+  items: WarehouseWithRelations[]
 }
 
 /**
@@ -27,10 +28,16 @@ const ItemHeader = ({ items }: Props) => {
   const isDevice = firstItem.itemType === 'DEVICE'
 
   const warehouseItems = items.filter(
-    (i) => i.status === 'AVAILABLE' && !i.assignedToId && !i.assignedOrderId
+    (i) =>
+      i.status === 'AVAILABLE' &&
+      !i.assignedToId &&
+      i.orderAssignments.length === 0
   )
   const technicianItems = items.filter(
-    (i) => i.status === 'ASSIGNED' && i.assignedToId && !i.assignedOrderId
+    (i) =>
+      i.status === 'ASSIGNED' &&
+      !!i.assignedToId &&
+      i.orderAssignments.length === 0
   )
 
   const warehouseCount = isDevice
@@ -42,9 +49,9 @@ const ItemHeader = ({ items }: Props) => {
     : technicianItems.reduce((sum, i) => sum + i.quantity, 0)
 
   const usedOnOrders = isDevice
-    ? items.filter((i) => i.assignedOrderId !== null).length
+    ? items.filter((i) => i.orderAssignments.length > 0).length
     : items
-        .filter((i) => i.assignedOrderId !== null)
+        .filter((i) => i.orderAssignments.length > 0)
         .reduce((sum, i) => sum + i.quantity, 0)
 
   const price = firstItem.price?.toFixed(2) ?? '—'

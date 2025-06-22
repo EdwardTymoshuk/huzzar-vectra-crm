@@ -104,7 +104,14 @@ export const orderSchema = z.object({
   county: z.string().optional(),
   municipality: z.string().optional(),
   assignedToId: z.string().optional(),
-  clientPhoneNumber: z.string().optional(),
+  clientPhoneNumber: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (val) => !val || /^(\+48)?\d{9}$/.test(val),
+      'Nieprawidłowy numer telefonu'
+    ),
   notes: z.string().optional(),
 
   /**

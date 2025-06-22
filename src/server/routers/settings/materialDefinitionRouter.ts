@@ -1,36 +1,33 @@
 // src/server/routers/materialDefinitionRouter.ts
 import { materialSchema } from '@/lib/schema'
+import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
-import { roleProtectedProcedure } from '../../middleware'
 import { router } from '../../trpc'
 
 export const materialDefinitionRouter = router({
-  // 📦 Get all material definitions
-  getAll: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN']).query(() => {
+  // 📦 Get all material definitions (accessible by everyone logged in)
+  getAll: loggedInEveryone.query(() => {
     return prisma.materialDefinition.findMany({
       orderBy: { name: 'asc' },
     })
   }),
+  // ➕ Create new material definition
+  create: adminOrCoord.input(materialSchema).mutation(({ input }) => {
+    return prisma.materialDefinition.create({
+      data: {
+        name: input.name.trim(),
+        unit: input.unit,
+        index: input.index.trim(),
+        warningAlert: input.warningAlert,
+        alarmAlert: input.alarmAlert,
+        price: input.price,
+      },
+    })
+  }),
 
-  // ➕ Create a new material definition
-  create: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
-    .input(materialSchema)
-    .mutation(({ input }) => {
-      return prisma.materialDefinition.create({
-        data: {
-          name: input.name.trim(),
-          unit: input.unit,
-          index: input.index.trim(),
-          warningAlert: input.warningAlert,
-          alarmAlert: input.alarmAlert,
-          price: input.price,
-        },
-      })
-    }),
-
-  // 📝 Edit an existing material definition
-  edit: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+  // 📝 Edit existing material definition
+  edit: adminOrCoord
     .input(
       z
         .object({
@@ -61,8 +58,8 @@ export const materialDefinitionRouter = router({
       })
     }),
 
-  // ❌ Delete a material definition
-  delete: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+  // ❌ Delete material definition
+  delete: adminOrCoord
     .input(z.object({ id: z.string() }))
     .mutation(({ input }) => {
       return prisma.materialDefinition.delete({

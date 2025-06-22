@@ -1,27 +1,25 @@
+import { router } from '@/server/trpc'
+
 import { prisma } from '@/utils/prisma'
 import { OrderStatus } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
-import { protectedProcedure, roleProtectedProcedure } from '../middleware'
-import { router } from '../trpc'
+import { adminOnly, adminOrCoord, loggedInEveryone } from '../roleHelpers'
 
 export const userRouter = router({
-  // Fetch the currently logged-in user
-  me: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' })
-    }
-
+  /** Current logged-in user */
+  me: loggedInEveryone.query(({ ctx }) => {
+    if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' })
     return prisma.user.findUnique({
       where: { id: ctx.user.id },
       select: { id: true, email: true, name: true, role: true, status: true },
     })
   }),
 
-  // Fetch all technicians
-  getTechnicians: roleProtectedProcedure(['ADMIN']).query(async () => {
-    return prisma.user.findMany({
+  /** List of technicians (admin only) */
+  getTechnicians: loggedInEveryone.query(() =>
+    prisma.user.findMany({
       where: { role: 'TECHNICIAN' },
       orderBy: { name: 'asc' },
       select: {
@@ -34,16 +32,12 @@ export const userRouter = router({
         identyficator: true,
       },
     })
-  }),
+  ),
 
-  // Fetch all administrators (Coordinator, Warehouseman, Admin)
-  getAdmins: roleProtectedProcedure(['ADMIN']).query(async () => {
-    return prisma.user.findMany({
-      where: {
-        role: {
-          in: ['COORDINATOR', 'WAREHOUSEMAN', 'ADMIN'],
-        },
-      },
+  /** List of coordinators / warehousemen / admins */
+  getAdmins: adminOnly.query(() =>
+    prisma.user.findMany({
+      where: { role: { in: ['COORDINATOR', 'WAREHOUSEMAN', 'ADMIN'] } },
       select: {
         id: true,
         email: true,
@@ -53,10 +47,10 @@ export const userRouter = router({
         status: true,
       },
     })
-  }),
+  ),
 
-  // Fetch a user by ID (Admin only)
-  getUserById: roleProtectedProcedure(['ADMIN'])
+  /** Single user by ID */
+  getUserById: adminOnly
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       const user = await prisma.user.findUnique({
@@ -71,19 +65,16 @@ export const userRouter = router({
           identyficator: true,
         },
       })
-
-      if (!user) {
+      if (!user)
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Użytkownik nie istnieje.',
         })
-      }
-
       return user
     }),
 
-  // Create a new user (Admin only)
-  createUser: roleProtectedProcedure(['ADMIN'])
+  /** Create new user */
+  createUser: adminOnly
     .input(
       z.object({
         name: z.string().min(2),
@@ -97,12 +88,12 @@ export const userRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const hashedPassword = await bcrypt.hash(input.password, 10)
+      const hashed = await bcrypt.hash(input.password, 10)
       return prisma.user.create({
         data: {
           name: input.name,
           email: input.email,
-          password: hashedPassword,
+          password: hashed,
           phoneNumber: input.phoneNumber,
           identyficator: input.identyficator,
           role: input.role,
@@ -111,83 +102,58 @@ export const userRouter = router({
       })
     }),
 
-  // Edit a user including password update (Admin only)
-  editUser: roleProtectedProcedure(['ADMIN'])
+  /** Edit user, optional password/role update */
+  editUser: adminOnly
     .input(
       z.object({
         id: z.string(),
         name: z.string().min(2),
         email: z.string().email(),
         phoneNumber: z.string(),
-        // password remains optional
         password: z
           .string()
-          .min(8, 'Hasło musi mieć co najmniej 8 znaków')
-          .max(32, 'Hasło nie może mieć więcej niż 32 znaki')
-          .regex(/[a-z]/, 'Hasło musi zawierać małą literę')
-          .regex(/[A-Z]/, 'Hasło musi zawierać wielką literę')
-          .regex(/\d/, 'Hasło musi zawierać cyfrę')
-          .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Hasło musi zawierać znak specjalny')
+          .min(8)
+          .max(32)
+          .regex(/[a-z]/)
+          .regex(/[A-Z]/)
+          .regex(/\d/)
+          .regex(/[!@#$%^&*()_+{}[\]<>?]/)
           .optional(),
-        // Add role as well (optional if user doesn't want to change role)
         role: z
           .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
           .optional(),
       })
     )
     .mutation(async ({ input }) => {
-      // Build update data
-      const updateData: Partial<{
-        name: string
-        email: string
-        phoneNumber: string
-        password: string
-        role: 'ADMIN' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN'
-      }> = {
+      const data: any = {
         name: input.name,
         email: input.email,
         phoneNumber: input.phoneNumber,
       }
-
-      if (input.password && input.password.trim().length > 0) {
-        const hashedPassword = await bcrypt.hash(input.password, 10)
-        updateData.password = hashedPassword
-      }
-
-      if (input.role) {
-        updateData.role = input.role
-      }
-
-      return prisma.user.update({
-        where: { id: input.id },
-        data: updateData,
-      })
+      if (input.password) data.password = await bcrypt.hash(input.password, 10)
+      if (input.role) data.role = input.role
+      return prisma.user.update({ where: { id: input.id }, data })
     }),
-  // user role status change
-  toggleUserStatus: roleProtectedProcedure(['ADMIN'])
+
+  /** Toggle ACTIVE / SUSPENDED */
+  toggleUserStatus: adminOnly
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       const user = await prisma.user.findUnique({ where: { id: input.id } })
       if (!user) throw new Error('Użytkownik nie istnieje')
-
-      const updatedUser = await prisma.user.update({
+      return prisma.user.update({
         where: { id: input.id },
         data: { status: user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' },
       })
-      return updatedUser
     }),
 
-  // Delete a user by ID (Admin only)
-  deleteUser: roleProtectedProcedure(['ADMIN'])
+  /** Delete user */
+  deleteUser: adminOnly
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
-      return prisma.user.delete({
-        where: { id: input.id },
-      })
-    }),
+    .mutation(({ input }) => prisma.user.delete({ where: { id: input.id } })),
 
-  // Get yechnician efficiency
-  getTechnicianEfficiency: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+  /** Technician efficiency */
+  getTechnicianEfficiency: adminOrCoord
     .input(
       z.object({
         date: z.string(),
@@ -195,9 +161,9 @@ export const userRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const date = new Date(input.date)
-      const start = new Date(date)
-      const end = new Date(date)
+      const base = new Date(input.date)
+      const start = new Date(base)
+      const end = new Date(base)
 
       if (input.range === 'day') {
         start.setHours(0, 0, 0, 0)
@@ -207,24 +173,24 @@ export const userRouter = router({
         start.setHours(0, 0, 0, 0)
         end.setMonth(end.getMonth() + 1, 0)
         end.setHours(23, 59, 59, 999)
-      } else if (input.range === 'year') {
+      } else {
         start.setMonth(0, 1)
         start.setHours(0, 0, 0, 0)
         end.setMonth(11, 31)
         end.setHours(23, 59, 59, 999)
       }
 
-      const relevantStatuses: OrderStatus[] = [
+      const relevant: OrderStatus[] = [
         'COMPLETED',
         'NOT_COMPLETED',
         'IN_PROGRESS',
         'CANCELED',
       ]
 
-      const orders = await prisma.order.findMany({
+      const rows = await prisma.order.findMany({
         where: {
           assignedToId: { not: null },
-          status: { in: relevantStatuses },
+          status: { in: relevant },
           date: { gte: start, lte: end },
         },
         select: {
@@ -234,7 +200,7 @@ export const userRouter = router({
         },
       })
 
-      const resultMap = new Map<
+      const map = new Map<
         string,
         {
           technicianId: string
@@ -246,48 +212,70 @@ export const userRouter = router({
         }
       >()
 
-      for (const order of orders) {
-        const id = order.assignedToId!
-        const name = order.assignedTo?.name ?? 'Nieznany'
-
-        if (!resultMap.has(id)) {
-          resultMap.set(id, {
+      rows.forEach((o) => {
+        const id = o.assignedToId!
+        if (!map.has(id))
+          map.set(id, {
             technicianId: id,
-            technicianName: name,
+            technicianName: o.assignedTo?.name ?? 'Nieznany',
             completed: 0,
             notCompleted: 0,
             inProgress: 0,
             canceled: 0,
           })
-        }
+        const entry = map.get(id)!
+        if (o.status === 'COMPLETED') entry.completed++
+        else if (o.status === 'NOT_COMPLETED') entry.notCompleted++
+        else if (o.status === 'IN_PROGRESS') entry.inProgress++
+        else entry.canceled++
+      })
 
-        const entry = resultMap.get(id)!
-        if (order.status === 'COMPLETED') entry.completed++
-        else if (order.status === 'NOT_COMPLETED') entry.notCompleted++
-        else if (order.status === 'IN_PROGRESS') entry.inProgress++
-        else if (order.status === 'CANCELED') entry.canceled++
-      }
-
-      return Array.from(resultMap.values()).sort(
+      return [...map.values()].sort(
         (a, b) => b.completed + b.notCompleted - (a.completed + a.notCompleted)
       )
     }),
 
-  archiveUser: roleProtectedProcedure(['ADMIN'])
+  /** Archive user (status → INACTIVE) */
+  archiveUser: adminOnly
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
-      return prisma.user.update({
+    .mutation(({ input }) =>
+      prisma.user.update({
         where: { id: input.id },
         data: { status: 'INACTIVE' },
       })
-    }),
+    ),
 
-  restoreUser: roleProtectedProcedure(['ADMIN'])
+  /** Restore user (status → ACTIVE) */
+  restoreUser: adminOnly
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
-      return prisma.user.update({
+    .mutation(({ input }) =>
+      prisma.user.update({
         where: { id: input.id },
         data: { status: 'ACTIVE' },
       })
-    }),
+    ),
+
+  /** Technicians for transfer – excludes given id (by default ctx.user.id) */
+  getOtherTechnicians: loggedInEveryone
+    .input(
+      z.object({
+        excludeId: z.string().optional(),
+      })
+    )
+    .query(({ ctx, input }) =>
+      prisma.user.findMany({
+        where: {
+          role: 'TECHNICIAN',
+          id: { not: input.excludeId ?? ctx.user!.id },
+        },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          phoneNumber: true,
+          email: true,
+          status: true,
+        },
+      })
+    ),
 })

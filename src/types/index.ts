@@ -10,6 +10,7 @@ import {
 import {
   DeviceCategory,
   Order,
+  Prisma,
   PrismaClient,
   TimeSlot,
   User,
@@ -58,11 +59,6 @@ export interface MenuItem {
   href: string
 }
 
-export type WarehouseWithRelations = Warehouse & {
-  assignedTo?: User | null
-  assignedOrder?: Order | null
-}
-
 export type UserWithBasic = Pick<
   User,
   'id' | 'email' | 'phoneNumber' | 'name' | 'role' | 'status' | 'identyficator'
@@ -84,6 +80,13 @@ export type IssuedItemMaterial = {
 }
 
 export type IssuedItem = IssuedItemDevice | IssuedItemMaterial
+
+export type TechnicianStockItem = {
+  id: string
+  name: string
+  serialNumber?: string | null
+  quantity?: number
+}
 
 export type DeviceFormData = z.infer<typeof deviceSchema>
 export type MaterialFormData = z.infer<typeof materialSchema>
@@ -138,3 +141,17 @@ export type GroupedWarehouseHistory = {
     quantity?: number
   }[]
 }
+
+export type WarehouseWithRelations = Prisma.WarehouseGetPayload<{
+  include: {
+    assignedTo: true
+    orderAssignments: {
+      include: {
+        order: true
+      }
+    }
+    history: true
+  }
+}>
+
+export type SelectedCode = { code: string; quantity: number }

@@ -21,7 +21,7 @@ import TechnicianStockTabs from './TechnicianStockTabs'
 
 type Props = {
   open: boolean
-  onClose: () => void
+  setOpen: (val: boolean) => void
 }
 
 /**
@@ -29,7 +29,7 @@ type Props = {
  * - Displays a side sheet with technician stock info.
  * - Allows selection of technician and searching items.
  */
-const TechnicianStockSheet = ({ open, onClose }: Props) => {
+const TechnicianStockSheet = ({ open, setOpen }: Props) => {
   const [technicianId, setTechnicianId] = useState<string | undefined>()
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -53,7 +53,7 @@ const TechnicianStockSheet = ({ open, onClose }: Props) => {
   )
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent
         side="right"
         className="w-[95%] md:w-full md:max-w-lg overflow-auto"

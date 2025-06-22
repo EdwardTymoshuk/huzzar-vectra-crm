@@ -122,7 +122,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       {/* Sheets */}
       <TechnicianStockSheet
         open={isStockSheetOpen}
-        onClose={() => setStockSheetOpen(false)}
+        setOpen={setStockSheetOpen}
       />
       <DeviceCheckSheet
         open={isSerialSheetOpen}

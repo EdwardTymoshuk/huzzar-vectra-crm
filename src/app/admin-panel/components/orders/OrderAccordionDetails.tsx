@@ -9,11 +9,12 @@ import { OrderStatus } from '@prisma/client'
 type Props = { order: { id: string } }
 
 const OrderAccordionDetails = ({ order }: Props) => {
-  /* --- query ------------------------------------------------------------ */
+  // 📦 Fetch order details
   const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
     id: order.id,
   })
 
+  // 🔄 Loading state
   if (isLoading)
     return (
       <div className="p-4">
@@ -21,6 +22,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
       </div>
     )
 
+  // ❌ Error or no data
   if (isError || !data)
     return (
       <div className="p-4 text-danger">
@@ -28,7 +30,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
       </div>
     )
 
-  /* --- destructure ------------------------------------------------------ */
+  // 🧩 Extract order data
   const {
     assignedTo,
     settlementEntries,
@@ -40,14 +42,14 @@ const OrderAccordionDetails = ({ order }: Props) => {
     status,
   } = data
 
-  /* --- helpers ---------------------------------------------------------- */
+  // 📌 Helper to render fallback if content is missing
   const renderOrDash = (content: React.ReactNode) =>
     content ? content : <span className="text-muted-foreground">—</span>
 
-  /* --- ui ---------------------------------------------------------------- */
+  // 🖼️ UI layout
   return (
     <div className="p-4 bg-muted rounded-md shadow-inner space-y-3 text-sm">
-      {/* status / technik / data */}
+      {/* ✅ Status, technician and close date */}
       <div className="space-y-1">
         <p>
           <strong>Status:</strong>{' '}
@@ -66,7 +68,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
         )}
       </div>
 
-      {/* kody pracy */}
+      {/* 🧾 Work codes */}
       <div>
         <strong>Kody pracy:</strong>
         <ul className="list-disc pl-5 space-y-0.5">
@@ -80,7 +82,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
         </ul>
       </div>
 
-      {/* materiał */}
+      {/* 🧱 Used materials */}
       <div>
         <strong>Zużyty materiał:</strong>
         <ul className="list-disc pl-5 space-y-0.5">
@@ -94,21 +96,23 @@ const OrderAccordionDetails = ({ order }: Props) => {
         </ul>
       </div>
 
-      {/* sprzęt */}
+      {/* 🖥️ Assigned equipment */}
       <div>
         <strong>Sprzęt:</strong>
         <ul className="list-disc pl-5 space-y-0.5">
           {assignedEquipment.length
-            ? assignedEquipment.map((d) => (
-                <li key={d.id}>
-                  {d.name} ({d.serialNumber || 'brak numeru'})
+            ? assignedEquipment.map((entry) => (
+                <li key={entry.id}>
+                  {entry.warehouse.name}
+                  {entry.warehouse.serialNumber &&
+                    ` — ${entry.warehouse.serialNumber}`}
                 </li>
               ))
             : renderOrDash(null)}
         </ul>
       </div>
 
-      {/* powód niewykonania (tylko gdy NOT_COMPLETED) */}
+      {/* ❗ Failure reason (only when NOT_COMPLETED) */}
       {status === OrderStatus.NOT_COMPLETED && (
         <p>
           <strong>Powód niewykonania:</strong>{' '}
@@ -116,7 +120,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
         </p>
       )}
 
-      {/* uwagi – zawsze pokazujemy blok */}
+      {/* 📝 Notes (always visible) */}
       <p>
         <strong>Uwagi:</strong> {renderOrDash(notes || null)}
       </p>

@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
 
   // Redirect admin users from "/" to "/admin-panel"
   if (token && token.role === 'ADMIN' && pathname === '/') {
-    return NextResponse.redirect(new URL('/admin-panel', req.url))
+    return NextResponse.redirect(new URL('/admin-panel', req.nextUrl.origin))
   }
 
   // Prevent technician users from accessing admin-panel
@@ -31,7 +31,7 @@ export async function middleware(req: NextRequest) {
     token.role === 'TECHNICIAN' &&
     pathname.startsWith('/admin-panel')
   ) {
-    return NextResponse.redirect(new URL('/', req.url))
+    return NextResponse.redirect(new URL('/', req.nextUrl.origin))
   }
 
   return NextResponse.next()

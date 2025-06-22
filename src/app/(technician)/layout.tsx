@@ -1,9 +1,9 @@
-import ClientRoutingHandler from '@/app/components/ClientRoutingHandler'
 import Providers from '@/app/components/Providers'
 import '@/app/globals.css'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Suspense } from 'react'
+import ClientRoutingHandlerTechnician from '../components/ClientRoutingHandlerTechnician'
 import LoaderLogo from '../components/shared/LoaderLogo'
 
 const geistSans = Geist({
@@ -34,7 +34,9 @@ const TechnicianLayout = ({
       >
         <Providers>
           <Suspense fallback={<LoaderLogo />}>
-            <ClientRoutingHandler>{children}</ClientRoutingHandler>
+            <ClientRoutingHandlerTechnician>
+              {children}
+            </ClientRoutingHandlerTechnician>
           </Suspense>
         </Providers>
       </body>

@@ -7,7 +7,7 @@ import {
 } from '@/utils/writeWorkCodeExecutionReport'
 import { format } from 'date-fns'
 import { z } from 'zod'
-import { roleProtectedProcedure } from '../middleware'
+import { adminOrCoord } from '../roleHelpers'
 import { router } from '../trpc'
 
 /**
@@ -48,7 +48,7 @@ export const settlementRouter = router({
    * - Main table: daily stats (per day), with correct columns (including 'Ilość instalacji otrzymanych')
    * - Side table: weekly summary (tygodniowa) placed on the right
    */
-  generateMonthlyReport: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+  generateMonthlyReport: adminOrCoord
     .input(
       z.object({
         month: z.number().min(1).max(12),
@@ -151,7 +151,7 @@ export const settlementRouter = router({
   /**
    * Get monthly details per technician
    */
-  getTechnicianMonthlyDetails: roleProtectedProcedure(['ADMIN', 'COORDINATOR'])
+  getTechnicianMonthlyDetails: adminOrCoord
     .input(
       z.object({
         technicianId: z.string(),
@@ -215,10 +215,7 @@ export const settlementRouter = router({
       }
     }),
 
-  generateTechnicianMonthlyReport: roleProtectedProcedure([
-    'ADMIN',
-    'COORDINATOR',
-  ])
+  generateTechnicianMonthlyReport: adminOrCoord
     .input(
       z.object({
         month: z.number().min(1).max(12),
@@ -324,10 +321,7 @@ export const settlementRouter = router({
 
       return buffer.toString('base64')
     }),
-  generateTechniciansMonthlySummary: roleProtectedProcedure([
-    'ADMIN',
-    'COORDINATOR',
-  ])
+  generateTechniciansMonthlySummary: adminOrCoord
     .input(
       z.object({ month: z.number().min(1).max(12), year: z.number().min(2020) })
     )
@@ -432,10 +426,7 @@ export const settlementRouter = router({
       return buffer.toString('base64')
     }),
 
-  generateWorkCodeSummaryReport: roleProtectedProcedure([
-    'ADMIN',
-    'COORDINATOR',
-  ])
+  generateWorkCodeSummaryReport: adminOrCoord
     .input(z.object({ month: z.number(), year: z.number() }))
     .mutation(async ({ input }) => {
       const { month, year } = input

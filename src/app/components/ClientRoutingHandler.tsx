@@ -1,34 +1,22 @@
 'use client'
 
-import Header from '@/app/components/Header'
-import MainContainer from '@/app/components/MainContainer'
-import Sidebar from '@/app/components/Sidebar'
 import dynamic from 'next/dynamic'
 import { usePathname, useSearchParams } from 'next/navigation'
-import RouteProgress from './shared/RouteProgress'
+import LayoutShell from './shared/LayoutShell'
 
-// Lazy-load all tabbed routes
+// Admin pages
 const pages: Record<string, React.ComponentType> = {
-  dashboard: dynamic(() => import('@/app/admin-panel/page')),
+  dashboard: dynamic(() => import('@/app/admin-panel/dashboard/page')),
   orders: dynamic(() => import('@/app/admin-panel/orders/page')),
   warehouse: dynamic(() => import('@/app/admin-panel/warehouse/page')),
   billing: dynamic(() => import('@/app/admin-panel/billing/page')),
   employees: dynamic(() => import('@/app/admin-panel/employees/page')),
   settings: dynamic(() => import('@/app/admin-panel/settings/page')),
-  planning: dynamic(() => import('@/app/admin-panel/orders/planning/page')),
 }
 
-/**
- * ClientRoutingHandler:
- * - Renders layout with Sidebar/Header.
- * - Uses query param `tab` to load the correct main page.
- * - For subroutes (e.g., warehouse details or history), renders `children`.
- */
-const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const searchParams = useSearchParams()
+const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const getActiveKeyFromPathname = (pathname: string): string => {
     if (pathname.includes('/warehouse')) return 'warehouse'
@@ -42,7 +30,6 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
   const activeTab =
     searchParams.get('tab') || getActiveKeyFromPathname(pathname)
 
-  // Subpages that shouldn't render via dynamic `tab` routing
   const isSubPage = [
     '/warehouse/details/',
     '/warehouse/history',
@@ -51,16 +38,7 @@ const ClientRoutingHandler: React.FC<{ children: React.ReactNode }> = ({
 
   const ActivePage = pages[activeTab] || pages.dashboard
 
-  return (
-    <>
-      <RouteProgress />
-      <Header />
-      <div className="flex md:h-screen md:overflow-hidden">
-        <Sidebar />
-        <MainContainer>{isSubPage ? children : <ActivePage />}</MainContainer>
-      </div>
-    </>
-  )
+  return <LayoutShell>{isSubPage ? children : <ActivePage />}</LayoutShell>
 }
 
 export default ClientRoutingHandler

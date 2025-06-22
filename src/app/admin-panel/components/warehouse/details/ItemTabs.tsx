@@ -4,25 +4,28 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { Warehouse } from '@prisma/client'
+import { WarehouseWithRelations } from '@/types'
 import ItemAccordionList from './ItemAccordion'
 import MaterialHistoryByTabs from './MaterialHistoryByTabs'
 
 type Props = {
-  items: Warehouse[]
+  items: WarehouseWithRelations[]
 }
 
 const ItemTabs = ({ items }: Props) => {
   const warehouseItems = items.filter(
     (i) =>
       i.assignedToId === null &&
-      i.assignedOrderId === null &&
+      i.orderAssignments.length === 0 &&
       i.status === 'AVAILABLE'
   )
   const technicianItems = items.filter(
-    (i) => i.assignedToId !== null && i.assignedOrderId === null
+    (i) => i.assignedToId !== null && i.orderAssignments.length === 0
   )
-  const assignedToOrders = items.filter((i) => i.assignedOrderId !== null)
+
+  const assignedToOrders = items.filter(
+    (i) => i.orderAssignments && i.orderAssignments.length > 0
+  )
   const returnedItems = items.filter(
     (i) => i.status === 'RETURNED_TO_OPERATOR' && i.assignedToId === null
   )

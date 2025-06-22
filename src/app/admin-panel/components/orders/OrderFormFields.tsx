@@ -42,7 +42,7 @@ export function OrderFormFields({
 
   // Fetch technicians
   const { data: technicians, isLoading: isTechLoading } =
-    trpc.user.getTechnicians?.useQuery() || { data: [] }
+    trpc.user.getTechnicians.useQuery() || { data: [] }
 
   return (
     <>
@@ -107,7 +107,7 @@ export function OrderFormFields({
           <FormItem>
             <FormLabel>Numer zlecenia *</FormLabel>
             <FormControl>
-              <Input {...field} placeholder="np. 12345" />
+              <Input {...field} placeholder="np. ZL/12345" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -316,7 +316,7 @@ export function OrderFormFields({
                 <SelectValue placeholder="Wybierz status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PENDING">NIE PRZYPISANE</SelectItem>
+                <SelectItem value="PENDING">NIEPRZYPISANE</SelectItem>
                 <SelectItem value="ASSIGNED">PRZYPISANE</SelectItem>
                 <SelectItem value="IN_PROGRESS">W TRAKCIE</SelectItem>
                 <SelectItem value="COMPLETED">WYKONANE</SelectItem>
@@ -358,11 +358,11 @@ export function OrderFormFields({
                 <SelectValue placeholder="Wybierz technika" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Nieprzypisany</SelectItem>
+                <SelectItem value="none">NIEPRZYPISANY</SelectItem>
                 {isTechLoading ? (
-                  <SelectItem disabled value="">
+                  <div className="px-4 py-2 text-sm text-muted-foreground">
                     <LoaderSpinner />
-                  </SelectItem>
+                  </div>
                 ) : (
                   technicians?.map((tech) => (
                     <SelectItem key={tech.id} value={tech.id}>

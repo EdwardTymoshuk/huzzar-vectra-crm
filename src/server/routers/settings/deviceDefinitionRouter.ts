@@ -1,44 +1,40 @@
 import { deviceSchema } from '@/lib/schema'
+import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
-import { roleProtectedProcedure } from '../../middleware'
 import { router } from '../../trpc'
 
 export const deviceDefinitionRouter = router({
   // 📄 Get all device definitions
-  getAllDefinitions: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN']).query(
-    () => {
-      return prisma.deviceDefinition.findMany({
-        select: {
-          id: true,
-          category: true,
-          name: true,
-          warningAlert: true,
-          alarmAlert: true,
-          price: true,
-        },
-        orderBy: { name: 'asc' },
-      })
-    }
-  ),
+  getAllDefinitions: loggedInEveryone.query(() => {
+    return prisma.deviceDefinition.findMany({
+      select: {
+        id: true,
+        category: true,
+        name: true,
+        warningAlert: true,
+        alarmAlert: true,
+        price: true,
+      },
+      orderBy: { name: 'asc' },
+    })
+  }),
 
   // ➕ Create new device definition
-  createDefinition: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
-    .input(deviceSchema)
-    .mutation(({ input }) => {
-      return prisma.deviceDefinition.create({
-        data: {
-          category: input.category,
-          name: input.name.trim(),
-          warningAlert: input.warningAlert,
-          alarmAlert: input.alarmAlert,
-          price: input.price,
-        },
-      })
-    }),
+  createDefinition: adminOrCoord.input(deviceSchema).mutation(({ input }) => {
+    return prisma.deviceDefinition.create({
+      data: {
+        category: input.category,
+        name: input.name.trim(),
+        warningAlert: input.warningAlert,
+        alarmAlert: input.alarmAlert,
+        price: input.price,
+      },
+    })
+  }),
 
   // 📝 Edit device definition
-  editDefinition: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+  editDefinition: adminOrCoord
     .input(
       z
         .object({
@@ -92,7 +88,7 @@ export const deviceDefinitionRouter = router({
     }),
 
   // ❌ Delete definition
-  deleteDefinition: roleProtectedProcedure(['ADMIN', 'WAREHOUSEMAN'])
+  deleteDefinition: adminOrCoord
     .input(z.object({ id: z.string() }))
     .mutation(({ input }) => {
       return prisma.deviceDefinition.delete({

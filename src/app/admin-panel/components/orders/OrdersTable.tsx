@@ -49,7 +49,7 @@ import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
 import OrderDetailsPanel from './OrderDetailsPanel'
-import OrdersFilterSort from './OrdersFilter'
+import OrdersFilter from './OrdersFilter'
 
 /* --------------------------- types ---------------------------------- */
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
@@ -149,7 +149,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
     <div>
       {/* Filters & page size */}
       <div className="flex items-center justify-between py-4">
-        <OrdersFilterSort
+        <OrdersFilter
           setStatusFilter={setStatusFilter}
           setTechnicianFilter={setTechnicianFilter}
           setOrderTypeFilter={setOrderTypeFilter}
@@ -168,8 +168,8 @@ const OrdersTable = ({ searchTerm }: Props) => {
       </div>
 
       {/* Scroll wrapper */}
-      <div className="w-full min-w-[1250px] overflow-x-auto">
-        <div className=" w-full">
+      <div className="w-full overflow-x-auto">
+        <div className="w-full md:min-w-[1050px]">
           {/* HEADER – 9 columns (ostatnia 32 px na chevron) */}
           <div
             className={`${GRID} gap-2 px-4 py-2 border-b text-sm text-start font-normal text-muted-foreground select-none`}
