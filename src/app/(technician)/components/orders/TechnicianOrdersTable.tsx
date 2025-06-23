@@ -96,16 +96,16 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
 
   const orders: OrderRow[] = useMemo(() => {
     const base = (list?.orders ?? []) as OrderRow[]
-    const incRows = incoming.map(
-      (t): OrderRow =>
-        ({
-          ...t,
-          type: (t as any).type ?? ('SERVICE' as OrderType),
-          status: 'ASSIGNED',
-          transferPending: true,
-          transferToId: myId,
-        } as OrderRow)
-    )
+    const incRows = incoming.map((t): OrderRow => {
+      return {
+        ...t,
+        type: t.type ?? 'SERVICE',
+        status: 'ASSIGNED',
+        transferPending: true,
+        transferToId: myId ?? null,
+        transferTo: null,
+      }
+    })
     return [...incRows, ...base]
   }, [list?.orders, incoming, myId])
 

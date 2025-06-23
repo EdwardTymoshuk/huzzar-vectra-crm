@@ -5,7 +5,7 @@ import { Button } from '@/app/components/ui/button'
 import { cn } from '@/lib/utils'
 import { SelectedCode } from '@/types'
 import { sortCodes } from '@/utils/sortCodes'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { MdDelete } from 'react-icons/md'
 
 type Props = {
@@ -25,25 +25,27 @@ const WorkCodeSelector = ({ selected, setSelected, codes }: Props) => {
   const [expandedCode, setExpandedCode] = useState<string | null>(null)
   const [timer, setTimer] = useState<NodeJS.Timeout | null>(null)
 
-  const clearTimer = () => {
+  const clearTimer = useCallback(() => {
     if (timer) {
       clearTimeout(timer)
       setTimer(null)
     }
-  }
+  }, [timer])
 
-  const startAutoCollapse = (code: string) => {
+  const startAutoCollapse = useCallback(() => {
+    clearTimer()
     const timeout = setTimeout(() => {
       setExpandedCode(null)
+      setTimer(null)
     }, 3000)
     setTimer(timeout)
-  }
+  }, [clearTimer])
 
   const handleBadgeClick = (code: string) => {
     clearTimer()
     if (expandedCode !== code) {
       setExpandedCode(code)
-      startAutoCollapse(code)
+      startAutoCollapse()
     }
 
     const existing = selected.find((c) => c.code === code)
@@ -65,7 +67,7 @@ const WorkCodeSelector = ({ selected, setSelected, codes }: Props) => {
       )
     )
     clearTimer()
-    startAutoCollapse(code)
+    startAutoCollapse()
   }
 
   const handleDecrease = (code: string) => {
@@ -77,7 +79,7 @@ const WorkCodeSelector = ({ selected, setSelected, codes }: Props) => {
       )
     )
     clearTimer()
-    startAutoCollapse(code)
+    startAutoCollapse()
   }
 
   const handleDelete = (code: string) => {
@@ -86,7 +88,7 @@ const WorkCodeSelector = ({ selected, setSelected, codes }: Props) => {
 
   useEffect(() => {
     return () => clearTimer()
-  }, [])
+  }, [timer, clearTimer])
 
   const sortedCodes = sortCodes(codes.map((c) => c.code))
   const codesMap = Object.fromEntries(codes.map((c) => [c.code, c.id]))

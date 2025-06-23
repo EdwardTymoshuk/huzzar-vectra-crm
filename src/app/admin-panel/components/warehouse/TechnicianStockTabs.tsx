@@ -6,11 +6,15 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { Warehouse } from '@prisma/client'
+import { AppRouter } from '@/server/routers'
+import { inferRouterOutputs } from '@trpc/server'
 import TechnicianStockTable from './TechnicianStockTable'
 
+type TechnicianStockItem =
+  inferRouterOutputs<AppRouter>['warehouse']['getTechnicianStock'][number]
+
 type Props = {
-  items: Warehouse[]
+  items: TechnicianStockItem[]
   searchTerm: string
 }
 

@@ -1,7 +1,7 @@
 import { router } from '@/server/trpc'
 
 import { prisma } from '@/utils/prisma'
-import { OrderStatus } from '@prisma/client'
+import { OrderStatus, Prisma } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
@@ -125,7 +125,7 @@ export const userRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const data: any = {
+      const data: Prisma.UserUpdateInput = {
         name: input.name,
         email: input.email,
         phoneNumber: input.phoneNumber,

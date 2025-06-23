@@ -53,26 +53,11 @@ export const queriesRouter = router({
             : { [input.sortField]: input.sortOrder },
         skip: (input.page - 1) * input.limit,
         take: input.limit,
-        select: {
-          id: true,
-          orderNumber: true,
-          type: true,
-          city: true,
-          street: true,
-          date: true,
-          timeSlot: true,
-          status: true,
-
-          transferPending: true,
-          transferToId: true,
-          transferTo: { select: { id: true, name: true } },
-
-          assignedTo: {
-            select: { id: true, name: true },
-          },
+        include: {
+          transferTo: true,
+          assignedTo: true,
         },
       })
-
       const totalOrders = await ctx.prisma.order.count({ where: filters })
       return { orders, totalOrders }
     }),

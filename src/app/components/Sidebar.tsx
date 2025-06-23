@@ -9,7 +9,7 @@ import SidebarContent from './SidebarContent'
  * depending on the current user's role.
  */
 const Sidebar = () => {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
 
   if (!session?.user) return null
 

@@ -23,7 +23,13 @@ export const queriesRouter = router({
           name: { equals: input.name.trim(), mode: 'insensitive' },
         },
         include: {
-          orderAssignments: true,
+          assignedTo: true,
+          history: true,
+          orderAssignments: {
+            include: {
+              order: true,
+            },
+          },
         },
         orderBy: { createdAt: 'asc' },
       })
@@ -120,7 +126,22 @@ export const queriesRouter = router({
           status: { in: ['AVAILABLE', 'ASSIGNED'] },
           ...(input.itemType ? { itemType: input.itemType } : {}),
           orderAssignments: {
-            none: {}, // must not be assigned to any order
+            none: {},
+          },
+        },
+        include: {
+          assignedTo: true,
+          history: {
+            include: {
+              performedBy: true,
+              assignedTo: true,
+            },
+            orderBy: { actionDate: 'asc' },
+          },
+          orderAssignments: {
+            include: {
+              order: true,
+            },
           },
         },
       })

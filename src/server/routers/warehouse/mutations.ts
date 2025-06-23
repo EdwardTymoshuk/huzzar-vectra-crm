@@ -130,7 +130,7 @@ export const mutationsRouter = router({
 
       for (const item of input.items) {
         if (item.type === 'DEVICE') {
-          const updated = await prisma.warehouse.update({
+          await prisma.warehouse.update({
             where: { id: item.id },
             data: {
               status: 'ASSIGNED',
