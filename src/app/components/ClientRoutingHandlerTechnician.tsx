@@ -32,7 +32,11 @@ const ClientRoutingHandlerTechnician = ({
 
   const ActivePage = pages[activeTab] || pages.dashboard
 
-  return <LayoutShell>{isSubPage ? children : <ActivePage />}</LayoutShell>
+  return (
+    <LayoutShell>
+      {isSubPage ? children : <ActivePage key={activeTab} />}
+    </LayoutShell>
+  )
 }
 
 export default ClientRoutingHandlerTechnician

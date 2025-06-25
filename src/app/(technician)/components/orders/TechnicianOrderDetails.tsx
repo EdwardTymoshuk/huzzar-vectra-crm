@@ -67,7 +67,7 @@ const TechnicianOrderDetails = ({
 
   /* ---------------- render ---------------- */
   return (
-    <div className="space-y-6 text-sm bg-slate-100 p-4 rounded-lg">
+    <div className="space-y-6 text-sm bg-card text-card-foreground p-4 rounded-lg">
       {/* optional alert */}
       {pendingMessage && (
         <Alert variant="destructive" className="!pl-3">
@@ -162,7 +162,7 @@ const HeaderRow = ({ label, value }: { label: string; value: string }) => (
 )
 
 const Section = ({ title, list }: { title: string; list: string[] }) => (
-  <section className="pt-4 border-t border-slate-200 space-y-1">
+  <section className="pt-4 border-t border-border space-y-1">
     <h4 className="font-semibold">{title}</h4>
     {list.length ? (
       <ul className="list-none list-inside">
