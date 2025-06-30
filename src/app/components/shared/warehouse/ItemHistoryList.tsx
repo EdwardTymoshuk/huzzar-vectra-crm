@@ -86,7 +86,6 @@ const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
             const { label, variant } = mapAction(h.action)
 
             const from = h.performedBy?.name ?? '—'
-            const orderNumber = h.assignedOrder?.orderNumber ?? null
             let to: string
             if (h.assignedOrder?.orderNumber) {
               to = `Zl: ${h.assignedOrder.orderNumber}`
