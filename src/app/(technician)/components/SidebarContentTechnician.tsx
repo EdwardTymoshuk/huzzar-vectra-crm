@@ -43,7 +43,7 @@ const SidebarContentTechnician = ({ onSelect }: SidebarContentProps) => {
             <div
               key={item.key}
               onClick={() => {
-                router.push(`?tab=${item.key}`)
+                router.push(`/?tab=${item.key}`)
                 onSelect?.()
               }}
               className={cn(
