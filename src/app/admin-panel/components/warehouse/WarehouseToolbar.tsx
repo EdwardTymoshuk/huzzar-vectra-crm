@@ -17,9 +17,9 @@ import {
 import { MdAdd } from 'react-icons/md'
 import { PiDotsThreeOutlineVerticalFill, PiUserListFill } from 'react-icons/pi'
 import { TbHistory, TbListSearch } from 'react-icons/tb'
-import DeviceCheckSheet from './DeviceCheckSheet'
 import TechnicianStockSheet from './TechnicianStockSheet'
 import AddModal from './add/AddModal'
+import DeviceCheckSheet from './deviceCheck/DeviceCheckSheet'
 import IssueModal from './issue/IssueModal'
 import ReturnModal from './return/ReturnModal'
 

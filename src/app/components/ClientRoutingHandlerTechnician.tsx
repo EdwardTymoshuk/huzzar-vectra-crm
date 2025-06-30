@@ -28,7 +28,11 @@ const ClientRoutingHandlerTechnician = ({
   const activeTab =
     searchParams.get('tab') || getActiveKeyFromPathname(pathname)
 
-  const isSubPage = ['/orders/details/'].some((sub) => pathname.includes(sub))
+  const isSubPage = [
+    '/orders/details/',
+    '/warehouse/details/',
+    '/warehouse/history',
+  ].some((sub) => pathname.includes(sub))
 
   const ActivePage = pages[activeTab] || pages.dashboard
 

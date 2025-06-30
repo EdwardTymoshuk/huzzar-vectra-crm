@@ -1,5 +1,7 @@
+// src/app/(technician)/components/warehouse/details/TechItemAccordion.tsx
 'use client'
 
+import ItemHistoryList from '@/app/components/shared/warehouse/ItemHistoryList'
 import {
   Accordion,
   AccordionContent,
@@ -12,22 +14,21 @@ import { devicesStatusMap } from '@/lib/constants'
 import { WarehouseWithRelations } from '@/types'
 import { format } from 'date-fns'
 import Highlight from 'react-highlight-words'
-import ItemHistoryList from './ItemHistoryList'
 
 type Props = {
   items: WarehouseWithRelations[]
-  mode?: 'warehouse' | 'technicians' | 'orders' | 'returned'
 }
 
 /**
- * ItemAccordionList:
- * - Renders an accordion list of warehouse items (devices or materials).
- * - Devices use serial number as identifier; materials use quantity and index.
- * - Expands each row to show full history using ItemHistoryList.
+ * TechItemAccordion
+ * -----------------
+ * • Reusable accordion list for technician view.
+ * • Devices show single-instance history via warehouseItemId.
+ * • Materials show scoped technician history via item name.
+ * • Uses SearchContext to filter items by serial/index.
  */
-const ItemAccordionList = ({ items }: Props) => {
+const TechItemAccordion = ({ items }: Props) => {
   const { searchTerm } = useSearch()
-
   const isMaterial = items?.[0]?.itemType === 'MATERIAL'
 
   return (
@@ -73,7 +74,7 @@ const ItemAccordionList = ({ items }: Props) => {
                   <Highlight
                     highlightClassName="bg-yellow-200"
                     searchWords={[searchTerm]}
-                    autoEscape={true}
+                    autoEscape
                     textToHighlight={
                       isMaterial
                         ? item.index ?? item.name
@@ -92,12 +93,14 @@ const ItemAccordionList = ({ items }: Props) => {
                   </Badge>
                 </span>
               </AccordionTrigger>
+
+              {/* Accordion content with item history */}
               <AccordionContent>
-                <ItemHistoryList
-                  {...(isMaterial
-                    ? { name: item.name }
-                    : { warehouseItemId: item.id })}
-                />
+                {isMaterial ? (
+                  <ItemHistoryList name={item.name} dataOverride={undefined} />
+                ) : (
+                  <ItemHistoryList warehouseItemId={item.id} />
+                )}
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -106,4 +109,4 @@ const ItemAccordionList = ({ items }: Props) => {
   )
 }
 
-export default ItemAccordionList
+export default TechItemAccordion

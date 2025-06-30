@@ -55,6 +55,11 @@ const CompleteOrderModal = ({ open, onClose, orderId, orderType }: Props) => {
       toast.success('Zlecenie zostało zaktualizowane.')
       utils.order.getOrders.invalidate()
       utils.order.getOrderById.invalidate({ id: orderId })
+      utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
+      utils.warehouse.getItemsByName.invalidate({
+        name: materials?.[0]?.id ?? '',
+        scope: 'technician',
+      })
       onClose()
     },
     onError: () => toast.error('Błąd zapisu zlecenia.'),

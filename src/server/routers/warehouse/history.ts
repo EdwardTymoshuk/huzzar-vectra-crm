@@ -27,6 +27,7 @@ export const historyRouter = router({
         include: {
           performedBy: true,
           assignedTo: true,
+          assignedOrder: { select: { orderNumber: true } },
         },
         orderBy: { actionDate: 'desc' },
       })
@@ -34,14 +35,26 @@ export const historyRouter = router({
 
   /** 📜 Get material history by item name (grouped) */
   getHistoryByName: loggedInEveryone
-    .input(z.object({ name: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const results = await prisma.warehouseHistory.findMany({
+    .input(
+      z.object({
+        name: z.string().min(1),
+        scope: z.enum(['all', 'technician']).default('all'),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const techId = ctx.user?.id
+
+      const rows = await prisma.warehouseHistory.findMany({
         where: {
           warehouseItem: {
-            name: input.name,
+            name: input.name.trim(),
             itemType: WarehouseItemType.MATERIAL,
           },
+          ...(input.scope === 'technician' && techId
+            ? {
+                OR: [{ assignedToId: techId }, { performedById: techId }],
+              }
+            : {}),
         },
         include: {
           performedBy: true,
@@ -51,14 +64,14 @@ export const historyRouter = router({
         orderBy: { actionDate: 'desc' },
       })
 
-      if (results.length === 0) {
+      if (rows.length === 0) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Brak historii dla podanego materiału',
         })
       }
 
-      return results
+      return rows
     }),
 
   /** 📜 Full warehouse history – filterable & paginated */

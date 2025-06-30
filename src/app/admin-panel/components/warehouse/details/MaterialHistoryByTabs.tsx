@@ -1,9 +1,11 @@
+//src/app/admin-panel/components/warehouse/details/MaterialHistoryByTabs.tsx
+
 'use client'
 
+import ItemHistoryList from '@/app/components/shared/warehouse/ItemHistoryList'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { WarehouseHistoryWithUser } from '@/types'
 import { trpc } from '@/utils/trpc'
-import ItemHistoryList from './ItemHistoryList'
 
 type Props = {
   name: string

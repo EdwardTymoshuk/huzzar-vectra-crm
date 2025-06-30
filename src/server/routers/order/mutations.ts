@@ -311,6 +311,13 @@ export const mutationsRouter = router({
               },
             })
 
+            if (!technicianMaterial) {
+              throw new TRPCError({
+                code: 'CONFLICT',
+                message: `Brak materiału (ID: ${item.id}) na Twoim stanie.`,
+              })
+            }
+
             if (technicianMaterial) {
               const available = technicianMaterial.quantity
               const remaining = Math.max(available - item.quantity, 0)
@@ -320,6 +327,17 @@ export const mutationsRouter = router({
                 data: { quantity: remaining },
               })
             }
+
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: technicianMaterial.id,
+                action: 'ISSUED',
+                quantity: item.quantity,
+                performedById: userId,
+                assignedOrderId: input.orderId,
+                actionDate: new Date(),
+              },
+            })
           }
         }
 

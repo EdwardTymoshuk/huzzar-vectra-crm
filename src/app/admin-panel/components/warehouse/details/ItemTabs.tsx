@@ -5,7 +5,7 @@ import {
   TabsTrigger,
 } from '@/app/components/ui/tabs'
 import { WarehouseWithRelations } from '@/types'
-import ItemAccordionList from './ItemAccordion'
+import ItemAccordionList from './ItemAccordionList'
 import MaterialHistoryByTabs from './MaterialHistoryByTabs'
 
 type Props = {

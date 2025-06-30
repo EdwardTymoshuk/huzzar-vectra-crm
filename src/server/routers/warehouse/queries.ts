@@ -14,73 +14,40 @@ export const queriesRouter = router({
     })
   }),
 
-  /** 📦 Get items by name (grouped detail) */
-  getItemsByName: adminOrCoord
-    .input(z.object({ name: z.string().min(1) }))
-    .query(async ({ input }) => {
+  /** 📦 Get items by name (scope = all | technician) */
+  getItemsByName: loggedInEveryone
+    .input(
+      z.object({
+        name: z.string().min(1),
+        scope: z.enum(['all', 'technician']).default('all'),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const techId = ctx.user?.id
+
       return prisma.warehouse.findMany({
         where: {
           name: { equals: input.name.trim(), mode: 'insensitive' },
+
+          ...(input.scope === 'technician' && techId
+            ? {
+                OR: [
+                  { assignedToId: techId },
+                  { history: { some: { performedById: techId } } },
+                ],
+              }
+            : {}),
         },
         include: {
           assignedTo: true,
-          history: true,
-          orderAssignments: {
-            include: {
-              order: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'asc' },
-      })
-    }),
-
-  /** 📦 Get items and their history by name */
-  getByNameWithHistory: adminOrCoord
-    .input(z.object({ name: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const items = await prisma.warehouse.findMany({
-        where: {
-          name: input.name,
-          // tylko aktywne urządzenia
-          OR: [
-            { status: 'ASSIGNED_TO_ORDER' },
-            { status: 'AVAILABLE' },
-            { status: 'RETURNED' },
-            { status: 'RETURNED_TO_OPERATOR' },
-          ],
-        },
-        include: {
+          orderAssignments: { include: { order: true } },
           history: {
-            include: {
-              performedBy: true,
-              assignedTo: true,
-            },
+            include: { performedBy: true, assignedTo: true },
             orderBy: { actionDate: 'asc' },
           },
-          assignedTo: true,
-          orderAssignments: {
-            include: {
-              order: {
-                select: {
-                  id: true,
-                  orderNumber: true,
-                },
-              },
-            },
-          },
         },
         orderBy: { createdAt: 'asc' },
       })
-
-      if (!items.length) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Nie znaleziono elementów o podanej nazwie',
-        })
-      }
-
-      return items
     }),
 
   /** 🔍 Get warehouse item by serial number */
