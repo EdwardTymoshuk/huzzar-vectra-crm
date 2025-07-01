@@ -120,7 +120,10 @@ export const queriesRouter = router({
     .query(async ({ input }) => {
       const item = await prisma.warehouse.findFirst({
         where: {
-          serialNumber: input.serialNumber.trim(),
+          serialNumber: {
+            equals: input.serialNumber.trim(),
+            mode: 'insensitive',
+          },
           itemType: WarehouseItemType.DEVICE,
         },
         include: {
