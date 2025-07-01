@@ -8,9 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
-import { Badge } from '@/app/components/ui/badge'
 import { useSearch } from '@/app/context/SearchContext'
-import { devicesStatusMap } from '@/lib/constants'
 import { WarehouseWithRelations } from '@/types'
 import { format } from 'date-fns'
 import Highlight from 'react-highlight-words'
@@ -38,13 +36,12 @@ const TechItemAccordion = ({ items }: Props) => {
         className={`grid ${
           isMaterial
             ? 'grid-cols-[0.5fr_2fr_1fr_1fr_0.5fr]'
-            : 'grid-cols-[0.5fr_1fr_1fr_1fr_0.5fr]'
+            : 'grid-cols-[0.5fr_1fr_1fr_0.5fr]'
         } gap-2 text-center text-xs px-2 py-1 font-medium text-muted-foreground border-b`}
       >
         <span className="text-left">Lp</span>
         <span>{isMaterial ? 'Indeks' : 'Numer seryjny'}</span>
         <span>{isMaterial ? 'Ilość' : 'Data przyjęcia'}</span>
-        <span>Status</span>
         <span />
       </div>
 
@@ -66,7 +63,7 @@ const TechItemAccordion = ({ items }: Props) => {
                 className={`grid ${
                   isMaterial
                     ? 'grid-cols-[0.5fr_2fr_1fr_1fr_0.5fr]'
-                    : 'grid-cols-[0.5fr_1fr_1fr_1fr_0.5fr]'
+                    : 'grid-cols-[0.5fr_1fr_1fr_0.5fr]'
                 } gap-2 text-center text-sm px-2`}
               >
                 <span className="text-left">{idx + 1}</span>
@@ -85,12 +82,7 @@ const TechItemAccordion = ({ items }: Props) => {
                 <span>
                   {isMaterial
                     ? `${item.quantity} ${item.unit.toLowerCase()}`
-                    : format(item.createdAt, 'dd.MM.yyyy')}
-                </span>
-                <span>
-                  <Badge variant="outline">
-                    {devicesStatusMap[item.status]}
-                  </Badge>
+                    : format(item.updatedAt, 'dd.MM.yyyy')}
                 </span>
               </AccordionTrigger>
 

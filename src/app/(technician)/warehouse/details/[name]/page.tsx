@@ -47,7 +47,9 @@ const TechnicianWarehouseItemPage = () => {
     )
   }
 
-  const headerTitle = `${devicesTypeMap[data[0].category!]} ${name}`
+  const headerTitle = `${
+    data[0].category ? devicesTypeMap[data[0].category!] : ''
+  } ${name}`
 
   /* -------------------------------- ui -------------------------------- */
   return (
@@ -55,12 +57,15 @@ const TechnicianWarehouseItemPage = () => {
       <PageHeader title={headerTitle} />
 
       {/* back + search bar */}
-      <div className="flex justify-between w-full">
-        <Button variant="ghost" onClick={() => router.back()}>
+      <div className="flex flex-col sm:flex-row justify-between gap-2 w-full">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="text-start w-fit"
+        >
           <MdKeyboardArrowLeft />
           Powrót
         </Button>
-
         <div className="w-full sm:w-1/2 lg:w-1/4">
           <SearchInput
             placeholder="Szukaj"
