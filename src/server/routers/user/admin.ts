@@ -8,22 +8,6 @@ import bcrypt from 'bcrypt'
 import { z } from 'zod'
 
 export const adminUserRouter = router({
-  /** List of technicians */
-  getTechnicians: adminOnly.query(() =>
-    prisma.user.findMany({
-      where: { role: 'TECHNICIAN' },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        email: true,
-        phoneNumber: true,
-        name: true,
-        status: true,
-        identyficator: true,
-      },
-    })
-  ),
-
   /** List of non-technician staff */
   getAdmins: adminOnly.query(() =>
     prisma.user.findMany({
@@ -147,4 +131,35 @@ export const adminUserRouter = router({
         data: { status: 'ACTIVE' },
       })
     ),
+
+  // server/routers/user/admin.ts
+  deleteUser: adminOnly
+    .input(
+      z.object({
+        id: z.string(),
+        force: z.boolean().optional(), // true  → hard delete
+      })
+    )
+    .mutation(async ({ input }) => {
+      if (input.force) {
+        // hard delete !!!
+        await prisma.user.delete({ where: { id: input.id } })
+        return { ok: true }
+      }
+
+      // soft delete + anonimization
+      const anonEmail = `deleted-${input.id}@example.invalid`
+      await prisma.user.update({
+        where: { id: input.id },
+        data: {
+          name: 'Usunięty użytkownik',
+          email: anonEmail,
+          phoneNumber: '',
+          password: '',
+          status: 'DELETED',
+          deletedAt: new Date(),
+        },
+      })
+      return { ok: true }
+    }),
 })

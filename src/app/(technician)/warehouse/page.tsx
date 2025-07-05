@@ -3,38 +3,32 @@
 import WarehouseSummaryCard from '@/app/(technician)/components/warehouse/WarehouseSummaryCard'
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
-import SearchInput from '@/app/components/shared/SearchInput'
 import { useState } from 'react'
+import TechnicianTransfersTable from '../components/warehouse/TechnicianTransfersTable'
 import WarehouseTabs from '../components/warehouse/WarehouseTabs'
+import WarehouseToolbarTech from '../components/warehouse/WarehouseToolbarTech'
 
 /**
  * TechnicianWarehousePage
- * -----------------------
- * Read-only warehouse view accessible to technicians.
- * Displays:
- *   • page header,
- *   • search input,
- *   • tabbed tables (“Urządzenia”, “Materiały”).
- * Administrator-only widgets (summary card, toolbar) are intentionally omitted.
- * UI strings remain in Polish; all comments are written in English.
+ * Warehouse page for technicians – basic view with search, transfers, and tabs
  */
 const TechnicianWarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState<string>('')
 
   return (
     <MaxWidthWrapper>
+      {/* page title */}
       <PageHeader title="Magazyn" />
 
       <div className="space-y-6">
-        {/* search input */}
-        <div className="w-full sm:w-1/2 lg:w-1/4">
-          <SearchInput
-            placeholder="Szukaj urządzenie lub materiał"
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-        </div>
+        <WarehouseToolbarTech
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+        />
         <WarehouseSummaryCard />
+
+        {/* incoming ↔ outgoing transfers */}
+        <TechnicianTransfersTable />
 
         {/* device / material tables */}
         <WarehouseTabs searchTerm={searchTerm} />

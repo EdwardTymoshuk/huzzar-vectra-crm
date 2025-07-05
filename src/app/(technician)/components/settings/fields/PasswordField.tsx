@@ -1,24 +1,28 @@
 'use client'
 
-import { Input } from '@/app/components/ui/input'
-import { Label } from '@/app/components/ui/label'
 import { useState } from 'react'
+import type { UseFormRegisterReturn } from 'react-hook-form'
 import { MdVisibility, MdVisibilityOff } from 'react-icons/md'
 
-/**
- * Password input with eye-toggle and optional RHF register.
- * – Shows validation error below the field.
- */
+import { Input } from '@/app/components/ui/input'
+import { Label } from '@/app/components/ui/label'
+
 type Props = {
   id: string
   label: string
   error?: string
-  /** react-hook-form register – spread on <Input /> */
-  reg?: ReturnType<any>
+  /** react-hook-form register */
+  reg?: UseFormRegisterReturn
 }
 
+/**
+ * PasswordField
+ * -------------
+ * Single input with “eye” toggle.
+ * Accepts RHF `register` props and displays validation error.
+ */
 const PasswordField = ({ id, label, error, reg }: Props) => {
-  const [show, setShow] = useState(false)
+  const [visible, setVisible] = useState(false)
 
   return (
     <div className="space-y-1">
@@ -27,17 +31,17 @@ const PasswordField = ({ id, label, error, reg }: Props) => {
       <div className="relative">
         <Input
           id={id}
-          type={show ? 'text' : 'password'}
-          {...(reg ?? {})}
-          className={`${error ? 'border-destructive' : ''} pr-10`}
+          type={visible ? 'text' : 'password'}
+          {...reg}
+          className={`pr-10 ${error ? 'border-destructive' : ''}`}
         />
 
         <button
           type="button"
-          onClick={() => setShow((s) => !s)}
+          onClick={() => setVisible((v) => !v)}
           className="absolute inset-y-0 right-2 flex items-center text-muted-foreground"
         >
-          {show ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
+          {visible ? <MdVisibilityOff size={20} /> : <MdVisibility size={20} />}
         </button>
       </div>
 

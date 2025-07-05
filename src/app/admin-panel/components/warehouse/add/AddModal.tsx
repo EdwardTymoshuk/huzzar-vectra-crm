@@ -10,7 +10,7 @@ import { WarehouseFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
+import WarehouseSelectedItemsPanel from '../../../../components/shared/warehouse/WarehouseSelectedItemsPanel'
 import AddItemForm from './AddItemForm'
 
 const AddModal = ({

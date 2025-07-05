@@ -1,3 +1,4 @@
+import { Role, UserStatus } from '@prisma/client'
 import 'next-auth'
 
 declare module 'next-auth' {
@@ -8,8 +9,8 @@ declare module 'next-auth' {
       email: string
       phoneNumber: string
       identyficator?: number | null
-      role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
-      status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+      role: Role
+      status: UserStatus
     }
   }
 
@@ -19,7 +20,7 @@ declare module 'next-auth' {
     email?: string | null
     phoneNumber: string
     identyficator?: number | null
-    role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
-    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+    role: Role
+    status: UserStatus
   }
 }

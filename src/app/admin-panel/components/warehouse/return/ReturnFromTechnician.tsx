@@ -1,6 +1,7 @@
 'use client'
 
 import SearchInput from '@/app/components/shared/SearchInput'
+import TechnicianSelector from '@/app/components/shared/TechnicianSelector'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
@@ -18,8 +19,7 @@ import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
-import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
-import TechnicianSelector from '../issue/TechnicianSelector'
+import WarehouseSelectedItemsPanel from '../../../../components/shared/warehouse/WarehouseSelectedItemsPanel'
 
 type Props = {
   onClose: () => void

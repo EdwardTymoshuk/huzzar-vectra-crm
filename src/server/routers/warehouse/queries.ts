@@ -1,5 +1,5 @@
 // server/routers/warehouse/queries.ts
-import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
+import { loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { WarehouseItemType } from '@prisma/client'
@@ -51,7 +51,7 @@ export const queriesRouter = router({
     }),
 
   /** 🔍 Get warehouse item by serial number */
-  getBySerialNumber: adminOrCoord
+  getBySerialNumber: loggedInEveryone
     .input(z.object({ serial: z.string().min(1) }))
     .query(async ({ input }) => {
       const item = await prisma.warehouse.findFirst({
@@ -98,6 +98,7 @@ export const queriesRouter = router({
         },
         include: {
           assignedTo: true,
+          transferTo: true,
           history: {
             include: {
               performedBy: true,
@@ -160,4 +161,22 @@ export const queriesRouter = router({
         lastActionDate: last?.actionDate ?? null,
       }
     }),
+  // server/warehouse/router.ts  (lub w osobnym pliku)
+  searchDevices: loggedInEveryone
+    .input(z.object({ q: z.string().min(2) }))
+    .query(({ ctx, input }) =>
+      ctx.prisma.warehouse.findMany({
+        where: {
+          itemType: 'DEVICE',
+          status: 'AVAILABLE',
+          serialNumber: {
+            not: null,
+            startsWith: input.q,
+            mode: 'insensitive',
+          },
+        },
+        take: 10,
+        select: { id: true, serialNumber: true, name: true },
+      })
+    ),
 })

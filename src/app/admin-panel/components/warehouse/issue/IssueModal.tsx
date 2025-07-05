@@ -1,5 +1,6 @@
 'use client'
 
+import TechnicianSelector from '@/app/components/shared/TechnicianSelector'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -11,7 +12,6 @@ import { UserWithBasic } from '@/types'
 import { useState } from 'react'
 import { CgArrowsExchange } from 'react-icons/cg'
 import IssueItemsTabs from './IssueItemsTabs'
-import TechnicianSelector from './TechnicianSelector'
 
 type Props = {
   open: boolean

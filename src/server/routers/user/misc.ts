@@ -24,4 +24,20 @@ export const miscUserRouter = router({
         },
       })
     ),
+  /** List of technicians */
+  getTechnicians: loggedInEveryone.query(() =>
+    prisma.user.findMany({
+      where: { role: 'TECHNICIAN', status: 'ACTIVE' },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        email: true,
+        phoneNumber: true,
+        name: true,
+        status: true,
+        identyficator: true,
+        role: true,
+      },
+    })
+  ),
 })

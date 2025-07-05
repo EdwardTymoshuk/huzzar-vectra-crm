@@ -10,9 +10,9 @@ import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
+import SerialScanInput from '../../../../components/shared/SerialScanInput'
+import WarehouseSelectedItemsPanel from '../../../../components/shared/warehouse/WarehouseSelectedItemsPanel'
 import MaterialIssueTable from './MaterialIssueTable'
-import SerialScanInput from './SerialScanInput'
 
 type Props = {
   technicianId: string

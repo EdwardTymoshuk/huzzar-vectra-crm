@@ -12,8 +12,10 @@ import {
   Order,
   Prisma,
   PrismaClient,
+  Role,
   TimeSlot,
   User,
+  UserStatus,
   Warehouse,
   WarehouseAction,
   WarehouseHistory,
@@ -29,8 +31,8 @@ export interface Context {
     email?: string
     phoneNumber?: string
     identyficator?: number | null
-    role: 'USER' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'ADMIN'
-    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+    role: Role
+    status: UserStatus
   } | null
   prisma: PrismaClient
 }
@@ -94,7 +96,7 @@ export type OperatorFormData = z.infer<typeof operatorSchema>
 
 export type DeviceDefinition = {
   id: string
-  category: 'MODEM' | 'DECODER' | 'ONT' | 'AMPLIFIER' | 'UA' | 'OTHER'
+  category: DeviceCategory
   price: number
   name: string
   warningAlert: number

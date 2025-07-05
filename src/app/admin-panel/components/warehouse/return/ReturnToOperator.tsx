@@ -17,7 +17,7 @@ import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
-import WarehouseSelectedItemsPanel from '../WarehouseSelectedItemsPanel'
+import WarehouseSelectedItemsPanel from '../../../../components/shared/warehouse/WarehouseSelectedItemsPanel'
 
 type ReturnType = 'DEVICE' | 'MATERIAL'
 type Props = {
