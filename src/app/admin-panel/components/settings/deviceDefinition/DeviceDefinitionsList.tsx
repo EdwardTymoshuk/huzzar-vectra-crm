@@ -39,6 +39,10 @@ const DeviceDefinitionsList = () => {
   const utils = trpc.useUtils()
   const { data, isLoading, isError } =
     trpc.deviceDefinition.getAllDefinitions.useQuery()
+  const { data: categories = [] } =
+    trpc.deviceDefinition.getAllCategories.useQuery()
+
+  console.log(categories)
 
   const deleteMutation = trpc.deviceDefinition.deleteDefinition.useMutation({
     onSuccess: () => {
@@ -107,7 +111,7 @@ const DeviceDefinitionsList = () => {
   return (
     <div className="space-y-4 p-2">
       <div className="w-full flex flex-col lg:flex-row justify-between text-base font-normal">
-        <AddDeviceDefinitionDialog />
+        <AddDeviceDefinitionDialog categories={categories} />
         <SearchInput
           className="w-full lg:w-1/2 mt-2 lg:mt-0"
           onChange={setSearchTerm}
@@ -206,6 +210,7 @@ const DeviceDefinitionsList = () => {
         <EditDeviceDefinitionDialog
           open={!!editingItem}
           item={editingItem}
+          categories={categories}
           onClose={() => setEditingItem(null)}
         />
       )}

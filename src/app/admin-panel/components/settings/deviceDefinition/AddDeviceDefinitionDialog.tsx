@@ -25,10 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
+import { devicesTypeMap } from '@/lib/constants'
 import { deviceSchema } from '@/lib/schema'
 import { DeviceFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { DeviceCategory } from '@prisma/client'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { MdAdd } from 'react-icons/md'
@@ -39,7 +41,12 @@ import { toast } from 'sonner'
  * A modal form to create a new device subcategory with alerts and price.
  * Includes duplicate check against existing entries.
  */
-const AddDeviceDefinitionDialog = () => {
+
+type Props = {
+  categories: DeviceCategory[]
+}
+
+const AddDeviceDefinitionDialog = ({ categories }: Props) => {
   const [open, setOpen] = useState(false)
   const utils = trpc.useUtils()
 
@@ -110,17 +117,16 @@ const AddDeviceDefinitionDialog = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Kategoria</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Wybierz kategorię" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="MODEM">Modem</SelectItem>
-                      <SelectItem value="DECODER">Dekoder</SelectItem>
-                      <SelectItem value="ONT">ONT</SelectItem>
-                      <SelectItem value="AMPLIFIER">Wzmacniacz</SelectItem>
-                      <SelectItem value="UA">UA</SelectItem>
-                      <SelectItem value="OTHER">Inne</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {devicesTypeMap[cat]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

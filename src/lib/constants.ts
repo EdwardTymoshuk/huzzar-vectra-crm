@@ -277,7 +277,8 @@ export const userStatusColorMap: Record<string, string> = {
  */
 export const devicesTypeMap: Record<string, string> = {
   MODEM: 'MODEM',
-  DECODER: 'DEKODER',
+  DECODER_1_WAY: 'DEKODER 1 WAY',
+  DECODER_2_WAY: 'DEKODER 2 WAY',
   AMPLIFIER: 'WZMACNIACZ',
   ONT: 'ONT',
   UA: 'UA',

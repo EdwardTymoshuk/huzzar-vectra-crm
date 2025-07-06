@@ -280,7 +280,8 @@ enum WarehouseItemType {
 /// Defines categories of devices.
 enum DeviceCategory {
   MODEM
-  DECODER
+  DECODER_1_WAY
+  DECODER_2_WAY
   OTHER
   AMPLIFIER
   ONT

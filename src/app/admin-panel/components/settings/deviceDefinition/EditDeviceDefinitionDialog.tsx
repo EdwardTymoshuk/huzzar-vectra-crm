@@ -24,10 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
+import { devicesTypeMap } from '@/lib/constants'
 import { deviceSchema } from '@/lib/schema'
 import { DeviceDefinition, DeviceFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { DeviceCategory } from '@prisma/client'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -36,13 +38,19 @@ interface Props {
   open: boolean
   onClose: () => void
   item: DeviceDefinition & { id: string }
+  categories: DeviceCategory[]
 }
 
 /**
  * EditDeviceDefinitionDialog:
  * Modal for editing an existing device definition with alerts and price.
  */
-const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
+const EditDeviceDefinitionDialog = ({
+  open,
+  onClose,
+  item,
+  categories,
+}: Props) => {
   const utils = trpc.useUtils()
 
   // Fetch existing device definitions
@@ -114,12 +122,11 @@ const EditDeviceDefinitionDialog = ({ open, onClose, item }: Props) => {
                       <SelectValue placeholder="Wybierz kategorię" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="MODEM">Modem</SelectItem>
-                      <SelectItem value="DECODER">Dekoder</SelectItem>
-                      <SelectItem value="ONT">ONT</SelectItem>
-                      <SelectItem value="AMPLIFIER">Wzmacniacz</SelectItem>
-                      <SelectItem value="UA">UA</SelectItem>
-                      <SelectItem value="OTHER">Inne</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {devicesTypeMap[cat]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

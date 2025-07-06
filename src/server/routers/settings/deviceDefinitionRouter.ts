@@ -1,6 +1,7 @@
 import { deviceSchema } from '@/lib/schema'
 import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { prisma } from '@/utils/prisma'
+import { DeviceCategory } from '@prisma/client'
 import { z } from 'zod'
 import { router } from '../../trpc'
 
@@ -18,6 +19,11 @@ export const deviceDefinitionRouter = router({
       },
       orderBy: { name: 'asc' },
     })
+  }),
+
+  // 📂 Get all unique categories
+  getAllCategories: loggedInEveryone.query(async () => {
+    return Object.values(DeviceCategory)
   }),
 
   // ➕ Create new device definition
@@ -39,14 +45,7 @@ export const deviceDefinitionRouter = router({
       z
         .object({
           id: z.string(),
-          category: z.enum([
-            'MODEM',
-            'DECODER',
-            'ONT',
-            'AMPLIFIER',
-            'UA',
-            'OTHER',
-          ]),
+          category: z.nativeEnum(DeviceCategory),
           name: z.string().min(2),
           warningAlert: z.number().min(1),
           alarmAlert: z.number().min(1),
