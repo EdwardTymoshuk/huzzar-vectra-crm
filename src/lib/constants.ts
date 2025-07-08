@@ -104,6 +104,7 @@ export const statusColorMap: Record<string, string> = {
 export const orderTypeMap: Record<string, string> = {
   INSTALATION: 'Instalacja',
   SERVICE: 'Serwis',
+  OUTAGE: 'Awaria',
 }
 
 /**

@@ -14,21 +14,21 @@ model User {
   email                     String              @unique
   name                      String
   createdAt                 DateTime            @default(now())
-  deletedAt                 DateTime?          
   identyficator             Int?                @unique
   password                  String
   phoneNumber               String
   role                      Role                @default(TECHNICIAN)
   status                    UserStatus          @default(ACTIVE)
   updatedAt                 DateTime            @updatedAt
+  deletedAt                 DateTime?
   orders                    Order[]
   transferredOrders         Order[]             @relation("OrderTransfer")
   orderHistory              OrderHistory[]
   settings                  TechnicianSettings?
   warehouseItems            Warehouse[]         @relation("WarehouseAssignedTo")
+  transferredWarehouseItems Warehouse[]         @relation("WarehouseTransfer")
   warehouseHistoryAssigned  WarehouseHistory[]  @relation("WarehouseHistoryAssignedTo")
   warehouseHistoryPerformed WarehouseHistory[]  @relation("WarehouseHistoryPerformedBy")
-  transferredWarehouseItems Warehouse[]         @relation("WarehouseTransfer")
 }
 
 /// The order model, representing job assignments in the system.
@@ -143,14 +143,13 @@ model Warehouse {
   index                String?
   warningAlert         Int?                @default(10)
   materialDefinitionId String?
+  transferPending      Boolean             @default(false)
+  transferToId         String?
   orderAssignments     OrderEquipment[]    @relation("WarehouseToOrderEquipment")
   assignedTo           User?               @relation("WarehouseAssignedTo", fields: [assignedToId], references: [id])
   materialDefinition   MaterialDefinition? @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
+  transferTo           User?               @relation("WarehouseTransfer", fields: [transferToId], references: [id])
   history              WarehouseHistory[]
-
-  transferPending Boolean @default(false)
-  transferToId    String?
-  transferTo      User?   @relation("WarehouseTransfer", fields: [transferToId], references: [id])
 }
 
 /// Defines different types of devices available in the warehouse.
@@ -242,6 +241,7 @@ enum OrderStatus {
 enum OrderType {
   INSTALATION
   SERVICE
+  OUTAGE
 }
 
 /// Defines time slots for order scheduling.

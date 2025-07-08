@@ -67,6 +67,7 @@ export function OrderFormFields({
               <SelectContent>
                 <SelectItem value="INSTALATION">Instalacja</SelectItem>
                 <SelectItem value="SERVICE">Serwis</SelectItem>
+                <SelectItem value="OUTAGE">Awaria</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
