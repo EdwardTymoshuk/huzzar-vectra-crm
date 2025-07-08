@@ -5,6 +5,7 @@ import {
   materialSchema,
   operatorSchema,
   orderSchema,
+  technicianOrderSchema,
   warehouseFormSchema,
 } from '@/lib/schema'
 import {
@@ -114,6 +115,7 @@ export type MaterialDefinition = {
 }
 
 export type OrderFormData = z.infer<typeof orderSchema>
+export type TechnicianOrderFormData = z.infer<typeof technicianOrderSchema>
 export type WarehouseFormData = z.infer<typeof warehouseFormSchema>
 
 export type WarehouseHistoryWithUser = WarehouseHistory & {

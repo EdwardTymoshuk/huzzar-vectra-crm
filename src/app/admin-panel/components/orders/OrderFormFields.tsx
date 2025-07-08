@@ -21,16 +21,21 @@ import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
-import { Control } from 'react-hook-form'
+import { UseFormReturn } from 'react-hook-form'
 
+/**
+ * Admin-facing order form fields
+ * Includes all necessary data required to define a full order
+ */
 export function OrderFormFields({
-  control,
+  form,
 }: {
-  control: Control<OrderFormData>
+  form: UseFormReturn<OrderFormData>
 }) {
   const [operatorList, setOperatorList] = useState<string[]>([])
+  const { control } = form
 
-  // Fetch dynamic operators
+  // Fetch operator list from database
   const { data: operatorsData, isLoading: isOperatorsLoading } =
     trpc.operatorDefinition.getAllDefinitions.useQuery()
 
@@ -40,13 +45,13 @@ export function OrderFormFields({
     }
   }, [operatorsData])
 
-  // Fetch technicians
+  // Fetch technician list
   const { data: technicians, isLoading: isTechLoading } =
     trpc.user.getTechnicians.useQuery() || { data: [] }
 
   return (
     <>
-      {/* TYP ZLECENIA */}
+      {/* Order type (INSTALLATION or SERVICE) */}
       <FormField
         control={control}
         name="type"
@@ -69,7 +74,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* OPERATOR (z bazy danych) */}
+      {/* Operator (dynamic, from DB) */}
       <FormField
         control={control}
         name="operator"
@@ -99,7 +104,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* NUMER ZLECENIA */}
+      {/* Order number */}
       <FormField
         control={control}
         name="orderNumber"
@@ -114,7 +119,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* DATA */}
+      {/* Order date */}
       <FormField
         control={control}
         name="date"
@@ -129,7 +134,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* PRZEDZIAŁ CZASOWY – WSZYSTKIE SLOTY */}
+      {/* Time slot (static options) */}
       <FormField
         control={control}
         name="timeSlot"
@@ -153,7 +158,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* WYMAGA UMOWY */}
+      {/* Contract required toggle */}
       <FormField
         control={control}
         name="contractRequired"
@@ -177,7 +182,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* MIASTO */}
+      {/* City */}
       <FormField
         control={control}
         name="city"
@@ -192,7 +197,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* ULICA */}
+      {/* Street */}
       <FormField
         control={control}
         name="street"
@@ -207,7 +212,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* KOD POCZTOWY */}
+      {/* Postal code */}
       <FormField
         control={control}
         name="postalCode"
@@ -222,7 +227,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* POWIAT (opcjonalny) */}
+      {/* County (optional) */}
       <FormField
         control={control}
         name="county"
@@ -237,7 +242,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* GMINA (opcjonalna) */}
+      {/* Municipality (optional) */}
       <FormField
         control={control}
         name="municipality"
@@ -252,7 +257,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* NR TELEFONU KLIENTA (opcjonalny) */}
+      {/* Client phone number (optional) */}
       <FormField
         control={control}
         name="clientPhoneNumber"
@@ -267,13 +272,13 @@ export function OrderFormFields({
         )}
       />
 
-      {/* UWAGI (opcjonalne) */}
+      {/* Notes (optional) */}
       <FormField
         control={control}
         name="notes"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Uwagi (opcjonalne)</FormLabel>
+            <FormLabel>Uwagi (opcjonalnie)</FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. dzwonić przed wizytą" />
             </FormControl>
@@ -282,7 +287,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* WYMAGANY SPRZĘT (opcjonalny) */}
+      {/* Equipment needed (optional, comma separated) */}
       <FormField
         control={control}
         name="equipmentNeeded"
@@ -291,7 +296,7 @@ export function OrderFormFields({
             <FormLabel>Dostarczany sprzęt (opcjonalnie)</FormLabel>
             <FormControl>
               <Input
-                value={field.value || ''} // It's a string in the form
+                value={field.value || ''}
                 onChange={(e) => field.onChange(e.target.value)}
                 placeholder="np. router, dekoder"
               />
@@ -301,7 +306,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* STATUS (opcjonalny) */}
+      {/* Order status */}
       <FormField
         control={control}
         name="status"
@@ -329,7 +334,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* PRZYPISANY TECHNIK (opcjonalny) */}
+      {/* Assigned technician (optional) */}
       <FormField
         control={control}
         name="assignedToId"
@@ -338,18 +343,18 @@ export function OrderFormFields({
             <FormLabel>Przypisany technik (opcjonalnie)</FormLabel>
             <Select
               onValueChange={(value) => {
-                field.onChange(value === 'none' ? null : value)
-                if (
-                  value !== 'none' &&
-                  control._formValues.status === OrderStatus.PENDING
+                const selected = value === 'none' ? null : value
+                field.onChange(selected)
+
+                // Automatically adjust status based on assignment
+                const currentStatus = form.getValues('status')
+                if (selected && currentStatus === OrderStatus.PENDING) {
+                  form.setValue('status', OrderStatus.ASSIGNED)
+                } else if (
+                  !selected &&
+                  currentStatus === OrderStatus.ASSIGNED
                 ) {
-                  control._formValues.status = OrderStatus.ASSIGNED
-                }
-                if (
-                  value === 'none' &&
-                  control._formValues.status === OrderStatus.ASSIGNED
-                ) {
-                  control._formValues.status = OrderStatus.PENDING
+                  form.setValue('status', OrderStatus.PENDING)
                 }
               }}
               value={field.value ?? 'none'}

@@ -45,9 +45,9 @@ type OrderRow = Prisma.OrderGetPayload<{
 
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
-type Props = { searchTerm: string }
+type Props = { searchTerm: string; autoOpenOrderId?: string }
 
-const TechnicianOrdersTable = ({ searchTerm }: Props) => {
+const TechnicianOrdersTable = ({ searchTerm, autoOpenOrderId }: Props) => {
   const { data: session } = useSession()
   const myId = session?.user.id
 
@@ -57,7 +57,7 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [statusF, setStatusF] = useState<OrderStatus | null>(null)
   const [typeF, setTypeF] = useState<OrderType | null>(null)
-  const [openRowId, setOpenRowId] = useState<string | null>(null)
+  const [openIds, setOpenIds] = useState<string[]>([])
 
   const {
     data: list,
@@ -110,6 +110,7 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
   }, [list?.orders, incoming, myId])
 
   const totalPages = Math.ceil((list?.totalOrders || 1) / perPage)
+
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
@@ -153,6 +154,11 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
       }
     return { txt: statusMap[o.status], cls: statusColorMap[o.status] }
   }
+  useEffect(() => {
+    if (autoOpenOrderId && !openIds.includes(autoOpenOrderId)) {
+      setOpenIds((prev) => [...prev, autoOpenOrderId])
+    }
+  }, [autoOpenOrderId])
 
   if (isLoading || incLoading) return <LoaderSpinner />
   if (isError || incError)
@@ -227,9 +233,13 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
               Brak wyników.
             </p>
           ) : (
-            <Accordion type="multiple">
+            <Accordion
+              type="multiple"
+              value={openIds}
+              onValueChange={setOpenIds}
+            >
               {filtered.map((o) => {
-                const open = openRowId === o.id
+                const open = openIds.includes(o.id)
                 const incoming = o.transferPending && o.transferToId === myId
                 const outgoingPending =
                   o.transferPending && o.assignedTo?.id === myId
@@ -243,7 +253,13 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
                   >
                     <AccordionTrigger
                       className="px-4 py-3 text-start hover:bg-muted/40"
-                      onClick={() => setOpenRowId(open ? null : o.id)}
+                      onClick={() =>
+                        setOpenIds(
+                          open
+                            ? openIds.filter((id) => id !== o.id)
+                            : [...openIds, o.id]
+                        )
+                      }
                     >
                       <div className="w-full grid grid-cols-1 md:grid-cols-[150px_minmax(180px,1fr)_minmax(280px,2fr)_140px_120px_120px] gap-2 text-sm items-start">
                         <div>{orderTypeMap[o.type] ?? '—'}</div>
@@ -278,6 +294,7 @@ const TechnicianOrdersTable = ({ searchTerm }: Props) => {
                     <AccordionContent className="bg-muted/30 px-4 py-3">
                       <TechnicianOrderDetails
                         orderId={o.id}
+                        autoOpen={autoOpenOrderId === o.id}
                         orderStatus={o.status}
                         disableTransfer={incoming || outgoingPending}
                         incomingTransfer={incoming}

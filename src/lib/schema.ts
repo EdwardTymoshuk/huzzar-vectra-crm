@@ -122,3 +122,10 @@ export const orderSchema = z.object({
 
   status: z.nativeEnum(OrderStatus),
 })
+
+export const technicianOrderSchema = orderSchema.omit({
+  contractRequired: true,
+  postalCode: true,
+  assignedToId: true,
+  equipmentNeeded: true,
+})

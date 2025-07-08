@@ -1,17 +1,22 @@
 'use client'
 
-import AddOrderModal from '@/app/admin-panel/components/orders/AddOrderModal'
 import SearchInput from '@/app/components/shared/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
+import TechnicianAddOrderModal from './addOrder/TechnicianAddOrderModal'
 
 type Props = {
   searchTerm: string
   setSearchTerm: (value: string) => void
+  onCreated?: (id: string) => void
 }
 
-const TechnicianOrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
+const TechnicianOrdersToolbar = ({
+  searchTerm,
+  setSearchTerm,
+  onCreated,
+}: Props) => {
   const [isAddModalOpen, setAddModalOpen] = useState(false)
 
   return (
@@ -30,9 +35,10 @@ const TechnicianOrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         />
       </div>
 
-      <AddOrderModal
+      <TechnicianAddOrderModal
         open={isAddModalOpen}
         onCloseAction={() => setAddModalOpen(false)}
+        onCreated={onCreated}
       />
     </div>
   )

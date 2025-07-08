@@ -7,7 +7,7 @@ import { materialUnitMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus } from '@prisma/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BsSendCheck } from 'react-icons/bs'
 import { CgArrowsExchange } from 'react-icons/cg'
 import TransferOrderModal from './TransferOrderModal'
@@ -16,6 +16,7 @@ import CompleteOrderModal from './completeOrder/CompleteOrderModal'
 /* -------------------------------------------------- */
 interface Props {
   orderId: string
+  autoOpen?: boolean
   orderStatus: OrderStatus
   disableTransfer?: boolean
   /** true → show Accept / Reject inside details */
@@ -28,6 +29,7 @@ interface Props {
 /* -------------------------------------------------- */
 const TechnicianOrderDetails = ({
   orderId,
+  autoOpen,
   orderStatus,
   disableTransfer = false,
   incomingTransfer,
@@ -44,6 +46,12 @@ const TechnicianOrderDetails = ({
   /* local modal state */
   const [showTransfer, setShowTransfer] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
+
+  useEffect(() => {
+    if (autoOpen && !showCompleteModal) {
+      setShowCompleteModal(true)
+    }
+  }, [autoOpen])
 
   /* async / error states */
   if (isLoading) return <LoaderSpinner />
