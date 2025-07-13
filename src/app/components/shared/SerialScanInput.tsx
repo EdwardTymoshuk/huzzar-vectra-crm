@@ -1,4 +1,3 @@
-// src/app/(technician)/components/warehouse/SerialScanInput.tsx
 'use client'
 
 import { Button } from '@/app/components/ui/button'
@@ -16,42 +15,41 @@ interface Props {
   onAddDevice: (device: IssuedItemDevice) => void
   devices?: DeviceBasic[]
   validStatuses?: WarehouseStatus[]
+  variant?: 'inline' | 'block'
 }
 
 /**
- * SerialScanInput
- * ------------------------------------------------------------------
- * • Piszesz lub skanujesz numer -> Enter/Dodaj => walidacja + onAddDevice
- * • Gdy przekazane jest props.devices – po ≥ 3 znakach pokazuje dropdown
- *   z pasującymi numerami (klient-side).
+ * SerialScanInput – device serial number search and validation.
+ * Shows dropdown suggestions (if devices provided), validates from backend.
+ * Calls onAddDevice when device is accepted.
  */
 const SerialScanInput = ({
   onAddDevice,
   devices = [],
   validStatuses,
+  variant = 'inline',
 }: Props) => {
   const [value, setValue] = useState('')
   const [showDD, setShowDD] = useState(false)
   const utils = trpc.useUtils()
-
   const { data: session } = useSession()
   const myId = session?.user.id
 
-  /* ------- lokalne podpowiedzi -------- */
+  // Suggestions for local search (min 3 chars)
   const suggestions = useMemo(() => {
     if (value.trim().length < 3) return []
     const lower = value.trim().toLowerCase()
     return devices.filter((d) => d.serialNumber?.toLowerCase().includes(lower))
   }, [value, devices])
 
-  /* ------- walidacja przez backend -------- */
+  // Fetches device info from backend
   const fetchDevice = (serial: string) =>
     utils.warehouse.getBySerialNumber.fetch({ serial: serial.toLowerCase() })
 
+  // Main logic for adding device (with backend validation)
   const tryAdd = async (serial: string) => {
     const s = serial.trim()
     if (!s) return toast.error('Wpisz numer seryjny.')
-
     try {
       const res = await fetchDevice(s)
       if (!res) return toast.error('Nie znaleziono urządzenia o tym numerze.')
@@ -60,25 +58,26 @@ const SerialScanInput = ({
       if (res.serialNumber.toLowerCase() !== s.toLowerCase())
         return toast.error('Numer seryjny nie pasuje dokładnie do urządzenia.')
 
-      if (!validStatuses?.includes(res.status)) {
-        toast.error(
-          res.assignedTo
-            ? 'To urządzenie jest przypisane do innego technika.'
-            : 'To urządzenie nie jest dostępne.'
-        )
+      // Technicians can only add their own devices
+      if (res.assignedToId && res.assignedToId !== myId) {
+        toast.error('To urządzenie jest przypisane do innego technika.')
         return
       }
 
-      if (res.assignedToId && res.assignedToId !== myId) {
-        toast.error('To urządzenie nie należy do Ciebie.')
+      // Only allowed statuses are accepted
+      if (
+        !res.assignedToId &&
+        validStatuses &&
+        !validStatuses.includes(res.status)
+      ) {
+        toast.error('To urządzenie nie jest dostępne.')
         return
       }
+
       if (res.transferPending) {
         toast.error('To urządzenie jest już w trakcie przekazania.')
         return
       }
-
-      console.log('Moj id: ', myId, res.id, res.status, res.assignedToId)
 
       onAddDevice({
         id: res.id,
@@ -95,37 +94,66 @@ const SerialScanInput = ({
     }
   }
 
-  /* ---------------- render ---------------- */
   return (
     <div className="relative space-y-2">
-      <div className="flex gap-2">
-        <Input
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value)
-            setShowDD(e.target.value.trim().length >= 3 && devices.length > 0)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              tryAdd(value)
-            }
-          }}
-          className="[text-transform:uppercase] placeholder:normal-case"
-          placeholder="Wpisz lub zeskanuj numer seryjny"
-          autoFocus
-        />
+      {/* Input + button layout (inline or block variant) */}
+      {variant === 'inline' ? (
+        <div className="flex md:flex-row gap-2">
+          <Input
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value)
+              setShowDD(e.target.value.trim().length >= 3 && devices.length > 0)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                tryAdd(value)
+              }
+            }}
+            className="[text-transform:uppercase] placeholder:normal-case"
+            placeholder="Wpisz lub zeskanuj numer seryjny"
+            autoFocus
+          />
+          <Button
+            variant="default"
+            onClick={() => tryAdd(value)}
+            disabled={!value.trim()}
+            className="md:w-fit"
+          >
+            Dodaj
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col md:flex-row gap-2 w-full">
+          <Input
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value)
+              setShowDD(e.target.value.trim().length >= 3 && devices.length > 0)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                tryAdd(value)
+              }
+            }}
+            className="[text-transform:uppercase] placeholder:normal-case"
+            placeholder="Wpisz lub zeskanuj numer seryjny"
+            autoFocus
+          />
+          <Button
+            variant="default"
+            className="w-full md:w-fit"
+            onClick={() => tryAdd(value)}
+            disabled={!value.trim()}
+          >
+            Dodaj
+          </Button>
+        </div>
+      )}
 
-        <Button
-          variant="secondary"
-          onClick={() => tryAdd(value)}
-          disabled={!value.trim()}
-        >
-          Dodaj
-        </Button>
-      </div>
-
-      {/* dropdown z podpowiedziami */}
+      {/* Local dropdown suggestions */}
       {showDD && (
         <>
           {suggestions.length > 0 ? (
@@ -144,7 +172,7 @@ const SerialScanInput = ({
               ))}
             </div>
           ) : (
-            <div className="absolute z-10 m123 w-full bg-background border rounded shadow px-3 py-2 text-muted-foreground">
+            <div className="absolute z-10 w-full bg-background border rounded shadow px-3 py-2 text-muted-foreground">
               Brak wyników
             </div>
           )}

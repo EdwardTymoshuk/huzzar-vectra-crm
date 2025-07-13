@@ -3,10 +3,11 @@
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import { Alert, AlertDescription } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
-import { materialUnitMap } from '@/lib/constants'
+import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus } from '@prisma/client'
+import { DeviceCategory, OrderStatus } from '@prisma/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { BsSendCheck } from 'react-icons/bs'
 import { CgArrowsExchange } from 'react-icons/cg'
@@ -38,14 +39,15 @@ const TechnicianOrderDetails = ({
   onReject,
 }: Props) => {
   /* lazy-load full details */
-  const { data, isLoading, isError } = trpc.order.getOrderById.useQuery(
-    { id: orderId },
-    { staleTime: 60_000 }
-  )
+  const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
+    id: orderId,
+  })
 
   /* local modal state */
   const [showTransfer, setShowTransfer] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
+
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (autoOpen && !showCompleteModal) {
@@ -68,7 +70,9 @@ const TechnicianOrderDetails = ({
   const equipment =
     data.assignedEquipment?.map(
       (e) =>
-        `${e.warehouse.name}${
+        `${
+          devicesTypeMap[(e.warehouse.category || 'OTHER') as DeviceCategory]
+        } ${e.warehouse.name}${
           e.warehouse.serialNumber ? ` (SN: ${e.warehouse.serialNumber})` : ''
         }`
     ) ?? []
@@ -87,6 +91,7 @@ const TechnicianOrderDetails = ({
       <div className="space-y-1">
         <HeaderRow label="Nr zlecenia" value={data.orderNumber} />
         <HeaderRow label="Adres" value={`${data.city}, ${data.street}`} />
+        <HeaderRow label="Operator" value={data.operator} />
         <HeaderRow label="Nr kontaktowy" value={`${data.clientPhoneNumber}`} />
         <HeaderRow
           label="Data"
@@ -152,8 +157,11 @@ const TechnicianOrderDetails = ({
       {/* Complte order modal */}
       <CompleteOrderModal
         open={showCompleteModal}
-        orderId={orderId}
-        onClose={() => setShowCompleteModal(false)}
+        order={data}
+        onCloseAction={() => {
+          setShowCompleteModal(false)
+          queryClient.invalidateQueries(['order.getOrderById'])
+        }}
         orderType={data.type}
       />
     </div>

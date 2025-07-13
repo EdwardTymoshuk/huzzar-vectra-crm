@@ -244,7 +244,7 @@ export const mutationsRouter = router({
 
       if (
         input.status === OrderStatus.COMPLETED &&
-        order.type !== OrderType.SERVICE &&
+        order.type === OrderType.INSTALATION &&
         (!input.workCodes || input.workCodes.length === 0)
       ) {
         throw new TRPCError({

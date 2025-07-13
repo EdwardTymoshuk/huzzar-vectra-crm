@@ -63,7 +63,6 @@ export const TechnicianAddOrderModal = ({
     try {
       const createdOrder = await createOrderMutation.mutateAsync({
         ...data,
-        operator: 'VCTR',
         contractRequired: false,
         postalCode: '00-000',
         equipmentNeeded: [],

@@ -159,3 +159,21 @@ export type WarehouseWithRelations = Prisma.WarehouseGetPayload<{
 }>
 
 export type SelectedCode = { code: string; quantity: number }
+
+export type ServiceType = 'DTV' | 'NET' | 'TEL' | 'ATV'
+
+export type ActivatedService = {
+  id: string
+  type: ServiceType // 'DTV' | 'INTERNET' | 'TEL' | 'ATV'
+  deviceType?: 'DECODER_1_WAY' | 'DECODER_2_WAY' | 'MODEM' | 'ROUTER'
+  deviceId?: string
+  serialNumber?: string
+  deviceId2?: string
+  serialNumber2?: string
+  usDbmDown?: string
+  usDbmUp?: string
+  usDbmConfirmed?: boolean
+  speedTest?: string
+  speedTestConfirmed?: boolean
+  notes?: string
+}

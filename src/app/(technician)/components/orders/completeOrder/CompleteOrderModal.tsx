@@ -1,5 +1,6 @@
 'use client'
 
+import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -8,144 +9,225 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import { Input } from '@/app/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select'
 import { Textarea } from '@/app/components/ui/textarea'
-import { SelectedCode } from '@/types'
+import { orderFailureReasons } from '@/lib/constants'
+import { ActivatedService, IssuedItemDevice } from '@/types'
+import { getSettlementWorkCodes } from '@/utils/getSettlementWorkCodes'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, OrderType } from '@prisma/client'
+import { Order, OrderStatus, OrderType } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import EquipmentSelector from './EquipmentSelector'
+import DeviceSummaryRow from './DeviceSummaryRow'
+import { InstallationSection } from './InstallationSection'
 import MaterialSelector from './MaterialSelector'
-import WorkCodeSelector from './WorkCodeSelector'
+import { ServicesSection } from './ServicesSection'
 
 type Props = {
   open: boolean
-  orderId: string
-  onClose: () => void
+  onCloseAction: () => void
+  order: Order
   orderType: OrderType
 }
 
 /**
- * CompleteOrderModal is a dialog for completing or rejecting an order.
- * - Allows the user to mark the order as completed or not completed.
- * - For completed orders: user can select work codes, equipment, and materials used.
- * - For not completed orders: user must enter a failure reason.
- * - Notes (comments) are optional in both cases.
- * - All required data is loaded at once to enable a shared loading state and Skeleton.
+ * CompleteOrderModal
+ * -----------------------------------------------------------------
+ * Technician modal for order completion.
+ * - For installation: services, installation elements, materials, work codes.
+ * - For service/outage: equipment selection (serial number), materials, notes.
+ * - No work codes or installation elements for SERVICE/OUTAGE.
  */
-const CompleteOrderModal = ({ open, onClose, orderId, orderType }: Props) => {
-  // Modal state for status, notes, failure reason, work codes, materials, and equipment
+export const CompleteOrderModal = ({
+  open,
+  onCloseAction,
+  order,
+  orderType,
+}: Props) => {
+  // Local state
   const [status, setStatus] = useState<OrderStatus>('COMPLETED')
   const [notes, setNotes] = useState('')
   const [failureReason, setFailureReason] = useState('')
-
-  const [workCodes, setWorkCodes] = useState<SelectedCode[]>([])
+  const [activatedServices, setActivatedServices] = useState<
+    ActivatedService[]
+  >([])
+  const [install, setInstall] = useState({ pion: 0, listwa: 0 })
   const [materials, setMaterials] = useState<
     { id: string; quantity: number }[]
   >([])
-  const [equipment, setEquipment] = useState<string[]>([])
 
-  // TRPC utils for cache invalidation
-  const utils = trpc.useUtils()
+  // State for selected equipment (for service/outage only)
+  const [selectedDevices, setSelectedDevices] = useState<IssuedItemDevice[]>([])
 
-  // Mutation for completing the order
+  // Load technician's stock
+  const { data: technicianDevices, isLoading: loadingDevices } =
+    trpc.warehouse.getTechnicianStock.useQuery({
+      technicianId: 'self',
+      itemType: 'DEVICE',
+    })
+  const { data: materialDefs } = trpc.materialDefinition.getAll.useQuery()
+  const { data: technicianMaterials } =
+    trpc.warehouse.getTechnicianStock.useQuery({
+      technicianId: 'self',
+      itemType: 'MATERIAL',
+    })
+  const { data: workCodeDefs } = trpc.rateDefinition.getAllRates.useQuery()
+
+  // Modal mutation
   const mutation = trpc.order.completeOrder.useMutation({
     onSuccess: () => {
       toast.success('Zlecenie zostało zaktualizowane.')
-      utils.order.getOrders.invalidate()
-      utils.order.getOrderById.invalidate({ id: orderId })
-      utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
-      utils.warehouse.getItemsByName.invalidate({
-        name: materials?.[0]?.id ?? '',
-        scope: 'technician',
-      })
-      onClose()
+      onCloseAction()
     },
     onError: () => toast.error('Błąd zapisu zlecenia.'),
   })
 
-  // Fetch all required data upfront to enable shared loading skeleton
-  const {
-    data: workCodeDefs,
-    isLoading: loadingCodes,
-    isError: errorCodes,
-  } = trpc.rateDefinition.getAllRates.useQuery()
-
-  const {
-    data: technicianMaterials,
-    isLoading: loadingMaterialStock,
-    isError: errorMaterialStock,
-  } = trpc.warehouse.getTechnicianStock.useQuery({
-    technicianId: 'self',
-    itemType: 'MATERIAL',
-  })
-
-  const {
-    data: materialDefs,
-    isLoading: loadingMaterialDefs,
-    isError: errorMaterialDefs,
-  } = trpc.materialDefinition.getAll.useQuery()
-
-  const {
-    data: technicianDevices,
-    isLoading: loadingDeviceStock,
-    isError: errorDeviceStock,
-  } = trpc.warehouse.getTechnicianStock.useQuery({
-    technicianId: 'self',
-    itemType: 'DEVICE',
-  })
-
-  const isLoading =
-    loadingCodes ||
-    loadingMaterialStock ||
-    loadingMaterialDefs ||
-    loadingDeviceStock
-
-  const isError =
-    errorCodes || errorMaterialStock || errorMaterialDefs || errorDeviceStock
-
-  /**
-   * Handles the form submission.
-   * Validates required fields before calling the mutation.
-   * - If completed, requires at least one work code.
-   * - Submits status, notes, failure reason, work codes, equipment, and materials.
-   */
-  const handleSubmit = () => {
+  // Validation depending on order type
+  const validate = () => {
     if (
       status === 'COMPLETED' &&
-      orderType !== 'SERVICE' &&
-      workCodes.length === 0
+      orderType === 'INSTALATION' &&
+      activatedServices.length === 0
     ) {
-      return toast.error('Wybierz przynajmniej jeden kod pracy.')
+      toast.error('Dodaj przynajmniej jedną usługę.')
+      return false
+    }
+    if (status === 'COMPLETED' && orderType === 'INSTALATION') {
+      for (const s of activatedServices) {
+        if (
+          s.type === 'DTV' &&
+          (!s.serialNumber || s.serialNumber.length < 3)
+        ) {
+          toast.error('Wprowadź numer seryjny dekodera.')
+          return false
+        }
+        if (
+          s.type === 'DTV' &&
+          s.deviceType === 'DECODER_2_WAY' &&
+          (!s.usDbmDown || !s.usDbmUp)
+        ) {
+          toast.error('Uzupełnij pomiary DS/US dla dekodera 2-way.')
+          return false
+        }
+        if (
+          s.type === 'NET' &&
+          (!s.serialNumber || s.serialNumber.length < 3)
+        ) {
+          toast.error('Wprowadź numer seryjny modemu.')
+          return false
+        }
+        if (
+          s.type === 'NET' &&
+          order.operator === 'TMPL' &&
+          (!s.serialNumber2 || s.serialNumber2.length < 3)
+        ) {
+          toast.error('Wprowadź numer seryjny routera.')
+          return false
+        }
+        if (s.type === 'NET' && !s.speedTest) {
+          toast.error('Wprowadź pomiar prędkości dla NET.')
+          return false
+        }
+      }
+    }
+    if (
+      status === 'COMPLETED' &&
+      orderType !== 'INSTALATION' &&
+      selectedDevices.length === 0
+    ) {
+      toast.error('Dodaj przynajmniej jedno urządzenie.')
+      return false
+    }
+    if (status === 'NOT_COMPLETED' && !failureReason) {
+      toast.error('Wybierz powód niewykonania.')
+      return false
+    }
+    return true
+  }
+
+  // Add device (for service/outage)
+  const handleAddDevice = (device: IssuedItemDevice) => {
+    if (selectedDevices.some((d) => d.id === device.id)) {
+      toast.error('To urządzenie zostało już dodane.')
+      return
+    }
+    setSelectedDevices((prev) => [...prev, device])
+  }
+
+  // Remove device
+  const handleRemoveDevice = (id: string) => {
+    setSelectedDevices((prev) => prev.filter((d) => d.id !== id))
+  }
+
+  // Prepare and send mutation
+  const handleSubmit = () => {
+    if (!validate()) return
+
+    let equipmentIds: string[] = []
+    let workCodes: { code: string; quantity: number }[] | undefined
+
+    if (orderType === 'INSTALATION') {
+      if (!workCodeDefs) {
+        toast.error('Nie załadowano kodów pracy.')
+        return
+      }
+      equipmentIds = activatedServices
+        .flatMap((s) => [s.deviceId, s.deviceId2])
+        .filter(Boolean) as string[]
+      workCodes = getSettlementWorkCodes(
+        activatedServices,
+        workCodeDefs,
+        install
+      )
+    } else {
+      equipmentIds = selectedDevices.map((d) => d.id)
+      workCodes = undefined
     }
 
+    console.log(workCodes, 'Urzadzenia: ,', equipmentIds)
+
     mutation.mutate({
-      orderId,
+      orderId: order.id,
       status,
       notes: notes || null,
       failureReason: status === 'NOT_COMPLETED' ? failureReason : null,
-      workCodes: workCodes.map((c) => ({ code: c.code, quantity: c.quantity })),
-      equipmentIds: equipment,
+      workCodes,
+      equipmentIds,
       usedMaterials: materials,
     })
   }
 
+  // Devices for SerialScanInput
+  const devices = (technicianDevices ?? [])
+    .filter((d) => d.category)
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber,
+      category: d.category ?? 'OTHER',
+    }))
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onCloseAction}>
       <DialogContent
         className="
           max-w-lg md:max-w-2xl w-[95vw] min-w-0
           flex flex-col gap-4
           overflow-x-hidden
         "
+        aria-describedby={undefined}
       >
         <DialogHeader>
           <DialogTitle>Zakończ zlecenie</DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4 w-full">
-          {/* Status toggle buttons */}
+          {/* Status toggle */}
           <div className="flex gap-4 justify-center">
             <Button
               variant={status === 'COMPLETED' ? 'default' : 'outline'}
@@ -161,60 +243,78 @@ const CompleteOrderModal = ({ open, onClose, orderId, orderType }: Props) => {
             </Button>
           </div>
 
-          {/* Shared loading skeleton for completed order inputs */}
-          {status === 'COMPLETED' && (
-            <>
-              {isLoading ? (
-                <div className="space-y-4 animate-pulse">
-                  <div className="h-6 bg-muted rounded w-32" />
-                  <div className="h-12 bg-muted rounded" />
-                  <div className="h-12 bg-muted rounded" />
-                  <div className="h-24 bg-muted rounded" />
-                </div>
-              ) : isError ? (
-                <p className="text-danger">Błąd ładowania danych.</p>
-              ) : (
-                <>
-                  {orderType !== 'SERVICE' && (
-                    <WorkCodeSelector
-                      selected={workCodes}
-                      setSelected={setWorkCodes}
-                      codes={workCodeDefs ?? []}
+          {/* Main content */}
+          {status === 'COMPLETED' ? (
+            loadingDevices ? (
+              <div className="animate-pulse h-12 bg-muted rounded" />
+            ) : (
+              <>
+                {orderType === 'INSTALATION' ? (
+                  <>
+                    <h4 className="font-semibold">Uruchomione usługi</h4>
+                    <ServicesSection
+                      operator={order.operator}
+                      devices={devices}
+                      value={activatedServices}
+                      onChangeAction={setActivatedServices}
                     />
-                  )}
-                  <EquipmentSelector
-                    selected={equipment}
-                    setSelected={setEquipment}
-                    devices={technicianDevices ?? []}
-                  />
-                  <MaterialSelector
-                    selected={materials}
-                    setSelected={setMaterials}
-                    materials={materialDefs ?? []}
-                    technicianStock={technicianMaterials ?? []}
-                  />
-                </>
-              )}
-            </>
+                    <h4 className="font-semibold">Instalacja</h4>
+                    <InstallationSection
+                      activatedServices={activatedServices}
+                      value={install}
+                      onChangeAction={setInstall}
+                    />
+                  </>
+                ) : (
+                  <div className="mb-4">
+                    <h4 className="font-semibold mb-2">Urządzenia</h4>
+                    <SerialScanInput
+                      devices={devices}
+                      onAddDevice={handleAddDevice}
+                      variant="block"
+                    />
+                    {selectedDevices.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {selectedDevices.map((device) => (
+                          <DeviceSummaryRow
+                            key={device.id}
+                            device={device}
+                            onRemove={handleRemoveDevice}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <h4 className="font-semibold">Zużyty materiał</h4>
+                <MaterialSelector
+                  selected={materials}
+                  setSelected={setMaterials}
+                  materials={materialDefs ?? []}
+                  technicianStock={technicianMaterials ?? []}
+                />
+              </>
+            )
+          ) : (
+            <Select value={failureReason} onValueChange={setFailureReason}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Wybierz powód niewykonania" />
+              </SelectTrigger>
+              <SelectContent>
+                {orderFailureReasons.map((reason) => (
+                  <SelectItem key={reason} value={reason}>
+                    {reason}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-
-          {/* Failure reason input if status is NOT_COMPLETED */}
-          {status === 'NOT_COMPLETED' && (
-            <Input
-              placeholder="Podaj powód niewykonania"
-              value={failureReason}
-              onChange={(e) => setFailureReason(e.target.value)}
-            />
-          )}
-
-          {/* Notes input (always visible) */}
           <Textarea
             placeholder="Uwagi (opcjonalnie)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
         </div>
-
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={mutation.isLoading}>
             {mutation.isLoading ? 'Zapisywanie...' : 'Zapisz i zakończ'}

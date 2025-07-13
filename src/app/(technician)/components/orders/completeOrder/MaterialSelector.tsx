@@ -87,8 +87,6 @@ const MaterialSelector = ({
 
   return (
     <div className="space-y-4 relative z-0 min-w-0 w-full">
-      <h4 className="font-semibold">Zużyty materiał</h4>
-
       {/* Combobox for searching and selecting materials */}
       <SearchableSelector
         options={materials.map((m) => ({ label: m.name, value: m.id }))}

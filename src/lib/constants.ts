@@ -1,7 +1,7 @@
 // src/lib/constants.ts
 
-import { MenuItem } from '@/types'
-import { TimeSlot, WarehouseAction } from '@prisma/client'
+import { ActivatedService, MenuItem } from '@/types'
+import { RateDefinition, TimeSlot, WarehouseAction } from '@prisma/client'
 import {
   MdAssignment,
   MdOutlineSettings,
@@ -334,3 +334,66 @@ export const polishMonthsNominative = [
   'listopad',
   'grudzień',
 ]
+
+export const orderFailureReasons = [
+  'Brak kluczy / dostępu do skrzynki',
+  'Brak kabla w lokalu AB',
+  'Uszkodzony kabel sygnałowy',
+  'Brak sygnału na budynku',
+  'Instalator nie dotarł do AB',
+  'Awaria',
+  'Błędne dane na umowie',
+  'Niezgodność umowy z zamówieniem',
+  'Błędny termin realizacji zlecenia',
+  'Brak AB w lokalu',
+  'Zmiana terminu przez AB',
+  'Problem ze sprzętem AB',
+  'Brak zgody na wiercenie',
+  'Nie uwolniony kabel',
+  'Rezygnacja AB',
+]
+// Mapping services to working codes (to settlementEntry)
+export const mapServiceToCode = (
+  service: ActivatedService,
+  rates: RateDefinition[]
+): string | null => {
+  if (service.type === 'DTV' && service.deviceType === 'DECODER_1_WAY')
+    return rates.find((r) => r.code.includes('1-way'))?.code || null
+  if (service.type === 'DTV' && service.deviceType === 'DECODER_2_WAY')
+    return rates.find((r) => r.code.includes('2-way'))?.code || null
+  if (service.type === 'NET')
+    return rates.find((r) => r.code.includes('NET'))?.code || null
+  if (service.type === 'TEL')
+    return (
+      rates.find((r) => r.code.includes('TEL'))?.code ||
+      rates.find((r) => r.code.includes('NET'))?.code ||
+      null
+    )
+  if (service.type === 'ATV')
+    return rates.find((r) => r.code.includes('1-way'))?.code || null
+  return null
+}
+
+//Mapping instalation section to working codes (to settlementEntry)
+export const mapInstallToCode = (
+  type: 'LISTWA' | 'PION' | 'GNIAZDO' | 'PRZYŁĄCZE',
+  rates: RateDefinition[]
+): string | null => {
+  if (type === 'LISTWA')
+    return (
+      rates.find((r) => r.code.toLowerCase().includes('listw'))?.code || null
+    )
+  if (type === 'PION')
+    return (
+      rates.find((r) => r.code.toLowerCase().includes('pion'))?.code || null
+    )
+  if (type === 'GNIAZDO')
+    return (
+      rates.find((r) => r.code.toLowerCase().includes('gniaz'))?.code || null
+    )
+  if (type === 'PRZYŁĄCZE')
+    return (
+      rates.find((r) => r.code.toLowerCase().includes('przył'))?.code || null
+    )
+  return null
+}
