@@ -107,8 +107,9 @@ export const reportsRouter = router({
         Lp: i + 1,
         'Nr zlecenia': o.orderNumber,
         Adres: `${o.city} ${o.postalCode}, ${o.street}`,
-        Wykonana: o.status === 'COMPLETED' ? 'TAK' : 'NIE',
+        Wykonano: o.status === 'COMPLETED' ? 'TAK' : 'NIE',
         'Powód niewykonania': o.status === 'NOT_COMPLETED' ? o.notes ?? '' : '',
+        Uwagi: o.notes ?? '',
         Technik: o.assignedTo?.name ?? 'Nieprzypisany',
         Operator: o.operator,
       }))
