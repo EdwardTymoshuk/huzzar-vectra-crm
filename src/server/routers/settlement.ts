@@ -1,3 +1,4 @@
+import { generateTechnicianReportWithData } from '@/utils/generateTechnicianReportWithData'
 import { prisma } from '@/utils/prisma'
 import { sortCodes } from '@/utils/sortCodes'
 import { writeTechnicianSummaryReport } from '@/utils/writeTechnicianSummaryReport'
@@ -321,6 +322,159 @@ export const settlementRouter = router({
 
       return buffer.toString('base64')
     }),
+
+  generateTechniciansDetailedMonthlyReport: adminOrCoord
+    .input(
+      z.object({
+        month: z.number().min(1).max(12),
+        year: z.number().min(2020),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { year, month } = input
+      const start = new Date(year, month - 1, 1)
+      const end = new Date(year, month, 0, 23, 59, 59, 999)
+
+      // Pobierz WSZYSTKIE zlecenia instalacyjne (dowolnego technika)
+      const orders = await prisma.order.findMany({
+        where: {
+          type: 'INSTALATION',
+          status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
+          date: { gte: start, lte: end },
+        },
+        include: {
+          assignedTo: { select: { name: true } },
+          usedMaterials: { include: { material: true } },
+          assignedEquipment: { include: { warehouse: true } },
+          settlementEntries: true,
+        },
+        orderBy: { date: 'asc' },
+      })
+
+      // Mapowanie każdego order -> pełny headers
+      const rows = orders.map((order, i) => {
+        // Mapuj materiały do headers
+        const materialMap: Record<string, number | string> = {}
+        for (const m of order.usedMaterials) {
+          materialMap[m.material.name] = m.quantity
+        }
+
+        // Dekoder 2-way
+        const dekoder2way = order.assignedEquipment.find(
+          (e) => e.warehouse.category === 'DECODER_2_WAY'
+        )
+        const dekoder2waySN = dekoder2way?.warehouse.serialNumber ?? ''
+        // Modem
+        const modem = order.assignedEquipment.find(
+          (e) => e.warehouse.category === 'MODEM'
+        )
+        const modemSN = modem?.warehouse.serialNumber ?? ''
+
+        // Sygnały – przykład, możesz pobierać z order.notes lub settlementEntries jeśli trzymasz gdzie indziej
+        const usDbm = '' // <- tu np. order.usDbm ?? ""
+        const dsDbm = '' // <- tu np. order.dsDbm ?? ""
+
+        // Mapping dla WSZYSTKICH headerów (resztę zostawiamy pustą jeśli nie masz)
+        return {
+          'Lp.': i + 1,
+          'schemat /nr klienta': order.orderNumber,
+          'MIASTO, ULICA NUMER': `${order.city}, ${order.street}`,
+          'WYKONANE TAK | NIE':
+            order.status === 'COMPLETED'
+              ? 'TAK'
+              : order.status === 'NOT_COMPLETED'
+              ? 'NIE'
+              : '',
+          UWAGI: order.notes ?? '',
+          'TECHNOLOGIA HFC | GPON': '',
+          DTV: '',
+          'multiroom ATV/DTV; przebudowy': '',
+          NET: '',
+          TEL: '',
+          ATV: '',
+          'uruchomienie gniazda': '',
+          'uruchomienie instalacji przyłącza ab.': '',
+          'dekoder 2-way': dekoder2waySN,
+          'adres MAC dekodera': dekoder2waySN,
+          'US. 40/51 dBm': usDbm,
+          'DS. -9/+11 dBm': dsDbm,
+          'dekoder 1-way | moduł CI+': '',
+          'numer SN dekodera | karty CI+': '',
+          'modem NET / terminal TEL': modemSN,
+          'adres MAC modemu': modemSN,
+          'US. 40/51 dBm (modem)': '',
+          'DS. -9/+11 dBm (modem)': '',
+          'Pomiar prędkości 300/600 (od 26-04-2018)': '',
+          'Pion / Ilość kondygnacji': '',
+          'Montaż listew/rur pcv (mb)': '',
+          // ---- Materiały:
+          'KABEL RG-6 (mb)': materialMap['KABEL RG-6 (mb)'] ?? 0,
+          'KABEL RG-11 (mb)': materialMap['KABEL RG-11 (mb)'] ?? 0,
+          'KABEL UTP (mb)': materialMap['KABEL UTP (mb)'] ?? 0,
+          'ZŁĄCZE F-60 "KOMP. RG6" (szt)':
+            materialMap['ZŁĄCZE F-60 "KOMP. RG6" (szt)'] ?? 0,
+          'ZŁĄCZE F-59 "KOMP. RG5.9" (szt)':
+            materialMap['ZŁĄCZE F-59 "KOMP. RG5.9" (szt)'] ?? 0,
+          'ZŁĄCZE F-11 "KOMP. RG11" (szt)':
+            materialMap['ZŁĄCZE F-11 "KOMP. RG11" (szt)'] ?? 0,
+          'ADAPTER FF-FF "BECZKA"    (szt)':
+            materialMap['ADAPTER FF-FF "BECZKA"    (szt)'] ?? 0,
+          'OPORNIK 75 Ohm "TERMINATOR" (szt)':
+            materialMap['OPORNIK 75 Ohm "TERMINATOR" (szt)'] ?? 0,
+          'ZŁĄCZE WKW "MĘSKA"     (szt)':
+            materialMap['ZŁĄCZE WKW "MĘSKA"     (szt)'] ?? 0,
+          'ZŁĄCZE WKG "ŻEŃSKA"      (szt)':
+            materialMap['ZŁĄCZE WKG "ŻEŃSKA"      (szt)'] ?? 0,
+          'ZŁĄCZE WKS "SZPILKA"   (szt)':
+            materialMap['ZŁĄCZE WKS "SZPILKA"   (szt)'] ?? 0,
+          'GN. 2 X DATA "PODTYNK." (szt)':
+            materialMap['GN. 2 X DATA "PODTYNK." (szt)'] ?? 0,
+          'GN. 3 X DATA "PODTYNK." (szt)':
+            materialMap['GN. 3 X DATA "PODTYNK." (szt)'] ?? 0,
+          'DSS2    "SPLITER"         (szt)':
+            materialMap['DSS2    "SPLITER"         (szt)'] ?? 0,
+          'DSS3    "SPLITER"         (szt)':
+            materialMap['DSS3    "SPLITER"         (szt)'] ?? 0,
+          'DSS3U    "SPLITER"         (szt)':
+            materialMap['DSS3U    "SPLITER"         (szt)'] ?? 0,
+          'DSS4    "SPLITER"         (szt)':
+            materialMap['DSS4    "SPLITER"         (szt)'] ?? 0,
+          'FILTR SOLO NET   230/399':
+            materialMap['FILTR SOLO NET   230/399'] ?? 0,
+          'TŁUMIK TKZ-03 (szt)': materialMap['TŁUMIK TKZ-03 (szt)'] ?? 0,
+          'TŁUMIK TKZ-06 (szt)': materialMap['TŁUMIK TKZ-06 (szt)'] ?? 0,
+          'TŁUMIK TKZ-09 (szt)': materialMap['TŁUMIK TKZ-09 (szt)'] ?? 0,
+          'TŁUMIK TKZ-12 (szt)': materialMap['TŁUMIK TKZ-12 (szt)'] ?? 0,
+          'TŁUMIK AFM-1A (szt)': materialMap['TŁUMIK AFM-1A (szt)'] ?? 0,
+          'TŁUMIK AFM-2A (szt)': materialMap['TŁUMIK AFM-2A (szt)'] ?? 0,
+          'TŁUMIK AFM-3A (szt)': materialMap['TŁUMIK AFM-3A (szt)'] ?? 0,
+          'TŁUMIK AFM-4A (szt)': materialMap['TŁUMIK AFM-4A (szt)'] ?? 0,
+          'TŁUMIK AFM-6A (szt)': materialMap['TŁUMIK AFM-6A (szt)'] ?? 0,
+          'TŁUMIK AFM-8A (szt)': materialMap['TŁUMIK AFM-8A (szt)'] ?? 0,
+          'TŁUMIK AFM-10A (szt)': materialMap['TŁUMIK AFM-10A (szt)'] ?? 0,
+          'TŁUMIK AFM-12A (szt)': materialMap['TŁUMIK AFM-12A (szt)'] ?? 0,
+          'UCHWYT KABLA FLOP (szt)':
+            materialMap['UCHWYT KABLA FLOP (szt)'] ?? 0,
+          'OPASKA KABLOWA (szt)': materialMap['OPASKA KABLOWA (szt)'] ?? 0,
+          'KORYTKO KABLOWE PCV 15X10 - 2mb (szt)':
+            materialMap['KORYTKO KABLOWE PCV 15X10 - 2mb (szt)'] ?? 0,
+          'RURA PCV RL18 - 2mb (szt)':
+            materialMap['RURA PCV RL18 - 2mb (szt)'] ?? 0,
+          'KOLANKO ZCL18 (szt)': materialMap['KOLANKO ZCL18 (szt)'] ?? 0,
+          'UCHWYT UZ18 (szt)': materialMap['UCHWYT UZ18 (szt)'] ?? 0,
+          'OZNACZNIK KABLOWY': materialMap['OZNACZNIK KABLOWY'] ?? 0,
+          'PATCHCORD 1M': materialMap['PATCHCORD 1M'] ?? 0,
+          'PATCHCORD 3M': materialMap['PATCHCORD 3M'] ?? 0,
+        }
+      })
+
+      const filename = `Raport_zlecenia_wszyscy_technicy_${year}_${String(
+        month
+      ).padStart(2, '0')}`
+      const buffer = await generateTechnicianReportWithData(filename, rows)
+      return buffer.toString('base64')
+    }),
+
   generateTechniciansMonthlySummary: adminOrCoord
     .input(
       z.object({ month: z.number().min(1).max(12), year: z.number().min(2020) })

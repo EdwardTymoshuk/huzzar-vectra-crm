@@ -51,7 +51,7 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
   const monthlySummaryMutation =
     trpc.settlement.generateTechniciansMonthlySummary.useMutation()
   const codeBreakdownMutation =
-    trpc.settlement.generateWorkCodeSummaryReport.useMutation()
+    trpc.settlement.generateTechniciansDetailedMonthlyReport.useMutation()
 
   /**
    * Converts base64 string to downloadable Blob
