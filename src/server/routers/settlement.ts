@@ -7,7 +7,7 @@ import {
 } from '@/utils/writeWorkCodeExecutionReport'
 import { format } from 'date-fns'
 import { z } from 'zod'
-import { adminOrCoord } from '../roleHelpers'
+import { adminOrCoord, loggedInEveryone } from '../roleHelpers'
 import { router } from '../trpc'
 
 /**
@@ -151,7 +151,7 @@ export const settlementRouter = router({
   /**
    * Get monthly details per technician
    */
-  getTechnicianMonthlyDetails: adminOrCoord
+  getTechnicianMonthlyDetails: loggedInEveryone
     .input(
       z.object({
         technicianId: z.string(),
@@ -164,7 +164,7 @@ export const settlementRouter = router({
       const orders = await prisma.order.findMany({
         where: {
           assignedToId: input.technicianId,
-          type: 'INSTALATION',
+          type: { in: ['INSTALATION', 'SERVICE'] },
           date: { gte: new Date(input.from), lte: new Date(input.to) },
         },
         include: { settlementEntries: { include: { rate: true } } },

@@ -9,6 +9,7 @@ const pages: Record<string, React.ComponentType> = {
   dashboard: dynamic(() => import('@/app/(technician)/dashboard/page')),
   orders: dynamic(() => import('@/app/(technician)/orders/page')),
   warehouse: dynamic(() => import('@/app/(technician)/warehouse/page')),
+  billing: dynamic(() => import('@/app/(technician)/billing/page')),
   settings: dynamic(() => import('@/app/(technician)/settings/page')),
 }
 
@@ -23,6 +24,7 @@ const ClientRoutingHandlerTechnician = ({
   const getActiveKeyFromPathname = (pathname: string): string => {
     if (pathname.includes('/warehouse')) return 'warehouse'
     if (pathname.includes('/orders')) return 'orders'
+    if (pathname.includes('/billing')) return 'billing'
     if (pathname.includes('/settings')) return 'settings'
     return 'dashboard'
   }
@@ -34,6 +36,7 @@ const ClientRoutingHandlerTechnician = ({
     '/orders/details/',
     '/warehouse/details/',
     '/warehouse/history',
+    '/billing',
   ].some((sub) => pathname.includes(sub))
 
   const ActivePage = pages[activeTab] || pages.dashboard

@@ -27,8 +27,8 @@ import { pl } from 'date-fns/locale'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { MdKeyboardArrowLeft, MdVisibility } from 'react-icons/md'
+import TechnicianSummaryHeader from '../../../components/shared/TechnicianSummaryHeader'
 import SheetOrderDetails from './SheetOrderDetails'
-import TechnicianSummaryHeader from './TechnicianSummaryHeader'
 
 type Props = { technicianId: string }
 

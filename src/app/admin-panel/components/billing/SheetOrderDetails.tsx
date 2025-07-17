@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from '@/app/components/ui/sheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { statusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -71,10 +72,16 @@ const SheetOrderDetails = ({ orderId, onClose }: Props) => {
               <p className="text-muted-foreground text-xs">Status</p>
               <Badge
                 variant={
-                  data.status === 'COMPLETED' ? 'success' : 'destructive'
+                  data.status === 'COMPLETED'
+                    ? 'success'
+                    : data.status === 'NOT_COMPLETED'
+                    ? 'danger'
+                    : data.status === 'ASSIGNED'
+                    ? 'secondary'
+                    : 'outline'
                 }
               >
-                {data.status === 'COMPLETED' ? 'Wykonane' : 'Niewykonane'}
+                {statusMap[data.status]}
               </Badge>
             </div>
 
@@ -96,8 +103,14 @@ const SheetOrderDetails = ({ orderId, onClose }: Props) => {
             </div>
 
             <div>
-              <p className="text-muted-foreground text-xs">Kody pracy</p>
-              {data.settlementEntries?.length ? (
+              <p className="text-muted-foreground text-xs">
+                {data.status === 'NOT_COMPLETED'
+                  ? 'Powód niewykonania'
+                  : 'Kody pracy'}
+              </p>
+              {data.status === 'NOT_COMPLETED' ? (
+                <p>{data.failureReason || '—'}</p>
+              ) : data.settlementEntries?.length ? (
                 <ul className="list-disc pl-4">
                   {data.settlementEntries.map((entry) => (
                     <li key={entry.code}>
@@ -111,8 +124,26 @@ const SheetOrderDetails = ({ orderId, onClose }: Props) => {
               )}
             </div>
 
+            <div>
+              <p className="text-muted-foreground text-xs">Wydany sprzęt</p>
+              {data.assignedEquipment?.length ? (
+                <ul className="list-disc pl-4">
+                  {data.assignedEquipment.map((item) => (
+                    <li key={item.id}>
+                      {item.warehouse.name}
+                      {item.warehouse.serialNumber
+                        ? ` (SN: ${item.warehouse.serialNumber})`
+                        : ''}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Brak</p>
+              )}
+            </div>
+
             <div className="font-semibold text-sm">
-              Suma:{' '}
+              Zarobiono:{' '}
               {data.settlementEntries
                 .reduce(
                   (acc, e) => acc + (e.rate?.amount ?? 0) * (e.quantity ?? 0),

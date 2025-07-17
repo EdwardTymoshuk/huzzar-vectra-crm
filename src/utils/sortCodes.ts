@@ -22,15 +22,17 @@
 
 const PRIORITY_PATTERNS: ReadonlyArray<ReadonlyArray<RegExp | string>> = [
   // 0 ▸ Gniazdo
-  [
-    /gniaz/i, // gniazdo, gniazdka, gniazd …
-    /uruchomienie[ _-]?gniazd/i, // uruchomienie gniazda/gniazdek
-  ],
+  ['Uruchomienie instalacji przyłącza ab.'],
 
   // 1 ▸ Przyłącze
   [
     /przy[\\s_-]*ł[aą]cze/i, // przyłącze, przylącze, przy lacze
     /wykonanie[ _-]?przy[\\s_-]*ł[aą]cza/i,
+  ],
+
+  [
+    /gniaz/i, // gniazdo, gniazdka, gniazd …
+    /uruchomienie[ _-]?gniazd/i, // uruchomienie gniazda/gniazdek
   ],
 
   // 2 ▸ Dekoder 2-way
