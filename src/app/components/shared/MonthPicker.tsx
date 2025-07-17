@@ -30,7 +30,7 @@ const MonthPicker = ({ selected, onChange }: Props) => {
           {polishMonthsNominative[selected.getMonth()]} {selected.getFullYear()}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4 space-y-4 bg-background">
+      <PopoverContent className="w-full sm:w-auto max-w-full p-4 space-y-4 bg-background">
         {/* Year navigation */}
         <div className="flex justify-between items-center">
           <Button
@@ -51,7 +51,7 @@ const MonthPicker = ({ selected, onChange }: Props) => {
         </div>
 
         {/* Month grid */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 xs:grid-cols-3 gap-2">
           {months.map((month) => {
             const isDisabled = month > today
             const isSelected =
@@ -70,7 +70,7 @@ const MonthPicker = ({ selected, onChange }: Props) => {
                 className="text-sm"
                 aria-current={isSelected ? 'date' : undefined}
               >
-                {polishMonthsNominative[month.getMonth()]} {year}
+                {polishMonthsNominative[month.getMonth()]}
               </Button>
             )
           })}
