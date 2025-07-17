@@ -1,18 +1,19 @@
-// utils/buildDateParam.ts
 import { format } from 'date-fns'
 
 export const buildDateParam = (
   date: Date | undefined,
   range: 'day' | 'month' | 'year'
-) => {
+): string => {
   const d = date ?? new Date()
 
   switch (range) {
     case 'day':
-      return format(d, 'yyyy-MM-dd') // 2025-03-01
+      return format(d, 'yyyy-MM-dd')
     case 'month':
-      return format(d, 'yyyy-MM') // 2025-03
+      return format(d, 'yyyy-MM')
     case 'year':
-      return format(d, 'yyyy') // 2025
+      return format(d, 'yyyy')
+    default:
+      return format(d, 'yyyy-MM-dd')
   }
 }

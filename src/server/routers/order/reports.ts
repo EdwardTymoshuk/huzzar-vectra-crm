@@ -11,12 +11,15 @@ export const reportsRouter = router({
   getOrderStats: adminOrCoord
     .input(
       z.object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        date: z.string().regex(/^\d{4}(-\d{2}){0,2}$/),
         range: z.enum(['day', 'month', 'year']),
       })
     )
     .query(async ({ input }) => {
-      const [y, m, d] = input.date.split('-').map(Number)
+      const parts = input.date.split('-')
+      const y = Number(parts[0])
+      const m = Number(parts[1] ?? 1)
+      const d = Number(parts[2] ?? 1)
       const baseDate = new Date(y, m - 1, d)
 
       const rangeOf = (ref: Date, kind: 'day' | 'month' | 'year') => {
@@ -62,7 +65,6 @@ export const reportsRouter = router({
           total > 0
             ? Math.round((sum.completed / (sum.completed + sum.failed)) * 100)
             : 0
-
         return { total, ...sum, successRate }
       }
 

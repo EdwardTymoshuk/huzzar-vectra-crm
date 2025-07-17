@@ -7,21 +7,44 @@ import DashboardFilters from '../components/dashboard/DashboardFilters'
 import OrderStatsSection from '../components/dashboard/OrderStatsSection'
 import TechnicianEfficiencyTable from '../components/dashboard/TechnicianEfficiencyTable'
 
+/**
+ * DashboardPage
+ * Displays main dashboard with filters and stats.
+ * Each range (day/month/year) keeps its own date state.
+ */
 const DashboardPage = () => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  // Separate date states for each range
+  const [selectedDay, setSelectedDay] = useState<Date>(new Date())
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
+  const [selectedYear, setSelectedYear] = useState<Date>(new Date())
   const [range, setRange] = useState<'day' | 'month' | 'year'>('day')
+
+  // Returns date for the current range
+  const getSelectedDate = () => {
+    if (range === 'day') return selectedDay
+    if (range === 'month') return selectedMonth
+    if (range === 'year') return selectedYear
+  }
+
+  // Updates the correct date state when date changes
+  const handleChangeDate = (date: Date | undefined) => {
+    if (!date) return
+    if (range === 'day') setSelectedDay(date)
+    else if (range === 'month') setSelectedMonth(date)
+    else if (range === 'year') setSelectedYear(date)
+  }
 
   return (
     <MaxWidthWrapper>
       <PageHeader title="Dashboard" />
       <DashboardFilters
-        selectedDate={selectedDate}
-        onChangeDate={(date: Date | undefined) => setSelectedDate(date)}
+        selectedDate={getSelectedDate()}
+        onChangeDate={handleChangeDate}
         range={range}
         onChangeRange={setRange}
       />
-      <OrderStatsSection date={selectedDate} range={range} />
-      <TechnicianEfficiencyTable date={selectedDate} range={range} />
+      <OrderStatsSection date={getSelectedDate()} range={range} />
+      <TechnicianEfficiencyTable date={getSelectedDate()} range={range} />
     </MaxWidthWrapper>
   )
 }
