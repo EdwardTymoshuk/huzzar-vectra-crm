@@ -153,7 +153,7 @@ const EditOrderModal = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Reusable form fields */}
-            <OrderFormFields control={form.control} />
+            <OrderFormFields form={form} />
 
             {/* Action buttons */}
             <div className="flex justify-end gap-2 pt-2">

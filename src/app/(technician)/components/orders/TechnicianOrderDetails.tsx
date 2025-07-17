@@ -53,7 +53,7 @@ const TechnicianOrderDetails = ({
     if (autoOpen && !showCompleteModal) {
       setShowCompleteModal(true)
     }
-  }, [autoOpen])
+  }, [autoOpen, showCompleteModal])
 
   /* async / error states */
   if (isLoading) return <LoaderSpinner />

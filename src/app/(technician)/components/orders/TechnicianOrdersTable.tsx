@@ -158,7 +158,7 @@ const TechnicianOrdersTable = ({ searchTerm, autoOpenOrderId }: Props) => {
     if (autoOpenOrderId && !openIds.includes(autoOpenOrderId)) {
       setOpenIds((prev) => [...prev, autoOpenOrderId])
     }
-  }, [autoOpenOrderId])
+  }, [autoOpenOrderId, openIds])
 
   if (isLoading || incLoading) return <LoaderSpinner />
   if (isError || incError)

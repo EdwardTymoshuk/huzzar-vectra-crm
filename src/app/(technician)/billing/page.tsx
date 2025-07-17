@@ -220,7 +220,7 @@ const BillingPage = () => {
                       </span>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        {day.orders.map((order, idx) => {
+                        {day.orders.map((order) => {
                           const amount = order.settlementEntries.reduce(
                             (sum, e) =>
                               sum + (e.rate?.amount ?? 0) * e.quantity,
