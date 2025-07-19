@@ -5,6 +5,7 @@ import { Button } from '@/app/components/ui/button'
 import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { DeviceCategory, MaterialUnit, WarehouseItemType } from '@prisma/client'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 type Row = {
@@ -23,6 +24,8 @@ type Row = {
 }
 
 export default function TechnicianTransfersTable() {
+  const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null)
+
   const { data: incoming = [], isLoading: incLoading } =
     trpc.warehouse.getIncomingTransfers.useQuery(undefined, {
       staleTime: 30_000,
@@ -50,8 +53,12 @@ export default function TechnicianTransfersTable() {
 
   const cancel = trpc.warehouse.cancelTransfer.useMutation({
     onSuccess: () => {
+      setCancelLoadingId(null)
       utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
       toast.info('Przekazanie anulowane.')
+    },
+    onError: () => {
+      setCancelLoadingId(null)
     },
   })
 
@@ -64,10 +71,7 @@ export default function TechnicianTransfersTable() {
     ...outgoing.map((item) => ({ ...item, incoming: false })),
   ]
 
-  if (!rows.length)
-    return (
-      <p></p>
-    )
+  if (!rows.length) return <p></p>
 
   return (
     <div className="flex flex-col gap-4">
@@ -145,10 +149,15 @@ export default function TechnicianTransfersTable() {
                 <Button
                   size="sm"
                   variant="warning"
-                  onClick={() => cancel.mutate({ itemId: row.id })}
-                  disabled={cancel.isLoading}
+                  onClick={() => {
+                    setCancelLoadingId(row.id)
+                    cancel.mutate({ itemId: row.id })
+                  }}
+                  disabled={cancelLoadingId === row.id && cancel.isLoading}
                 >
-                  {cancel.isLoading ? 'Anuluję...' : 'Anuluj'}
+                  {cancelLoadingId === row.id && cancel.isLoading
+                    ? 'Anuluję...'
+                    : 'Anuluj'}
                 </Button>
               </div>
             )}
