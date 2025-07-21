@@ -25,6 +25,8 @@ type Row = {
 
 export default function TechnicianTransfersTable() {
   const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null)
+  const [acceptingId, setAcceptingId] = useState<string | null>(null)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
 
   const { data: incoming = [], isLoading: incLoading } =
     trpc.warehouse.getIncomingTransfers.useQuery(undefined, {
@@ -38,17 +40,22 @@ export default function TechnicianTransfersTable() {
 
   const accept = trpc.warehouse.confirmTransfer.useMutation({
     onSuccess: () => {
-      utils.warehouse.getIncomingTransfers.invalidate()
+      setAcceptingId(null)
+      utils.warehouse.invalidate()
       utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
       toast.success('Sprzęt przyjęty.')
     },
+    onError: () => setAcceptingId(null),
   })
 
   const reject = trpc.warehouse.rejectTransfer.useMutation({
     onSuccess: () => {
+      setRejectingId(null)
       utils.warehouse.getIncomingTransfers.invalidate()
+      utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
       toast.info('Przekazanie odrzucone.')
     },
+    onError: () => setRejectingId(null),
   })
 
   const cancel = trpc.warehouse.cancelTransfer.useMutation({
@@ -127,18 +134,28 @@ export default function TechnicianTransfersTable() {
               <div className="flex gap-2 pt-1">
                 <Button
                   size="sm"
-                  onClick={() => accept.mutate({ itemId: row.id })}
-                  disabled={accept.isLoading}
+                  onClick={() => {
+                    setAcceptingId(row.id)
+                    accept.mutate({ itemId: row.id })
+                  }}
+                  disabled={acceptingId === row.id && accept.isLoading}
                 >
-                  {accept.isLoading ? 'Akceptuję...' : 'Akceptuj'}
+                  {acceptingId === row.id && accept.isLoading
+                    ? 'Akceptuję...'
+                    : 'Akceptuj'}
                 </Button>
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => reject.mutate({ itemId: row.id })}
-                  disabled={reject.isLoading}
+                  onClick={() => {
+                    setRejectingId(row.id)
+                    reject.mutate({ itemId: row.id })
+                  }}
+                  disabled={rejectingId === row.id && reject.isLoading}
                 >
-                  {reject.isLoading ? 'Odrzucam...' : 'Odrzuć'}
+                  {rejectingId === row.id && reject.isLoading
+                    ? 'Odrzucam...'
+                    : 'Odrzuć'}
                 </Button>
               </div>
             ) : (

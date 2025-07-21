@@ -48,6 +48,7 @@ const TechItemAccordion = ({ items }: Props) => {
       {/* Accordion list */}
       <Accordion type="single" collapsible className="w-full">
         {items
+          .filter((it) => !it.transferPending)
           .filter((item) =>
             isMaterial
               ? item.index
@@ -91,7 +92,10 @@ const TechItemAccordion = ({ items }: Props) => {
                 {isMaterial ? (
                   <ItemHistoryList name={item.name} dataOverride={undefined} />
                 ) : (
-                  <ItemHistoryList warehouseItemId={item.id} />
+                  <ItemHistoryList
+                    warehouseItemId={item.id}
+                    scope="technician"
+                  />
                 )}
               </AccordionContent>
             </AccordionItem>

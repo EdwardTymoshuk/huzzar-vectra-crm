@@ -1,5 +1,14 @@
 'use client'
 
+/* ------------------------------------------------------------------
+ * ItemTabs – technician view  (devices & materials)
+ * ------------------------------------------------------------------
+ *  • Magazyn      – aktualny stan technika
+ *  • Wydane       – wydane do zleceń
+ *  • Zwrócone     – zwrócone do operatora
+ *  • Przekazane   – historia przekazań (TRANSFER)
+ * ----------------------------------------------------------------*/
+
 import {
   Tabs,
   TabsContent,
@@ -14,15 +23,8 @@ import TechItemAccordion from './details/TechItemAccordion'
 
 type Props = { items: WarehouseWithRelations[] }
 
-/* ------------------------------------------------------------------
- * ItemTabs – technician view
- * ------------------------------------------------------------------
- *  • Magazyn   – current stock held by *this* technician
- *  • Wydane    – items the technician attached to orders
- *  • Zwrócone  – items the technician returned to operator
- * ----------------------------------------------------------------*/
 const ItemTabs = ({ items }: Props) => {
-  /* session hook (must run on every render) */
+  /* zalogowany technik */
   const { data: session } = useSession()
   const techId = session?.user.id ?? null
 
@@ -38,7 +40,8 @@ const ItemTabs = ({ items }: Props) => {
       if (
         it.assignedToId === techId &&
         it.orderAssignments.length === 0 &&
-        it.status !== 'RETURNED_TO_OPERATOR'
+        it.status !== 'RETURNED_TO_OPERATOR' &&
+        !it.transferPending
       ) {
         mineArr.push(it)
       } else if (it.orderAssignments.length > 0) {
@@ -55,11 +58,19 @@ const ItemTabs = ({ items }: Props) => {
   const first = items[0]
   const isMaterial = first?.itemType === 'MATERIAL'
 
-  const tabs: { key: 'warehouse' | 'orders' | 'returned'; label: string }[] = [
-    { key: 'warehouse', label: 'Magazyn' },
-    { key: 'orders', label: 'Wydane' },
-    { key: 'returned', label: 'Zwrócone' },
-  ]
+  const tabs =
+    first?.itemType === 'MATERIAL'
+      ? ([
+          { key: 'warehouse', label: 'Magazyn' },
+          { key: 'transfer', label: 'Przekazane' },
+          { key: 'orders', label: 'Wydane' },
+          { key: 'returned', label: 'Zwrócone' },
+        ] as const)
+      : ([
+          { key: 'warehouse', label: 'Magazyn' },
+          { key: 'orders', label: 'Wydane' },
+          { key: 'returned', label: 'Zwrócone' },
+        ] as const)
 
   const renderTab = (key: (typeof tabs)[number]['key']) => {
     if (isMaterial) return <MaterialHistoryByTabs name={first.name} tab={key} />
@@ -75,9 +86,7 @@ const ItemTabs = ({ items }: Props) => {
   }
 
   /* ---------------- UI ---------------- */
-  const noData = !techId || items.length === 0
-
-  if (noData)
+  if (!techId || items.length === 0)
     return (
       <p className="text-center text-muted-foreground py-8">
         Brak danych o tym elemencie.
@@ -86,7 +95,13 @@ const ItemTabs = ({ items }: Props) => {
 
   return (
     <Tabs defaultValue="warehouse" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList
+        className={
+          first?.itemType === 'MATERIAL'
+            ? 'grid w-full grid-cols-4'
+            : 'grid w-full grid-cols-3'
+        }
+      >
         {tabs.map(({ key, label }) => (
           <TabsTrigger key={key} value={key}>
             {label}

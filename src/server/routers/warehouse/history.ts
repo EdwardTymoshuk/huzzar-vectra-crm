@@ -7,10 +7,19 @@ import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
 export const historyRouter = router({
-  /** 📜 Get device history by item ID (used for serial-based items) */
+  /** 📜 Get device history by item ID
+   *  • scope = 'all'        – full log (admin view)
+   *  • scope = 'technician' – only entries where the logged-in tech
+   *                           was performer OR recipient
+   */
   getHistory: loggedInEveryone
-    .input(z.object({ warehouseItemId: z.string() }))
-    .query(async ({ input }) => {
+    .input(
+      z.object({
+        warehouseItemId: z.string(),
+        scope: z.enum(['all', 'technician']).default('all'),
+      })
+    )
+    .query(async ({ input, ctx }) => {
       const item = await prisma.warehouse.findUnique({
         where: { id: input.warehouseItemId },
         select: { id: true },
@@ -22,8 +31,19 @@ export const historyRouter = router({
         })
       }
 
+      const where =
+        input.scope === 'technician'
+          ? {
+              warehouseItemId: input.warehouseItemId,
+              OR: [
+                { performedById: ctx.user!.id },
+                { assignedToId: ctx.user!.id },
+              ],
+            }
+          : { warehouseItemId: input.warehouseItemId }
+
       return prisma.warehouseHistory.findMany({
-        where: { warehouseItemId: input.warehouseItemId },
+        where,
         include: {
           performedBy: true,
           assignedTo: true,

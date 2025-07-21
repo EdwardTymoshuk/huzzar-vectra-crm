@@ -310,13 +310,20 @@ export const warehouseActionMap: Record<
   WarehouseAction,
   {
     label: string
-    variant: 'success' | 'warning' | 'destructive' | 'danger'
+    variant:
+      | 'success'
+      | 'warning'
+      | 'destructive'
+      | 'danger'
+      | 'secondary'
+      | 'default'
   }
 > = {
   RECEIVED: { label: 'Przyjęcie', variant: 'success' },
   ISSUED: { label: 'Wydanie', variant: 'warning' },
   RETURNED: { label: 'Zwrot', variant: 'destructive' },
   RETURNED_TO_OPERATOR: { label: 'Zwrot do operatora', variant: 'danger' },
+  TRANSFER: { label: 'Przekazanie', variant: 'secondary' },
 }
 
 //polish monthes

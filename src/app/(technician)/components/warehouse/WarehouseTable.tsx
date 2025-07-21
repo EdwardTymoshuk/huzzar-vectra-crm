@@ -52,7 +52,9 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
   /* ---------------------------- filtering ---------------------------- */
   const filtered = useMemo(() => {
     if (!data) return []
-    return data.filter((item) => item.itemType === itemType)
+    return data.filter(
+      (item) => item.itemType === itemType && !item.transferPending
+    )
   }, [data, itemType])
 
   /* ---------------------------- grouping ----------------------------- */

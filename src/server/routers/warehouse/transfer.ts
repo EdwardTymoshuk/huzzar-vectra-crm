@@ -1,12 +1,12 @@
-// src/server/warehouse/transfer.ts
 import { technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { Prisma } from '@prisma/client'
+import { Prisma, WarehouseAction } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
 /* ------------------------------------------------------------------ */
-/** Helper – write a single warehouseHistory entry inside TX */
+/* Helper – create a history entry inside an existing transaction     */
+/* ------------------------------------------------------------------ */
 const addHistory = ({
   prisma,
   itemId,
@@ -14,13 +14,15 @@ const addHistory = ({
   action,
   qty,
   notes,
+  assignedToId,
 }: {
   prisma: Prisma.TransactionClient
   itemId: string
   userId: string
-  action: 'ISSUED' | 'RECEIVED' | 'RETURNED'
+  action: WarehouseAction
   qty: number
   notes?: string | null
+  assignedToId?: string | null
 }) =>
   prisma.warehouseHistory.create({
     data: {
@@ -29,12 +31,17 @@ const addHistory = ({
       action,
       quantity: qty,
       notes,
+      assignedToId: assignedToId ?? null,
     },
   })
 
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  Warehouse transfer router – technicians can send/receive items    */
+/* ================================================================== */
 export const warehouseTransferRouter = router({
-  /* ========== 1. list items awaiting *my* decision ========== */
+  /* ------------------------------------------------------------ *
+   * 1. Transfers waiting for the current technician to accept / reject
+   * ------------------------------------------------------------ */
   getIncomingTransfers: technicianOnly.query(({ ctx }) =>
     ctx.prisma.warehouse.findMany({
       where: { transferToId: ctx.user!.id, transferPending: true },
@@ -46,17 +53,19 @@ export const warehouseTransferRouter = router({
         quantity: true,
         unit: true,
         category: true,
-
         transferPending: true,
         transferToId: true,
         transferTo: { select: { id: true, name: true } },
-
         assignedTo: { select: { id: true, name: true } },
       },
     })
   ),
 
-  /* ========== 2. requestTransfer – A  ➜  B  ========== */
+  /* ------------------------------------------------------------ *
+   * 2. requestTransfer – Technician A ➜ Technician B
+   *    • DEVICES   → set flags only
+   *    • MATERIALS → create / update pending row AND decrement A‑stock
+   * ------------------------------------------------------------ */
   requestTransfer: technicianOnly
     .input(
       z.object({
@@ -64,7 +73,7 @@ export const warehouseTransferRouter = router({
         items: z.array(
           z.object({
             itemId: z.string(),
-            quantity: z.number().int().positive().default(1), // 1 for devices
+            quantity: z.number().int().positive().default(1),
           })
         ),
         notes: z.string().optional(),
@@ -73,11 +82,9 @@ export const warehouseTransferRouter = router({
     .mutation(async ({ input, ctx }) => {
       const me = ctx.user!.id
 
-      console.log(me)
-
       await ctx.prisma.$transaction(async (tx) => {
         for (const { itemId, quantity } of input.items) {
-          /* -------- fetch row & sanity-check ownership -------- */
+          /* 1️⃣ fetch sender row & guard ownership */
           const row = await tx.warehouse.findUniqueOrThrow({
             where: { id: itemId },
             select: {
@@ -95,13 +102,12 @@ export const warehouseTransferRouter = router({
           if (row.assignedToId !== me) {
             throw new TRPCError({
               code: 'FORBIDDEN',
-              message: 'Przedmiot nie należy do Ciebie',
+              message: 'Przedmiot nie należy do Ciebie.',
             })
           }
 
-          /* ================= DEVICE ================= */
+          /* 2️⃣ devices → tylko flagi */
           if (row.itemType === 'DEVICE') {
-            /* flag as pending – pozostaje przypisany do A */
             await tx.warehouse.update({
               where: { id: row.id },
               data: {
@@ -109,66 +115,53 @@ export const warehouseTransferRouter = router({
                 transferToId: input.newTechnicianId,
               },
             })
-
-            await addHistory({
-              prisma: tx,
-              itemId: row.id,
-              userId: me,
-              action: 'ISSUED',
-              qty: 1,
-              notes: `Przekazano urządzenie do technika ${input.newTechnicianId}`,
-            })
             continue
           }
 
-          /* ================= MATERIAL ================= */
-          /* 1. Make sure I have enough */
+          /* 3️⃣ materials */
           if (row.quantity < quantity) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
-              message: `Za mało materiału „${row.name}”`,
+              message: `Za mało materiału: "${row.name}"`,
             })
           }
 
-          /* 2. Decrement my stock row (might hit 0) */
-          await tx.warehouse.update({
-            where: { id: row.id },
-            data: { quantity: { decrement: quantity } },
-          })
-
-          await addHistory({
-            prisma: tx,
-            itemId: row.id,
-            userId: me,
-            action: 'ISSUED',
-            qty: quantity,
-            notes: `Przekazano ${quantity} ${row.unit} do technika ${input.newTechnicianId}`,
-          })
-
-          /* 3. Create NEW pending row carrying the quantity */
-          const pendingRow = await tx.warehouse.create({
-            data: {
+          const existingPending = await tx.warehouse.findFirst({
+            where: {
               itemType: 'MATERIAL',
-              name: row.name,
-              quantity: quantity,
-              unit: row.unit,
-              price: row.price,
-              status: 'ASSIGNED',
               materialDefinitionId: row.materialDefinitionId,
-              // ownership stays with *sender* until accept/reject
               assignedToId: me,
-              transferPending: true,
               transferToId: input.newTechnicianId,
+              transferPending: true,
             },
           })
 
-          await addHistory({
-            prisma: tx,
-            itemId: pendingRow.id,
-            userId: me,
-            action: 'RECEIVED', // “creates” the pending packet
-            qty: quantity,
-            notes: `Oczekuje na akceptację przez technika ${input.newTechnicianId}`,
+          if (existingPending) {
+            await tx.warehouse.update({
+              where: { id: existingPending.id },
+              data: { quantity: { increment: quantity } },
+            })
+          } else {
+            await tx.warehouse.create({
+              data: {
+                itemType: 'MATERIAL',
+                name: row.name,
+                quantity,
+                unit: row.unit,
+                price: row.price,
+                status: 'ASSIGNED',
+                materialDefinitionId: row.materialDefinitionId,
+                assignedToId: me,
+                transferPending: true,
+                transferToId: input.newTechnicianId,
+              },
+            })
+          }
+
+          /* 3‑b. od razu zmniejszamy stan technika A */
+          await tx.warehouse.update({
+            where: { id: row.id },
+            data: { quantity: { decrement: quantity } },
           })
         }
       })
@@ -176,109 +169,212 @@ export const warehouseTransferRouter = router({
       return { ok: true }
     }),
 
-  /* ========== 3. acceptTransfer – B  ✔  ========== */
+  /* ------------------------------------------------------------ *
+   * 3. confirmTransfer – Technician B akceptuje
+   * ------------------------------------------------------------ */
   confirmTransfer: technicianOnly
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const me = ctx.user!.id
-      const { itemId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
-        const row = await tx.warehouse.findUniqueOrThrow({
-          where: { id: itemId, transferToId: me, transferPending: true },
-          select: { itemType: true, quantity: true, unit: true, name: true },
-        })
-
-        /* simple accept – just flip assignment & flags */
-        await tx.warehouse.update({
-          where: { id: itemId },
-          data: {
-            assignedToId: me,
-            transferToId: null,
-            transferPending: false,
-          },
-        })
-
-        await addHistory({
-          prisma: tx,
-          itemId: itemId,
-          userId: me,
-          action: 'RECEIVED',
-          qty: row.itemType === 'DEVICE' ? 1 : row.quantity,
-          notes: 'Technik zaakceptował przekazanie',
-        })
-      })
-
-      return { ok: true }
-    }),
-
-  /* ========== 4. rejectTransfer – B  ✖  ========== */
-  rejectTransfer: technicianOnly
-    .input(z.object({ itemId: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      const me = ctx.user!.id
-      const { itemId } = input
-
-      await ctx.prisma.$transaction(async (tx) => {
-        const row = await tx.warehouse.findUniqueOrThrow({
-          where: { id: itemId, transferToId: me, transferPending: true },
+        const pending = await tx.warehouse.findUniqueOrThrow({
+          where: { id: input.itemId, transferToId: me, transferPending: true },
           select: {
+            id: true,
             itemType: true,
             quantity: true,
             unit: true,
             name: true,
-            assignedToId: true, // ← sender
+            assignedToId: true,
+            materialDefinitionId: true,
           },
         })
+        const qty = pending.quantity
+        const senderId = pending.assignedToId!
 
-        /* --- for MATERIAL we just cancel flags; quantity wraca do sendera automatycznie,
-               bo wiersz już należy do niego (assignedToId). Ewentualne scalenie
-               z innym rekordem można zrobić później. --- */
+        /* Merge with recipient stock (material) */
+        let targetId = pending.id
+        if (pending.itemType === 'MATERIAL') {
+          const recipientStock = await tx.warehouse.findFirst({
+            where: {
+              itemType: 'MATERIAL',
+              materialDefinitionId: pending.materialDefinitionId,
+              assignedToId: me,
+              transferPending: false,
+            },
+          })
 
-        await tx.warehouse.update({
-          where: { id: itemId },
-          data: { transferToId: null, transferPending: false },
-        })
+          if (recipientStock) {
+            await tx.warehouse.update({
+              where: { id: recipientStock.id },
+              data: { quantity: { increment: qty } },
+            })
+            targetId = recipientStock.id
+            await tx.warehouse.delete({ where: { id: pending.id } })
+          } else {
+            await tx.warehouse.update({
+              where: { id: pending.id },
+              data: {
+                assignedToId: me,
+                transferPending: false,
+                transferToId: null,
+              },
+            })
+          }
+        } else {
+          /* device – just clear flags */
+          await tx.warehouse.update({
+            where: { id: pending.id },
+            data: {
+              assignedToId: me,
+              transferPending: false,
+              transferToId: null,
+            },
+          })
+        }
 
+        /* single TRANSFER history record */
         await addHistory({
           prisma: tx,
-          itemId: itemId,
-          userId: me,
-          action: 'RETURNED',
-          qty: row.itemType === 'DEVICE' ? 1 : row.quantity,
-          notes: 'Technik odrzucił przekazanie',
+          itemId: targetId,
+          userId: senderId,
+          action: 'TRANSFER',
+          qty,
+          assignedToId: me,
         })
       })
 
       return { ok: true }
     }),
-  /* ========== 5. cancelTransfer – A ✎  ========== */
+
+  /* ------------------------------------------------------------ *
+   * 4. rejectTransfer – Technician B odrzuca
+   *    • MATERIALS → zwrot ilości do technika A
+   *    • DEVICES   → czyszczenie flag
+   * ------------------------------------------------------------ */
+  rejectTransfer: technicianOnly
+    .input(z.object({ itemId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const me = ctx.user!.id
+
+      await ctx.prisma.$transaction(async (tx) => {
+        const pending = await tx.warehouse.findUniqueOrThrow({
+          where: { id: input.itemId, transferToId: me, transferPending: true },
+          select: {
+            itemType: true,
+            quantity: true,
+            materialDefinitionId: true,
+            assignedToId: true,
+            name: true,
+            unit: true,
+            price: true,
+          },
+        })
+
+        if (pending.itemType === 'MATERIAL') {
+          /* oddajemy ilość do technika A */
+          const senderStock = await tx.warehouse.findFirst({
+            where: {
+              itemType: 'MATERIAL',
+              materialDefinitionId: pending.materialDefinitionId,
+              assignedToId: pending.assignedToId,
+              transferPending: false,
+            },
+          })
+
+          if (senderStock) {
+            await tx.warehouse.update({
+              where: { id: senderStock.id },
+              data: { quantity: { increment: pending.quantity } },
+            })
+          } else {
+            await tx.warehouse.create({
+              data: {
+                itemType: 'MATERIAL',
+                name: pending.name,
+                quantity: pending.quantity,
+                unit: pending.unit,
+                price: pending.price,
+                status: 'ASSIGNED',
+                materialDefinitionId: pending.materialDefinitionId,
+                assignedToId: pending.assignedToId,
+              },
+            })
+          }
+
+          /* usuwamy wiersz pending */
+          await tx.warehouse.delete({ where: { id: input.itemId } })
+        } else {
+          /* device – po prostu kasujemy flagi */
+          await tx.warehouse.update({
+            where: { id: input.itemId },
+            data: { transferPending: false, transferToId: null },
+          })
+        }
+      })
+
+      return { ok: true }
+    }),
+
+  /* ------------------------------------------------------------ *
+   * 5. cancelTransfer – Technician A anuluje własne pending‑zlecenie
+   * ------------------------------------------------------------ */
   cancelTransfer: technicianOnly
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const me = ctx.user!.id
-      const { itemId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
-        const row = await tx.warehouse.findUniqueOrThrow({
-          where: { id: itemId, assignedToId: me, transferPending: true },
-          select: { itemType: true, quantity: true, unit: true, name: true },
+        const pending = await tx.warehouse.findUniqueOrThrow({
+          where: { id: input.itemId, assignedToId: me, transferPending: true },
+          select: {
+            itemType: true,
+            quantity: true,
+            materialDefinitionId: true,
+            name: true,
+            unit: true,
+            price: true,
+          },
         })
 
-        /* clear flags – the item stays with the sender */
-        await tx.warehouse.update({
-          where: { id: itemId },
-          data: { transferPending: false, transferToId: null },
-        })
+        if (pending.itemType === 'MATERIAL') {
+          const senderStock = await tx.warehouse.findFirst({
+            where: {
+              itemType: 'MATERIAL',
+              materialDefinitionId: pending.materialDefinitionId,
+              assignedToId: me,
+              transferPending: false,
+            },
+          })
 
-        await addHistory({
-          prisma: tx,
-          itemId,
-          userId: me,
-          action: 'RETURNED',
-          qty: row.itemType === 'DEVICE' ? 1 : row.quantity,
-          notes: 'Technik anulował przekazanie',
-        })
+          if (senderStock) {
+            await tx.warehouse.update({
+              where: { id: senderStock.id },
+              data: { quantity: { increment: pending.quantity } },
+            })
+          } else {
+            await tx.warehouse.create({
+              data: {
+                itemType: 'MATERIAL',
+                name: pending.name,
+                quantity: pending.quantity,
+                unit: pending.unit,
+                price: pending.price,
+                status: 'ASSIGNED',
+                materialDefinitionId: pending.materialDefinitionId,
+                assignedToId: me,
+              },
+            })
+          }
+
+          await tx.warehouse.delete({ where: { id: input.itemId } })
+        } else {
+          await tx.warehouse.update({
+            where: { id: input.itemId },
+            data: { transferPending: false, transferToId: null },
+          })
+        }
       })
 
       return { ok: true }

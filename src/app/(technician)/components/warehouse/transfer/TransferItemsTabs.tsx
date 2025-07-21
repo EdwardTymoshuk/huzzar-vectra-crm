@@ -33,7 +33,9 @@ const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
   const { mutate: request, isLoading } =
     trpc.warehouse.requestTransfer.useMutation({
       onSuccess: () => {
-        toast.success('Sprzęt przekazany – czeka na akceptację.')
+        utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
+        utils.warehouse.getIncomingTransfers.invalidate()
+        toast.success('Sprzęt został przekazany – czeka na akceptację.')
         setDevices([])
         setMaterials([])
         setNotes('')

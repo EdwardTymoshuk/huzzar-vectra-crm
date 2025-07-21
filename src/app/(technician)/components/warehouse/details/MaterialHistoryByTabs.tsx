@@ -3,14 +3,14 @@
 /* ---------------------------------------------------------------------
  * MaterialHistoryByTabs (technician view)
  * ---------------------------------------
- * Requests history already limited to the logged-in technician
- *   – back-end filter:  performedById === ctx.user.id
- *                       OR assignedToId === ctx.user.id
+ * Back-end zwraca już tylko historię powiązaną z zalogowanym technikiem
+ * (performedById === ctx.user.id  OR  assignedToId === ctx.user.id).
  *
- * Additional client-side filtering per tab:
- *   • 'warehouse' – entries that INCREASE technician stock   (ISSUED)
- *   • 'orders'    – entries assigned to technician’s orders  (assignedOrderId)
- *   • 'returned'  – returns to operator                      (RETURNED_TO_OPERATOR)
+ * Filtry klienta:
+ *   • 'warehouse' – wpisy zwiększające stan technika   (TRANSFER)
+ *   • 'orders'    – wpisy przypisane do zleceń         (assignedOrderId !== null)
+ *   • 'returned'  – zwroty do operatora               (RETURNED_TO_OPERATOR)
+ *   • 'transfer'  – wszystkie przekazania (TRANSFER)  (dla podglądu historii)
  * ------------------------------------------------------------------- */
 
 import ItemHistoryList from '@/app/components/shared/warehouse/ItemHistoryList'
@@ -20,11 +20,11 @@ import { trpc } from '@/utils/trpc'
 
 type Props = {
   name: string
-  tab: 'warehouse' | 'orders' | 'returned'
+  tab: 'warehouse' | 'orders' | 'returned' | 'transfer'
 }
 
 const MaterialHistoryByTabs = ({ name, tab }: Props) => {
-  /* fetch rows bound to the current technician */
+  /* ściągamy historię ograniczoną do bieżącego technika */
   const { data, isLoading } = trpc.warehouse.getHistoryByName.useQuery({
     name,
     scope: 'technician',
@@ -37,17 +37,26 @@ const MaterialHistoryByTabs = ({ name, tab }: Props) => {
   switch (tab) {
     case 'warehouse':
       filtered = data.filter(
-        (h) => h.action === 'ISSUED' && h.assignedOrderId === null
+        (h) =>
+          (h.action === 'ISSUED' || h.action === 'RECEIVED') &&
+          h.assignedOrderId === null
       )
       break
 
-    case 'orders':
+    case 'orders': {
       filtered = data.filter((h) => h.assignedOrderId !== null)
       break
+    }
 
-    case 'returned':
+    case 'returned': {
       filtered = data.filter((h) => h.action === 'RETURNED_TO_OPERATOR')
       break
+    }
+
+    case 'transfer': {
+      filtered = data.filter((h) => h.action === 'TRANSFER')
+      break
+    }
   }
 
   return <ItemHistoryList name={name} dataOverride={filtered} />

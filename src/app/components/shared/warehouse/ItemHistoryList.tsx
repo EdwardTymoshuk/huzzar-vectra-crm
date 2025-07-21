@@ -1,14 +1,7 @@
 'use client'
 
 /* ---------------------------------------------------------------------
- * ItemHistoryList
- * ---------------------------------------------------------------------
- * • Reusable history table – works for both admin and technician views.
- * • Data source:
- *     – by name  → trpc.warehouse.getHistoryByName
- *     – by item-id (serialised device) → trpc.warehouse.getHistory
- * • Optional `dataOverride` lets parent supply a pre-filtered subset
- *   (used by tab containers).
+ * ItemHistoryList  (admin + technician)
  * ------------------------------------------------------------------- */
 
 import { Badge } from '@/app/components/ui/badge'
@@ -26,36 +19,52 @@ import { trpc } from '@/utils/trpc'
 import { format } from 'date-fns'
 
 type Props =
-  | { warehouseItemId: string; name?: never; dataOverride?: never }
+  | {
+      warehouseItemId: string
+      scope?: 'all' | 'technician'
+      name?: never
+      dataOverride?: never
+    }
   | {
       name: string
       warehouseItemId?: never
+      scope?: 'all' | 'technician'
       dataOverride?: WarehouseHistoryWithUser[]
     }
 
-/* helper for badge colour + label */
+/* -------- badge label + colour ------------------------------------ */
 const mapAction = (
   action: WarehouseHistoryWithUser['action']
 ): {
   label: string
-  variant: 'success' | 'warning' | 'danger' | 'destructive'
+  variant: 'success' | 'warning' | 'danger' | 'destructive' | 'secondary'
 } => {
   switch (action) {
+    case 'TRANSFER':
+      return { label: 'Przekazanie', variant: 'secondary' }
     case 'RECEIVED':
       return { label: 'Przyjęcie', variant: 'success' }
     case 'ISSUED':
       return { label: 'Wydanie', variant: 'warning' }
     case 'RETURNED':
-      return { label: 'Zwrot', variant: 'danger' }
-    case 'RETURNED_TO_OPERATOR':
       return { label: 'Zwrot', variant: 'destructive' }
+    case 'RETURNED_TO_OPERATOR':
+      return { label: 'Zwrot do operatora', variant: 'danger' }
   }
 }
 
-const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
+const ItemHistoryList = ({
+  warehouseItemId,
+  name,
+  dataOverride,
+  scope = 'all',
+}: Props) => {
   const query = name
     ? trpc.warehouse.getHistoryByName.useQuery({ name })
-    : trpc.warehouse.getHistory.useQuery({ warehouseItemId: warehouseItemId! })
+    : trpc.warehouse.getHistory.useQuery({
+        warehouseItemId: warehouseItemId!,
+        scope,
+      })
 
   const { data, isLoading, isError } = query
   const rows = dataOverride ?? data
@@ -87,18 +96,23 @@ const ItemHistoryList = ({ warehouseItemId, name, dataOverride }: Props) => {
 
             const from = h.performedBy?.name ?? '—'
             let to: string
+
             if (h.assignedOrder?.orderNumber) {
               to = `Zl: ${h.assignedOrder.orderNumber}`
+            } else if (h.action === 'TRANSFER') {
+              // Po przekazaniu „Do” = odbiorca
+              to = h.assignedTo?.name ?? '—'
+            } else if (h.action === 'RETURNED_TO_OPERATOR') {
+              to = 'Operator'
+            } else if (h.action === 'RETURNED') {
+              to = 'Magazyn'
+            } else if (h.action === 'ISSUED') {
+              to = h.assignedTo?.name ?? 'Nieznane'
             } else {
-              to =
-                h.action === 'RETURNED_TO_OPERATOR'
-                  ? 'Operator'
-                  : h.action === 'RETURNED'
-                  ? 'Magazyn'
-                  : h.action === 'ISSUED'
-                  ? h.assignedTo?.name ?? 'Nieznane'
-                  : 'Magazyn'
+              // RECEIVED
+              to = h.assignedTo?.name ?? from
             }
+
             return (
               <TableRow key={h.id}>
                 <TableCell>

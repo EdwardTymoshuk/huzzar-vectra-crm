@@ -301,6 +301,7 @@ enum WarehouseStatus {
   RETURNED
   ASSIGNED_TO_ORDER
   RETURNED_TO_OPERATOR
+  TRANSFER
 }
 
 /// Defines possible warehouse operations.
@@ -309,4 +310,5 @@ enum WarehouseAction {
   ISSUED
   RETURNED
   RETURNED_TO_OPERATOR
+  TRANSFER
 }
