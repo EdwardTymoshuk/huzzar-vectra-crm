@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/app/components/ui/card'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MdEdit } from 'react-icons/md'
 import InputGroup from './fields/InputGroup'
 import ReadonlyRow from './fields/ReadonlyRow'
@@ -36,6 +36,13 @@ const GoalsCard = ({ initialDays, initialRevenue, onSave }: Props) => {
     }
   }
 
+  useEffect(() => {
+    if (!edit) {
+      setDays(initialDays)
+      setRev(initialRevenue)
+    }
+  }, [initialDays, initialRevenue, edit])
+
   return (
     <Card className="flex-1">
       <CardHeader className="flex flex-row justify-start items-center text-primary">
@@ -61,7 +68,15 @@ const GoalsCard = ({ initialDays, initialRevenue, onSave }: Props) => {
           />
           <div className="flex w-full justify-end">
             {!edit && (
-              <Button size="sm" variant="success" onClick={() => setEdit(true)}>
+              <Button
+                size="sm"
+                variant="success"
+                onClick={() => {
+                  setDays(initialDays)
+                  setRev(initialRevenue)
+                  setEdit(true)
+                }}
+              >
                 <MdEdit /> Zmień dane
               </Button>
             )}
