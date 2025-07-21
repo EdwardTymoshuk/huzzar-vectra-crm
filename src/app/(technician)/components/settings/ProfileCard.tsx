@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/app/components/ui/card'
+import { userRoleMap } from '@/lib/constants'
 import { MdEdit } from 'react-icons/md'
 import ReadonlyRow from './fields/ReadonlyRow'
 
@@ -29,7 +30,7 @@ const ProfileCard = ({ user, onChangePass }: Props) => (
       <ReadonlyRow label="Imię i nazwisko" value={user.name ?? '—'} />
       <ReadonlyRow label="E-mail" value={user.email ?? '—'} />
       <ReadonlyRow label="Telefon" value={user.phoneNumber ?? '—'} />
-      <ReadonlyRow label="Rola" value={user.role ?? '—'} />
+      <ReadonlyRow label="Rola" value={userRoleMap[user.role || ''] ?? '—'} />
       <ReadonlyRow
         label="Nr identyfikator"
         value={user.identyficator?.toString() ?? '—'}
