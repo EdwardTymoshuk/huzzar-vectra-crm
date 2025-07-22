@@ -91,7 +91,7 @@ const SearchableSelector = ({
 
       {/* Dropdown with search input and option list */}
       {open && (
-        <div className="absolute my-2 w-full z-30 bg-background border rounded shadow max-h-64 overflow-auto min-w-0">
+        <div className="absolute my-2 w-full z-50 bg-background border rounded shadow max-h-64 overflow-auto min-w-0">
           {/* Search input (always at the top, autofocused) */}
           <div className="sticky top-0 z-10 bg-background p-2 border-b min-w-0">
             <Input
@@ -113,7 +113,7 @@ const SearchableSelector = ({
                   setSearch('')
                 }}
                 className={cn(
-                  'px-3 py-2 text-sm cursor-pointer hover:bg-muted',
+                  'px-3 py-2 text-sm z-10 cursor-pointer hover:bg-muted',
                   o.value === value && 'bg-muted/50 font-medium'
                 )}
               >

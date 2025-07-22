@@ -313,6 +313,7 @@ export const CompleteOrderModal = ({
             placeholder="Uwagi (opcjonalnie)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            className="z-0"
           />
         </div>
         <DialogFooter>
