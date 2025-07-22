@@ -5,6 +5,7 @@ import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Textarea } from '@/app/components/ui/textarea'
 import { ActivatedService, ServiceType } from '@/types'
+import { genUUID } from '@/utils/uuid'
 import { DeviceCategory } from '@prisma/client'
 import { GrPowerReset } from 'react-icons/gr'
 import DeviceSummaryRow from './DeviceSummaryRow'
@@ -36,7 +37,7 @@ export const ServicesSection = ({
   // Adds a new service (DTV: multiple, others: max 1)
   const addService = (type: ServiceType) => {
     if (type === 'DTV' || !value.some((v) => v.type === type)) {
-      onChangeAction([...value, { id: crypto.randomUUID(), type }])
+      onChangeAction([...value, { id: genUUID(), type }])
     }
   }
 
