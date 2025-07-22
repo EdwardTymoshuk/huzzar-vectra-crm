@@ -37,7 +37,7 @@ const TransferOrderModal = ({ open, orderId, onClose }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Przekaż zlecenie</DialogTitle>
         </DialogHeader>

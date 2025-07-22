@@ -50,7 +50,7 @@ const ChangePasswordDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm space-y-3">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-sm space-y-3">
         <PasswordField
           id="old"
           label="Stare hasło"

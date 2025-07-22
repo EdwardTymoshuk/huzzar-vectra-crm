@@ -190,8 +190,6 @@ export const CompleteOrderModal = ({
       workCodes = undefined
     }
 
-    console.log(workCodes, 'Urzadzenia: ,', equipmentIds)
-
     mutation.mutate({
       orderId: order.id,
       status,
