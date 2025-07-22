@@ -49,12 +49,9 @@ const TechnicianOrdersFilter = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="PENDING">Nieprzypisane</SelectItem>
-              <SelectItem value="ASSIGNED">Przypisane</SelectItem>
-              <SelectItem value="IN_PROGRESS">W trakcie</SelectItem>
               <SelectItem value="COMPLETED">Wykonane</SelectItem>
               <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
-              <SelectItem value="CANCELED">Anulowane</SelectItem>
+              <SelectItem value="ASSIGNED">Przypisane</SelectItem>
             </SelectContent>
           </Select>
         </div>
