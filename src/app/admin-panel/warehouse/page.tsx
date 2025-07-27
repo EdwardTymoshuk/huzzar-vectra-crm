@@ -3,6 +3,7 @@
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import { useState } from 'react'
+import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFromTechniciansSection'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import WarehouseTabs from '../components/warehouse/WarehouseTabs'
 import WarehouseToolbar from '../components/warehouse/WarehouseToolbar'
@@ -18,6 +19,7 @@ const WarehousePage = () => {
           setSearchTerm={setSearchTerm}
         />
         <WarehouseSummaryCard />
+        <ReturnedFromTechniciansSection />
         <WarehouseTabs searchTerm={searchTerm} />
       </div>
     </MaxWidthWrapper>

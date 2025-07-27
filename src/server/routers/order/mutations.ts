@@ -6,7 +6,13 @@ import {
 } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
-import { MaterialUnit, OrderStatus, OrderType, TimeSlot } from '@prisma/client'
+import {
+  DeviceCategory,
+  MaterialUnit,
+  OrderStatus,
+  OrderType,
+  TimeSlot,
+} from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
@@ -219,6 +225,15 @@ export const mutationsRouter = router({
         usedMaterials: z
           .array(z.object({ id: z.string(), quantity: z.number().min(1) }))
           .optional(),
+        collectedDevices: z
+          .array(
+            z.object({
+              name: z.string(),
+              category: z.nativeEnum(DeviceCategory),
+              serialNumber: z.string().optional(),
+            })
+          )
+          .optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -389,6 +404,41 @@ export const mutationsRouter = router({
             where: { id: { in: input.equipmentIds } },
             data: { status: 'ASSIGNED_TO_ORDER' },
           })
+        }
+
+        /* #############  NEW: store collected devices  ############# */
+        if (input.collectedDevices?.length) {
+          for (const device of input.collectedDevices) {
+            /* create warehouse item bound to technician */
+            const w = await tx.warehouse.create({
+              data: {
+                itemType: 'DEVICE',
+                name: device.name,
+                category: device.category,
+                serialNumber: device.serialNumber?.trim().toUpperCase(),
+                quantity: 1,
+                price: 0,
+                status: 'COLLECTED_FROM_CLIENT',
+                assignedToId: userId,
+              },
+            })
+
+            /* link to order */
+            await tx.orderEquipment.create({
+              data: { orderId: input.orderId, warehouseId: w.id },
+            })
+
+            /* history entry */
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: w.id,
+                action: 'COLLECTED_FROM_CLIENT',
+                performedById: userId,
+                assignedToId: userId,
+                assignedOrderId: input.orderId,
+              },
+            })
+          }
         }
       })
 

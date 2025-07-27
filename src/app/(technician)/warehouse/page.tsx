@@ -4,6 +4,7 @@ import WarehouseSummaryCard from '@/app/(technician)/components/warehouse/Wareho
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import { useState } from 'react'
+import CollectedFromClientSection from '../components/warehouse/CollectedFromClientSection'
 import TechnicianTransfersTable from '../components/warehouse/TechnicianTransfersTable'
 import WarehouseTabs from '../components/warehouse/WarehouseTabs'
 import WarehouseToolbarTech from '../components/warehouse/WarehouseToolbarTech'
@@ -26,6 +27,9 @@ const TechnicianWarehousePage = () => {
           setSearchTerm={setSearchTerm}
         />
         <WarehouseSummaryCard />
+
+        {/* devices picked up from customers */}
+        <CollectedFromClientSection />
 
         {/* incoming ↔ outgoing transfers */}
         <TechnicianTransfersTable />

@@ -1,5 +1,5 @@
 // server/router/warehouse/mutations.ts
-import { adminOnly, adminOrCoord } from '@/server/roleHelpers'
+import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { DeviceCategory, WarehouseItemType } from '@prisma/client'
@@ -223,15 +223,28 @@ export const mutationsRouter = router({
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
       for (const item of input.items) {
+        /* ───── DEVICE ─────────────────────────────────────────────── */
         if (item.type === 'DEVICE') {
+          // 1️⃣  Read current status
+          const current = await prisma.warehouse.findUnique({
+            where: { id: item.id },
+            select: { status: true },
+          })
+          if (!current) throw new TRPCError({ code: 'NOT_FOUND' })
+
+          // 2️⃣  Decide next status
+          const newStatus =
+            current.status === 'COLLECTED_FROM_CLIENT'
+              ? 'RETURNED' // waits for shipping to operator
+              : 'AVAILABLE' // immediately back to stock
+
+          // 3️⃣  Update warehouse row
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: {
-              status: 'AVAILABLE',
-              assignedToId: null,
-            },
+            data: { status: newStatus, assignedToId: null },
           })
 
+          // 4️⃣  Single history entry
           await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: item.id,
@@ -240,8 +253,10 @@ export const mutationsRouter = router({
               notes: input.notes,
             },
           })
+          continue
         }
 
+        /* ───── MATERIAL ──────────────────────────────────────────── */
         if (item.type === 'MATERIAL') {
           const original = await prisma.warehouse.findUnique({
             where: { id: item.id },
@@ -251,19 +266,19 @@ export const mutationsRouter = router({
           if ((original.quantity ?? 0) < item.quantity) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
-              message: `Brak odpowiedniej ilości materiału do zwrotu`,
+              message: `Not enough material on technician stock`,
             })
           }
 
+          // Decrease technician row …
           await prisma.warehouse.update({
             where: { id: item.id },
             data: {
-              quantity: {
-                decrement: item.quantity,
-              },
+              quantity: { decrement: item.quantity },
             },
           })
 
+          // …and create fresh row in warehouse
           await prisma.warehouse.create({
             data: {
               itemType: 'MATERIAL',
@@ -362,4 +377,72 @@ export const mutationsRouter = router({
 
       return { success: true }
     }),
+  collectFromClient: loggedInEveryone
+    .input(
+      z.object({
+        orderId: z.string().uuid(),
+        device: z.object({
+          name: z.string(),
+          category: z.nativeEnum(DeviceCategory).optional(),
+          serialNumber: z.string().optional(),
+          price: z.number().optional(),
+        }),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const techId = ctx.user?.id
+      if (!techId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      // 1️⃣ create warehouse record that physically lives on technician
+      const device = await prisma.warehouse.create({
+        data: {
+          itemType: 'DEVICE',
+          name: input.device.name,
+          category: input.device.category ?? 'OTHER',
+          serialNumber: input.device.serialNumber?.trim().toUpperCase(),
+          quantity: 1,
+          price: input.device.price ?? 0,
+          status: 'COLLECTED_FROM_CLIENT',
+          assignedToId: techId,
+        },
+      })
+
+      // 2️⃣ connect to order (traceability)
+      await prisma.orderEquipment.create({
+        data: { orderId: input.orderId, warehouseId: device.id },
+      })
+
+      // 3️⃣ history entry
+      await prisma.warehouseHistory.create({
+        data: {
+          warehouseItemId: device.id,
+          action: 'COLLECTED_FROM_CLIENT',
+          performedById: techId,
+          assignedOrderId: input.orderId,
+          assignedToId: techId,
+          notes: 'Device picked up from client',
+        },
+      })
+
+      return { success: true, id: device.id }
+    }),
+
+  /** 🗂️  Devices returned by technicians – waiting to be shipped to operator **/
+  getReturnedFromTechnicians: adminOrCoord.query(() =>
+    prisma.warehouse.findMany({
+      where: { itemType: 'DEVICE', status: 'RETURNED' },
+      include: {
+        /* potrzebne do dat + imienia technika */
+        history: {
+          include: { performedBy: true }, // who did the action
+          orderBy: { actionDate: 'asc' },
+        },
+        /* aby znać nr zlecenia i adres klienta */
+        orderAssignments: {
+          include: { order: true },
+        },
+      },
+      orderBy: { updatedAt: 'asc' },
+    })
+  ),
 })

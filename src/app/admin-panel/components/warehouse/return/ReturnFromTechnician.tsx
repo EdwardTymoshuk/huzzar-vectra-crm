@@ -15,7 +15,8 @@ import {
 import { sumTechnicianMaterialStock } from '@/lib/warehouse'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { trpc } from '@/utils/trpc'
-import { useMemo, useState } from 'react'
+import { WarehouseStatus } from '@prisma/client'
+import { useMemo, useRef, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
@@ -55,6 +56,9 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
 
   const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery()
   const returnMutation = trpc.warehouse.returnToWarehouse.useMutation()
+
+  /* ────────────── refs (autofocus) ───────── */
+  const serialInputRef = useRef<HTMLInputElement>(null)
 
   // Extract unique material names assigned to technician
   const assignedMaterialNames = useMemo(() => {
@@ -130,12 +134,20 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     )
 
     if (!device) return toast.error('Nie znaleziono urządzenia o tym numerze.')
-    if (device.status !== 'ASSIGNED')
+
+    /* ✅ allow ASSIGNED or COLLECTED_FROM_CLIENT */
+    const acceptable: WarehouseStatus[] = ['ASSIGNED', 'COLLECTED_FROM_CLIENT']
+    if (!acceptable.includes(device.status)) {
       return toast.error('To urządzenie nie jest przypisane do technika.')
-    if (device.assignedToId !== technicianId)
+    }
+
+    if (device.assignedToId !== technicianId) {
       return toast.error('To urządzenie jest przypisane do innego technika.')
-    if (issuedDevices.some((d) => d.id === device.id))
+    }
+
+    if (issuedDevices.some((d) => d.id === device.id)) {
       return toast.warning('To urządzenie zostało już dodane.')
+    }
 
     setIssuedDevices((prev) => [
       ...prev,
@@ -149,6 +161,8 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     ])
     setSerial('')
     toast.success('Dodano urządzenie.')
+    /* ←− auto-focus back to input */
+    serialInputRef.current?.focus()
   }
 
   // Finalize the return operation

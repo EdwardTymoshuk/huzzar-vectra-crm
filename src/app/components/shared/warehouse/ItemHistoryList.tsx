@@ -50,6 +50,10 @@ const mapAction = (
       return { label: 'Zwrot', variant: 'destructive' }
     case 'RETURNED_TO_OPERATOR':
       return { label: 'Zwrot do operatora', variant: 'danger' }
+    case 'COLLECTED_FROM_CLIENT':
+      return { label: 'Odbiór od klienta', variant: 'secondary' }
+    default:
+      return { label: '—', variant: 'secondary' }
   }
 }
 

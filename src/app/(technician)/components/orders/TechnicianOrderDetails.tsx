@@ -20,9 +20,7 @@ interface Props {
   autoOpen?: boolean
   orderStatus: OrderStatus
   disableTransfer?: boolean
-  /** true → show Accept / Reject inside details */
   incomingTransfer?: boolean
-  /** optional message shown on top of card */
   pendingMessage?: string
   onAccept?: () => void
   onReject?: () => void
@@ -38,7 +36,7 @@ const TechnicianOrderDetails = ({
   onAccept,
   onReject,
 }: Props) => {
-  /* lazy-load full details */
+  /* fetch full order */
   const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
     id: orderId,
   })
@@ -55,32 +53,41 @@ const TechnicianOrderDetails = ({
     }
   }, [autoOpen, showCompleteModal])
 
-  /* async / error states */
+  /* async states */
   if (isLoading) return <LoaderSpinner />
   if (isError || !data)
     return <p className="text-destructive">Błąd ładowania danych.</p>
 
-  /* view-models */
+  /* ---------- view-models ---------- */
   const codes =
     data.settlementEntries?.map((e) => `${e.code} × ${e.quantity}`) ?? []
+
   const materials =
     data.usedMaterials?.map(
       (m) => `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`
     ) ?? []
-  const equipment =
-    data.assignedEquipment?.map(
-      (e) =>
-        `${
-          devicesTypeMap[(e.warehouse.category || 'OTHER') as DeviceCategory]
-        } ${e.warehouse.name}${
-          e.warehouse.serialNumber ? ` (SN: ${e.warehouse.serialNumber})` : ''
-        }`
-    ) ?? []
 
-  /* ---------------- render ---------------- */
+  /* ⬇️ split equipment into used vs collected */
+  const equipmentUsed: string[] = []
+  const equipmentCollected: string[] = []
+
+  data.assignedEquipment?.forEach((e) => {
+    const txt = `${
+      devicesTypeMap[(e.warehouse.category || 'OTHER') as DeviceCategory]
+    } ${e.warehouse.name}${
+      e.warehouse.serialNumber ? ` (SN: ${e.warehouse.serialNumber})` : ''
+    }`
+    if (e.warehouse.status === 'COLLECTED_FROM_CLIENT') {
+      equipmentCollected.push(txt)
+    } else {
+      equipmentUsed.push(txt)
+    }
+  })
+
+  /* ---------- render ---------- */
   return (
     <div className="space-y-6 text-sm bg-card text-card-foreground p-4 rounded-lg">
-      {/* optional alert */}
+      {/* transfer alert */}
       {pendingMessage && (
         <Alert variant="destructive" className="!pl-3">
           <AlertDescription>{pendingMessage}</AlertDescription>
@@ -103,12 +110,18 @@ const TechnicianOrderDetails = ({
         />
       </div>
 
-      {/* status-specific parts */}
+      {/* status-specific sections */}
       {orderStatus === 'COMPLETED' && (
         <>
           <Section title="Kody pracy" list={codes} />
           <Section title="Zużyty materiał" list={materials} />
-          <Section title="Sprzęt" list={equipment} />
+          <Section title="Sprzęt wydany" list={equipmentUsed} />
+          {!!equipmentCollected.length && (
+            <Section
+              title="Sprzęt odebrany od klienta"
+              list={equipmentCollected}
+            />
+          )}
         </>
       )}
 
@@ -121,7 +134,7 @@ const TechnicianOrderDetails = ({
 
       {data.notes && <Section title="Uwagi" list={[data.notes]} />}
 
-      {/* incoming transfer action buttons */}
+      {/* incoming transfer buttons */}
       {incomingTransfer && (
         <div className="flex gap-2 pt-2">
           <Button size="sm" onClick={onAccept}>
@@ -133,7 +146,7 @@ const TechnicianOrderDetails = ({
         </div>
       )}
 
-      {/* regular “Odpisz / Przekaż” when allowed */}
+      {/* standard action buttons */}
       {orderStatus === 'ASSIGNED' && !disableTransfer && !incomingTransfer && (
         <div className="flex gap-2">
           <Button variant="success" onClick={() => setShowCompleteModal(true)}>
@@ -154,7 +167,7 @@ const TechnicianOrderDetails = ({
         onClose={() => setShowTransfer(false)}
       />
 
-      {/* Complte order modal */}
+      {/* complete modal */}
       <CompleteOrderModal
         open={showCompleteModal}
         order={data}
@@ -170,7 +183,7 @@ const TechnicianOrderDetails = ({
 
 export default TechnicianOrderDetails
 
-/* ------------- helpers ------------- */
+/* ------------ helpers ------------ */
 const HeaderRow = ({ label, value }: { label: string; value: string }) => (
   <p>
     <span className="font-semibold">{label}:</span> {value}

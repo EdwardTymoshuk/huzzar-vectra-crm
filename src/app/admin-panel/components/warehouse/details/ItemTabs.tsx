@@ -23,11 +23,9 @@ const ItemTabs = ({ items }: Props) => {
     (i) => i.assignedToId !== null && i.orderAssignments.length === 0
   )
 
-  const assignedToOrders = items.filter(
-    (i) => i.orderAssignments && i.orderAssignments.length > 0
-  )
+  const assignedToOrders = items.filter((i) => i.status === 'ASSIGNED_TO_ORDER')
   const returnedItems = items.filter(
-    (i) => i.status === 'RETURNED_TO_OPERATOR' && i.assignedToId === null
+    (i) => i.status === 'RETURNED_TO_OPERATOR' || i.status === 'RETURNED'
   )
 
   return (

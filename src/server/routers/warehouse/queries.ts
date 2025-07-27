@@ -90,7 +90,7 @@ export const queriesRouter = router({
       return prisma.warehouse.findMany({
         where: {
           assignedToId: id,
-          status: { in: ['AVAILABLE', 'ASSIGNED'] },
+          status: { in: ['AVAILABLE', 'ASSIGNED', 'COLLECTED_FROM_CLIENT'] },
           ...(input.itemType ? { itemType: input.itemType } : {}),
           orderAssignments: {
             none: {},
@@ -179,4 +179,36 @@ export const queriesRouter = router({
         select: { id: true, serialNumber: true, name: true },
       })
     ),
+  /** 🛠️  List of devices/materials collected from clients (technician view) */
+  getCollectedWithDetails: loggedInEveryone.query(({ ctx }) => {
+    const techId = ctx.user?.id
+    if (!techId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+    return prisma.warehouse.findMany({
+      where: { assignedToId: techId, status: 'COLLECTED_FROM_CLIENT' },
+      include: {
+        /* last COLLECTED_FROM_CLIENT timestamp – for “days ago” badge */
+        history: {
+          where: { action: 'COLLECTED_FROM_CLIENT' },
+          orderBy: { actionDate: 'desc' },
+          take: 1,
+        },
+        /* first (and only) order referenced by this item */
+        orderAssignments: {
+          include: {
+            order: {
+              select: {
+                orderNumber: true,
+                city: true,
+                street: true,
+                date: true,
+              },
+            },
+          },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: 'asc' },
+    })
+  }),
 })

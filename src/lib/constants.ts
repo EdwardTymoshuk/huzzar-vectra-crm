@@ -324,6 +324,7 @@ export const warehouseActionMap: Record<
   RETURNED: { label: 'Zwrot', variant: 'destructive' },
   RETURNED_TO_OPERATOR: { label: 'Zwrot do operatora', variant: 'danger' },
   TRANSFER: { label: 'Przekazanie', variant: 'secondary' },
+  COLLECTED_FROM_CLIENT: { label: 'Odbiór od klienta', variant: 'default' },
 }
 
 //polish monthes
