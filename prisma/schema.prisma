@@ -69,6 +69,7 @@ model Order {
   usedMaterials     OrderMaterial[]
   settlementEntries OrderSettlementEntry[]
   warehouseHistory  WarehouseHistory[]     @relation("OrderToWarehouseHistory")
+  services          OrderService[]
 
   @@unique([orderNumber, date])
 }
@@ -96,6 +97,25 @@ model OrderSettlementEntry {
   rate     RateDefinition @relation("RateDefinitionToSettlement", fields: [code], references: [code])
   order    Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([orderId])
+}
+
+model OrderService {
+  id              String       @id @default(uuid())
+  orderId         String
+  type            ServiceType
+  deviceId        String?
+  serialNumber    String?
+  deviceId2       String?
+  serialNumber2   String?
+
+  speedTest       String?
+  usDbmDown       Float?
+  usDbmUp         Float?
+
+  createdAt       DateTime     @default(now())
+
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   @@index([orderId])
 }
 
@@ -313,4 +333,11 @@ enum WarehouseAction {
   RETURNED_TO_OPERATOR
   TRANSFER
   COLLECTED_FROM_CLIENT
+}
+
+enum ServiceType {
+  DTV
+  NET
+  TEL
+  ATV
 }

@@ -171,11 +171,22 @@ export const ServicesSection = ({
               !service.usDbmConfirmed
             ) {
               const deviceObj = devices.find((d) => d.id === service.deviceId)
+
+              const handleDown = (v: string) =>
+                updateService(service.id, {
+                  usDbmDown: v ? parseFloat(v.replace(',', '.')) : undefined,
+                })
+
+              const handleUp = (v: string) =>
+                updateService(service.id, {
+                  usDbmUp: v ? parseFloat(v.replace(',', '.')) : undefined,
+                })
+
               return (
                 <DeviceSummaryRow
                   key={service.id}
                   device={{
-                    id: service.id, // Only service.id!
+                    id: service.id,
                     name: deviceObj?.name || '',
                     serialNumber: service.serialNumber ?? '',
                     category: asDeviceCategory(service.deviceType),
@@ -188,25 +199,24 @@ export const ServicesSection = ({
                     <Input
                       placeholder="DS [dBm]"
                       value={service.usDbmDown ?? ''}
-                      onChange={(e) =>
-                        updateService(service.id, {
-                          usDbmDown: e.target.value,
-                        })
-                      }
-                      required
+                      onChange={(e) => handleDown(e.target.value)}
+                      type="number"
+                      step="0.1"
                     />
                     <Input
                       placeholder="US [dBm]"
                       value={service.usDbmUp ?? ''}
-                      onChange={(e) =>
-                        updateService(service.id, { usDbmUp: e.target.value })
-                      }
-                      required
+                      onChange={(e) => handleUp(e.target.value)}
+                      type="number"
+                      step="0.1"
                     />
                     <Button
                       className="h-10"
                       onClick={() => confirmUsDbm(service.id)}
-                      disabled={!service.usDbmDown || !service.usDbmUp}
+                      disabled={
+                        service.usDbmDown === undefined ||
+                        service.usDbmUp === undefined
+                      }
                     >
                       Dodaj
                     </Button>
@@ -430,7 +440,7 @@ export const ServicesSection = ({
                 {routerNeeded && service.serialNumber2 && (
                   <DeviceSummaryRow
                     device={{
-                      id: service.id + '-router', // Unikalny
+                      id: service.id + '-router',
                       name: routerObj?.name || '',
                       serialNumber: service.serialNumber2 ?? '',
                       category: DeviceCategory.MODEM,

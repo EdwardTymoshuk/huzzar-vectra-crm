@@ -11,6 +11,7 @@ import {
   MaterialUnit,
   OrderStatus,
   OrderType,
+  ServiceType,
   TimeSlot,
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
@@ -211,6 +212,7 @@ export const mutationsRouter = router({
     }),
 
   /** ✅ Technician completes or fails an order */
+  /** ✅ Technician completes or fails an order */
   completeOrder: technicianOnly
     .input(
       z.object({
@@ -218,13 +220,21 @@ export const mutationsRouter = router({
         status: z.nativeEnum(OrderStatus),
         notes: z.string().nullable().optional(),
         failureReason: z.string().nullable().optional(),
+
+        // Settlement work codes (for completed orders)
         workCodes: z
           .array(z.object({ code: z.string(), quantity: z.number().min(1) }))
           .optional(),
+
+        // IDs of equipment assigned to this order (devices used)
         equipmentIds: z.array(z.string()).optional(),
+
+        // Used materials (by material definition id and quantity)
         usedMaterials: z
           .array(z.object({ id: z.string(), quantity: z.number().min(1) }))
           .optional(),
+
+        // Devices collected from client during this order
         collectedDevices: z
           .array(
             z.object({
@@ -234,12 +244,30 @@ export const mutationsRouter = router({
             })
           )
           .optional(),
+
+        // NEW: Services (measurements) performed during the order
+        services: z
+          .array(
+            z.object({
+              id: z.string(),
+              type: z.nativeEnum(ServiceType),
+              deviceId: z.string().optional(),
+              serialNumber: z.string().optional(),
+              deviceId2: z.string().optional(),
+              serialNumber2: z.string().optional(),
+              speedTest: z.string().optional(),
+              usDbmDown: z.coerce.number().optional(),
+              usDbmUp: z.coerce.number().optional(),
+            })
+          )
+          .default([]),
       })
     )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
+      // ----------- Validate order and technician permissions -----------
       const order = await prisma.order.findUnique({
         where: { id: input.orderId },
         select: { id: true, assignedToId: true, type: true },
@@ -256,7 +284,6 @@ export const mutationsRouter = router({
           message: 'Nie masz dostępu do tego zlecenia',
         })
       }
-
       if (
         input.status === OrderStatus.COMPLETED &&
         order.type === OrderType.INSTALATION &&
@@ -269,19 +296,9 @@ export const mutationsRouter = router({
       }
 
       await prisma.$transaction(async (tx) => {
-        const materialUnitsMap = new Map<string, string>()
-
-        if (input.usedMaterials?.length) {
-          const materialDefs = await tx.materialDefinition.findMany({
-            where: { id: { in: input.usedMaterials.map((m) => m.id) } },
-            select: { id: true, unit: true },
-          })
-          materialDefs.forEach((def) => {
-            materialUnitsMap.set(def.id, def.unit)
-          })
-        }
-
-        // ✅ Update order
+        /* -------------------------------------------------------------------
+         * 1️⃣  Update order main info (status, notes, failure reason, date)
+         * ------------------------------------------------------------------- */
         await tx.order.update({
           where: { id: input.orderId },
           data: {
@@ -295,7 +312,9 @@ export const mutationsRouter = router({
           },
         })
 
-        // ✅ Save work codes
+        /* -------------------------------------------------------------------
+         * 2️⃣  Save settlement entries (work codes)
+         * ------------------------------------------------------------------- */
         if (input.status === OrderStatus.COMPLETED && input.workCodes?.length) {
           await tx.orderSettlementEntry.createMany({
             data: input.workCodes.map((entry) => ({
@@ -306,8 +325,21 @@ export const mutationsRouter = router({
           })
         }
 
-        // ✅ Save used materials and update technician stock
+        /* -------------------------------------------------------------------
+         * 3️⃣  Save used materials and update technician warehouse stock
+         * ------------------------------------------------------------------- */
         if (input.usedMaterials?.length) {
+          // Map material definition id to unit (for correct unit storage)
+          const materialUnitsMap = new Map<string, string>()
+          const materialDefs = await tx.materialDefinition.findMany({
+            where: { id: { in: input.usedMaterials.map((m) => m.id) } },
+            select: { id: true, unit: true },
+          })
+          materialDefs.forEach((def) => {
+            materialUnitsMap.set(def.id, def.unit)
+          })
+
+          // Save usage per order
           await tx.orderMaterial.createMany({
             data: input.usedMaterials.map((item) => ({
               orderId: input.orderId,
@@ -317,6 +349,7 @@ export const mutationsRouter = router({
             })),
           })
 
+          // Decrement technician material stock and add warehouse history
           for (const item of input.usedMaterials) {
             const technicianMaterial = await tx.warehouse.findFirst({
               where: {
@@ -332,17 +365,13 @@ export const mutationsRouter = router({
                 message: `Brak materiału (ID: ${item.id}) na Twoim stanie.`,
               })
             }
+            const available = technicianMaterial.quantity
+            const remaining = Math.max(available - item.quantity, 0)
 
-            if (technicianMaterial) {
-              const available = technicianMaterial.quantity
-              const remaining = Math.max(available - item.quantity, 0)
-
-              await tx.warehouse.update({
-                where: { id: technicianMaterial.id },
-                data: { quantity: remaining },
-              })
-            }
-
+            await tx.warehouse.update({
+              where: { id: technicianMaterial.id },
+              data: { quantity: remaining },
+            })
             await tx.warehouseHistory.create({
               data: {
                 warehouseItemId: technicianMaterial.id,
@@ -356,16 +385,17 @@ export const mutationsRouter = router({
           }
         }
 
-        // ✅ Equipment assignment with validation
+        /* -------------------------------------------------------------------
+         * 4️⃣  Assign used devices from technician warehouse
+         * ------------------------------------------------------------------- */
         if (input.equipmentIds?.length) {
-          // 🔒 Check for already-assigned devices
+          // Prevent assignment of already-used devices
           const conflictingDevices = await tx.orderEquipment.findMany({
             where: {
               warehouseId: { in: input.equipmentIds },
               orderId: { not: input.orderId },
             },
           })
-
           if (conflictingDevices.length > 0) {
             throw new TRPCError({
               code: 'CONFLICT',
@@ -374,7 +404,7 @@ export const mutationsRouter = router({
             })
           }
 
-          // 🔒 Check if devices are on technician stoke
+          // Check that technician actually owns these devices
           const technicianDevices = await tx.warehouse.findMany({
             where: {
               id: { in: input.equipmentIds },
@@ -382,7 +412,6 @@ export const mutationsRouter = router({
               status: { in: ['AVAILABLE', 'ASSIGNED'] },
             },
           })
-
           if (technicianDevices.length !== input.equipmentIds.length) {
             throw new TRPCError({
               code: 'CONFLICT',
@@ -391,7 +420,7 @@ export const mutationsRouter = router({
             })
           }
 
-          // ✅ Save assignments
+          // Assign devices to order
           await tx.orderEquipment.createMany({
             data: input.equipmentIds.map((id) => ({
               orderId: input.orderId,
@@ -399,17 +428,18 @@ export const mutationsRouter = router({
             })),
           })
 
-          // ✅ Update status in warehouse
+          // Update warehouse status
           await tx.warehouse.updateMany({
             where: { id: { in: input.equipmentIds } },
             data: { status: 'ASSIGNED_TO_ORDER' },
           })
         }
 
-        /* #############  NEW: store collected devices  ############# */
+        /* -------------------------------------------------------------------
+         * 5️⃣  Save devices collected from client (added to technician stock)
+         * ------------------------------------------------------------------- */
         if (input.collectedDevices?.length) {
           for (const device of input.collectedDevices) {
-            /* create warehouse item bound to technician */
             const w = await tx.warehouse.create({
               data: {
                 itemType: 'DEVICE',
@@ -422,13 +452,9 @@ export const mutationsRouter = router({
                 assignedToId: userId,
               },
             })
-
-            /* link to order */
             await tx.orderEquipment.create({
               data: { orderId: input.orderId, warehouseId: w.id },
             })
-
-            /* history entry */
             await tx.warehouseHistory.create({
               data: {
                 warehouseItemId: w.id,
@@ -437,6 +463,34 @@ export const mutationsRouter = router({
                 assignedToId: userId,
                 assignedOrderId: input.orderId,
               },
+            })
+          }
+        }
+
+        /* -------------------------------------------------------------------
+         * 6️⃣  Save measurement and service info (speedtest/DS/US)
+         *     - Remove previous orderService records for this order (if any)
+         *     - Add all new service records from the form
+         * ------------------------------------------------------------------- */
+        if (input.status === OrderStatus.COMPLETED) {
+          // Remove old services, then insert all provided
+          await tx.orderService.deleteMany({
+            where: { orderId: input.orderId },
+          })
+          if (input.services.length) {
+            await tx.orderService.createMany({
+              data: input.services.map((s) => ({
+                id: s.id,
+                orderId: input.orderId,
+                type: s.type,
+                deviceId: s.deviceId ?? null,
+                serialNumber: s.serialNumber ?? null,
+                deviceId2: s.deviceId2 ?? null,
+                serialNumber2: s.serialNumber2 ?? null,
+                speedTest: s.speedTest ?? null,
+                usDbmDown: s.usDbmDown ?? null,
+                usDbmUp: s.usDbmUp ?? null,
+              })),
             })
           }
         }

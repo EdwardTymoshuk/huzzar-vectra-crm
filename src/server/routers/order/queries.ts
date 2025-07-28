@@ -81,6 +81,7 @@ export const queriesRouter = router({
               warehouse: true,
             },
           },
+          services: true,
         },
       })
     ),

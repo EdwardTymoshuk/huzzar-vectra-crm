@@ -205,6 +205,7 @@ export const CompleteOrderModal = ({
       equipmentIds,
       usedMaterials: materials,
       collectedDevices: collectEnabled ? collected : [],
+      services: Array.isArray(activatedServices) ? activatedServices : [],
     })
   }
 

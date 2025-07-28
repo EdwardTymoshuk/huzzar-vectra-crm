@@ -170,8 +170,8 @@ export type ActivatedService = {
   serialNumber?: string
   deviceId2?: string
   serialNumber2?: string
-  usDbmDown?: string
-  usDbmUp?: string
+  usDbmDown?: number
+  usDbmUp?: number
   usDbmConfirmed?: boolean
   speedTest?: string
   speedTestConfirmed?: boolean

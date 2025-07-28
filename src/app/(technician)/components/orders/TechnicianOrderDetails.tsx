@@ -1,12 +1,11 @@
 'use client'
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import OrderDetailsContent from '@/app/components/shared/orders/OrderDetailsContent'
 import { Alert, AlertDescription } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
-import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
-import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
-import { DeviceCategory, OrderStatus } from '@prisma/client'
+import { OrderStatus } from '@prisma/client'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { BsSendCheck } from 'react-icons/bs'
@@ -57,33 +56,6 @@ const TechnicianOrderDetails = ({
   if (isLoading) return <LoaderSpinner />
   if (isError || !data)
     return <p className="text-destructive">Błąd ładowania danych.</p>
-
-  /* ---------- view-models ---------- */
-  const codes =
-    data.settlementEntries?.map((e) => `${e.code} × ${e.quantity}`) ?? []
-
-  const materials =
-    data.usedMaterials?.map(
-      (m) => `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`
-    ) ?? []
-
-  /* ⬇️ split equipment into used vs collected */
-  const equipmentUsed: string[] = []
-  const equipmentCollected: string[] = []
-
-  data.assignedEquipment?.forEach((e) => {
-    const txt = `${
-      devicesTypeMap[(e.warehouse.category || 'OTHER') as DeviceCategory]
-    } ${e.warehouse.name}${
-      e.warehouse.serialNumber ? ` (SN: ${e.warehouse.serialNumber})` : ''
-    }`
-    if (e.warehouse.status === 'COLLECTED_FROM_CLIENT') {
-      equipmentCollected.push(txt)
-    } else {
-      equipmentUsed.push(txt)
-    }
-  })
-
   /* ---------- render ---------- */
   return (
     <div className="space-y-6 text-sm bg-card text-card-foreground p-4 rounded-lg">
@@ -94,35 +66,9 @@ const TechnicianOrderDetails = ({
         </Alert>
       )}
 
-      {/* header */}
-      <div className="space-y-1">
-        <HeaderRow label="Nr zlecenia" value={data.orderNumber} />
-        <HeaderRow label="Adres" value={`${data.city}, ${data.street}`} />
-        <HeaderRow label="Operator" value={data.operator} />
-        <HeaderRow label="Nr kontaktowy" value={`${data.clientPhoneNumber}`} />
-        <HeaderRow
-          label="Data"
-          value={new Date(data.date).toLocaleDateString()}
-        />
-        <HeaderRow
-          label="Slot czasowy"
-          value={getTimeSlotLabel(data.timeSlot)}
-        />
-      </div>
-
       {/* status-specific sections */}
       {orderStatus === 'COMPLETED' && (
-        <>
-          <Section title="Kody pracy" list={codes} />
-          <Section title="Zużyty materiał" list={materials} />
-          <Section title="Sprzęt wydany" list={equipmentUsed} />
-          {!!equipmentCollected.length && (
-            <Section
-              title="Sprzęt odebrany od klienta"
-              list={equipmentCollected}
-            />
-          )}
-        </>
+        <OrderDetailsContent order={data} hideTechnician={true} />
       )}
 
       {orderStatus === 'NOT_COMPLETED' && (
@@ -184,11 +130,6 @@ const TechnicianOrderDetails = ({
 export default TechnicianOrderDetails
 
 /* ------------ helpers ------------ */
-const HeaderRow = ({ label, value }: { label: string; value: string }) => (
-  <p>
-    <span className="font-semibold">{label}:</span> {value}
-  </p>
-)
 
 const Section = ({ title, list }: { title: string; list: string[] }) => (
   <section className="pt-4 border-t border-border space-y-1">

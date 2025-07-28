@@ -31,8 +31,11 @@ const SerialScanInput = ({
 }: Props) => {
   const [value, setValue] = useState('')
   const [showDD, setShowDD] = useState(false)
+  const [isAdding, setIsAdding] = useState(false)
+
   const utils = trpc.useUtils()
   const { data: session } = useSession()
+
   const myId = session?.user.id
 
   // Suggestions for local search (min 3 chars)
@@ -50,6 +53,7 @@ const SerialScanInput = ({
   const tryAdd = async (serial: string) => {
     const s = serial.trim()
     if (!s) return toast.error('Wpisz numer seryjny.')
+    setIsAdding(true)
     try {
       const res = await fetchDevice(s)
       if (!res) return toast.error('Nie znaleziono urządzenia o tym numerze.')
@@ -91,6 +95,8 @@ const SerialScanInput = ({
       setShowDD(false)
     } catch {
       toast.error('Wystąpił błąd podczas wyszukiwania urządzenia.')
+    } finally {
+      setIsAdding(false)
     }
   }
 
@@ -118,10 +124,10 @@ const SerialScanInput = ({
           <Button
             variant="default"
             onClick={() => tryAdd(value)}
-            disabled={!value.trim()}
+            disabled={!value.trim() || isAdding}
             className="md:w-fit"
           >
-            Dodaj
+            {isAdding ? 'Dodawanie…' : 'Dodaj'}
           </Button>
         </div>
       ) : (
