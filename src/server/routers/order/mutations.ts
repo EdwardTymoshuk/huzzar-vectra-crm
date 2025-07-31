@@ -212,7 +212,6 @@ export const mutationsRouter = router({
     }),
 
   /** ✅ Technician completes or fails an order */
-  /** ✅ Technician completes or fails an order */
   completeOrder: technicianOnly
     .input(
       z.object({
@@ -258,6 +257,7 @@ export const mutationsRouter = router({
               speedTest: z.string().optional(),
               usDbmDown: z.coerce.number().optional(),
               usDbmUp: z.coerce.number().optional(),
+              notes: z.string().optional(),
             })
           )
           .default([]),
@@ -490,6 +490,7 @@ export const mutationsRouter = router({
                 speedTest: s.speedTest ?? null,
                 usDbmDown: s.usDbmDown ?? null,
                 usDbmUp: s.usDbmUp ?? null,
+                notes: s.notes ?? null,
               })),
             })
           }

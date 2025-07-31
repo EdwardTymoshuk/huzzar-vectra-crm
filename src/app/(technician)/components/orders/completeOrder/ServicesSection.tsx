@@ -133,6 +133,7 @@ export const ServicesSection = ({
                   d.category === 'DECODER_1_WAY' ||
                   d.category === 'DECODER_2_WAY'
               )
+
               return (
                 <DeviceSummaryRow
                   key={service.id}
@@ -291,7 +292,6 @@ export const ServicesSection = ({
               )
             }
             // Step 2: router for TMPL
-            // ...początek komponentu...
 
             if (routerNeeded && !routerSelected) {
               const modemObj = devices.find((d) => d.id === service.deviceId)
@@ -302,7 +302,6 @@ export const ServicesSection = ({
 
               return (
                 <>
-                  {/* Modem (wybrany) */}
                   <DeviceSummaryRow
                     key={service.id}
                     device={{
@@ -316,7 +315,6 @@ export const ServicesSection = ({
                     onRemove={removeService}
                   />
 
-                  {/* Router – osobny Card */}
                   {!service.serialNumber2 ? (
                     <DeviceSummaryRow
                       key={service.id + '-router-add'}
@@ -354,7 +352,6 @@ export const ServicesSection = ({
                         type: 'DEVICE',
                       }}
                       label="NET"
-                      // onRemove={...jeśli chcesz kasować router osobno...}
                     />
                   )}
                 </>
@@ -381,7 +378,7 @@ export const ServicesSection = ({
                   {routerNeeded && service.serialNumber2 && (
                     <DeviceSummaryRow
                       device={{
-                        id: service.id + '-router', // Unikalny ID dla routera, nie do usuwania!
+                        id: service.id + '-router',
                         name: routerObj?.name || '',
                         serialNumber: service.serialNumber2 ?? '',
                         category: DeviceCategory.MODEM,
@@ -389,7 +386,6 @@ export const ServicesSection = ({
                       }}
                       label="Router"
                       className="mt-2"
-                      // NIE przekazuj onRemove!
                     />
                   )}
                   <div className="flex gap-2 mt-2">

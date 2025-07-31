@@ -57,19 +57,15 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
     notes,
   } = order
 
-  /* ---------- helpers ---------- */
-  const HeaderRow = ({ label, value }: { label: string; value: string }) => (
-    <p>
-      <span className="font-semibold">{label}:</span> {value}
-    </p>
-  )
-
   const issued = assignedEquipment.filter(
     (e) => e.warehouse.status !== 'COLLECTED_FROM_CLIENT'
   )
   const collected = assignedEquipment.filter(
     (e) => e.warehouse.status === 'COLLECTED_FROM_CLIENT'
   )
+
+  // services that have no deviceId → e.g. ATV, TEL
+  const standalone = services.filter((s) => !s.deviceId)
 
   /* ---------- render ---------- */
   return (
@@ -176,6 +172,17 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
         })}
       />
 
+      {standalone.length > 0 && (
+        <Section
+          title="Dodatkowe usługi"
+          list={standalone.map((s) => {
+            // human-readable label (można zrobić mapę, tu najkrócej):
+            const label = s.type === 'ATV' ? 'ATV' : ''
+            return s.notes ? `${label}: ${s.notes}` : label
+          })}
+        />
+      )}
+
       {/* ===== Not completed reason ===== */}
       {status === OrderStatus.NOT_COMPLETED && (
         <Section title="Powód niewykonania" list={[failureReason ?? '—']} />
@@ -203,4 +210,11 @@ const Section = ({ title, list }: { title: string; list: string[] }) => (
       <span className="text-muted-foreground">—</span>
     )}
   </section>
+)
+
+/* ----------HeaderRow helper---------- */
+const HeaderRow = ({ label, value }: { label: string; value: string }) => (
+  <p>
+    <span className="font-semibold">{label}:</span> {value}
+  </p>
 )

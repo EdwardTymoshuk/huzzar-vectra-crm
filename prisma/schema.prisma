@@ -112,6 +112,7 @@ model OrderService {
   speedTest       String?
   usDbmDown       Float?
   usDbmUp         Float?
+  notes           String?
 
   createdAt       DateTime     @default(now())
 
