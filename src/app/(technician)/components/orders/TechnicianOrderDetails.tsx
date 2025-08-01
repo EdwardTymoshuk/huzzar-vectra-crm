@@ -17,6 +17,7 @@ import CompleteOrderModal from './completeOrder/CompleteOrderModal'
 interface Props {
   orderId: string
   autoOpen?: boolean
+  onAutoOpenHandled?: () => void
   orderStatus: OrderStatus
   disableTransfer?: boolean
   incomingTransfer?: boolean
@@ -28,6 +29,7 @@ interface Props {
 const TechnicianOrderDetails = ({
   orderId,
   autoOpen,
+  onAutoOpenHandled,
   orderStatus,
   disableTransfer = false,
   incomingTransfer,
@@ -52,6 +54,13 @@ const TechnicianOrderDetails = ({
     }
   }, [autoOpen, showCompleteModal])
 
+  useEffect(() => {
+    if (autoOpen) {
+      setShowCompleteModal(true)
+      onAutoOpenHandled?.()
+    }
+  }, [autoOpen])
+
   /* async states */
   if (isLoading) return <LoaderSpinner />
   if (isError || !data)
@@ -66,19 +75,7 @@ const TechnicianOrderDetails = ({
         </Alert>
       )}
 
-      {/* status-specific sections */}
-      {orderStatus === 'COMPLETED' && (
-        <OrderDetailsContent order={data} hideTechnician={true} />
-      )}
-
-      {orderStatus === 'NOT_COMPLETED' && (
-        <Section
-          title="Powód niewykonania"
-          list={[data.failureReason ?? '—']}
-        />
-      )}
-
-      {data.notes && <Section title="Uwagi" list={[data.notes]} />}
+      <OrderDetailsContent order={data} hideTechnician={true} />
 
       {/* incoming transfer buttons */}
       {incomingTransfer && (

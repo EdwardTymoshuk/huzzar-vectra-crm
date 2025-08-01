@@ -24,6 +24,7 @@ const TechnicianOrdersPage = () => {
         <TechnicianOrdersTable
           searchTerm={searchTerm}
           autoOpenOrderId={autoOpenOrderId}
+          onAutoOpenHandled={() => setAutoOpenOrderId(undefined)}
         />
       </div>
     </MaxWidthWrapper>

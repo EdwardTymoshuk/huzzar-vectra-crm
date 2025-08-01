@@ -45,9 +45,17 @@ type OrderRow = Prisma.OrderGetPayload<{
 
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
-type Props = { searchTerm: string; autoOpenOrderId?: string }
+type Props = {
+  searchTerm: string
+  autoOpenOrderId?: string
+  onAutoOpenHandled?: () => void
+}
 
-const TechnicianOrdersTable = ({ searchTerm, autoOpenOrderId }: Props) => {
+const TechnicianOrdersTable = ({
+  searchTerm,
+  autoOpenOrderId,
+  onAutoOpenHandled,
+}: Props) => {
   const { data: session } = useSession()
   const myId = session?.user.id
 
@@ -295,6 +303,7 @@ const TechnicianOrdersTable = ({ searchTerm, autoOpenOrderId }: Props) => {
                       <TechnicianOrderDetails
                         orderId={o.id}
                         autoOpen={autoOpenOrderId === o.id}
+                        onAutoOpenHandled={onAutoOpenHandled}
                         orderStatus={o.status}
                         disableTransfer={incoming || outgoingPending}
                         incomingTransfer={incoming}
