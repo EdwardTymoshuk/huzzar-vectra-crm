@@ -13,7 +13,9 @@ import { Droppable } from '@hello-pangea/dnd'
 import { useEffect, useState } from 'react'
 import TechnicianTable from './TechnicianTable'
 
-const TechniciansList = () => {
+type Props = { setProcessing: (v: boolean) => void }
+
+const TechniciansList = ({ setProcessing }: Props) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [expandedTechnicians, setExpandedTechnicians] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -32,7 +34,15 @@ const TechniciansList = () => {
   })
 
   const unassignOrder = async (orderId: string) => {
+    setProcessing(true)
     await assignMutation.mutateAsync({ id: orderId, assignedToId: undefined })
+
+    await Promise.all([
+      trpcUtils.order.getUnassignedOrders.invalidate(),
+      trpcUtils.order.getAssignedOrders.invalidate(),
+    ])
+
+    setProcessing(false)
   }
 
   const existingTechnicians = assignments.filter(

@@ -12,6 +12,7 @@ import { useSearch } from '@/app/context/SearchContext'
 import { timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
+import { format } from 'date-fns'
 import Highlight from 'react-highlight-words'
 
 const OrderTable = () => {
@@ -82,7 +83,10 @@ const OrderTable = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          {timeSlotMap[order.timeSlot] || order.timeSlot}
+                          <div className="flex flex-col items-center jsutify-center">
+                            <p>{format(order.date, 'dd.MM.yyyy')}</p>
+                            {timeSlotMap[order.timeSlot] || order.timeSlot}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}

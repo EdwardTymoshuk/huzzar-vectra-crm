@@ -1,5 +1,6 @@
 'use client'
 
+import LoadingOverlay from '@/app/components/shared/LoadingOverlay'
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import { Button } from '@/app/components/ui/button'
@@ -8,6 +9,7 @@ import { trpc } from '@/utils/trpc'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
 import { TimeSlot } from '@prisma/client'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
 import OrdersList from '../../components/planning/OrdersList'
 import TechniciansList from '../../components/planning/TechniciansList'
@@ -20,6 +22,8 @@ import TechniciansList from '../../components/planning/TechniciansList'
 const PlanningPage = () => {
   const router = useRouter()
   const trpcUtils = trpc.useUtils()
+
+  const [isProcessing, setProcessing] = useState(false)
 
   // Mutation to assign/unassign an order
   const assignOrderMutation = trpc.order.assignTechnician.useMutation({
@@ -144,17 +148,16 @@ const PlanningPage = () => {
     /**
      * After mutation either succeeds or fails, invalidate queries to refetch fresh data.
      */
-    onSettled: () => {
-      trpcUtils.order.getUnassignedOrders.invalidate()
-      trpcUtils.order.getAssignedOrders.invalidate()
+    onSettled: async () => {
+      await Promise.all([
+        trpcUtils.order.getUnassignedOrders.invalidate(),
+        trpcUtils.order.getAssignedOrders.invalidate(),
+      ])
+
+      setProcessing(false)
     },
   })
 
-  /**
-   * Called when an order is dropped onto a technician.
-   * @param orderId - The order being assigned.
-   * @param technicianId - The technician receiving the order.
-   */
   const handleOrderDrop = async (orderId: string, technicianId: string) => {
     await assignOrderMutation.mutateAsync({
       id: orderId,
@@ -169,23 +172,29 @@ const PlanningPage = () => {
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return
 
+    setProcessing(true)
+
     const { draggableId, destination } = result
     if (!destination.droppableId) return
 
     // Call the function for assigning/unassigning orders
     await handleOrderDrop(draggableId, destination.droppableId)
   }
-
   return (
     <MaxWidthWrapper>
       <PageHeader title="Planowanie zleceń" />
-      <Button variant="ghost" onClick={() => router.back()}>
+      <Button
+        className="justify-start w-fit"
+        variant="ghost"
+        onClick={() => router.back()}
+      >
         <MdKeyboardArrowLeft />
         Powrót
       </Button>
+      <LoadingOverlay show={isProcessing} />
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-          <TechniciansList />
+          <TechniciansList setProcessing={setProcessing}/>
           <OrdersList />
         </div>
       </DragDropContext>

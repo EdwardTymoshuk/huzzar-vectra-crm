@@ -175,6 +175,7 @@ export const queriesRouter = router({
         timeSlot: true,
         status: true,
         postalCode: true,
+        date: true,
       },
       orderBy: { timeSlot: 'asc' },
     })
