@@ -55,7 +55,7 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         </DropdownMenu>
 
         {/* PLANOWANIE */}
-        <Link href="/admin-panel?tab=planning">
+        <Link href="/admin-panel/orders?tab=planning">
           <Button variant="warning">
             <MdCalendarMonth />
             <span className="hidden lg:inline">Planowanie</span>

@@ -12,6 +12,7 @@ const pages: Record<string, React.ComponentType> = {
   billing: dynamic(() => import('@/app/admin-panel/billing/page')),
   employees: dynamic(() => import('@/app/admin-panel/employees/page')),
   settings: dynamic(() => import('@/app/admin-panel/settings/page')),
+  planning: dynamic(() => import('@/app/admin-panel/orders/planning/page')),
 }
 
 const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
@@ -24,6 +25,7 @@ const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
     if (pathname.includes('/employees')) return 'employees'
     if (pathname.includes('/billing')) return 'billing'
     if (pathname.includes('/settings')) return 'settings'
+    if (pathname.includes('/planning')) return 'planning'
     return 'dashboard'
   }
 
