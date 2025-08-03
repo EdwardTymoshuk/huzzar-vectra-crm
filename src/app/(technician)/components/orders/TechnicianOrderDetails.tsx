@@ -125,20 +125,3 @@ const TechnicianOrderDetails = ({
 }
 
 export default TechnicianOrderDetails
-
-/* ------------ helpers ------------ */
-
-const Section = ({ title, list }: { title: string; list: string[] }) => (
-  <section className="pt-4 border-t border-border space-y-1">
-    <h4 className="font-semibold">{title}</h4>
-    {list.length ? (
-      <ul className="list-none list-inside">
-        {list.map((it) => (
-          <li key={it}>{it}</li>
-        ))}
-      </ul>
-    ) : (
-      <span className="text-muted-foreground">—</span>
-    )}
-  </section>
-)
