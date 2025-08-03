@@ -229,7 +229,7 @@ const BillingPage = () => {
                           return (
                             <div
                               key={order.id}
-                              className="border rounded-lg bg-white p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-sm"
+                              className="border rounded-lg bg-background p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-sm"
                             >
                               <div className="space-y-2 w-full">
                                 <div className="text-xs font-semibold">

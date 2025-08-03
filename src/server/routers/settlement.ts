@@ -168,7 +168,7 @@ export const settlementRouter = router({
           date: { gte: new Date(input.from), lte: new Date(input.to) },
         },
         include: { settlementEntries: { include: { rate: true } } },
-        orderBy: { date: 'asc' },
+        orderBy: { date: 'desc' },
       })
 
       const codes: Record<string, number> = {}
@@ -210,7 +210,7 @@ export const settlementRouter = router({
         summary: codes,
         totalAmount,
         days: Object.values(dayMap).sort((a, b) =>
-          a.date.localeCompare(b.date)
+          b.date.localeCompare(a.date)
         ),
       }
     }),
