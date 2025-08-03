@@ -46,7 +46,7 @@ const OrdersFilter = ({
           <MdFilterList className="mr-2" /> Filtruj
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 bg-background">
+      <PopoverContent className="w-64 bg-background space-y-2">
         <p className="text-sm font-medium mt-4 mb-2">
           Filtruj po typie zlecenia
         </p>
