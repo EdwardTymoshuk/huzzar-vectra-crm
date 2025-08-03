@@ -16,6 +16,7 @@ interface Props {
   devices?: DeviceBasic[]
   validStatuses?: WarehouseStatus[]
   variant?: 'inline' | 'block'
+  isDeviceUsed?: (id: string) => boolean
 }
 
 /**
@@ -28,6 +29,7 @@ const SerialScanInput = ({
   devices = [],
   validStatuses,
   variant = 'inline',
+  isDeviceUsed,
 }: Props) => {
   const [value, setValue] = useState('')
   const [showDD, setShowDD] = useState(false)
@@ -80,6 +82,10 @@ const SerialScanInput = ({
 
       if (res.transferPending) {
         toast.error('To urządzenie jest już w trakcie przekazania.')
+        return
+      }
+      if (isDeviceUsed?.(res.id)) {
+        toast.error('To urządzenie zostało już dodane do tego zlecenia.')
         return
       }
 

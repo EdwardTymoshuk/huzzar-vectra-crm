@@ -8,6 +8,7 @@ import { ActivatedService, ServiceType } from '@/types'
 import { genUUID } from '@/utils/uuid'
 import { DeviceCategory } from '@prisma/client'
 import { GrPowerReset } from 'react-icons/gr'
+import { toast } from 'sonner'
 import DeviceSummaryRow from './DeviceSummaryRow'
 
 type Props = {
@@ -50,6 +51,11 @@ export const ServicesSection = ({
   const updateService = (id: string, partial: Partial<ActivatedService>) => {
     onChangeAction(value.map((v) => (v.id === id ? { ...v, ...partial } : v)))
   }
+
+  const isDeviceUsed = (id: string) =>
+    value.some(
+      (s) => s.deviceId === id || s.deviceId2 === id // ← sprawdzamy oba pola
+    )
 
   // Resets all services
   const resetAll = () => onChangeAction([])
@@ -152,7 +158,13 @@ export const ServicesSection = ({
                   </span>
                   <SerialScanInput
                     devices={candidates}
-                    onAddDevice={(dev) =>
+                    onAddDevice={(dev) => {
+                      if (isDeviceUsed(dev.id)) {
+                        toast.error(
+                          'Ten dekoder jest już przypisany do innej usługi w tym zleceniu.'
+                        )
+                        return
+                      }
                       updateService(service.id, {
                         deviceId: dev.id,
                         serialNumber: dev.serialNumber,
@@ -160,7 +172,8 @@ export const ServicesSection = ({
                           | 'DECODER_1_WAY'
                           | 'DECODER_2_WAY',
                       })
-                    }
+                    }}
+                    isDeviceUsed={isDeviceUsed}
                     variant="block"
                   />
                 </DeviceSummaryRow>
