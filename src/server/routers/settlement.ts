@@ -487,4 +487,13 @@ export const settlementRouter = router({
 
       return buffer.toString('base64')
     }),
+  generateYearlyInstallationReport: adminOrCoord
+    .input(z.object({ year: z.number().min(2020) }))
+    .mutation(async ({ input }) => {
+      const { writeInstallationTemplateFromDb } = await import(
+        '@/utils/writeInstallationTemplateFromDb'
+      )
+      const buf = await writeInstallationTemplateFromDb(input.year)
+      return buf.toString('base64')
+    }),
 })

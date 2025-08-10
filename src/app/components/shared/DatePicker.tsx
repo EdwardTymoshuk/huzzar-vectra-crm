@@ -142,30 +142,32 @@ const DatePicker = ({ selected, onChange, range, fullWidth }: Props) => {
         {range === 'month' && renderMonthGrid()}
         {range === 'year' && renderYearGrid()}
 
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              onChange(subDays(today, 1))
-              setOpen(false)
-            }}
-            variant="ghost"
-            size="sm"
-            className="w-full justify-center text-muted-foreground"
-          >
-            <FaClockRotateLeft /> Wczoraj
-          </Button>
-          <Button
-            onClick={() => {
-              onChange(today)
-              setOpen(false)
-            }}
-            variant="ghost"
-            size="sm"
-            className="w-full justify-center text-muted-foreground"
-          >
-            <FaRegClock /> Dzisiaj
-          </Button>
-        </div>
+        {range !== 'year' && (
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                onChange(subDays(today, 1))
+                setOpen(false)
+              }}
+              variant="ghost"
+              size="sm"
+              className="w-full justify-center text-muted-foreground"
+            >
+              <FaClockRotateLeft /> Wczoraj
+            </Button>
+            <Button
+              onClick={() => {
+                onChange(today)
+                setOpen(false)
+              }}
+              variant="ghost"
+              size="sm"
+              className="w-full justify-center text-muted-foreground"
+            >
+              <FaRegClock /> Dzisiaj
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   )

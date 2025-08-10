@@ -1,5 +1,7 @@
+// app/(dashboard)/billings/components/billing/GenerateBillingReportDialog.tsx
 'use client'
 
+import DatePicker from '@/app/components/shared/DatePicker'
 import MonthPicker from '@/app/components/shared/MonthPicker'
 import { Button } from '@/app/components/ui/button'
 import {
@@ -25,24 +27,35 @@ import { toast } from 'sonner'
 type Props = {
   open: boolean
   onClose: () => void
+  /** Notifies parent page that long-running work started/finished (to show a global loader) */
+  onLoadingChange?: (loading: boolean) => void
 }
 
-// Available report types
-type ReportType = 'TECHNICIAN' | 'SUMMARY' | 'CODE_BREAKDOWN'
+type ReportType =
+  | 'TECHNICIAN'
+  | 'SUMMARY'
+  | 'CODE_BREAKDOWN'
+  | 'SETTLEMENT_REPORT'
 
-/**
- * GenerateBillingReportDialog
- * ------------------------------------------------
- * Dialog for generating Excel reports:
- * - TECHNICIAN: single technician
- * - SUMMARY: monthly summary for all technicians
- * - CODE_BREAKDOWN: daily breakdown of codes with bottom summary
- */
-const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
+const GenerateBillingReportDialog = ({
+  open,
+  onClose,
+  onLoadingChange,
+}: Props) => {
   const [reportType, setReportType] = useState<ReportType>('TECHNICIAN')
   const [selectedTechnician, setSelectedTechnician] = useState<string>()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
+  // Year selection for yearly report:
+  // Keep both: a Date for DatePicker and a string year used in API/file names.
+  const [selectedYear, setSelectedYear] = useState<string>(
+    String(new Date().getFullYear())
+  )
+  const [yearDate, setYearDate] = useState<Date>(
+    new Date(Number(new Date().getFullYear()), 0, 1)
+  )
+
+  // Technicians list
   const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
 
   // Mutations
@@ -52,10 +65,10 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
     trpc.settlement.generateTechniciansMonthlySummary.useMutation()
   const codeBreakdownMutation =
     trpc.settlement.generateWorkCodeSummaryReport.useMutation()
+  const yearlyTemplateMutation =
+    trpc.settlement.generateYearlyInstallationReport.useMutation()
 
-  /**
-   * Converts base64 string to downloadable Blob
-   */
+  // Helper: base64 -> Blob
   const base64ToBlob = (base64: string, mime: string): Blob => {
     const byteCharacters = atob(base64)
     const byteArrays = []
@@ -70,37 +83,59 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
     return new Blob(byteArrays, { type: mime })
   }
 
-  /**
-   * Handle Excel download
-   */
+  // Trigger report generation / download
   const handleDownload = async () => {
     const month = selectedDate.getMonth() + 1
-    const year = selectedDate.getFullYear()
+    const yearFromDate = selectedDate.getFullYear()
+    const yearNumber = Number(selectedYear)
     let base64: string | undefined
 
+    onLoadingChange?.(true)
     try {
       if (reportType === 'TECHNICIAN') {
         if (!selectedTechnician) {
           toast.warning('Wybierz technika.')
           return
         }
-
         base64 = await technicianReportMutation.mutateAsync({
           technicianId: selectedTechnician,
           month,
-          year,
+          year: yearFromDate,
         })
       } else if (reportType === 'SUMMARY') {
-        base64 = await monthlySummaryMutation.mutateAsync({ month, year })
+        base64 = await monthlySummaryMutation.mutateAsync({
+          month,
+          year: yearFromDate,
+        })
       } else if (reportType === 'CODE_BREAKDOWN') {
-        base64 = await codeBreakdownMutation.mutateAsync({ month, year })
-      }
-
-      if (!base64 || base64.length < 100) {
-        toast.info('Brak danych dla wybranego miesiąca.')
+        base64 = await codeBreakdownMutation.mutateAsync({
+          month,
+          year: yearFromDate,
+        })
+      } else if (reportType === 'SETTLEMENT_REPORT') {
+        // Yearly, pre-filled installation report
+        base64 = await yearlyTemplateMutation.mutateAsync({ year: yearNumber })
+        const blob = base64ToBlob(
+          base64,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `RAP.-ROZ. ${yearNumber}.xlsx`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success('Raport roczny został wygenerowany.')
+        onClose()
         return
       }
 
+      if (!base64 || base64.length < 100) {
+        toast.info('Brak danych dla wskazanego okresu.')
+        return
+      }
+
+      // Download monthly files
       const blob = base64ToBlob(
         base64,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -109,16 +144,21 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
       const a = document.createElement('a')
       a.href = url
 
-      // File name generation
       const baseName =
         reportType === 'TECHNICIAN'
-          ? `Raport-rozliczen-${year}-${String(month).padStart(2, '0')}-${
+          ? `Raport-rozliczen-${yearFromDate}-${String(month).padStart(
+              2,
+              '0'
+            )}-${
               technicians.find((t) => t.id === selectedTechnician)?.name ||
               'technik'
             }`
           : reportType === 'SUMMARY'
-          ? `Rozliczenie-${year}-${String(month).padStart(2, '0')}`
-          : `Zestawienie_kodow_${year}_${String(month).padStart(2, '0')}`
+          ? `Rozliczenie-${yearFromDate}-${String(month).padStart(2, '0')}`
+          : `Zestawienie_kodow_${yearFromDate}_${String(month).padStart(
+              2,
+              '0'
+            )}`
 
       a.download = `${baseName}.xlsx`
       a.click()
@@ -128,10 +168,12 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
     } catch (err) {
       console.error(err)
       toast.error('Nie udało się wygenerować raportu.')
+    } finally {
+      onLoadingChange?.(false)
     }
   }
 
-  // Reset technician on close
+  // Reset technician when dialog closes
   useEffect(() => {
     if (!open) setSelectedTechnician(undefined)
   }, [open])
@@ -140,14 +182,15 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Raport miesięczny</DialogTitle>
+          <DialogTitle>Raporty</DialogTitle>
           <DialogDescription>
-            Wybierz typ raportu, miesiąc oraz – jeśli dotyczy – technika.
+            Wybierz typ raportu. Dla raportów miesięcznych wskaż miesiąc, a dla
+            rocznego wybierz rok.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          {/* Report type selection */}
+          {/* Report type */}
           <Select
             value={reportType}
             onValueChange={(val) => setReportType(val as ReportType)}
@@ -156,15 +199,22 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
               <SelectValue placeholder="Typ raportu" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="TECHNICIAN">Raport technika</SelectItem>
-              <SelectItem value="SUMMARY">Rozliczenie zbiorcze</SelectItem>
+              <SelectItem value="TECHNICIAN">
+                Raport technika (miesięczny)
+              </SelectItem>
+              <SelectItem value="SUMMARY">
+                Rozliczenie zbiorcze (miesięczne)
+              </SelectItem>
               <SelectItem value="CODE_BREAKDOWN">
-                Zestawienie wykonanych prac
+                Zestawienie prac (miesięczne)
+              </SelectItem>
+              <SelectItem value="SETTLEMENT_REPORT">
+                Raport rozliczeniowy (roczny)
               </SelectItem>
             </SelectContent>
           </Select>
 
-          {/* Technician selector only for technician report */}
+          {/* Technician — only for technician report */}
           {reportType === 'TECHNICIAN' && (
             <Select
               value={selectedTechnician}
@@ -183,28 +233,48 @@ const GenerateBillingReportDialog = ({ open, onClose }: Props) => {
             </Select>
           )}
 
-          {/* Month selection */}
-          <MonthPicker selected={selectedDate} onChange={setSelectedDate} />
+          {/* Month — for monthly reports */}
+          {['TECHNICIAN', 'SUMMARY', 'CODE_BREAKDOWN'].includes(reportType) && (
+            <MonthPicker selected={selectedDate} onChange={setSelectedDate} />
+          )}
 
-          {/* Download button */}
+          {/* Year — only for yearly report */}
+          {reportType === 'SETTLEMENT_REPORT' && (
+            <div className="w-full flex justify-center">
+              <DatePicker
+                selected={yearDate}
+                onChange={(d) => {
+                  if (!d) return
+                  setYearDate(d)
+                  setSelectedYear(String(d.getFullYear()))
+                }}
+                range="year"
+                fullWidth
+              />
+            </div>
+          )}
+
           <Button
             onClick={handleDownload}
             disabled={
               (reportType === 'TECHNICIAN' && !selectedTechnician) ||
               technicianReportMutation.isLoading ||
               monthlySummaryMutation.isLoading ||
-              codeBreakdownMutation.isLoading
+              codeBreakdownMutation.isLoading ||
+              yearlyTemplateMutation.isLoading
             }
             className="w-full"
           >
             <MdDownload className="mr-2" />
             {(technicianReportMutation.isLoading ||
               monthlySummaryMutation.isLoading ||
-              codeBreakdownMutation.isLoading) &&
+              codeBreakdownMutation.isLoading ||
+              yearlyTemplateMutation.isLoading) &&
               'Generowanie...'}
             {!technicianReportMutation.isLoading &&
               !monthlySummaryMutation.isLoading &&
               !codeBreakdownMutation.isLoading &&
+              !yearlyTemplateMutation.isLoading &&
               'Generuj i pobierz'}
           </Button>
         </div>
