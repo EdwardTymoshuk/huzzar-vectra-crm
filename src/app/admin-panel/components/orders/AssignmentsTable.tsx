@@ -112,7 +112,9 @@ const AssignmentsTable = () => {
       {/* Drag & Drop Context */}
       <DragDropContext onDragEnd={onDragEnd}>
         {isLoading ? (
-          <LoaderSpinner />
+          <div className="w-full flex justify-center">
+            <LoaderSpinner />
+          </div>
         ) : isError ? (
           <p className="text-center text-danger">Błąd ładowania danych.</p>
         ) : filteredAssignments.length > 0 ? (

@@ -93,7 +93,9 @@ const TechnicianMonthlyDetailsPage = ({ technicianId }: Props) => {
       </div>
 
       {isLoading ? (
-        <LoaderSpinner />
+        <div className="w-full flex justify-center">
+          <LoaderSpinner />
+        </div>
       ) : !data ? (
         <div className="text-center text-muted-foreground py-8">
           Brak danych za wybrany miesiąc.
@@ -101,11 +103,11 @@ const TechnicianMonthlyDetailsPage = ({ technicianId }: Props) => {
       ) : (
         <>
           {/* Summary cards per code */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
             {allCodes.map((code) => (
               <div
                 key={code}
-                className="bg-muted border rounded-xl flex flex-col items-center px-3 py-2 shadow-sm"
+                className="bg-muted border rounded-xl flex flex-col items-center px-3 py-2 shadow-sm justify-between text-center"
               >
                 <span className="text-xs text-muted-foreground">{code}</span>
                 <span className="font-bold text-lg">

@@ -91,7 +91,9 @@ const BillingPage = () => {
 
       {/* Loading / no data states */}
       {isLoading ? (
-        <LoaderSpinner />
+        <div className="w-full flex justify-center">
+          <LoaderSpinner />
+        </div>
       ) : !data ? (
         <div className="text-center text-muted-foreground py-8">
           Brak danych za wybrany miesiąc.

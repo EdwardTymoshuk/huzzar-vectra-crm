@@ -62,7 +62,12 @@ const TechnicianOrderDetails = ({
   }, [autoOpen])
 
   /* async states */
-  if (isLoading) return <LoaderSpinner />
+  if (isLoading)
+    return (
+      <div className="w-full flex justify-center">
+        <LoaderSpinner />
+      </div>
+    )
   if (isError || !data)
     return <p className="text-destructive">Błąd ładowania danych.</p>
   /* ---------- render ---------- */

@@ -33,7 +33,12 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
   const { data: allRates = [] } = trpc.rateDefinition.getAllRates.useQuery()
   const allCodes = sortCodes(allRates.map((r) => r.code))
 
-  if (isLoading) return <LoaderSpinner />
+  if (isLoading)
+    return (
+      <div className="w-full flex justify-center">
+        <LoaderSpinner />
+      </div>
+    )
   if (!data?.length) {
     return (
       <p className="text-muted-foreground text-center">

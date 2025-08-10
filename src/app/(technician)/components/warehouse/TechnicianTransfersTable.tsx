@@ -69,7 +69,12 @@ export default function TechnicianTransfersTable() {
     },
   })
 
-  if (incLoading || stockLoading) return <LoaderSpinner />
+  if (incLoading || stockLoading)
+    return (
+      <div className="w-full flex justify-center">
+        <LoaderSpinner />
+      </div>
+    )
 
   const outgoing = myStock.filter((item) => item.transferPending)
 
