@@ -314,7 +314,7 @@ function drawSectionOutlines(ws: ExcelJS.Worksheet) {
       ws.getColumn(idx).eachCell({ includeEmpty: true }, (cell, rowNo) => {
         if (rowNo < HEADER_ROW_1) return
         const side = k === 0 ? 'left' : 'right'
-        cell.border = { ...cell.border, [side]: { style: 'medium' } as any }
+        cell.border = { ...cell.border, [side]: { style: 'medium' } }
       })
     })
     start += span
