@@ -1,6 +1,5 @@
 'use client'
 
-import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -21,6 +20,7 @@ import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap, orderFailureReasons } from '@/lib/constants'
 import { ActivatedService, IssuedItemDevice } from '@/types'
+import { getErrMessage } from '@/utils/errorHandler'
 import { getSettlementWorkCodes } from '@/utils/getSettlementWorkCodes'
 import { trpc } from '@/utils/trpc'
 import { genUUID } from '@/utils/uuid'
@@ -178,7 +178,11 @@ export const CompleteOrderModal = ({
       toast.success('Zlecenie zostało zaktualizowane.')
       onCloseAction()
     },
-    onError: () => toast.error('Błąd zapisu zlecenia.'),
+    onError: (err) => {
+      toast.error('Błąd zapisu zlecenia.', {
+        description: getErrMessage(err),
+      })
+    },
   })
 
   const submit = () => {
@@ -257,21 +261,6 @@ export const CompleteOrderModal = ({
                   />
                 </>
               )}
-
-              {/* Devices from stock */}
-              <h4 className="font-semibold mt-4">Urządzenia użyte</h4>
-              <SerialScanInput
-                devices={stockOptions}
-                onAddDevice={handleAddStockDevice}
-                variant="block"
-              />
-              {selectedDevices.map((d) => (
-                <DeviceSummaryRow
-                  key={d.id}
-                  device={d}
-                  onRemove={handleRemoveStockDevice}
-                />
-              ))}
 
               {/* Toggle + collected */}
               <div className="pt-4 space-y-2">
