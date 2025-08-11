@@ -110,7 +110,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
 
   const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
 
-  const filtered = useMemo(
+  const filtered: OrderWithAssignedTo[] = useMemo(
     () =>
       orders.filter(
         (o) =>
