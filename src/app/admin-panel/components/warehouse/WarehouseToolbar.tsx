@@ -1,6 +1,7 @@
 'use client'
 
 import SearchInput from '@/app/components/shared/SearchInput'
+import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Button } from '@/app/components/ui/button'
 import {
   DropdownMenu,
@@ -8,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import Link from 'next/link'
 import { useState } from 'react'
 import {
   HiOutlineArrowDownOnSquare,
@@ -84,13 +84,14 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
             </DropdownMenuItem>
 
             <DropdownMenuItem asChild className="cursor-pointer">
-              <Link
+              <NavLink
                 href="/admin-panel/warehouse/history"
                 className="flex items-center"
+                prefetch
               >
                 <TbHistory className="mr-2 h-4 w-4" />
                 Historia magazynu
-              </Link>
+              </NavLink>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

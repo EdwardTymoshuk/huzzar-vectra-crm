@@ -3,7 +3,10 @@
 import Header from '../Header'
 import MainContainer from '../MainContainer'
 import Sidebar from '../Sidebar'
-import RouteProgress from './RouteProgress'
+import {
+  GlobalRouteLoader,
+  NavigationProgressProvider,
+} from './navigation-progress'
 
 interface LayoutShellProps {
   children: React.ReactNode
@@ -12,12 +15,14 @@ interface LayoutShellProps {
 const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
   return (
     <>
-      <RouteProgress />
-      <Header />
-      <div className="flex md:h-screen md:overflow-hidden">
-        <Sidebar />
-        <MainContainer>{children}</MainContainer>
-      </div>
+      <NavigationProgressProvider>
+        <GlobalRouteLoader />
+        <Header />
+        <div className="flex md:h-screen md:overflow-hidden">
+          <Sidebar />
+          <MainContainer>{children}</MainContainer>
+        </div>
+      </NavigationProgressProvider>
     </>
   )
 }

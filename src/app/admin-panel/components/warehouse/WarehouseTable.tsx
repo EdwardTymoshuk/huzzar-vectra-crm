@@ -1,5 +1,6 @@
 'use client'
 
+import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
@@ -14,7 +15,6 @@ import {
 import { devicesTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { WarehouseItemType } from '@prisma/client'
-import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdKeyboardArrowRight } from 'react-icons/md'
@@ -222,13 +222,14 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
 
                 <TableCell>
                   <Button asChild size="sm" variant="ghost">
-                    <Link
+                    <NavLink
                       href={`/admin-panel/warehouse/details/${encodeURIComponent(
                         item.name.trim()
                       )}`}
+                      prefetch
                     >
                       <MdKeyboardArrowRight />
-                    </Link>
+                    </NavLink>
                   </Button>
                 </TableCell>
               </TableRow>

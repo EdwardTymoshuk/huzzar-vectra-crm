@@ -219,7 +219,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
 
           {/* LISTA / STANY */}
           {isLoading ? (
-            <div className="py-10 text-center">
+            <div className="w-full py-10 flex items-center justify-center">
               <LoaderSpinner />
             </div>
           ) : isError ? (

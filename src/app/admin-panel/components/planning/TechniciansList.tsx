@@ -8,9 +8,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
+import { getErrMessage } from '@/utils/errorHandler'
 import { trpc } from '@/utils/trpc'
 import { Droppable } from '@hello-pangea/dnd'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import TechnicianTable from './TechnicianTable'
 
 type Props = { setProcessing: (v: boolean) => void }
@@ -22,61 +24,74 @@ const TechniciansList = ({ setProcessing }: Props) => {
 
   const trpcUtils = trpc.useUtils()
 
+  // NOTE: Keep the payload date as YYYY-MM-DD (en-CA) for server-side filtering.
   const { data: assignments = [] } = trpc.order.getAssignedOrders.useQuery({
     date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : undefined,
   })
 
   const assignMutation = trpc.order.assignTechnician.useMutation({
-    onSuccess: () => {
-      trpcUtils.order.getUnassignedOrders.invalidate()
-      trpcUtils.order.getAssignedOrders.invalidate()
+    // Centralize toast on mutation errors as well
+    onError: (err) => {
+      toast.error(getErrMessage(err))
     },
   })
 
+  /**
+   * Unassigns an order from a technician and refreshes relevant caches.
+   * Shows UX-friendly toasts and never leaks raw error details.
+   */
   const unassignOrder = async (orderId: string) => {
     setProcessing(true)
-    await assignMutation.mutateAsync({ id: orderId, assignedToId: undefined })
-
-    await Promise.all([
-      trpcUtils.order.getUnassignedOrders.invalidate(),
-      trpcUtils.order.getAssignedOrders.invalidate(),
-    ])
-
-    setProcessing(false)
+    try {
+      await assignMutation.mutateAsync({ id: orderId, assignedToId: undefined })
+      await Promise.all([
+        trpcUtils.order.getUnassignedOrders.invalidate(),
+        trpcUtils.order.getAssignedOrders.invalidate(),
+      ])
+    } catch (err: unknown) {
+      toast.error(getErrMessage(err))
+    } finally {
+      setProcessing(false)
+    }
   }
 
+  // Filter technicians (only those with defined id & name)
   const existingTechnicians = assignments.filter(
     (tech) => tech.technicianId && tech.technicianName
   )
+
   const filteredTechnicians = existingTechnicians.filter((tech) =>
     tech.technicianName.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  /** Toggles an accordion item by technician id. */
   const handleAccordionChange = (techValue: string) => {
-    if (expandedTechnicians.includes(techValue)) {
-      setExpandedTechnicians((prev) => prev.filter((v) => v !== techValue))
-    } else {
-      setExpandedTechnicians((prev) => [...prev, techValue])
-    }
+    setExpandedTechnicians((prev) =>
+      prev.includes(techValue)
+        ? prev.filter((v) => v !== techValue)
+        : [...prev, techValue]
+    )
   }
 
+  /** Expands an accordion item if not already expanded. */
   const expandAccordion = (techId: string) => {
     setExpandedTechnicians((prev) =>
       prev.includes(techId) ? prev : [...prev, techId]
     )
   }
 
+  /**
+   * Wrapper used to auto-expand a technician panel when an item is dragged over it.
+   * This improves DnD ergonomics on narrow/mobile screens.
+   */
   const DroppableContent: React.FC<{
     technicianId: string
     isDraggingOver: boolean
     children: React.ReactNode
   }> = ({ technicianId, isDraggingOver, children }) => {
     useEffect(() => {
-      if (isDraggingOver) {
-        expandAccordion(technicianId)
-      }
+      if (isDraggingOver) expandAccordion(technicianId)
     }, [isDraggingOver, technicianId])
-
     return <div>{children}</div>
   }
 
@@ -84,6 +99,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
     <div className="p-4 space-y-4">
       <div className="flex flex-col w-full items-center gap-4">
         <h2 className="text-lg font-semibold">Technicy</h2>
+
         <div className="w-full">
           <DatePicker
             range="day"
@@ -91,6 +107,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
             onChange={(date) => setSelectedDate(date ?? undefined)}
           />
         </div>
+
         <div className="w-full">
           <SearchInput
             placeholder="Szukaj technika"
@@ -112,7 +129,6 @@ const TechniciansList = ({ setProcessing }: Props) => {
         >
           {filteredTechnicians.map((tech) => {
             const technicianId = tech.technicianId as string
-
             return (
               <AccordionItem key={technicianId} value={technicianId}>
                 <AccordionTrigger
@@ -120,6 +136,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
                 >
                   {tech.technicianName}
                 </AccordionTrigger>
+
                 <AccordionContent>
                   <Droppable droppableId={technicianId} type="ORDER">
                     {(provided, snapshot) => (
@@ -142,6 +159,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
                             onUnassign={unassignOrder}
                           />
                         </DroppableContent>
+
                         {provided.placeholder}
                       </div>
                     )}

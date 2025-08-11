@@ -1,4 +1,5 @@
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Button } from '@/app/components/ui/button'
 import { Progress } from '@/app/components/ui/progress'
 import {
@@ -11,7 +12,6 @@ import {
 } from '@/app/components/ui/table'
 import { sortCodes } from '@/utils/sortCodes'
 import { trpc } from '@/utils/trpc'
-import Link from 'next/link'
 import { MdKeyboardArrowRight } from 'react-icons/md'
 
 type Props = {
@@ -86,9 +86,10 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Link
+                  <NavLink
                     href={`/admin-panel/billing/technician/${row.technicianId}?from=${from}&to=${to}`}
                     passHref
+                    prefetch
                   >
                     <Button
                       size="sm"
@@ -97,7 +98,7 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
                     >
                       <MdKeyboardArrowRight className="mr-1" />
                     </Button>
-                  </Link>
+                  </NavLink>
                 </TableCell>
               </TableRow>
             )

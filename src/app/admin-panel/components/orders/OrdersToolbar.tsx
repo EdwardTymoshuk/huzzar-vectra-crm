@@ -1,6 +1,7 @@
 'use client'
 
 import SearchInput from '@/app/components/shared/SearchInput'
+import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Button } from '@/app/components/ui/button'
 import {
   DropdownMenu,
@@ -8,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import Link from 'next/link'
 import { useState } from 'react'
 import {
   MdAdd,
@@ -55,12 +55,12 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         </DropdownMenu>
 
         {/* PLANOWANIE */}
-        <Link href="/admin-panel/orders?tab=planning">
+        <NavLink href="/admin-panel/orders?tab=planning" prefetch>
           <Button variant="warning">
             <MdCalendarMonth />
             <span className="hidden lg:inline">Planowanie</span>
           </Button>
-        </Link>
+        </NavLink>
 
         {/* RAPORT */}
         <Button variant="default" onClick={() => setReportDialogOpen(true)}>

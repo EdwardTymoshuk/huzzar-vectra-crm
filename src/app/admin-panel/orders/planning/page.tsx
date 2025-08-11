@@ -11,13 +11,15 @@ import { TimeSlot } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
+import { toast } from 'sonner'
 import OrdersList from '../../components/planning/OrdersList'
 import TechniciansList from '../../components/planning/TechniciansList'
 
 /**
  * PlanningPage:
- * - Uses one DragDropContext so items can move between unassigned and assigned
- *   and also between different technicians.
+ * - Single DragDropContext (move between unassigned/assigned/techs).
+ * - Shows a global loading overlay while assigning/unassigning.
+ * - Now resilient to server errors (spinner always stops, error toast shown).
  */
 const PlanningPage = () => {
   const router = useRouter()
@@ -25,13 +27,18 @@ const PlanningPage = () => {
 
   const [isProcessing, setProcessing] = useState(false)
 
-  // Mutation to assign/unassign an order
+  const getErrMessage = (err: unknown) => {
+    if (typeof err === 'string') return err
+    if (err && typeof err === 'object') {
+      // tRPC client error shape: err.message is fine for users
+      // @ts-ignore
+      if (err.message) return String(err.message)
+    }
+    return 'Nie udało się zapisać zmian.'
+  }
+
+  // Assign/unassign mutation with optimistic update + hard error guard
   const assignOrderMutation = trpc.order.assignTechnician.useMutation({
-    /**
-     * Optimistic update: executed before the mutation is sent.
-     * Cancels ongoing queries, snapshots previous data, and updates the cache immediately.
-     * We assume that additional order details are provided in variables.orderDetails.
-     */
     onMutate: async (variables: {
       id: string
       assignedToId?: string
@@ -42,144 +49,131 @@ const PlanningPage = () => {
         timeSlot: TimeSlot
       }
     }) => {
-      // Cancel any outgoing refetches for these queries
       await trpcUtils.order.getUnassignedOrders.cancel()
       await trpcUtils.order.getAssignedOrders.cancel()
 
-      // Snapshot the previous cache data
       const previousUnassigned = trpcUtils.order.getUnassignedOrders.getData()
       const previousAssigned = trpcUtils.order.getAssignedOrders.getData()
 
-      // Optimistically update the unassigned orders cache:
-      // Remove the order from the unassigned list if we are assigning it to a technician.
+      // Remove from unassigned (optimistic) when assigning
       if (variables.assignedToId) {
         trpcUtils.order.getUnassignedOrders.setData(undefined, (old) =>
-          old ? old.filter((order) => order.id !== variables.id) : old
+          old ? old.filter((o) => o.id !== variables.id) : old
         )
-      } else {
-        // If unassigning, implement similar logic to add it back.
+      }
+      // Add back to unassigned on optimistic unassign (optional)
+      if (!variables.assignedToId && variables.orderDetails) {
+        trpcUtils.order.getUnassignedOrders.setData(
+          undefined,
+          (old) => old ?? []
+        )
       }
 
-      // Optimistically update the assigned orders cache:
+      // Optimistic push to the tech board (best-effort)
       if (variables.assignedToId) {
         trpcUtils.order.getAssignedOrders.setData(undefined, (old) => {
           if (!old) return old
-          // Define the new order object matching the internal order structure
           const newOrder = {
             id: variables.id,
             orderNumber: variables.orderDetails?.orderNumber || 'N/A',
-            // Construct the address from available details
             address: `${variables.orderDetails?.city || 'City'}, ${
               variables.orderDetails?.street || 'Street'
             }`,
-            status: 'ASSIGNED', // assuming status is a string here
+            status: 'ASSIGNED' as const,
             assignedToId: variables.assignedToId,
           }
-
-          // Find the assignment for the technician
           const technicianId = variables.assignedToId
-          const assignmentIndex = old.findIndex(
-            (assignment) => assignment.technicianId === technicianId
-          )
+          const idx = old.findIndex((a) => a.technicianId === technicianId)
 
-          if (assignmentIndex !== -1) {
-            // Technician assignment exists; update the appropriate slot.
-            const assignment = { ...old[assignmentIndex] }
+          if (idx !== -1) {
+            const copy = [...old]
+            const assignment = { ...copy[idx] }
             const timeSlot = variables.orderDetails?.timeSlot || 'EIGHT_TEN'
-
-            // Find if a slot with the given timeSlot exists.
-            const slotIndex = assignment.slots.findIndex(
-              (slot) => slot.timeSlot === timeSlot
+            const sIdx = assignment.slots.findIndex(
+              (s) => s.timeSlot === timeSlot
             )
-
-            if (slotIndex !== -1) {
-              // If found, append the new order to that slot.
-              const updatedSlot = {
-                ...assignment.slots[slotIndex],
-                orders: [...assignment.slots[slotIndex].orders, newOrder],
+            if (sIdx !== -1) {
+              assignment.slots[sIdx] = {
+                ...assignment.slots[sIdx],
+                orders: [...assignment.slots[sIdx].orders, newOrder],
               }
-              assignment.slots[slotIndex] = updatedSlot
             } else {
-              // Otherwise, create a new slot for this timeSlot.
-              assignment.slots.push({
-                timeSlot,
-                orders: [newOrder],
-              })
+              assignment.slots.push({ timeSlot, orders: [newOrder] })
             }
-            // Replace the updated assignment in the array.
-            const newAssignments = [...old]
-            newAssignments[assignmentIndex] = assignment
-            return newAssignments
-          } else {
-            // If no assignment for the technician exists, create one.
-            const newAssignment: TechnicianAssignment = {
-              technicianName: 'Technician Name', // TODO: Replace with actual technician name if available.
-              technicianId: technicianId ?? null,
-              slots: [
-                {
-                  timeSlot: variables.orderDetails?.timeSlot || 'EIGHT_TEN',
-                  orders: [newOrder],
-                },
-              ],
-            }
-            return [...old, newAssignment]
+            copy[idx] = assignment
+            return copy
           }
+
+          const newAssignment: TechnicianAssignment = {
+            technicianName: 'Technician',
+            technicianId: technicianId ?? null,
+            slots: [
+              {
+                timeSlot: variables.orderDetails?.timeSlot || 'EIGHT_TEN',
+                orders: [newOrder],
+              },
+            ],
+          }
+          return [...old, newAssignment]
         })
       }
 
-      // Return previous cache data for potential rollback in onError
       return { previousUnassigned, previousAssigned }
     },
-    /**
-     * If the mutation fails, rollback the cache to the previous state.
-     */
-    onError: (err, variables, context) => {
-      if (context) {
+    onError: (err, _variables, ctx) => {
+      // rollback caches
+      if (ctx) {
         trpcUtils.order.getUnassignedOrders.setData(
           undefined,
-          () => context.previousUnassigned
+          () => ctx.previousUnassigned
         )
         trpcUtils.order.getAssignedOrders.setData(
           undefined,
-          () => context.previousAssigned
+          () => ctx.previousAssigned
         )
       }
+      // stop spinner + show error
+      setProcessing(false)
+      toast.error(getErrMessage(err))
     },
-    /**
-     * After mutation either succeeds or fails, invalidate queries to refetch fresh data.
-     */
     onSettled: async () => {
+      // whatever happened, refresh and stop loader
       await Promise.all([
         trpcUtils.order.getUnassignedOrders.invalidate(),
         trpcUtils.order.getAssignedOrders.invalidate(),
       ])
-
       setProcessing(false)
     },
   })
 
   const handleOrderDrop = async (orderId: string, technicianId: string) => {
-    await assignOrderMutation.mutateAsync({
-      id: orderId,
-      assignedToId:
-        technicianId === 'UNASSIGNED_ORDERS' ? undefined : technicianId,
-    })
+    // make extra sure we always stop the loader even if mutateAsync throws
+    try {
+      await assignOrderMutation.mutateAsync({
+        id: orderId,
+        assignedToId:
+          technicianId === 'UNASSIGNED_ORDERS' ? undefined : technicianId,
+      })
+    } catch {
+      // onError already toasts; we still guard here
+      setProcessing(false)
+    }
   }
 
-  /**
-   * Called when an item is dropped anywhere in the DragDropContext.
-   */
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return
-
     setProcessing(true)
-
-    const { draggableId, destination } = result
-    if (!destination.droppableId) return
-
-    // Call the function for assigning/unassigning orders
-    await handleOrderDrop(draggableId, destination.droppableId)
+    try {
+      const { draggableId, destination } = result
+      if (!destination.droppableId) return
+      await handleOrderDrop(draggableId, destination.droppableId)
+    } catch (err) {
+      // guard path (shouldn’t happen since onError handles it)
+      toast.error('Nie udało się przypisać zlecenia.')
+      setProcessing(false)
+    }
   }
+
   return (
     <MaxWidthWrapper>
       <PageHeader title="Planowanie zleceń" />
@@ -191,10 +185,13 @@ const PlanningPage = () => {
         <MdKeyboardArrowLeft />
         Powrót
       </Button>
+
       <LoadingOverlay show={isProcessing} />
+
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-          <TechniciansList setProcessing={setProcessing}/>
+          {/* Pass setProcessing so child actions can toggle the global overlay */}
+          <TechniciansList setProcessing={setProcessing} />
           <OrdersList />
         </div>
       </DragDropContext>
