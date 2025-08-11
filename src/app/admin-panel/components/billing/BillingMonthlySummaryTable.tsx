@@ -64,12 +64,12 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
         <TableBody>
           {data.map((row, i) => {
             const progress = Math.min((row.totalAmount / 6000) * 100, 100)
-            const progressColor =
-              row.totalAmount === 0
+            const indicatorClassName =
+              progress === 0
                 ? 'bg-muted'
-                : row.totalAmount < 4000 && row.totalAmount !== 0
+                : progress < 66.67 // ~ <4000/6000
                 ? 'bg-danger'
-                : row.totalAmount < 6000
+                : progress < 100
                 ? 'bg-warning'
                 : 'bg-success'
             return (
@@ -80,7 +80,10 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
                   <TableCell key={code}>{row.codes[code] ?? 0}</TableCell>
                 ))}
                 <TableCell className="w-[160px]">
-                  <Progress value={progress} className={progressColor} />
+                  <Progress
+                    value={progress}
+                    indicatorClassName={indicatorClassName}
+                  />
                   <span className="text-xs text-muted-foreground">
                     {row.totalAmount.toFixed(2)} zł
                   </span>
