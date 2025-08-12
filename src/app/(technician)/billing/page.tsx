@@ -140,7 +140,11 @@ const BillingPage = () => {
               const notCompleted = day.orders.filter(
                 (o) => o.status === 'NOT_COMPLETED'
               ).length
-              const total = completed + notCompleted
+              const assigned = day.orders.filter(
+                (o) => o.status === 'ASSIGNED'
+              ).length
+
+              const total = completed + notCompleted + assigned
               const ratio = total > 0 ? (completed / total) * 100 : 0
               const dayAmount = day.orders.reduce(
                 (sum, o) =>
