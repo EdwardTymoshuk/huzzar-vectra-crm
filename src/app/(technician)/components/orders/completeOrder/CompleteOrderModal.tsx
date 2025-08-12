@@ -83,6 +83,7 @@ export const CompleteOrderModal = ({
       serialNumber: string
     }[]
   >([])
+  const [usedEnabled, setUsedEnabled] = useState(false)
 
   /* form fields */
   const [collectCat, setCollectCat] = useState<DeviceCategory>('OTHER')
@@ -151,11 +152,11 @@ export const CompleteOrderModal = ({
     if (
       status === 'COMPLETED' &&
       orderType !== 'INSTALATION' &&
-      selectedDevices.length === 0 &&
-      (!collectEnabled || collected.length === 0)
+      usedEnabled &&
+      selectedDevices.length === 0
     ) {
       toast.error(
-        'Dodaj przynajmniej jedno urządzenie (użyte lub odebrane od klienta).'
+        'Dodaj przynajmniej jedno urządzenie z magazynu albo wyłącz przełącznik „Wydanie urządzeń”.'
       )
       return false
     }
@@ -194,7 +195,9 @@ export const CompleteOrderModal = ({
         ? (activatedServices
             .flatMap((s) => [s.deviceId, s.deviceId2])
             .filter(Boolean) as string[])
-        : selectedDevices.map((d) => d.id)
+        : usedEnabled
+        ? selectedDevices.map((d) => d.id)
+        : []
 
     const workCodes =
       orderType === 'INSTALATION'
@@ -265,21 +268,39 @@ export const CompleteOrderModal = ({
 
               {/* Devices from stock — only for serwisu/awarii */}
               {orderType !== 'INSTALATION' && (
-                <>
-                  <h4 className="font-semibold mt-4">Urządzenia użyte</h4>
-                  <SerialScanInput
-                    devices={stockOptions}
-                    onAddDevice={handleAddStockDevice}
-                    variant="block"
-                  />
-                  {selectedDevices.map((d) => (
-                    <DeviceSummaryRow
-                      key={d.id}
-                      device={d}
-                      onRemove={handleRemoveStockDevice}
+                <div className="pt-4 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="used-switch"
+                      checked={usedEnabled}
+                      onCheckedChange={(on) => {
+                        setUsedEnabled(on)
+                        if (!on) setSelectedDevices([])
+                      }}
                     />
-                  ))}
-                </>
+                    <label htmlFor="used-switch" className="font-semibold">
+                      Wydanie urządzeń
+                    </label>
+                  </div>
+
+                  {usedEnabled && (
+                    <>
+                      <h4 className="font-semibold">Urządzenia wydane</h4>
+                      <SerialScanInput
+                        devices={stockOptions}
+                        onAddDevice={handleAddStockDevice}
+                        variant="block"
+                      />
+                      {selectedDevices.map((d) => (
+                        <DeviceSummaryRow
+                          key={d.id}
+                          device={d}
+                          onRemove={handleRemoveStockDevice}
+                        />
+                      ))}
+                    </>
+                  )}
+                </div>
               )}
 
               {/* Toggle + collected */}
@@ -291,7 +312,7 @@ export const CompleteOrderModal = ({
                     onCheckedChange={setCollectEnabled}
                   />
                   <label htmlFor="collect-switch" className="font-semibold">
-                    Odebrałem sprzęt od klienta
+                    Odbiór urządzeń
                   </label>
                 </div>
 
