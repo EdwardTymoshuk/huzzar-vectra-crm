@@ -59,7 +59,7 @@ const TechnicianOrderDetails = ({
       setShowCompleteModal(true)
       onAutoOpenHandled?.()
     }
-  }, [autoOpen])
+  }, [autoOpen, onAutoOpenHandled])
 
   /* async states */
   if (isLoading)

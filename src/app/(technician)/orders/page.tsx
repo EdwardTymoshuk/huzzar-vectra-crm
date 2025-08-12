@@ -2,13 +2,17 @@
 
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import TechnicianOrdersTable from '../components/orders/TechnicianOrdersTable'
 import TechnicianOrdersToolbar from '../components/orders/TechnicianOrdersToolbar'
 
 const TechnicianOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [autoOpenOrderId, setAutoOpenOrderId] = useState<string | undefined>()
+
+  const handleAutoOpen = useCallback(() => {
+    setAutoOpenOrderId(undefined)
+  }, [])
 
   return (
     <MaxWidthWrapper>
@@ -24,7 +28,7 @@ const TechnicianOrdersPage = () => {
         <TechnicianOrdersTable
           searchTerm={searchTerm}
           autoOpenOrderId={autoOpenOrderId}
-          onAutoOpenHandled={() => setAutoOpenOrderId(undefined)}
+          onAutoOpenHandled={handleAutoOpen}
         />
       </div>
     </MaxWidthWrapper>
