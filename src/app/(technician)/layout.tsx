@@ -33,7 +33,7 @@ const TechnicianLayout = ({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          <Suspense fallback={<LoaderLogo />}>
+          <Suspense fallback={<LoaderLogo show={true} />}>
             <ClientRoutingHandlerTechnician>
               {children}
             </ClientRoutingHandlerTechnician>

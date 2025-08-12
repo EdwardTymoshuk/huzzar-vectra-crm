@@ -33,7 +33,7 @@ const AdminLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
-          <Suspense fallback={<LoaderLogo />}>
+          <Suspense fallback={<LoaderLogo show={true} />}>
             <ClientRoutingHandler>{children}</ClientRoutingHandler>
           </Suspense>
         </Providers>

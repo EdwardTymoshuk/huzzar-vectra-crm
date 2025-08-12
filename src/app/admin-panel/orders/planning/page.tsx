@@ -30,8 +30,7 @@ const PlanningPage = () => {
   const getErrMessage = (err: unknown) => {
     if (typeof err === 'string') return err
     if (err && typeof err === 'object') {
-      // tRPC client error shape: err.message is fine for users
-      // @ts-ignore
+      // @ts-expect-error tRPC client error shape: err.message is fine for users
       if (err.message) return String(err.message)
     }
     return 'Nie udało się zapisać zmian.'
@@ -167,7 +166,7 @@ const PlanningPage = () => {
       const { draggableId, destination } = result
       if (!destination.droppableId) return
       await handleOrderDrop(draggableId, destination.droppableId)
-    } catch (err) {
+    } catch {
       // guard path (shouldn’t happen since onError handles it)
       toast.error('Nie udało się przypisać zlecenia.')
       setProcessing(false)

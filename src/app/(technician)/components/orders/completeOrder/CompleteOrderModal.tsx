@@ -1,5 +1,6 @@
 'use client'
 
+import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -259,6 +260,25 @@ export const CompleteOrderModal = ({
                     value={install}
                     onChangeAction={setInstall}
                   />
+                </>
+              )}
+
+              {/* Devices from stock — only for serwisu/awarii */}
+              {orderType !== 'INSTALATION' && (
+                <>
+                  <h4 className="font-semibold mt-4">Urządzenia użyte</h4>
+                  <SerialScanInput
+                    devices={stockOptions}
+                    onAddDevice={handleAddStockDevice}
+                    variant="block"
+                  />
+                  {selectedDevices.map((d) => (
+                    <DeviceSummaryRow
+                      key={d.id}
+                      device={d}
+                      onRemove={handleRemoveStockDevice}
+                    />
+                  ))}
                 </>
               )}
 

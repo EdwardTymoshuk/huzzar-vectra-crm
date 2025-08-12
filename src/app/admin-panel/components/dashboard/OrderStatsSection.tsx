@@ -26,7 +26,7 @@ const OrderStatsSection = ({ date, range }: Props) => {
   // Render change indicator with icon and color
   const formatChange = (value: number) => {
     const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight
-    const color = value >= 0 ? 'text-green-600' : 'text-red-600'
+    const color = value >= 0 ? 'text-success' : 'text-danger'
     return (
       <span className={`flex items-center gap-1 text-sm ${color}`}>
         <Icon className="w-4 h-4" />
@@ -131,13 +131,13 @@ const OrderStatsSection = ({ date, range }: Props) => {
         <div className="grid grid-cols-2 gap-4 md:col-span-2">
           <Card className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Wykonane</p>
-            <p className="text-2xl font-bold text-green-600">{completed}</p>
+            <p className="text-2xl font-bold text-success">{completed}</p>
             {formatChange(percentDiff(completed, prevCompleted))}
           </Card>
 
           <Card className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Niewykonane</p>
-            <p className="text-2xl font-bold text-red-600">{failed}</p>
+            <p className="text-2xl font-bold text-danger">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
           </Card>
         </div>

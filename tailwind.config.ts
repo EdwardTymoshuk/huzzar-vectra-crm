@@ -28,9 +28,9 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        success: 'hsl(90, 100%, 40%)',
-        warning: 'hsl(45, 100%, 50%)',
-        danger: 'hsl(10, 90%, 45%)',
+        success: 'hsl(90, 100%, 40%)', //#66b266
+        warning: 'hsl(45, 100%, 50%)', //#E64A1A
+        danger: 'hsl(10, 90%, 45%)', //#E6262D
       },
       keyframes: {
         'accordion-down': {
