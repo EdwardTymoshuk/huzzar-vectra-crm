@@ -38,7 +38,9 @@ const UserDropdown = () => {
         </DropdownMenuItem> */}
         <DropdownMenuItem
           className="text-danger hover:text-danger focus:text-danger cursor-pointer rounded-b-md"
-          onClick={() => signOut({ callbackUrl: '/' })}
+          onClick={() =>
+            signOut({ callbackUrl: `${window.location.origin}/login` })
+          }
         >
           <CiLogout /> Wyloguj
         </DropdownMenuItem>
