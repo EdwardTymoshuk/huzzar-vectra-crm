@@ -14,18 +14,25 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { OrderStatus, OrderType } from '@prisma/client'
-import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
-const TechnicianOrdersFilter = ({
-  setStatusFilter,
-  setOrderTypeFilter,
-}: {
-  setStatusFilter: (status: OrderStatus | null) => void
-  setOrderTypeFilter: (type: OrderType | null) => void
-}) => {
-  const [status, setStatus] = useState<string | null>('all')
-  const [type, setType] = useState<string | null>('all')
+type FilterProps = {
+  statusValue: OrderStatus | null
+  typeValue: OrderType | null
+  setStatusFilterAction: (status: OrderStatus | null) => void
+  setOrderTypeFilterAction: (type: OrderType | null) => void
+  onClearAction: () => void
+}
+
+export const TechnicianOrdersFilter = ({
+  statusValue,
+  typeValue,
+  setStatusFilterAction,
+  setOrderTypeFilterAction,
+  onClearAction,
+}: FilterProps) => {
+  const statusSelectVal = statusValue ?? 'all'
+  const typeSelectVal = typeValue ?? 'all'
 
   return (
     <Popover>
@@ -38,11 +45,12 @@ const TechnicianOrdersFilter = ({
         <div>
           <p className="text-sm font-medium mb-1">Status</p>
           <Select
-            value={status || 'all'}
-            onValueChange={(value) => {
-              setStatus(value)
-              setStatusFilter(value === 'all' ? null : (value as OrderStatus))
-            }}
+            value={statusSelectVal as string}
+            onValueChange={(value) =>
+              setStatusFilterAction(
+                value === 'all' ? null : (value as OrderStatus)
+              )
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Status" />
@@ -55,14 +63,16 @@ const TechnicianOrdersFilter = ({
             </SelectContent>
           </Select>
         </div>
+
         <div>
           <p className="text-sm font-medium mb-1">Typ zlecenia</p>
           <Select
-            value={type || 'all'}
-            onValueChange={(value) => {
-              setType(value)
-              setOrderTypeFilter(value === 'all' ? null : (value as OrderType))
-            }}
+            value={typeSelectVal as string}
+            onValueChange={(value) =>
+              setOrderTypeFilterAction(
+                value === 'all' ? null : (value as OrderType)
+              )
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Typ" />
@@ -74,9 +84,13 @@ const TechnicianOrdersFilter = ({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="pt-1">
+          <Button variant="ghost" className="w-full" onClick={onClearAction}>
+            Wyczyść filtry
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   )
 }
-
-export default TechnicianOrdersFilter

@@ -24,7 +24,7 @@ import {
 } from 'react-icons/ti'
 import { toast } from 'sonner'
 import TechnicianOrderDetails from './TechnicianOrderDetails'
-import TechnicianOrdersFilter from './TechnicianOrdersFilter'
+import { TechnicianOrdersFilter } from './TechnicianOrdersFilter'
 
 type OrderRow = Prisma.OrderGetPayload<{
   select: {
@@ -45,6 +45,7 @@ type OrderRow = Prisma.OrderGetPayload<{
 
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
+
 type Props = {
   searchTerm: string
   autoOpenOrderId?: string
@@ -63,9 +64,13 @@ const TechnicianOrdersTable = ({
   const [perPage, setPerPage] = useState(30)
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+
   const [statusF, setStatusF] = useState<OrderStatus | null>(null)
   const [typeF, setTypeF] = useState<OrderType | null>(null)
-  const [openIds, setOpenIds] = useState<string[]>([])
+
+  useEffect(() => {
+    setPage(1)
+  }, [statusF, typeF])
 
   const {
     data: list,
@@ -104,21 +109,20 @@ const TechnicianOrdersTable = ({
 
   const orders: OrderRow[] = useMemo(() => {
     const base = (list?.orders ?? []) as OrderRow[]
-    const incRows = incoming.map((t): OrderRow => {
-      return {
+    const incRows = incoming.map(
+      (t): OrderRow => ({
         ...t,
         type: t.type ?? 'SERVICE',
         status: 'ASSIGNED',
         transferPending: true,
         transferToId: myId ?? null,
         transferTo: null,
-      }
-    })
+      })
+    )
     return [...incRows, ...base]
   }, [list?.orders, incoming, myId])
 
   const totalPages = Math.ceil((list?.totalOrders || 1) / perPage)
-
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
@@ -139,18 +143,22 @@ const TechnicianOrdersTable = ({
     if (sortField !== field) {
       setSortField(field)
       setSortOrder('asc')
+      return
+    }
+    if (sortOrder === 'asc') {
+      setSortOrder('desc')
+    } else if (sortOrder === 'desc') {
+      setSortOrder(null)
+      setSortField(null)
     } else {
-      setSortOrder(
-        sortOrder === 'asc' ? 'desc' : sortOrder === 'desc' ? null : 'asc'
-      )
-      if (sortOrder === 'desc') setSortField(null)
+      setSortOrder('asc')
     }
   }
 
   const badgeFor = (o: OrderRow) => {
     const outPending = o.transferPending && o.assignedTo?.id === myId
-    const incoming = o.transferPending && o.transferToId === myId
-    if (incoming)
+    const incomingRow = o.transferPending && o.transferToId === myId
+    if (incomingRow)
       return {
         txt: 'Do akceptacji',
         cls: 'bg-amber-400 text-amber-950 hover:bg-amber-400/80',
@@ -162,13 +170,20 @@ const TechnicianOrdersTable = ({
       }
     return { txt: statusMap[o.status], cls: statusColorMap[o.status] }
   }
+
+  const [openIds, setOpenIds] = useState<string[]>([])
   useEffect(() => {
     if (autoOpenOrderId && !openIds.includes(autoOpenOrderId)) {
       setOpenIds((prev) => [...prev, autoOpenOrderId])
     }
   }, [autoOpenOrderId, openIds])
 
-  if (isLoading || incLoading) return <LoaderSpinner />
+  if (isLoading || incLoading)
+    return (
+      <div className="w-full flex justify-center">
+        <LoaderSpinner />
+      </div>
+    )
   if (isError || incError)
     return (
       <p className="w-full py-6 text-center text-destructive">
@@ -180,8 +195,15 @@ const TechnicianOrdersTable = ({
     <div>
       <div className="flex flex-col md:flex-row md:justify-between gap-2 py-4">
         <TechnicianOrdersFilter
-          setStatusFilter={setStatusF}
-          setOrderTypeFilter={setTypeF}
+          statusValue={statusF}
+          typeValue={typeF}
+          setStatusFilterAction={setStatusF}
+          setOrderTypeFilterAction={setTypeF}
+          onClearAction={() => {
+            setStatusF(null)
+            setTypeF(null)
+            setPage(1)
+          }}
         />
         <div className="flex gap-2">
           {[30, 50, 100].map((n) => (
@@ -198,7 +220,6 @@ const TechnicianOrdersTable = ({
 
       <div className="w-full md:overflow-x-auto">
         <div className="w-full md:min-w-[1050px]">
-          {/* header is always rendered */}
           <div className="hidden md:grid grid-cols-[150px_minmax(180px,1fr)_minmax(280px,2fr)_140px_120px_120px] gap-2 px-4 py-2 border-b text-sm text-muted-foreground select-none">
             <span>Typ</span>
             <span>Nr zlecenia</span>
@@ -248,7 +269,7 @@ const TechnicianOrdersTable = ({
             >
               {filtered.map((o) => {
                 const open = openIds.includes(o.id)
-                const incoming = o.transferPending && o.transferToId === myId
+                const incomingRow = o.transferPending && o.transferToId === myId
                 const outgoingPending =
                   o.transferPending && o.assignedTo?.id === myId
                 const badge = badgeFor(o)
@@ -257,7 +278,9 @@ const TechnicianOrdersTable = ({
                   <AccordionItem
                     key={o.id}
                     value={o.id}
-                    className={incoming || outgoingPending ? 'opacity-60' : ''}
+                    className={
+                      incomingRow || outgoingPending ? 'opacity-60' : ''
+                    }
                   >
                     <AccordionTrigger
                       className="px-4 py-3 text-start hover:bg-muted/40"
@@ -305,12 +328,12 @@ const TechnicianOrdersTable = ({
                         autoOpen={autoOpenOrderId === o.id}
                         onAutoOpenHandled={onAutoOpenHandled}
                         orderStatus={o.status}
-                        disableTransfer={incoming || outgoingPending}
-                        incomingTransfer={incoming}
+                        disableTransfer={incomingRow || outgoingPending}
+                        incomingTransfer={incomingRow}
                         onAccept={() => accept.mutate({ orderId: o.id })}
                         onReject={() => reject.mutate({ orderId: o.id })}
                         pendingMessage={
-                          incoming
+                          incomingRow
                             ? `Technik ${
                                 o.assignedTo?.name ?? ''
                               } przekazał Ci to zlecenie. Zaakceptuj lub odrzuć je, jeśli to pomyłka.`
