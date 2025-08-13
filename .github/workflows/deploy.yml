@@ -2,38 +2,51 @@ name: 🚀 Deploy to Server
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Pobranie repozytorium
+      - name: 📥 Checkout
         uses: actions/checkout@v3
 
-      - name: 🚀 Deploy na serwer
+      - name: 🚀 SSH deploy
         uses: appleboy/ssh-action@master
         with:
-          host: 185.242.135.184 # IP Twojego serwera
-          username: root # Jeśli używasz innego użytkownika, zmień na `user`
+          host: 185.242.135.184
+          username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 2223 
+          port: 2223
           script: |
+            set -e
+
             cd /var/www/huzzar-vectra-crm
-            git pull origin main
 
-            # 1️⃣ Usuń stare node_modules i ponownie zainstaluj zależności
-            rm -rf node_modules .prisma
-            npm install
+            # Keep a clean tree
+            git fetch --all
+            git reset --hard origin/main
 
-            # 2️⃣ Wygeneruj Prisma Client
+            # Ensure production env exists (do not commit this file in repo)
+            cat > .env.production.local << 'EOF'
+            NEXTAUTH_URL=http://185.242.135.184:3000
+            AUTH_TRUST_HOST=true
+            EOF
+
+            # Clean install & build
+            rm -rf node_modules .prisma .next
+            npm ci
             npx prisma generate
-
-            # 3️⃣ Zastosuj migracje (jeśli używasz bazy danych)
             npx prisma migrate deploy
-
-            # 4️⃣ Zbuduj aplikację i restartuj PM2
             npm run build
-            npx pm2 restart vectra-crm
+
+            # PM2 with env_production (preferred) OR use --update-env
+            if [ -f ecosystem.config.js ]; then
+              pm2 start ecosystem.config.js --env production || pm2 reload ecosystem.config.js --env production
+            else
+              # fallback: restart existing app and refresh env
+              npx pm2 restart vectra-crm --update-env || \
+              NEXTAUTH_URL=http://185.242.135.184:3000 AUTH_TRUST_HOST=true NODE_ENV=production pm2 start npm --name "vectra-crm" -- start
+            fi
+
+            pm2 save
