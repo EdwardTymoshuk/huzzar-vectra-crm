@@ -2,16 +2,18 @@ name: 🚀 Deploy to Server
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v3
 
-      - name: 🚀 SSH deploy
+      - name: 🚀 Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
           host: 185.242.135.184
@@ -23,30 +25,33 @@ jobs:
 
             cd /var/www/huzzar-vectra-crm
 
-            # Keep a clean tree
-            git fetch --all
-            git reset --hard origin/main
+            # --- Node 20 przez nvm w non-login shellu ---
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use 20
 
-            # Ensure production env exists (do not commit this file in repo)
-            cat > .env.production.local << 'EOF'
-            NEXTAUTH_URL=http://185.242.135.184:3000
-            AUTH_TRUST_HOST=true
-            EOF
+            # --- Kod ---
+            git pull origin main
 
-            # Clean install & build
-            rm -rf node_modules .prisma .next
-            npm ci
+            # (Opcjonalnie) czystsza instalacja
+            rm -rf node_modules .prisma
+
+            # --- Zależności & Prisma ---
+            npm ci || npm install
             npx prisma generate
             npx prisma migrate deploy
+
+            # --- Build Next ---
             npm run build
 
-            # PM2 with env_production (preferred) OR use --update-env
-            if [ -f ecosystem.config.js ]; then
-              pm2 start ecosystem.config.js --env production || pm2 reload ecosystem.config.js --env production
+            # --- PM2 bez zależności globalnych ---
+            # Jeśli proces istnieje -> restart, jeśli nie -> start
+            if npx pm2 describe vectra-crm > /dev/null 2>&1; then
+              npx pm2 restart vectra-crm
             else
-              # fallback: restart existing app and refresh env
-              npx pm2 restart vectra-crm --update-env || \
-              NEXTAUTH_URL=http://185.242.135.184:3000 AUTH_TRUST_HOST=true NODE_ENV=production pm2 start npm --name "vectra-crm" -- start
+              # uruchom "npm start" jako proces PM2 pod nazwą vectra-crm
+              npx pm2 start npm --name "vectra-crm" -- start
             fi
 
-            pm2 save
+            # zapisz listę procesów (auto-restart po reboocie)
+            npx pm2 save
