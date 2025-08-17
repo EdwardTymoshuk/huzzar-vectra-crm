@@ -29,6 +29,12 @@ const TechnicianLayout = ({
 }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <html lang="pl">
+      <head>
+        <meta
+          name="viewport"
+          content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=overlays-content"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

@@ -47,6 +47,12 @@
     --ring: 14 100% 49%;
   }
 }
+
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --bottom-ui-offset: 72px;
+}
+
 html,
 body {
   font-family: Arial, Helvetica, sans-serif;
