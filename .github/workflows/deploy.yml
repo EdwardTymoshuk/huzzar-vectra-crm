@@ -1,48 +1,44 @@
-name: 🚀 Deploy to Server
+name: '🚀 Deploy to Server'
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout
+      - name: '📥 Checkout'
         uses: actions/checkout@v3
 
-      - name: 🚀 Deploy via SSH
+      - name: '🚀 Deploy via SSH'
         uses: appleboy/ssh-action@master
         with:
           host: 185.242.135.184
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 2223
+          script_stop: true
           script: |
             set -e
-
             cd /var/www/huzzar-vectra-crm
 
-            script: |
-  set -e
-  cd /var/www/huzzar-vectra-crm
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-  nvm use 20
+            # Node 20 przez nvm w non-login shellu
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use 20
 
-  git pull origin main
+            # Kod + zależności + Prisma
+            git pull origin main
+            rm -rf node_modules .prisma
+            npm ci || npm install
+            npx prisma generate
+            npx prisma migrate deploy
 
-  # czystsza instalacja (OK)
-  rm -rf node_modules .prisma
+            # Build Next
+            npm run build
 
-  npm ci || npm install
-  npx prisma generate
-  npx prisma migrate deploy
-
-  npm run build
-
-  # >>> bez PM2 <<<
-  systemctl restart huzzar
-  systemctl --no-pager --full status huzzar || true
+            # Uruchom przez systemd (bez PM2)
+            systemctl restart huzzar
+            systemctl --no-pager --full status huzzar || true
