@@ -52,7 +52,7 @@ const OrdersList = () => {
         </Tabs>
 
         {activeTab === 'assignments' && (
-          <MapView key={`map-${mapNonce}`} isVisible />
+          <MapView key={`map-${mapNonce}`} mapKey={`inner-${mapNonce}`} />
         )}
       </div>
     </div>

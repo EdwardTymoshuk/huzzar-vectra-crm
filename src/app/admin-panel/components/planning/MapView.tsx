@@ -10,11 +10,9 @@ import { renderToString } from 'react-dom/server'
 import { FaMapMarkerAlt } from 'react-icons/fa'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 
-interface LeafletContainer extends HTMLDivElement {
-  _leaflet_id?: number | null
-}
+type Props = { mapKey: string }
 
-const MapView = ({ isVisible }: { isVisible: boolean }) => {
+const MapView = ({ mapKey }: Props) => {
   const { data: orders = [] } = trpc.order.getUnassignedOrders.useQuery()
 
   const [L, setL] = useState<typeof import('leaflet') | null>(null)
@@ -45,76 +43,67 @@ const MapView = ({ isVisible }: { isVisible: boolean }) => {
   }, [])
 
   useEffect(() => {
-    if (!L) return
-    const container = L.DomUtil.get(
-      'leaflet-map-container'
-    ) as LeafletContainer | null
-    if (container && container._leaflet_id) container._leaflet_id = null
-  }, [L, isVisible])
-
-  useEffect(() => {
     return () => {
-      mapRef.current?.remove()
-      mapRef.current = null
+      // pełne sprzątanie instancji
+      if (mapRef.current) {
+        mapRef.current.off()
+        mapRef.current.remove()
+        mapRef.current = null
+      }
     }
   }, [])
 
-  useEffect(() => {
-    if (isVisible) {
-      setTimeout(() => {
-        mapRef.current?.invalidateSize()
-        // enable dragging just in case
-        mapRef.current?.dragging?.enable?.()
-      }, 0)
-    }
-  }, [isVisible])
-
-  if (!isVisible) return null
+  if (!L || !customIcon) {
+    return (
+      <div
+        className="relative w-full"
+        style={{ height: '600px', maxHeight: '600px', overflow: 'hidden' }}
+      />
+    )
+  }
 
   return (
     <div
       className="relative w-full"
       style={{ height: '600px', maxHeight: '600px', overflow: 'hidden' }}
     >
-      {L && customIcon && (
-        <MapContainer
-          id="leaflet-map-container"
-          center={defaultCenter}
-          zoom={9.5}
-          style={{ width: '100%', height: '100%' }}
-          ref={(instance) => {
-            mapRef.current = instance
-          }}
-          whenReady={() => {
-            mapRef.current?.invalidateSize()
-          }}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {orders
-            .filter((o) => o.lat !== null && o.lng !== null)
-            .map((order) => {
-              const position: LatLngExpression = [order.lat!, order.lng!]
-              const icon = L
-                ? getMarkerIcon(order.operator, order.timeSlot, L)
-                : undefined
-              return (
-                <Marker
-                  key={order.id}
-                  position={position}
-                  icon={icon ?? customIcon!}
-                >
-                  <Popup>
-                    <strong>{order.orderNumber}</strong>
-                    <br />
-                    {order.city}, {order.street}
-                    <br />
-                    {timeSlotMap[order.timeSlot]}
-                  </Popup>
-                </Marker>
-              )
-            })}
-        </MapContainer>
-      )}
+      <MapContainer
+        key={mapKey} // wymusza świeży kontener
+        center={defaultCenter}
+        zoom={9.5}
+        style={{ width: '100%', height: '100%' }}
+        ref={(instance) => {
+          mapRef.current = instance
+        }}
+        whenReady={() => {
+          // po pierwszym renderze
+          mapRef.current?.invalidateSize()
+          mapRef.current?.dragging?.enable?.()
+        }}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {orders
+          .filter((o) => o.lat !== null && o.lng !== null)
+          .map((order) => {
+            const position: LatLngExpression = [order.lat!, order.lng!]
+            const icon = getMarkerIcon(order.operator, order.timeSlot, L)
+            return (
+              <Marker
+                key={order.id}
+                position={position}
+                icon={icon ?? customIcon}
+              >
+                <Popup>
+                  <strong>{order.orderNumber}</strong>
+                  <br />
+                  {order.city}, {order.street}
+                  <br />
+                  {timeSlotMap[order.timeSlot]}
+                </Popup>
+              </Marker>
+            )
+          })}
+      </MapContainer>
     </div>
   )
 }
