@@ -18,7 +18,7 @@ jobs:
           host: 57.128.227.195
           username: debian
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 2223
+          port: 22
           script_stop: true
           script: |
             set -e
