@@ -12,6 +12,10 @@ jobs:
       - name: '📥 Checkout'
         uses: actions/checkout@v3
 
+      - name: '🔍 Debug SSH Key Format'
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | head -n 2
+
       - name: '🚀 Deploy via SSH'
         uses: appleboy/ssh-action@master
         with:
@@ -19,7 +23,6 @@ jobs:
           username: debian
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          script_stop: true
           script: |
             set -e
             cd /var/www/huzzar-vectra-crm
