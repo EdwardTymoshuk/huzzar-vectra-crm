@@ -2,8 +2,11 @@
 
 import { getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import LoginForm from '../components/LoginForm'
+import LoaderSpinner from '../components/shared/LoaderSpinner'
+
+export const dynamic = 'force-dynamic'
 
 const LoginPage = () => {
   const router = useRouter()
@@ -14,7 +17,11 @@ const LoginPage = () => {
     })
   }, [router])
 
-  return <LoginForm />
+  return (
+    <Suspense fallback={<LoaderSpinner />}>
+      <LoginForm />
+    </Suspense>
+  )
 }
 
 export default LoginPage
