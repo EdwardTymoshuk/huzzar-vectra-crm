@@ -1,14 +1,20 @@
-import { getServerSession } from 'next-auth'
-import { redirect } from 'next/navigation'
+'use client'
 
-import { authOptions } from '@/lib/authOptions'
+import { getSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import LoginForm from '../components/LoginForm'
 
-export default async function LoginPage() {
-  const session = await getServerSession(authOptions)
-  if (session) {
-    redirect('/')
-  }
+const LoginPage = () => {
+  const router = useRouter()
+
+  useEffect(() => {
+    getSession().then((session) => {
+      if (session) router.replace('/')
+    })
+  }, [router])
 
   return <LoginForm />
 }
+
+export default LoginPage
