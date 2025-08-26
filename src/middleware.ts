@@ -13,6 +13,18 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret })
   const { pathname } = req.nextUrl
 
+  if (
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/static') ||
+    pathname.startsWith('/img') ||
+    pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|map|txt)$/)
+  ) {
+    return NextResponse.next()
+  }
+
   // Redirect unauthenticated users to login
   if (!token && pathname !== '/login') {
     const loginUrl = new URL('/login', req.url)
@@ -38,5 +50,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|api|static|favicon.ico).*)'],
+  matcher: ['/((?!_next|api/auth|favicon.ico|static|img).*)'],
 }
