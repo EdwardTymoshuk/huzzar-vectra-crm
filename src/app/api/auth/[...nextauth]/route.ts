@@ -1,9 +1,10 @@
 // src/app/api/auth/[...nextauth]/route.ts
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 import { authOptions } from '@/lib/authOptions'
 import NextAuth from 'next-auth'
-
-console.log('[DEBUG] importing authOptions done')
 
 const handler = NextAuth(authOptions)
 

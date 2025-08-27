@@ -6,9 +6,6 @@ import bcrypt from 'bcrypt'
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
-console.log('[DEBUG] AUTH_SECRET', process.env.NEXTAUTH_SECRET)
-console.log('[DEBUG] DB_URL', process.env.DATABASE_URL)
-
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
 
