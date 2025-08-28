@@ -3,9 +3,16 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-import { authOptions } from '@/lib/authOptions'
+import { getAuthOptions } from '@/lib/authOptions'
 import NextAuth from 'next-auth'
 
-const handler = NextAuth(authOptions)
+// dynamic adapter import
+const handler = async (
+  req: Request,
+  ctx: { params: Record<string, string> }
+) => {
+  const authOptions = await getAuthOptions()
+  return NextAuth(authOptions)(req, ctx)
+}
 
 export { handler as GET, handler as POST }

@@ -1,4 +1,4 @@
-// ecosystem.config.js
+// ecosystem.config.ts
 module.exports = {
   apps: [
     {
@@ -10,10 +10,10 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: 'production',
-        NEXTAUTH_URL: 'http://185.242.135.184:3000',
+        NEXTAUTH_URL: 'http://http://57.128.227.195/',
         AUTH_TRUST_HOST: 'true',
         DATABASE_URL:
-          'postgresql://huzzar_admin:Huzz%40r2025%21@185.242.135.184:5432/huzzar_vectra_crm',
+          'postgresql://huzzar_admin:Huzz%40r2025%21@57.128.227.195/huzzar_vectra_crm',
       },
     },
   ],
