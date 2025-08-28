@@ -6,9 +6,7 @@ export const revalidate = 0
 import { getAuthOptions } from '@/lib/authOptions'
 import NextAuth from 'next-auth'
 
-const handler = async (req: Request): Promise<Response> => {
-  const authOptions = await getAuthOptions()
-  return NextAuth(authOptions)(req)
-}
+const authOptions = await getAuthOptions()
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
