@@ -6,13 +6,9 @@ export const revalidate = 0
 import { getAuthOptions } from '@/lib/authOptions'
 import NextAuth from 'next-auth'
 
-// dynamic adapter import
-const handler = async (
-  req: Request,
-  ctx: { params: Record<string, string> }
-) => {
+const handler = async (req: Request): Promise<Response> => {
   const authOptions = await getAuthOptions()
-  return NextAuth(authOptions)(req, ctx)
+  return NextAuth(authOptions)(req)
 }
 
 export { handler as GET, handler as POST }
