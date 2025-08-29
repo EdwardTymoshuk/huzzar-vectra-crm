@@ -1,11 +1,7 @@
 // src/app/api/auth/[...nextauth]/route.ts
-import { getAuthOptions } from '@/lib/authOptions'
+import { authOptions } from '@/lib/authOptions'
 import NextAuth from 'next-auth'
 
-const handler = async (req: Request) => {
-  const authOptions = await getAuthOptions()
-  return NextAuth(authOptions)(req)
-}
+const handler = NextAuth(authOptions)
 
-export const GET = handler
-export const POST = handler
+export { handler as GET, handler as POST }

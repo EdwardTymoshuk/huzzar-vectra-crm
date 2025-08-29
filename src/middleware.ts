@@ -1,18 +1,20 @@
-// src/middleware
+// src/middleware.ts
 import { getToken } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-const secret = process.env.NEXTAUTH_SECRET
-
 /**
- * Middleware for role-based access control.
- * Redirects users based on their role and route access.
+ * Ensure NEXTAUTH_SECRET is provided; secureCookie is true on HTTPS in prod.
  */
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret })
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === 'production',
+  })
   const { pathname } = req.nextUrl
 
+  // Allowlist for public/static paths
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/login') ||
@@ -25,22 +27,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users to /login
   if (!token && pathname !== '/login') {
     const loginUrl = new URL('/login', req.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // Redirect admin users from "/" to "/admin-panel"
-  if (token && token.role === 'ADMIN' && pathname === '/') {
+  // Role-based redirects
+  if (token && (token as any).role === 'ADMIN' && pathname === '/') {
     return NextResponse.redirect(new URL('/admin-panel', req.nextUrl.origin))
   }
 
-  // Prevent technician users from accessing admin-panel
   if (
     token &&
-    token.role === 'TECHNICIAN' &&
+    (token as any).role === 'TECHNICIAN' &&
     pathname.startsWith('/admin-panel')
   ) {
     return NextResponse.redirect(new URL('/', req.nextUrl.origin))
