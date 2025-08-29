@@ -1,5 +1,5 @@
 // src/lib/authOptions.ts
-import { prisma } from '@/utils/prisma'
+// import { prisma } from '@/utils/prisma'
 import { Role, User, UserStatus } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { NextAuthOptions } from 'next-auth'
@@ -21,6 +21,8 @@ export const authOptions: NextAuthOptions = {
        * Any other status → throw an Error → next-auth „CredentialsSignin” error.
        */
       async authorize(credentials) {
+        const { prisma } = await import('@/utils/prisma')
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Brak e-maila lub hasła')
         }
