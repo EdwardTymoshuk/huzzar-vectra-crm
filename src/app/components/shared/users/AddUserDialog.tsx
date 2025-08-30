@@ -26,86 +26,87 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 /**
- * Zod schema for employee form validation.
+ * Validation schema matching backend user creation input.
  */
-const employeeSchema = z.object({
+const userFormSchema = z.object({
   name: z.string().min(2, 'Imię i nazwisko jest wymagane'),
-  email: z.string().email('Niepoprawny adres email'),
+  email: z.string().email('Niepoprawny adres e-mail'),
   phoneNumber: z.string().min(6, 'Numer telefonu jest wymagany'),
-  role: z.enum(['TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN']),
+  role: z.enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN']),
   password: z
     .string()
-    .min(8, 'Hasło musi mieć co najmniej 8 znaków')
-    .max(32, 'Hasło nie może mieć więcej niż 32 znaki')
-    .regex(/[a-z]/, 'Hasło musi zawierać małą literę')
-    .regex(/[A-Z]/, 'Hasło musi zawierać wielką literę')
-    .regex(/\d/, 'Hasło musi zawierać cyfrę')
-    .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Hasło musi zawierać znak specjalny'),
+    .min(8, 'Min. 8 znaków')
+    .max(32, 'Max. 32 znaki')
+    .regex(/[a-z]/, 'Musi zawierać małą literę')
+    .regex(/[A-Z]/, 'Musi zawierać wielką literę')
+    .regex(/\d/, 'Musi zawierać cyfrę')
+    .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Musi zawierać znak specjalny'),
 })
 
-/**
- * AddEmployeeDialog component:
- * - Allows adding a new employee with validation.
- * - Provides a password generator for security.
- */
-const AddEmployeeDialog = ({
-  open,
-  onClose,
-}: {
+type UserFormValues = z.infer<typeof userFormSchema>
+
+interface AddUserDialogProps {
   open: boolean
   onClose: () => void
-}) => {
+  defaultRole: UserFormValues['role']
+}
+
+/**
+ * AddUserDialog:
+ * - Nie zawiera własnego triggera.
+ * - Otwierany i zamykany tylko przez propsy open / onClose (kontrolowany przez rodzica).
+ * - Po dodaniu użytkownika zamyka się i resetuje formularz.
+ */
+const AddUserDialog = ({ open, onClose, defaultRole }: AddUserDialogProps) => {
   const [isSpinning, setIsSpinning] = useState(false)
 
-  const trpcUtils = trpc.useUtils()
+  const utils = trpc.useUtils()
 
-  const createEmployeeMutation = trpc.user.createUser.useMutation({
+  const createUserMutation = trpc.user.createUser.useMutation({
     onSuccess: () => {
-      trpcUtils.user.getTechnicians.invalidate()
-      onClose()
+      utils.user.getAdmins.invalidate().catch(() => {})
+      utils.user.getTechnicians.invalidate().catch(() => {})
     },
   })
 
-  const form = useForm<z.infer<typeof employeeSchema>>({
-    resolver: zodResolver(employeeSchema),
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
     defaultValues: {
       name: '',
       email: '',
       phoneNumber: '',
-      role: 'TECHNICIAN',
+      role: defaultRole,
       password: '',
     },
   })
 
-  /**
-   * Generates a strong password and sets it in the form field.
-   */
   const handleGeneratePassword = () => {
-    const password = generateStrongPassword()
-    form.setValue('password', password, {
-      shouldValidate: true,
-      shouldDirty: true,
-    })
+    const pwd = generateStrongPassword()
+    form.setValue('password', pwd, { shouldValidate: true, shouldDirty: true })
     setIsSpinning(true)
-    setTimeout(() => {
-      setIsSpinning(false)
-    }, 500)
+    setTimeout(() => setIsSpinning(false), 500)
     toast.success('Wygenerowano silne hasło.')
   }
 
-  /**
-   * Handles saving a new employee.
-   */
-  const handleSave = async (values: z.infer<typeof employeeSchema>) => {
-    await createEmployeeMutation.mutateAsync(values)
-    form.reset()
+  const handleSave = async (values: UserFormValues) => {
+    try {
+      await createUserMutation.mutateAsync(values)
+      toast.success('Użytkownik został utworzony. Wysłano e-mail powitalny.')
+      form.reset()
+      onClose()
+    } catch (err: unknown) {
+      const msg =
+        (err as { message?: string })?.message ??
+        'Błąd podczas dodawania użytkownika.'
+      toast.error(msg)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Dodaj pracownika</DialogTitle>
+          <DialogTitle>Dodaj użytkownika</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
@@ -127,7 +128,7 @@ const AddEmployeeDialog = ({
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Adres e-mail</FormLabel>
                   <FormControl>
                     <Input type="email" {...field} />
                   </FormControl>
@@ -159,30 +160,29 @@ const AddEmployeeDialog = ({
                       {...field}
                       className="border border-input bg-background text-foreground rounded-md p-2 w-full"
                     >
+                      <option value="ADMIN">Administrator</option>
                       <option value="TECHNICIAN">Technik</option>
                       <option value="COORDINATOR">Koordynator</option>
                       <option value="WAREHOUSEMAN">Magazynier</option>
-                      <option value="ADMIN">Administrator</option>
                     </select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            {/* Password + Generate Button */}
             <FormField
               control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hasło</FormLabel>
+                  <FormLabel>Hasło (tymczasowe)</FormLabel>
                   <div className="flex gap-2">
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       onClick={handleGeneratePassword}
                     >
                       <PiArrowsClockwiseBold
@@ -195,16 +195,12 @@ const AddEmployeeDialog = ({
                 </FormItem>
               )}
             />
-            <div className="flex justify-end gap-2 mt-4">
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onClose}>
                 Anuluj
               </Button>
-              <Button
-                type="submit"
-                variant="success"
-                disabled={createEmployeeMutation.isLoading}
-              >
-                {createEmployeeMutation.isLoading ? 'Dodawanie...' : 'Dodaj'}
+              <Button type="submit" disabled={createUserMutation.isLoading}>
+                {createUserMutation.isLoading ? 'Zapisywanie...' : 'Zapisz'}
               </Button>
             </div>
           </form>
@@ -214,4 +210,4 @@ const AddEmployeeDialog = ({
   )
 }
 
-export default AddEmployeeDialog
+export default AddUserDialog

@@ -52,6 +52,7 @@ import {
 import { PiArrowsClockwiseBold } from 'react-icons/pi'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { userRoleMap } from '../../../../../lib/constants'
 
 /**
  * This type reflects the shape of user data returned by Prisma's findMany
@@ -231,7 +232,7 @@ const AdminsTable = () => {
                 <TableCell>{admin.email}</TableCell>
                 <TableCell>{admin.phoneNumber}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{admin.role}</Badge>
+                  <Badge variant="outline">{userRoleMap[admin.role]}</Badge>
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -241,7 +242,8 @@ const AdminsTable = () => {
                   >
                     {admin.status === 'ACTIVE' ? 'Aktywny' : 'Zablokowany'}
                   </Badge>
-                </TableCell>
+                </TableCell>{' '}
+                she
                 <TableCell className="flex gap-2">
                   {/* Edit user button */}
                   <Button

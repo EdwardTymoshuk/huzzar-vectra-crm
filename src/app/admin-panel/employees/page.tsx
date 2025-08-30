@@ -3,6 +3,7 @@
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import SearchInput from '@/app/components/shared/SearchInput'
+import AddUserDialog from '@/app/components/shared/users/AddUserDialog'
 import { Button } from '@/app/components/ui/button'
 import {
   Tabs,
@@ -12,7 +13,6 @@ import {
 } from '@/app/components/ui/tabs'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
-import AddEmployeeDialog from '../components/employees/AddEmployeeDialog'
 import EmployeesTable from '../components/employees/EmployeesTable'
 
 const EmployeesPage = () => {
@@ -56,10 +56,13 @@ const EmployeesPage = () => {
         </TabsContent>
       </Tabs>
 
-      <AddEmployeeDialog
-        open={isAddDialogOpen}
-        onClose={() => setIsAddDialogOpen(false)}
-      />
+      {isAddDialogOpen && (
+        <AddUserDialog
+          open={isAddDialogOpen}
+          onClose={() => setIsAddDialogOpen(false)}
+          defaultRole="TECHNICIAN"
+        />
+      )}
     </MaxWidthWrapper>
   )
 }

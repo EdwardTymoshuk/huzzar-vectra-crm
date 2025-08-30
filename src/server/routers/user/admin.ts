@@ -1,6 +1,7 @@
 // server/routers/user/admin.ts
 import { adminOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
+import { sendNewAccountEmail } from '@/utils/mail/sendNewAccountEmail'
 import { prisma } from '@/utils/prisma'
 import { Prisma } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
@@ -63,9 +64,32 @@ export const adminUserRouter = router({
     )
     .mutation(async ({ input }) => {
       const hash = await bcrypt.hash(input.password, 10)
-      return prisma.user.create({
-        data: { ...input, password: hash, status: 'ACTIVE' },
+
+      // Tworzenie konta użytkownika
+      const newUser = await prisma.user.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          password: hash,
+          phoneNumber: input.phoneNumber,
+          identyficator: input.identyficator,
+          role: input.role,
+          status: 'ACTIVE',
+        },
       })
+
+      try {
+        await sendNewAccountEmail({
+          to: input.email,
+          name: input.name,
+          email: input.email,
+          password: input.password,
+        })
+      } catch (error) {
+        console.error('Błąd wysyłki e-maila powitalnego:', error)
+      }
+
+      return newUser
     }),
 
   /** Edit user (optional password / role) */
