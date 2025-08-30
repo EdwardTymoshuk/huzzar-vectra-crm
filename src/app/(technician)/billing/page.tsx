@@ -192,7 +192,10 @@ const BillingPage = () => {
                               >
                                 Wykonane: {completed}
                               </Badge>
-                              <Badge className="md:col-span-1" variant="danger">
+                              <Badge
+                                className="md:col-span-1"
+                                variant="destructive"
+                              >
                                 Niewykonane: {notCompleted}
                               </Badge>
                             </div>

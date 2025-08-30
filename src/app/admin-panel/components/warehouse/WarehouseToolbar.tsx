@@ -54,7 +54,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
           <span className="hidden lg:inline">Wydaj</span>
         </Button>
 
-        <Button onClick={() => setReturnModalOpen(true)} variant="danger">
+        <Button onClick={() => setReturnModalOpen(true)} variant="destructive">
           <HiOutlineArrowDownOnSquare />
           <span className="hidden lg:inline">Zwrot</span>
         </Button>
