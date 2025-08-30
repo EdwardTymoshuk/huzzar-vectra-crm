@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { MdVisibility, MdVisibilityOff } from 'react-icons/md'
@@ -20,18 +20,9 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>
 
-enum Role {
-  TECHNICIAN = 'TECHNICIAN',
-  COORDINATOR = 'COORDINATOR',
-  WAREHOUSEMAN = 'WAREHOUSEMAN',
-  ADMIN = 'ADMIN',
-}
-
 const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const [loginError, setLoginError] = useState('')
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   const callbackUrl = searchParams.get('callbackUrl') || '/'
 
@@ -44,7 +35,7 @@ const LoginForm = () => {
   })
 
   const handleLogin = async (data: LoginFormData) => {
-    const result = await signIn('credentials', {
+    await signIn('credentials', {
       email: data.email,
       password: data.password,
       redirect: true,
@@ -61,9 +52,6 @@ const LoginForm = () => {
           </div>
 
           <h2 className="text-xl font-bold text-center mb-4">Logowanie</h2>
-          {loginError && (
-            <p className="text-danger text-center">{loginError}</p>
-          )}
 
           {/* Form with react-hook-form & zod validation */}
           <form onSubmit={handleSubmit(handleLogin)} noValidate>
