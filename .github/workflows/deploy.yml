@@ -23,10 +23,8 @@ jobs:
           username: debian
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          envs: DATABASE_URL
           script: |
-
-            set -e  # 💥 zatrzymaj skrypt przy pierwszym błędzie!
+            set -e
             cd /var/www/huzzar-vectra-crm
 
             export NVM_DIR="$HOME/.nvm"
@@ -37,8 +35,10 @@ jobs:
             rm -rf node_modules .prisma
             npm ci || npm install
 
-            source .env.production
+            # ✅ Ręcznie załaduj DATABASE_URL z pliku .env.production
+         export $(cat .env.production | grep -v '^#' | xargs)
 
+            # 👇 teraz Prisma działa
             npx prisma generate
             npx prisma migrate deploy
             npm run build
