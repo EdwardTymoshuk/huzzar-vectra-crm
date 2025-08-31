@@ -48,7 +48,9 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   )
   const [notes, setNotes] = useState('')
 
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
   const selectedTechnician = useMemo(
     () => technicians.find((t) => t.id === technicianId) ?? null,
     [technicians, technicianId]

@@ -53,7 +53,9 @@ const TechnicianSelector = ({ value, onChange }: Props) => {
 
   /* get technicians list */
   const { data: techniciansRaw = [], isLoading } =
-    trpc.user.getTechnicians.useQuery()
+    trpc.user.getTechnicians.useQuery({
+      status: 'ACTIVE',
+    })
 
   /* strip myself from the list */
   const technicians = useMemo(

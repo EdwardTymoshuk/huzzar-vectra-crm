@@ -25,6 +25,8 @@ jobs:
           port: 22
           envs: DATABASE_URL
           script: |
+
+            set -e  # 💥 zatrzymaj skrypt przy pierwszym błędzie!
             export DATABASE_URL="${{ secrets.DATABASE_URL }}"
             cd /var/www/huzzar-vectra-crm
 

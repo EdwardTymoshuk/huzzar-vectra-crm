@@ -33,7 +33,9 @@ const TechnicianStockSheet = ({ open, setOpen }: Props) => {
   const [technicianId, setTechnicianId] = useState<string | undefined>()
   const [searchTerm, setSearchTerm] = useState('')
 
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
   const { data: stockData, isLoading } =
     trpc.warehouse.getTechnicianStock.useQuery(
       { technicianId: technicianId! },

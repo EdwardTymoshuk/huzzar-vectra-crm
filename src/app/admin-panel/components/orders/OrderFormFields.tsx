@@ -47,7 +47,9 @@ export function OrderFormFields({
 
   // Fetch technician list
   const { data: technicians, isLoading: isTechLoading } =
-    trpc.user.getTechnicians.useQuery() || { data: [] }
+    trpc.user.getTechnicians.useQuery({
+      status: 'ACTIVE',
+    }) || { data: [] }
 
   return (
     <>

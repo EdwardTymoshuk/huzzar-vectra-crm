@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Huzzar | Vectra CRM',
-  description: 'System zarządzania dla Vectry Huzzar',
+  title: 'V-CRM HUZZAR',
+  description: 'System zarządzania technikami i zleceniami V-CRM HUZZAR',
 }
 
 /**
@@ -29,6 +29,13 @@ export const metadata: Metadata = {
 const AdminLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <html lang="pl">
+      <head>
+        <meta
+          name="viewport"
+          content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=overlays-content"
+        />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

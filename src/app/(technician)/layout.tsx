@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Huzzar | Vectra CRM - Technician',
-  description: 'Technician panel for Huzzar Vectra CRM',
+  title: 'V-CRM HUZZAR',
+  description: 'System zarządzania technikami i zleceniami V-CRM HUZZAR',
 }
 
 /**
@@ -34,6 +34,7 @@ const TechnicianLayout = ({
           name="viewport"
           content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=overlays-content"
         />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}

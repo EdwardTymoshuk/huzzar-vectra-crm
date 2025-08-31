@@ -15,7 +15,9 @@ type Props = {
 }
 
 const TechnicianSelect = ({ value, onChange }: Props) => {
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
 
   return (
     <div className="flex flex-col space-y-1">

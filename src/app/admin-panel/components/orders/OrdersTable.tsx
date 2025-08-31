@@ -108,7 +108,9 @@ const OrdersTable = ({ searchTerm }: Props) => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
 
   const filtered: OrderWithAssignedTo[] = useMemo(
     () =>

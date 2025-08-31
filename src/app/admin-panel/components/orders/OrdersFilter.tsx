@@ -33,7 +33,9 @@ const OrdersFilter = ({
   const [technicianValue, setTechnicianValue] = useState<string>('all')
   const [typeValue, setTypeValue] = useState<string>('all')
 
-  const { data: technicians } = trpc.user.getTechnicians.useQuery()
+  const { data: technicians } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
 
   const clearFilters = () => {
     setStatusValue('all')

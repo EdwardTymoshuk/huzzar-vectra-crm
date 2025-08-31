@@ -56,7 +56,9 @@ const GenerateBillingReportDialog = ({
   )
 
   // Technicians list
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery()
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
 
   // Mutations
   const technicianReportMutation =
