@@ -243,7 +243,6 @@ const AdminsTable = () => {
                     {admin.status === 'ACTIVE' ? 'Aktywny' : 'Zablokowany'}
                   </Badge>
                 </TableCell>{' '}
-                she
                 <TableCell className="flex gap-2">
                   {/* Edit user button */}
                   <Button

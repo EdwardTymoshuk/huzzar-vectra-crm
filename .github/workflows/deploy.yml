@@ -43,5 +43,5 @@ jobs:
             npx prisma migrate deploy
             npm run build
 
-            systemctl restart huzzar
-            systemctl --no-pager --full status huzzar || true
+            sudo systemctl restart huzzar
+            sudo systemctl --no-pager --full status huzzar || true
