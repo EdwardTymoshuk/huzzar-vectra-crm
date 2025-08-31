@@ -49,7 +49,9 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const utils = trpc.useUtils()
-  const { data, isLoading } = trpc.user.getTechnicians.useQuery()
+  const { data, isLoading } = trpc.user.getTechnicians.useQuery({
+    status,
+  })
 
   const toggleStatusMutation = trpc.user.toggleUserStatus.useMutation({
     onSuccess: () => {

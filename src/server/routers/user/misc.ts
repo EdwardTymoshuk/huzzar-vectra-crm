@@ -1,5 +1,5 @@
 // server/routers/user/misc.ts
-import { loggedInEveryone } from '@/server/roleHelpers'
+import { adminOnly, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
@@ -25,19 +25,29 @@ export const miscUserRouter = router({
       })
     ),
   /** List of technicians */
-  getTechnicians: loggedInEveryone.query(() =>
-    prisma.user.findMany({
-      where: { role: 'TECHNICIAN', status: 'ACTIVE' },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        email: true,
-        phoneNumber: true,
-        name: true,
-        status: true,
-        identyficator: true,
-        role: true,
-      },
-    })
-  ),
+  getTechnicians: adminOnly
+    .input(
+      z.object({
+        status: z
+          .enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'DELETED'])
+          .optional(),
+      })
+    )
+    .query(({ input }) =>
+      prisma.user.findMany({
+        where: {
+          role: 'TECHNICIAN',
+          ...(input.status ? { status: input.status } : {}),
+        },
+        select: {
+          id: true,
+          email: true,
+          phoneNumber: true,
+          name: true,
+          role: true,
+          status: true,
+          identyficator: true,
+        },
+      })
+    ),
 })
