@@ -27,7 +27,6 @@ jobs:
           script: |
 
             set -e  # 💥 zatrzymaj skrypt przy pierwszym błędzie!
-            export DATABASE_URL="${{ secrets.DATABASE_URL }}"
             cd /var/www/huzzar-vectra-crm
 
             export NVM_DIR="$HOME/.nvm"
