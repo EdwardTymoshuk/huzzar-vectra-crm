@@ -29,7 +29,7 @@ export async function sendNewAccountEmail({
   })
 
   await transporter.sendMail({
-    cc: 'cok@huzzar.pl',
+    cc: 'cok.vectra@huzzar.pl',
     from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_USER}>`,
     to,
     replyTo: 'no-reply@huzzar.pl',
