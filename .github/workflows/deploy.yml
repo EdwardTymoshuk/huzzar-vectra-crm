@@ -36,6 +36,9 @@ jobs:
             git pull origin main
             rm -rf node_modules .prisma
             npm ci || npm install
+
+            source .env
+
             npx prisma generate
             npx prisma migrate deploy
             npm run build
