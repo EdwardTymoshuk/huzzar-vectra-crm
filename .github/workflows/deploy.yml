@@ -35,8 +35,8 @@ jobs:
             rm -rf node_modules .prisma
             npm ci || npm install
 
-            # ✅ Ręcznie załaduj DATABASE_URL z pliku .env.production
-         export $(cat .env.production | grep -v '^#' | xargs)
+            # ✅ Załaduj zmienne z .env.production
+            export $(cat .env.production | grep -v '^#' | xargs)
 
             # 👇 teraz Prisma działa
             npx prisma generate
