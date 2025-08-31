@@ -34,7 +34,7 @@ const AdminLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
           name="viewport"
           content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=overlays-content"
         />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="any" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
