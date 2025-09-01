@@ -20,27 +20,41 @@ type Props = {
   onChange: (date: Date | undefined) => void
   range: 'day' | 'month' | 'year'
   fullWidth?: boolean
+  allowFuture?: boolean // allows future dates if true
 }
 
-/**
- * DatePicker with smart mode switching (day, month, year).
- * Uses custom month/year grid instead of default dropdowns.
- */
-const DatePicker = ({ selected, onChange, range, fullWidth }: Props) => {
+/** * DatePicker with smart mode switching (day, month, year). * Uses custom month/year grid instead of default dropdowns. */
+
+const DatePicker = ({
+  selected,
+  onChange,
+  range,
+  fullWidth,
+  allowFuture = false,
+}: Props) => {
   const today = new Date()
   const [open, setOpen] = useState(false)
   const [yearViewOffset, setYearViewOffset] = useState(0)
 
-  const handleSelect = (date: Date) => {
-    if (date > today) return
-    let normalized = date
+  // Returns true if given date is after today and future is disallowed
+  const isDisabled = (date: Date) => !allowFuture && date > today
+
+  // Normalize date for selected range
+  const normalize = (date: Date) => {
     if (range === 'month')
-      normalized = new Date(date.getFullYear(), date.getMonth(), 1)
-    if (range === 'year') normalized = new Date(date.getFullYear(), 0, 1)
+      return new Date(date.getFullYear(), date.getMonth(), 1)
+    if (range === 'year') return new Date(date.getFullYear(), 0, 1)
+    return date
+  }
+
+  const handleSelect = (date: Date) => {
+    const normalized = normalize(date)
+    if (isDisabled(normalized)) return
     onChange(normalized)
     setOpen(false)
   }
 
+  // Renders 12 months of current year
   const renderMonthGrid = () => {
     const months = Array.from(
       { length: 12 },
@@ -53,7 +67,7 @@ const DatePicker = ({ selected, onChange, range, fullWidth }: Props) => {
             key={month.toISOString()}
             variant="outline"
             onClick={() => handleSelect(month)}
-            disabled={month > today}
+            disabled={isDisabled(month)}
           >
             {format(month, 'LLLL', { locale: pl })}
           </Button>
@@ -62,6 +76,7 @@ const DatePicker = ({ selected, onChange, range, fullWidth }: Props) => {
     )
   }
 
+  // Renders 12 years grid with offset
   const renderYearGrid = () => {
     const base = today.getFullYear() - 5 + yearViewOffset * 12
     const years = Array.from({ length: 12 }, (_, i) => base + i)
@@ -92,7 +107,7 @@ const DatePicker = ({ selected, onChange, range, fullWidth }: Props) => {
                 key={year}
                 variant="outline"
                 onClick={() => handleSelect(date)}
-                disabled={date > today}
+                disabled={isDisabled(date)}
               >
                 {year}
               </Button>
@@ -125,17 +140,20 @@ const DatePicker = ({ selected, onChange, range, fullWidth }: Props) => {
             : 'Wybierz datę'}
         </Button>
       </PopoverTrigger>
+
       <PopoverContent className="w-auto p-2 space-y-2 bg-background border border-border shadow-md rounded-md">
         {range === 'day' && (
           <Calendar
             mode="single"
             selected={selected}
             onSelect={(d) => d && handleSelect(d)}
-            disabled={(d) => d > today}
+            disabled={isDisabled}
             defaultMonth={selected ?? today}
             captionLayout="buttons"
             fromYear={today.getFullYear() - 5}
-            toYear={today.getFullYear()}
+            toYear={
+              allowFuture ? today.getFullYear() + 50 : today.getFullYear()
+            }
           />
         )}
 

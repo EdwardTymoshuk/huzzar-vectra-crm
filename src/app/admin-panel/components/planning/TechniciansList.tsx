@@ -105,6 +105,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
             range="day"
             selected={selectedDate}
             onChange={(date) => setSelectedDate(date ?? undefined)}
+            allowFuture
           />
         </div>
 
