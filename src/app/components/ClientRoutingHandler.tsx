@@ -1,8 +1,10 @@
 'use client'
 
+import { useRole } from '@/utils/roleHelpers/useRole'
 import dynamic from 'next/dynamic'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { redirect, usePathname, useSearchParams } from 'next/navigation'
 import LayoutShell from './shared/LayoutShell'
+import LoaderSpinner from './shared/LoaderSpinner'
 
 // Admin pages
 const pages: Record<string, React.ComponentType> = {
@@ -19,6 +21,10 @@ const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const { isWarehouseman, isLoading: isPageLoading } = useRole()
+
+  if (isPageLoading) return <LoaderSpinner />
+
   const getActiveKeyFromPathname = (pathname: string): string => {
     if (pathname.includes('/warehouse')) return 'warehouse'
     if (pathname.includes('/orders')) return 'orders'
@@ -29,8 +35,9 @@ const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
     return 'dashboard'
   }
 
+  const rawTab = searchParams.get('tab') || getActiveKeyFromPathname(pathname)
   const activeTab =
-    searchParams.get('tab') || getActiveKeyFromPathname(pathname)
+    rawTab === 'dashboard' && isWarehouseman ? 'warehouse' : rawTab
 
   const isSubPage = [
     '/warehouse/details/',
@@ -38,7 +45,12 @@ const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
     '/billing/technician/',
   ].some((sub) => pathname.includes(sub))
 
-  const ActivePage = pages[activeTab] || pages.dashboard
+  if (isWarehouseman && !['orders', 'warehouse'].includes(activeTab)) {
+    redirect('/admin-panel/warehouse')
+  }
+
+  const fallbackPage = isWarehouseman ? pages.warehouse : pages.dashboard
+  const ActivePage = pages[activeTab] || fallbackPage
 
   return <LayoutShell>{isSubPage ? children : <ActivePage />}</LayoutShell>
 }

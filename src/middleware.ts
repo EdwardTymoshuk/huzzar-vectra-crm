@@ -53,6 +53,13 @@ export async function middleware(req: NextRequest): Promise<Response> {
     return NextResponse.redirect(new URL('/', req.nextUrl.origin))
   }
 
+  // Warehouseman landing on "/" → go to warehouse tab in admin panel
+  if (userRole === 'WAREHOUSEMAN' && pathname === '/') {
+    return NextResponse.redirect(
+      new URL('/admin-panel?tab=warehouse', req.nextUrl.origin)
+    )
+  }
+
   return NextResponse.next()
 }
 

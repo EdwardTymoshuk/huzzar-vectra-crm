@@ -1,5 +1,5 @@
 // server/routers/user/misc.ts
-import { adminOnly, loggedInEveryone } from '@/server/roleHelpers'
+import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
@@ -25,7 +25,7 @@ export const miscUserRouter = router({
       })
     ),
   /** List of technicians */
-  getTechnicians: adminOnly
+  getTechnicians: adminCoordOrWarehouse
     .input(
       z.object({
         status: z

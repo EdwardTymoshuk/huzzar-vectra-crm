@@ -13,6 +13,7 @@ import GoalsCard from '../components/settings/GoalsCard'
 import ProfileCard from '../components/settings/ProfileCard'
 
 const SettingsPage = () => {
+  // Extract current user's role from session for role-based access control
   const { data: session } = useSession()
   const user = session?.user
 

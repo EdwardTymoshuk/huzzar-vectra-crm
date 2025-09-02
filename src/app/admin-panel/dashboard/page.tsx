@@ -2,6 +2,8 @@
 
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
+import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
+import { useRole } from '@/utils/roleHelpers/useRole'
 import { useState } from 'react'
 import DashboardFilters from '../components/dashboard/DashboardFilters'
 import OrderStatsSection from '../components/dashboard/OrderStatsSection'
@@ -18,6 +20,10 @@ const DashboardPage = () => {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [selectedYear, setSelectedYear] = useState<Date>(new Date())
   const [range, setRange] = useState<'day' | 'month' | 'year'>('day')
+
+  const { isWarehouseman, isLoading: isPageLoading } = useRole()
+  if (isPageLoading) return null
+  if (isWarehouseman) return <UnauthorizedPage />
 
   // Returns date for the current range
   const getSelectedDate = () => {

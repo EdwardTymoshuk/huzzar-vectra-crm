@@ -5,7 +5,9 @@ import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import MonthPicker from '@/app/components/shared/MonthPicker'
 import PageHeader from '@/app/components/shared/PageHeader'
+import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
 import { Button } from '@/app/components/ui/button'
+import { useRole } from '@/utils/roleHelpers/useRole'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { useState } from 'react'
 import { MdFileDownload } from 'react-icons/md'
@@ -22,6 +24,11 @@ const BillingsPage = () => {
 
   const from = format(startOfMonth(month), 'yyyy-MM-dd')
   const to = format(endOfMonth(month), 'yyyy-MM-dd')
+
+  const { isWarehouseman, isLoading: isPageLoading } = useRole()
+
+  if (isPageLoading) return <LoaderSpinner />
+  if (isWarehouseman) return <UnauthorizedPage />
 
   return (
     <MaxWidthWrapper>

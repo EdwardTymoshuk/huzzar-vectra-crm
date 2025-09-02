@@ -10,6 +10,7 @@ import WarehouseToolbar from '../components/warehouse/WarehouseToolbar'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
+
   return (
     <MaxWidthWrapper>
       <PageHeader title="Magazyn" />

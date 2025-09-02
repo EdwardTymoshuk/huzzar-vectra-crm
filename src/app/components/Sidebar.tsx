@@ -9,10 +9,9 @@ import SidebarContent from './SidebarContent'
  * depending on the current user's role.
  */
 const Sidebar = () => {
+  // Extract current user's role from session for role-based access control
   const { data: session } = useSession()
-
   if (!session?.user) return null
-
   const isTechnician = session.user.role === 'TECHNICIAN'
 
   return (

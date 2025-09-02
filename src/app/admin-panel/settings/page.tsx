@@ -2,6 +2,7 @@
 
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
+import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { useSession } from 'next-auth/react'
 import AdminsSection from '../components/settings/adminSection/AdminsSection'
@@ -13,6 +14,8 @@ import RatesSection from '../components/settings/rateSection/RatesSection'
 const SettingPage = () => {
   const { data: session, status } = useSession()
   const role = session?.user?.role
+
+  if (role === 'WAREHOUSEMAN') return <UnauthorizedPage />
 
   if (status === 'loading') {
     // Skeleton placeholder while session is being loaded

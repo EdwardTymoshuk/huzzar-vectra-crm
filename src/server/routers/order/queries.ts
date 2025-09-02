@@ -1,10 +1,14 @@
 import { router } from '@/server/trpc'
 
 import { sortedTimeSlotsByHour } from '@/lib/constants'
-import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
+import {
+  adminCoordOrWarehouse,
+  adminOrCoord,
+  loggedInEveryone,
+} from '@/server/roleHelpers'
 import type { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
-import { isTechnician } from '@/utils/roleCheck'
+import { isTechnician } from '@/utils/roleHelpers/roleCheck'
 import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
 import { endOfDay, startOfDay } from 'date-fns'
 import { z } from 'zod'
@@ -87,7 +91,7 @@ export const queriesRouter = router({
     ),
 
   /** Orders grouped by technician and time-slot for planning board */
-  getAssignedOrders: adminOrCoord
+  getAssignedOrders: adminCoordOrWarehouse
     .input(z.object({ date: z.string().optional() }).optional())
     .query(async ({ input, ctx }): Promise<TechnicianAssignment[]> => {
       const target = input?.date

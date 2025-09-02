@@ -1,5 +1,5 @@
 // server/router/warehouse/mutations.ts
-import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
+import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { DeviceCategory, WarehouseItemType } from '@prisma/client'
@@ -8,7 +8,7 @@ import { z } from 'zod'
 
 export const mutationsRouter = router({
   /** 📥 Add new items to warehouse */
-  addItems: adminOnly
+  addItems: adminCoordOrWarehouse
     .input(
       z.object({
         items: z.array(
@@ -107,7 +107,7 @@ export const mutationsRouter = router({
     }),
 
   /** 📤 Issue devices and materials to technician */
-  issueItems: adminOrCoord
+  issueItems: adminCoordOrWarehouse
     .input(
       z.object({
         assignedToId: z.string(),
@@ -202,7 +202,7 @@ export const mutationsRouter = router({
     }),
 
   /** 🔁 Return items from technician back to warehouse */
-  returnToWarehouse: adminOrCoord
+  returnToWarehouse: adminCoordOrWarehouse
     .input(
       z.object({
         items: z.array(
@@ -308,7 +308,7 @@ export const mutationsRouter = router({
     }),
 
   /** ❌ Return damaged/obsolete items to operator (removal) */
-  returnToOperator: adminOrCoord
+  returnToOperator: adminCoordOrWarehouse
     .input(
       z.object({
         items: z.array(
@@ -428,7 +428,7 @@ export const mutationsRouter = router({
     }),
 
   /** 🗂️  Devices returned by technicians – waiting to be shipped to operator **/
-  getReturnedFromTechnicians: adminOrCoord.query(() =>
+  getReturnedFromTechnicians: adminCoordOrWarehouse.query(() =>
     prisma.warehouse.findMany({
       where: { itemType: 'DEVICE', status: 'RETURNED' },
       include: {

@@ -20,8 +20,8 @@ import SidebarContent from './SidebarContent' // Mobile Sidebar Content
  */
 const Header = () => {
   const [open, setOpen] = useState(false)
+  // Extract current user's role from session for role-based access control
   const { data: session } = useSession()
-
   const isTechnician = session?.user.role === 'TECHNICIAN'
 
   return (

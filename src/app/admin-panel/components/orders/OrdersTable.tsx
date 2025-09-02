@@ -34,6 +34,7 @@ import {
 } from '@/app/components/ui/select'
 import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
+import { useRole } from '@/utils/roleHelpers/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, OrderType, Prisma } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
@@ -83,6 +84,12 @@ const OrdersTable = ({ searchTerm }: Props) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [orderToDelete, setOrderToDelete] =
     useState<OrderWithAssignedTo | null>(null)
+
+  // Extract current user's role from session for role-based access control
+  const { isWarehouseman, isLoading: isPageLaoding } = useRole()
+  if (isPageLaoding) return <LoaderSpinner />
+
+  const readOnly = isWarehouseman
 
   /* grid konfiguration */
   const GRID =
@@ -373,46 +380,48 @@ const OrdersTable = ({ searchTerm }: Props) => {
 
                         {/* actions */}
                         <span className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost">
-                                <PiDotsThreeOutlineVerticalFill className="w-5 h-5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="bg-background">
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedOrderId(o.id)
-                                  setIsPanelOpen(true)
-                                }}
-                              >
-                                <MdVisibility className="mr-2 w-4 h-4 text-warning" />
-                                Podgląd
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditingOrder(o)
-                                  setIsEditModalOpen(true)
-                                }}
-                              >
-                                <MdEdit className="mr-2 w-4 h-4 text-success" />
-                                Edytuj
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setOrderToDelete(o)
-                                  setIsDeleteModalOpen(true)
-                                }}
-                                className="text-danger"
-                              >
-                                <MdDelete className="mr-2 w-4 h-4 text-danger" />
-                                Usuń
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {!readOnly && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost">
+                                  <PiDotsThreeOutlineVerticalFill className="w-5 h-5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-background">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedOrderId(o.id)
+                                    setIsPanelOpen(true)
+                                  }}
+                                >
+                                  <MdVisibility className="mr-2 w-4 h-4 text-warning" />
+                                  Podgląd
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingOrder(o)
+                                    setIsEditModalOpen(true)
+                                  }}
+                                >
+                                  <MdEdit className="mr-2 w-4 h-4 text-success" />
+                                  Edytuj
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setOrderToDelete(o)
+                                    setIsDeleteModalOpen(true)
+                                  }}
+                                  className="text-danger"
+                                >
+                                  <MdDelete className="mr-2 w-4 h-4 text-danger" />
+                                  Usuń
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </span>
                       </div>
                     </AccordionTrigger>

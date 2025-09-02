@@ -1,14 +1,15 @@
 'use client'
 
-import { adminsMenuItems, techniciansMenuItems } from '@/lib/constants'
+import { adminsMenuItems } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { MenuItem } from '@/types'
-import { useSession } from 'next-auth/react'
+import { useRole } from '@/utils/roleHelpers/useRole'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import UserDropdown from './UserDropdown'
+import LoaderSpinner from './shared/LoaderSpinner'
 
 /**
  * SidebarContent:
@@ -22,7 +23,11 @@ type SidebarContentProps = {
 }
 
 const SidebarContent = ({ onSelect }: SidebarContentProps) => {
-  const { data: session } = useSession()
+  // Extract current user's role from session for role-based access control
+  const { isWarehouseman, isLoading: isPageLoading } = useRole()
+
+  if (isPageLoading) return <LoaderSpinner />
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -40,12 +45,14 @@ const SidebarContent = ({ onSelect }: SidebarContentProps) => {
   }, [searchParams, pathname])
 
   // Choose correct menu items based on user role
-  const menuItems: MenuItem[] =
-    session?.user.role === 'ADMIN' ||
-    session?.user.role === 'COORDINATOR' ||
-    session?.user.role === 'WAREHOUSEMAN'
-      ? adminsMenuItems
-      : techniciansMenuItems
+  const menuItems: MenuItem[] = useMemo(() => {
+    if (isWarehouseman) {
+      return adminsMenuItems.filter((item) =>
+        ['warehouse', 'orders'].includes(item.key)
+      )
+    }
+    return adminsMenuItems
+  }, [isWarehouseman])
 
   return (
     <div className="flex flex-col h-full bg-secondary">

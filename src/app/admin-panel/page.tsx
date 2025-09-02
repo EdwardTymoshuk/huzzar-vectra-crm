@@ -1,29 +1,22 @@
+//src/app/admin-panel/page.tsx
 'use client'
 
-import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
-import PageHeader from '@/app/components/shared/PageHeader'
-import { useState } from 'react'
-import DashboardFilters from './components/dashboard/DashboardFilters'
-import OrderStatsSection from './components/dashboard/OrderStatsSection'
-import TechnicianEfficiencyTable from './components/dashboard/TechnicianEfficiencyTable'
+import { useRole } from '@/utils/roleHelpers/useRole'
+import { redirect } from 'next/navigation'
+import LoaderSpinner from '../components/shared/LoaderSpinner'
 
-const DashboardPage = () => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [range, setRange] = useState<'day' | 'month' | 'year'>('day')
+/**
+ * /admin-panel
+ * Redirects to the correct tab based on user role
+ */
+const AdminPanelRootPage = () => {
+  const { isWarehouseman, isLoading } = useRole()
 
-  return (
-    <MaxWidthWrapper>
-      <PageHeader title="Dashboard" />
-      <DashboardFilters
-        selectedDate={selectedDate}
-        onChangeDate={(date: Date | undefined) => setSelectedDate(date)}
-        range={range}
-        onChangeRange={setRange}
-      />
-      <OrderStatsSection date={selectedDate} range={range} />
-      <TechnicianEfficiencyTable date={selectedDate} range={range} />
-    </MaxWidthWrapper>
-  )
+  if (isLoading) return <LoaderSpinner />
+
+  if (isWarehouseman) return redirect('/admin-panel?tab=warehouse')
+
+  return redirect('/admin-panel?tab=dashboard')
 }
 
-export default DashboardPage
+export default AdminPanelRootPage

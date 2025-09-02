@@ -3,6 +3,7 @@
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import SearchInput from '@/app/components/shared/SearchInput'
+import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
 import AddUserDialog from '@/app/components/shared/users/AddUserDialog'
 import { Button } from '@/app/components/ui/button'
 import {
@@ -11,6 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
+import { useRole } from '@/utils/roleHelpers/useRole'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
 import EmployeesTable from '../components/employees/EmployeesTable'
@@ -18,6 +20,10 @@ import EmployeesTable from '../components/employees/EmployeesTable'
 const EmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+
+  const { isWarehouseman, isLoading: isPageLoading } = useRole()
+  if (isPageLoading) return null
+  if (isWarehouseman) return <UnauthorizedPage />
 
   return (
     <MaxWidthWrapper>

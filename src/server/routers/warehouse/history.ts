@@ -1,5 +1,5 @@
 // server/routers/warehouse/history.ts
-import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
+import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { WarehouseAction, WarehouseItemType } from '@prisma/client'
@@ -95,7 +95,7 @@ export const historyRouter = router({
     }),
 
   /** 📜 Full warehouse history – filterable & paginated */
-  getWarehouseHistory: adminOrCoord
+  getWarehouseHistory: adminCoordOrWarehouse
     .input(
       z.object({
         page: z.number().min(1).default(1),

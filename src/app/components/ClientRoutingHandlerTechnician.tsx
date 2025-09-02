@@ -1,8 +1,10 @@
 'use client'
 
+import { useRole } from '@/utils/roleHelpers/useRole'
 import dynamic from 'next/dynamic'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { redirect, usePathname, useSearchParams } from 'next/navigation'
 import LayoutShell from './shared/LayoutShell'
+import LoaderSpinner from './shared/LoaderSpinner'
 
 // Technician pages
 const pages: Record<string, React.ComponentType> = {
@@ -20,6 +22,13 @@ const ClientRoutingHandlerTechnician = ({
 }) => {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  const { isWarehouseman, isLoading } = useRole()
+  if (isLoading) return <LoaderSpinner />
+
+  if (isWarehouseman) {
+    redirect('/admin-panel?tab=warehouse')
+  }
 
   const getActiveKeyFromPathname = (pathname: string): string => {
     if (pathname.includes('/warehouse')) return 'warehouse'
