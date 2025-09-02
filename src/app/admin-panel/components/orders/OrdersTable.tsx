@@ -1,3 +1,4 @@
+// src/app/admin-panel/components/orders/OrdersTable.tsx
 'use client'
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
@@ -52,17 +53,49 @@ import OrderAccordionDetails from './OrderAccordionDetails'
 import OrderDetailsPanel from './OrderDetailsPanel'
 import OrdersFilter from './OrdersFilter'
 
-/* --------------------------- types ---------------------------------- */
+/* ============================== Types ============================== */
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
   include: { assignedTo: { select: { id: true; name: true } } }
 }>
+
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
 type Props = { searchTerm: string }
 
-/* --------------------------- component ------------------------------ */
+type TechnicianLite = { id: string; name: string } // typed minimal technician item
+
+/* ============================ Guard shell ========================== */
+/**
+ * OrdersTable:
+ * - Guard wrapper that resolves role and returns a loader if session is loading.
+ * - Delegates to OrdersTableInner so all other hooks are always called
+ *   unconditionally (complies with React rules-of-hooks).
+ */
 const OrdersTable = ({ searchTerm }: Props) => {
-  /* local state ----------------------------------------------------- */
+  const { isWarehouseman, isLoading: isPageLoading } = useRole()
+
+  // Early return is allowed only here (no other hooks called yet).
+  if (isPageLoading) return <LoaderSpinner />
+
+  return <OrdersTableInner searchTerm={searchTerm} readOnly={isWarehouseman} />
+}
+
+export default OrdersTable
+
+/* ============================ Inner table ========================== */
+/**
+ * OrdersTableInner:
+ * - Contains all data hooks (tRPC queries/mutations) and UI logic.
+ * - No early returns before hooks to keep a stable hook order.
+ */
+const OrdersTableInner = ({
+  searchTerm,
+  readOnly,
+}: {
+  searchTerm: string
+  readOnly: boolean
+}) => {
+  /* -------------------------- Local state ------------------------- */
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(30)
   const [sortField, setSortField] = useState<SortField>(null)
@@ -74,7 +107,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
   const [editingTechId, setEditingTechId] = useState<string | null>(null)
   const [openRowId, setOpenRowId] = useState<string | null>(null)
 
-  /* dialogs / side-panels ------------------------------------------- */
+  // Side panels / dialogs
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -85,59 +118,60 @@ const OrdersTable = ({ searchTerm }: Props) => {
   const [orderToDelete, setOrderToDelete] =
     useState<OrderWithAssignedTo | null>(null)
 
-  // Extract current user's role from session for role-based access control
-  const { isWarehouseman, isLoading: isPageLaoding } = useRole()
-  if (isPageLaoding) return <LoaderSpinner />
-
-  const readOnly = isWarehouseman
-
-  /* grid konfiguration */
-  const GRID =
-    'grid grid-cols-[120px_90px_140px_110px_120px_110px_minmax(260px,2fr)_minmax(160px,1fr)_max-content]'
-
-  /* data ------------------------------------------------------------ */
+  /* ---------------------------- Data ------------------------------ */
+  // Orders list
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
     ...(sortField ? { sortField, sortOrder: sortOrder ?? 'asc' } : {}),
-    status: statusFilter || undefined,
-    assignedToId: technicianFilter || undefined,
-    type: orderTypeFilter || undefined,
+    status: statusFilter ?? undefined,
+    assignedToId: technicianFilter ?? undefined,
+    type: orderTypeFilter ?? undefined,
   })
 
-  const orders = useMemo(
+  const orders = useMemo<OrderWithAssignedTo[]>(
     () => (data?.orders ?? []) as OrderWithAssignedTo[],
     [data?.orders]
   )
 
-  const totalPages = Math.ceil((data?.totalOrders || 1) / itemsPerPage)
+  const totalPages = Math.max(
+    1,
+    Math.ceil((data?.totalOrders ?? 0) / itemsPerPage)
+  )
+
+  // Clamp currentPage when filters/sorting change totalPages
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+  // Technicians for inline assign select
+  const { data: techniciansData } = trpc.user.getTechnicians.useQuery({
     status: 'ACTIVE',
   })
+  const technicians: TechnicianLite[] = useMemo(
+    () => (techniciansData ?? []).map((t) => ({ id: t.id, name: t.name })),
+    [techniciansData]
+  )
 
+  // Local search filter (by number or address)
   const filtered: OrderWithAssignedTo[] = useMemo(
     () =>
-      orders.filter(
-        (o) =>
-          o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          `${o.city} ${o.street}`
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-      ),
+      orders.filter((o) => {
+        const num = o.orderNumber.toLowerCase()
+        const addr = `${o.city} ${o.street}`.toLowerCase()
+        const q = searchTerm.toLowerCase()
+        return num.includes(q) || addr.includes(q)
+      }),
     [orders, searchTerm]
   )
 
-  /* mutations -------------------------------------------------------- */
+  /* -------------------------- Mutations --------------------------- */
   const utils = trpc.useUtils()
   const updateStatus = trpc.order.toggleOrderStatus.useMutation()
   const deleteOrder = trpc.order.deleteOrder.useMutation()
-  const assignTech = trpc.order.assignTechnician?.useMutation()
+  const assignTech = trpc.order.assignTechnician.useMutation()
 
-  /* handlers --------------------------------------------------------- */
+  /* --------------------------- Handlers --------------------------- */
   const handleSort = (field: 'date' | 'status') => {
     if (sortField !== field) {
       setSortField(field)
@@ -150,9 +184,9 @@ const OrdersTable = ({ searchTerm }: Props) => {
     }
   }
 
-  /* ------------------------------------------------------------------ */
-  /* ----------------------------- RENDER ----------------------------- */
-  /* ------------------------------------------------------------------ */
+  /* ---------------------------- Render ---------------------------- */
+  const GRID =
+    'grid grid-cols-[120px_90px_140px_110px_120px_110px_minmax(260px,2fr)_minmax(160px,1fr)_max-content]'
 
   return (
     <div>
@@ -179,7 +213,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
       {/* Scroll wrapper */}
       <div className="w-full overflow-x-auto">
         <div className="w-full md:min-w-[1050px]">
-          {/* HEADER – 9 columns (ostatnia 32 px na chevron) */}
+          {/* Header */}
           <div
             className={`${GRID} gap-2 px-4 py-2 border-b text-sm text-start font-normal text-muted-foreground select-none`}
           >
@@ -226,7 +260,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
             <span />
           </div>
 
-          {/* LISTA / STANY */}
+          {/* List / states */}
           {isLoading ? (
             <div className="w-full py-10 flex items-center justify-center">
               <LoaderSpinner />
@@ -243,10 +277,9 @@ const OrdersTable = ({ searchTerm }: Props) => {
             <Accordion type="multiple">
               {filtered.map((o) => {
                 const open = openRowId === o.id
-
                 return (
                   <AccordionItem key={o.id} value={o.id}>
-                    {/* ROW (Trigger) */}
+                    {/* Row (trigger) */}
                     <AccordionTrigger
                       className=" px-4 py-3 hover:bg-muted/50 justify-start"
                       onClick={() => setOpenRowId(open ? null : o.id)}
@@ -270,7 +303,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
 
                         <span>{new Date(o.date).toLocaleDateString()}</span>
 
-                        {/* status (inline) */}
+                        {/* Status (inline edit) */}
                         <span
                           onDoubleClick={(e) => {
                             e.stopPropagation()
@@ -315,7 +348,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
 
                         <span>{getTimeSlotLabel(o.timeSlot)}</span>
 
-                        {/* Adres */}
+                        {/* Address */}
                         <span
                           className="min-w-0 w-full whitespace-normal break-words"
                           title={`${o.city}, ${o.street}`}
@@ -327,7 +360,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
                           />
                         </span>
 
-                        {/* technician (inline) */}
+                        {/* Technician (inline assign) */}
                         <span
                           onDoubleClick={(e) => {
                             e.stopPropagation()
@@ -338,7 +371,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
                             <Select
                               defaultValue={o.assignedTo?.id || 'none'}
                               onValueChange={(v) =>
-                                assignTech?.mutate(
+                                assignTech.mutate(
                                   {
                                     id: o.id,
                                     assignedToId: v === 'none' ? undefined : v,
@@ -378,7 +411,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
                           )}
                         </span>
 
-                        {/* actions */}
+                        {/* Actions */}
                         <span className="text-right">
                           {!readOnly && (
                             <DropdownMenu>
@@ -426,7 +459,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
                       </div>
                     </AccordionTrigger>
 
-                    {/* DETAILS */}
+                    {/* Details */}
                     <AccordionContent className="bg-muted/40 px-4 py-3">
                       <OrderAccordionDetails order={{ id: o.id }} />
                     </AccordionContent>
@@ -438,7 +471,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
         </div>
       </div>
 
-      {/* PAGINATION */}
+      {/* Pagination */}
       {data && (
         <PaginationControls
           page={currentPage}
@@ -447,14 +480,14 @@ const OrdersTable = ({ searchTerm }: Props) => {
         />
       )}
 
-      {/* SIDE PANEL */}
+      {/* Side panel */}
       <OrderDetailsPanel
         orderId={selectedOrderId}
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
       />
 
-      {/* EDIT MODAL */}
+      {/* Edit modal */}
       {isEditModalOpen && editingOrder && (
         <EditOrderModal
           open={isEditModalOpen}
@@ -463,7 +496,7 @@ const OrdersTable = ({ searchTerm }: Props) => {
         />
       )}
 
-      {/* DELETE DIALOG */}
+      {/* Delete dialog */}
       <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -498,5 +531,3 @@ const OrdersTable = ({ searchTerm }: Props) => {
     </div>
   )
 }
-
-export default OrdersTable

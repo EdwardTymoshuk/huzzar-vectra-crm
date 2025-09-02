@@ -1,74 +1,84 @@
+// src/app/components/SidebarContent.tsx
 'use client'
 
+import Logo from '@/app/components/Logo'
+import ThemeToggle from '@/app/components/ThemeToggle'
+import UserDropdown from '@/app/components/UserDropdown'
 import { adminsMenuItems } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { MenuItem } from '@/types'
 import { useRole } from '@/utils/roleHelpers/useRole'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
-import Logo from './Logo'
-import ThemeToggle from './ThemeToggle'
-import UserDropdown from './UserDropdown'
 import LoaderSpinner from './shared/LoaderSpinner'
 
-/**
- * SidebarContent:
- * - Dynamically renders the menu items based on the user's role.
- * - Highlights the active menu based on `tab` query or current URL pathname.
- * - Ensures that detail subpages (like /admin-panel/warehouse/details/[name]) also show correct sidebar highlight.
- */
-
 type SidebarContentProps = {
-  onSelect?: () => void // Optional callback to close sheet on mobile
+  onSelect?: () => void
 }
 
+/**
+ * SidebarContent (Guard):
+ * - Keeps hook order stable by returning loader early,
+ *   then delegating to the Inner component which calls other hooks unconditionally.
+ */
 const SidebarContent = ({ onSelect }: SidebarContentProps) => {
-  // Extract current user's role from session for role-based access control
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
 
+  // Early return lives in the guard wrapper only – other hooks are not called yet.
   if (isPageLoading) return <LoaderSpinner />
 
+  return (
+    <SidebarContentInner onSelect={onSelect} isWarehouseman={isWarehouseman} />
+  )
+}
+
+export default SidebarContent
+
+// ------------------ INNER ------------------
+
+/**
+ * SidebarContentInner:
+ * - Calls navigation and memo hooks unconditionally to satisfy React rules-of-hooks.
+ */
+const SidebarContentInner = ({
+  onSelect,
+  isWarehouseman,
+}: {
+  onSelect?: () => void
+  isWarehouseman: boolean
+}) => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
-  // Get active tab from query params or default to 'dashboard'
-  const currentTab = useMemo(() => {
+  // Determine active tab; handle detail subpaths explicitly.
+  const currentTab = useMemo<string>(() => {
     const tabParam = searchParams.get('tab')
-
-    // 👇 Obsługa tras podstronowych (np. /admin-panel/warehouse/details/[name])
     if (pathname?.includes('/admin-panel/warehouse/details')) return 'warehouse'
     if (pathname?.includes('/admin-panel/warehouse/history')) return 'warehouse'
     if (pathname?.includes('/admin-panel/billing/technician')) return 'billing'
-
-    return tabParam || 'dashboard'
+    return tabParam ?? 'dashboard'
   }, [searchParams, pathname])
 
-  // Choose correct menu items based on user role
+  // Filter menu items for warehouseman role.
   const menuItems: MenuItem[] = useMemo(() => {
-    if (isWarehouseman) {
-      return adminsMenuItems.filter((item) =>
-        ['warehouse', 'orders'].includes(item.key)
-      )
-    }
-    return adminsMenuItems
+    return isWarehouseman
+      ? adminsMenuItems.filter((item) =>
+          ['warehouse', 'orders'].includes(item.key)
+        )
+      : adminsMenuItems
   }, [isWarehouseman])
 
   return (
     <div className="flex flex-col h-full bg-secondary">
-      {/* Logo at the top */}
+      {/* Top logo */}
       <Logo className="justify-center w-full" />
 
-      {/* Main navigation menu */}
+      {/* Main nav */}
       <nav className="flex-1 pt-8 space-y-2">
         {menuItems.map((item) => {
-          // Check if current tab matches menu key
           const isTabMatch = currentTab === item.key
-
-          // Check if the pathname matches detail subpages (e.g. /admin-panel/warehouse/details/[name])
           const isDetailsPage = pathname?.startsWith(`/admin-panel/${item.key}`)
-
-          // Special case: orders tab includes planning and subroutes
           const isActive =
             item.key === 'orders'
               ? isTabMatch ||
@@ -97,7 +107,7 @@ const SidebarContent = ({ onSelect }: SidebarContentProps) => {
         })}
       </nav>
 
-      {/* Bottom section: user and theme controls */}
+      {/* Bottom panel */}
       <div className="p-4 border-t border-border flex flex-col items-center space-y-4">
         <UserDropdown />
         <ThemeToggle />
@@ -105,5 +115,3 @@ const SidebarContent = ({ onSelect }: SidebarContentProps) => {
     </div>
   )
 }
-
-export default SidebarContent

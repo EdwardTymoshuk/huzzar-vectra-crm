@@ -3,23 +3,35 @@
 
 import { useRole } from '@/utils/roleHelpers/useRole'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import ClientRoutingHandlerTechnician from './components/ClientRoutingHandlerTechnician'
+import LoaderLogo from './components/shared/LoaderLogo'
 
 /**
- * Home page:
- * - Client redirect based on resolved role.
- * - Complements server-side middleware so direct hits and client nav both work.
+ * Home ("/"):
+ * - If TECHNICIAN → render technician client routing handler (tabs via ?tab=...).
+ * - If not logged → redirect to /login.
+ * - If non-technician (ADMIN/COORD/WAREHOUSEMAN) → redirect to admin panel.
  */
 export default function HomePage() {
   const { role, isLoading } = useRole()
   const router = useRouter()
 
-  useEffect(() => {
-    if (isLoading) return
-    if (!role) router.replace('/login')
-    else if (role === 'TECHNICIAN') router.replace('/technician/dashboard')
-    else router.replace('/admin-panel?tab=dashboard')
-  }, [role, isLoading, router])
+  if (isLoading) return <LoaderLogo show />
 
+  if (!role) {
+    // Not logged → go login
+    router.replace('/login')
+    return null
+  }
+
+  if (role === 'TECHNICIAN') {
+    // Technician stays on "/", we render the tabbed handler directly.
+    return (
+      <ClientRoutingHandlerTechnician>{null}</ClientRoutingHandlerTechnician>
+    )
+  }
+
+  // All non-technician roles go to the admin-panel entry
+  router.replace('/admin-panel?tab=dashboard')
   return null
 }
