@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { MdVisibility, MdVisibilityOff } from 'react-icons/md'
+import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -35,12 +36,21 @@ const LoginForm = () => {
   })
 
   const handleLogin = async (data: LoginFormData) => {
-    await signIn('credentials', {
+    const res = await signIn('credentials', {
       email: data.email,
       password: data.password,
-      redirect: true,
+      redirect: false,
       callbackUrl,
     })
+
+    if (res?.error) {
+      toast.error(res.error || 'Nie udało się zalogować. Sprawdź dane.')
+      return
+    }
+
+    if (res?.ok && res?.url) {
+      window.location.href = res.url
+    }
   }
 
   return (
@@ -60,7 +70,7 @@ const LoginForm = () => {
                 type="email"
                 placeholder="Adres e-mail"
                 {...register('email')}
-                className={errors.email ? 'border-red-500' : ''}
+                className={errors.email ? 'border-danger' : ''}
               />
               {errors.email && (
                 <p className="text-danger text-sm mt-1">
@@ -74,7 +84,7 @@ const LoginForm = () => {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Hasło"
                 {...register('password')}
-                className={`pr-10 ${errors.password ? 'border-red-500' : ''}`}
+                className={`pr-10 ${errors.password ? 'border-danger' : ''}`}
               />
               <button
                 type="button"
