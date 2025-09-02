@@ -45,7 +45,7 @@ const IssueModal = ({ open, onCloseAction }: Props) => {
 
         {/* Technician selection */}
         {selectedTechnician && !editMode ? (
-          <div className="flex items-center justify-between py-2 px-4 rounded-md bg-gray-100">
+          <div className="flex items-center justify-between py-2 px-4 rounded-md bg-background border">
             <div>
               <p className="font-bold text-primary">
                 {selectedTechnician.name}

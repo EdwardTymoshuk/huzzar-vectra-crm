@@ -121,7 +121,7 @@ const AssignmentsTable = () => {
           filteredAssignments.map((technician: TechnicianAssignment) => (
             <div
               key={technician.technicianId}
-              className="bg-gray-100 p-4 rounded-lg"
+              className="bg-background p-4 rounded-lg"
             >
               <h2 className="text-lg text-primary font-semibold text-center">
                 {technician.technicianName}
