@@ -1,8 +1,8 @@
 import { adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
+import { writeToBuffer } from '@/utils/reports/writeToBuffer'
 import { sortCodes } from '@/utils/sortCodes'
-import { writeToBuffer } from '@/utils/writeToBuffer'
 import { endOfDay, format, startOfDay } from 'date-fns'
 import { z } from 'zod'
 

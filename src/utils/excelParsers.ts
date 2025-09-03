@@ -1,221 +1,181 @@
 // utils/excelParsers.ts
-
-import { OrderFormData } from '@/types'
-import { TimeSlot } from '@prisma/client'
+import { OrderStatus, TimeSlot } from '@prisma/client'
 import * as XLSX from 'xlsx'
 
 /**
- * We define a type for each row's cells as an array of acceptable values.
- * For example, each cell can be string, number, Date, null, or undefined.
+ * ParsedOrderFromExcel:
+ * - Normalized shape returned by the parser (client-side).
+ * - Contains technician *name* (to be resolved to user ID later in the modal),
+ *   mapped operator, mapped status, and a final TimeSlot.
  */
+export type ParsedOrderFromExcel = {
+  operator: string
+  orderNumber: string
+  type: 'INSTALATION' // keep current domain naming
+  city: string
+  street: string
+  postalCode: string
+  date: string // YYYY-MM-DD
+  timeSlot: TimeSlot
+  assignedToName?: string
+  notes: string
+  status: OrderStatus
+}
+
+/** Row as array of cell values (no any). */
 type ExcelRow = (string | number | Date | null | undefined)[]
 
 /**
- * Parser for the new 8-column format:
- *  Columns (in row 0, the header row):
- *   0: "Grafik"
- *   1: "Nr zlecenia"
- *   2: "Nr klienta"
- *   3: "Adres"
- *   4: "Data instalacji"
- *   5: "Godzina instalacji"
- *   6: "Technik"
- *   7: "Uwagi"
+ * Public API:
+ * - Parses ONLY the new planner export.
+ * - Detects columns by (case-insensitive) header labels.
  */
-export async function parseUnifiedOrdersFromExcel(
+export async function parseOrdersFromExcel(
   file: File
-): Promise<OrderFormData[]> {
+): Promise<ParsedOrderFromExcel[]> {
+  const { headerRow, rows } = await readSheetAsRows(file)
+  const headerMap = buildHeaderIndexMap(headerRow)
+
+  // Column indices (internal names → indices resolved from Polish headers)
+  const col = {
+    taskId: findIndexByLabel(headerMap, 'id zadania'),
+    location: findIndexByLabel(headerMap, 'lokalizacja'),
+    assignees: findIndexByLabel(headerMap, 'przypisani pracownicy / grupy'),
+    visitStart: findIndexByLabel(headerMap, 'początek terminu wizyty'),
+    visitEnd: findIndexByLabel(headerMap, 'koniec terminu wizyty'),
+    extSystem: findIndexByLabel(headerMap, 'system zewnętrzny (zadanie)'),
+    taskStatus: safeIndexByLabel(headerMap, 'status zadania'), // optional
+    taskType: safeIndexByLabel(headerMap, 'typ zadania'), // optional
+    externalClientId: safeIndexByLabel(headerMap, 'zew. id klienta'), // optional
+  }
+
+  return rows.map((row) => {
+    // Order number
+    const orderNumber = String(row[col.taskId] ?? '').trim() || 'BRAK_NUMERU'
+
+    // Address → [city, postalCode, street]
+    const location = String(row[col.location] ?? '').trim()
+    const [city, postalCode, street] = parseAddress(location)
+
+    // Visit window → YYYY-MM-DD + HH:MM
+    const { isoDate, startTime, endTime } = parseVisitWindow(
+      row[col.visitStart],
+      row[col.visitEnd]
+    )
+
+    // Operator mapping (empty → VECTRA)
+    const operatorRaw = String(row[col.extSystem] ?? '').trim()
+    const operator = mapOperator(operatorRaw)
+
+    // Time slot (supports 1h/2h/3h) — snap to closest if no exact match
+    const timeSlot = toTimeSlot(startTime, endTime)
+
+    // Technician name (resolved to ID later, outside the parser)
+    const assigneesRaw = String(row[col.assignees] ?? '').trim()
+    const assignedToName = parseTechnicianName(assigneesRaw)
+
+    // Status mapping (fallback PENDING)
+    const statusRaw =
+      col.taskStatus !== null ? String(row[col.taskStatus] ?? '').trim() : ''
+    const status = mapStatus(statusRaw)
+
+    // External client ID → ONLY this goes to notes
+    const extId =
+      col.externalClientId !== null
+        ? String(row[col.externalClientId] ?? '').trim()
+        : ''
+    const notes = extId ? `Zew. ID klienta: ${extId}` : ''
+
+    // Type — keep constant for now
+    const type = 'INSTALATION' as const
+
+    return {
+      operator,
+      orderNumber,
+      type,
+      city,
+      street,
+      postalCode,
+      date: isoDate,
+      timeSlot,
+      assignedToName,
+      notes,
+      status,
+    }
+  })
+}
+
+/* =============================== Helpers =============================== */
+
+/** Read first sheet into [headerRow, rows[]] */
+async function readSheetAsRows(
+  file: File
+): Promise<{ headerRow: ExcelRow; rows: ExcelRow[] }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-
     reader.onload = (event) => {
       const data = event.target?.result
-      if (!data) {
-        return reject(new Error('Plik jest pusty lub nieczytelny.'))
-      }
-
-      // Read the workbook as binary
+      if (!data) return reject(new Error('Plik jest pusty lub nieczytelny.'))
       const workbook = XLSX.read(data, {
         type: 'binary',
         cellDates: true,
         dateNF: 'yyyy-mm-dd HH:mm:ss',
       })
-
-      // Grab the first sheet
       const sheet = workbook.Sheets[workbook.SheetNames[0]]
-
-      /**
-       * Convert sheet to a 2D array of rows:
-       * each row is an array of string | number | Date | null | undefined
-       *
-       * We avoid using `any` by specifying the type assertion as ExcelRow[].
-       */
-      const rawData = XLSX.utils.sheet_to_json<ExcelRow>(sheet, {
-        header: 1, // Return arrays, not objects
+      const raw = XLSX.utils.sheet_to_json<ExcelRow>(sheet, {
+        header: 1,
       }) as ExcelRow[]
-
-      if (!rawData.length) {
-        return reject(
-          new Error('Błędny format: plik nie zawiera wierszy (jest pusty).')
-        )
-      }
-
-      // Check the header (row 0)
-      const headerRow = rawData[0]
-      if (!headerRow || headerRow.length < 8) {
-        return reject(
-          new Error(
-            'Błędny format: plik nie zawiera co najmniej 8 kolumn w nagłówku.'
-          )
-        )
-      }
-
-      // We define an array of required column names (in Polish).
-      const requiredHeaders = [
-        'Grafik',
-        'Nr zlecenia',
-        'Nr klienta',
-        'Adres',
-        'Data instalacji',
-        'Godzina instalacji',
-        'Technik',
-        'Uwagi',
-      ] as const
-
-      // Compare each column name in a simple manner
-      for (let i = 0; i < requiredHeaders.length; i++) {
-        const expected = requiredHeaders[i].toLowerCase()
-        const actual = String(headerRow[i] || '')
-          .toLowerCase()
-          .trim()
-
-        if (!actual.includes(expected)) {
-          return reject(
-            new Error(
-              'Błędny format: plik nie zawiera wymaganych kolumn, sprawdź poprawność pliku.'
-            )
-          )
-        }
-      }
-
-      // The actual data rows come after the header
-      const rows = rawData.slice(1)
-      if (!rows.length) {
-        return reject(
-          new Error(
-            'Błędny format: plik Excel zawiera sam nagłówek, a brak jest danych.'
-          )
-        )
-      }
-
-      // Map each row to our OrderFormData
-      const parsed: OrderFormData[] = rows.map((row) => {
-        // 0: "Grafik" (MMP/V)
-        const operator = String(row[0] ?? '')
-          .trim()
-          .toUpperCase()
-
-        // 1: "Nr zlecenia"
-        const orderNumber = String(row[1] ?? '').trim() || 'BRAK_NUMERU'
-
-        // 2: "Nr klienta" (e.g. phone)
-        const clientNumber = String(row[2] ?? '').trim()
-
-        // 3: "Adres"
-        const address = String(row[3] ?? '').trim() || 'Brak lokalizacji'
-        const [city, postalCode, street] = parseAddress(address)
-
-        // 4: "Data instalacji"
-        const isoDate = parseExcelDateOrString(row[4])
-
-        // 5: "Godzina instalacji" (timeRange)
-        const timeRange = String(row[5] ?? '').trim()
-        let startTime = '08:00'
-        let endTime = '10:00'
-        if (timeRange.includes('-')) {
-          const [start, end] = timeRange.split('-')
-          startTime = (start ?? '').trim() || '00:00'
-          endTime = (end ?? '').trim() || '00:00'
-        }
-        const timeSlot: TimeSlot = determineTimeSlot(
-          operator,
-          startTime,
-          endTime
-        )
-        // 6: "Technik"
-        const assignedTech = String(row[6] ?? '').trim()
-        const assignedToId = parseTechnician(assignedTech)
-
-        // 7: "Uwagi" - optionally store in notes
-        const notes = String(row[7] ?? '').trim() || ''
-
-        return {
-          operator,
-          orderNumber,
-          type: 'INSTALATION',
-          city,
-          street,
-          postalCode,
-          date: isoDate,
-          timeSlot,
-          contractRequired: false,
-          assignedToId,
-          clientPhoneNumber: clientNumber,
-          status: 'PENDING',
-          equipmentNeeded: '',
-          notes: notes,
-        }
-      })
-
-      // All rows parsed OK => resolve
-      resolve(parsed)
+      if (!raw.length)
+        return reject(new Error('Błędny format: plik nie zawiera wierszy.'))
+      const [headerRow, ...rows] = raw
+      resolve({ headerRow, rows })
     }
-
     reader.onerror = () => reject(reader.error)
     reader.readAsBinaryString(file)
   })
 }
 
-/**
- * parseExcelDateOrString:
- * Converts "DD.MM.YYYY" to "YYYY-MM-DD".
- * If invalid or empty, returns "2000-01-01" as fallback.
- * If it's already a Date, we convert to ISO (YYYY-MM-DD).
- */
-function parseExcelDateOrString(cellVal: unknown): string {
-  // If the cellVal is a Date and is valid, convert it to YYYY-MM-DD
-  if (cellVal instanceof Date && !isNaN(cellVal.getTime())) {
-    return cellVal.toISOString().split('T')[0]
+/** Normalize header key: lowercase + trim + collapse spaces */
+function normalize(s: string): string {
+  return s.toLowerCase().trim().replace(/\s+/g, ' ')
+}
+
+/** Build map from normalized header → index */
+function buildHeaderIndexMap(headerRow: ExcelRow): Map<string, number> {
+  const map = new Map<string, number>()
+  headerRow.forEach((val, idx) => {
+    const key = normalize(String(val ?? ''))
+    if (key && !map.has(key)) map.set(key, idx)
+  })
+  return map
+}
+
+/** Find index by header fragment; throws if missing */
+function findIndexByLabel(map: Map<string, number>, needle: string): number {
+  const n = normalize(needle)
+  for (const [k, idx] of map.entries()) {
+    if (k.includes(n)) return idx
   }
-
-  // Otherwise, treat it as a string (including numbers, null => '')
-  const str = String(cellVal ?? '').trim()
-  const iso = convertDateDotFormat(str)
-  return iso || '2000-01-01'
+  throw new Error(`Brak wymaganej kolumny: "${needle}"`)
 }
 
-function convertDateDotFormat(dateStr: string): string | null {
-  // e.g. "15.03.2025" => ["15","03","2025"]
-  const parts = dateStr.split('.')
-  if (parts.length !== 3) return null
-  const [dd, mm, yyyy] = parts
-  if (!dd || !mm || !yyyy) return null
-  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
+/** Try find index, else return null */
+function safeIndexByLabel(
+  map: Map<string, number>,
+  needle: string
+): number | null {
+  try {
+    return findIndexByLabel(map, needle)
+  } catch {
+    return null
+  }
 }
 
-/**
- * Splits an address into [city, postalCode, street].
- */
+/** "Miasto 12-345, Ulica 1/2" → [city, postalCode, street] */
 function parseAddress(location: string): [string, string, string] {
-  // Podziel adres na dwie części – przed i po przecinku
   const parts = location.split(',', 2).map((s) => s.trim())
-  if (parts.length < 2) {
-    return [location, '', '']
-  }
-
-  // Pierwsza część: "Gdynia 81-185"
+  if (parts.length < 2) return [location, '', '']
   const cityPart = parts[0]
-  // Wzorzec: grupa z nazwą miasta (wszystko aż do ostatniej spacji) oraz grupa z kodem pocztowym
   const regex = /^(.*)\s+(\d{2}-\d{3})$/
   const match = cityPart.match(regex)
   let city = cityPart
@@ -224,44 +184,202 @@ function parseAddress(location: string): [string, string, string] {
     city = match[1]
     postalCode = match[2]
   }
-  // Druga część to reszta, czyli ulica z numerem
   const street = parts[1]
-
   return [city, postalCode, street]
 }
 
-/**
- * Infers an assignedTo ID if the string has (someId).
- */
-function parseTechnician(techStr: string): string | undefined {
-  if (!techStr) return undefined
-  const match = techStr.match(/\(([^)]+)\)/)
-  return match ? match[1] : undefined
+/** Accept Date or string "YYYY-MM-DD HH:mm", "DD.MM.YYYY HH:mm", Date -> {date, HH:MM} */
+function parseVisitWindow(
+  startCell: unknown,
+  endCell: unknown
+): { isoDate: string; startTime: string; endTime: string } {
+  const start = coerceToDate(startCell)
+  const end = coerceToDate(endCell)
+  if (start && end) {
+    return {
+      isoDate: start.toISOString().split('T')[0],
+      startTime: toHHMM(start),
+      endTime: toHHMM(end),
+    }
+  }
+  const startStr = String(startCell ?? '').trim()
+  const endStr = String(endCell ?? '').trim()
+  const { date: d1, time: t1 } = smartSplitDateTime(startStr)
+  const { time: t2 } = smartSplitDateTime(endStr)
+  return {
+    isoDate: d1 || '2000-01-01',
+    startTime: t1 || '00:00',
+    endTime: t2 || '00:00',
+  }
 }
 
-/**
- * Determines a TimeSlot from a start-end time range, based on operator 'V' or 'MMP'.
- */
-function determineTimeSlot(
-  operator: string,
-  start: string,
-  end: string
-): TimeSlot {
-  const range = `${start}-${end}`
+function coerceToDate(val: unknown): Date | null {
+  if (val instanceof Date && !isNaN(val.getTime())) return val
+  const s = String(val ?? '').trim()
+  if (!s) return null
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? null : d
+}
 
-  if (operator === 'V') {
-    if (range === '08:00-10:00') return 'EIGHT_TEN'
-    if (range === '10:00-12:00') return 'TEN_TWELVE'
-    if (range === '12:00-14:00') return 'TWELVE_FOURTEEN'
-    if (range === '14:00-16:00') return 'FOURTEEN_SIXTEEN'
-    if (range === '16:00-18:00') return 'SIXTEEN_EIGHTEEN'
-    if (range === '18:00-20:00') return 'EIGHTEEN_TWENTY'
-    return 'EIGHT_TEN'
-  } else {
-    if (range === '09:00-12:00') return 'NINE_TWELVE'
-    if (range === '12:00-15:00') return 'TWELVE_FIFTEEN'
-    if (range === '15:00-18:00') return 'FIFTEEN_EIGHTEEN'
-    if (range === '18:00-21:00') return 'EIGHTEEN_TWENTYONE'
-    return 'NINE_TWELVE'
+function toHHMM(d: Date): string {
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+function smartSplitDateTime(s: string): {
+  date: string | null
+  time: string | null
+} {
+  if (!s) return { date: null, time: null }
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::\d{2})?$/)
+  if (iso) return { date: iso[1], time: iso[2] }
+  const dot = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[ T](\d{2}):(\d{2})$/)
+  if (dot) {
+    const [, dd, mm, yyyy, HH, MM] = dot
+    return { date: `${yyyy}-${mm}-${dd}`, time: `${HH}:${MM}` }
   }
+  const onlyDateDot = convertDateDotFormat(s)
+  if (onlyDateDot) return { date: onlyDateDot, time: null }
+  const onlyTime = s.match(/^(\d{2}:\d{2})$/)?.[1] ?? null
+  return { date: null, time: onlyTime }
+}
+
+function convertDateDotFormat(dateStr: string): string | null {
+  const parts = dateStr.split('.')
+  if (parts.length !== 3) return null
+  const [dd, mm, yyyy] = parts
+  if (!dd || !mm || !yyyy) return null
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
+}
+
+/** Map external operator name → internal operator field */
+function mapOperator(raw: string): string {
+  const s = raw.trim().toUpperCase()
+  // Business mapping per request:
+  // p4 → PLAY, MMP → MULTIMEDIA, CSRT → VECTRA, POLKOMTEL → PLUS, TMOBILE → T-MOBILE,
+  // VECTRA BIZNES → BIZNES, empty → VECTRA
+  if (!s) return 'VECTRA'
+  if (s.includes('P4')) return 'PLAY'
+  if (s.includes('MMP')) return 'MULTIMEDIA'
+  if (s.includes('CSRT')) return 'VECTRA'
+  if (s.includes('POLKOMTEL')) return 'PLUS'
+  if (s.includes('TMOBILE') || s.includes('T-MOBILE')) return 'T-MOBILE'
+  if (s.includes('VECTRA BIZNES') || s.includes('BIZNES')) return 'BIZNES'
+  if (s.includes('VECTRA')) return 'VECTRA'
+  // Fallback (unknown) — safest default:
+  return 'VECTRA'
+}
+
+/** Map file's status text → OrderStatus enum (fallback PENDING) */
+function mapStatus(raw: string): OrderStatus {
+  const s = raw.trim().toLowerCase()
+  // Extend freely depending on your exports vocabulary.
+  if (!s) return 'PENDING'
+  if (['nowe', 'nowy', 'open', 'pending', 'oczekujące'].includes(s))
+    return 'PENDING'
+  if (['przypisane', 'przypisano'].includes(s)) return 'ASSIGNED'
+  if (
+    [
+      'w toku',
+      'in progress',
+      'progress',
+      'rozpoczęte',
+      'w drodze',
+      'w realizacji',
+    ].includes(s)
+  )
+    return 'IN_PROGRESS' as OrderStatus
+  if (
+    [
+      'zakończone',
+      'zrealizowane',
+      'zrealizowano',
+      'completed',
+      'done',
+      'skuteczne',
+    ].includes(s)
+  )
+    return 'COMPLETED'
+  if (['canseled', 'anulowano', 'anulowane', 'rejected'].includes(s))
+    return 'CANCELED'
+  if (
+    [
+      'niezrealizowane',
+      'niezrealizowano',
+      'nieskuteczne',
+      'nieskutecznie',
+      'failed',
+    ].includes(s)
+  )
+    return 'NOT_COMPLETED' as OrderStatus
+  // Unknown → default
+  return 'PENDING'
+}
+
+/** Extract *first* technician name from text (may contain groups, commas, IDs in parentheses). */
+function parseTechnicianName(techStr: string): string | undefined {
+  if (!techStr) return undefined
+  // Split by comma → take first person/group
+  let first = techStr.split(',')[0]?.trim() ?? ''
+  // Remove trailing "(id)" if present
+  first = first.replace(/\([^)]*\)\s*$/, '').trim()
+  return first || undefined
+}
+
+/** Convert "HH:MM-HH:MM" into TimeSlot; snap to closest defined if not exact. */
+function toTimeSlot(start: string, end: string): TimeSlot {
+  const key = `${start}-${end}`
+  const exact = SLOT_BY_RANGE[key]
+  if (exact) return exact
+
+  // Snap to the closest start-time among all declared ranges
+  const all = Object.keys(SLOT_BY_RANGE)
+  const toMin = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }
+  const sMin = toMin(start)
+  let bestKey = all[0]
+  let bestDiff = Math.abs(toMin(all[0].split('-')[0]) - sMin)
+  for (const k of all.slice(1)) {
+    const diff = Math.abs(toMin(k.split('-')[0]) - sMin)
+    if (diff < bestDiff) {
+      bestKey = k
+      bestDiff = diff
+    }
+  }
+  return SLOT_BY_RANGE[bestKey]
+}
+
+/** All legal ranges from your timeSlotOptions (must match Prisma enum). */
+const SLOT_BY_RANGE: Record<string, TimeSlot> = {
+  // 1 hour
+  '08:00-09:00': 'EIGHT_NINE',
+  '09:00-10:00': 'NINE_TEN',
+  '10:00-11:00': 'TEN_ELEVEN',
+  '11:00-12:00': 'ELEVEN_TWELVE',
+  '12:00-13:00': 'TWELVE_THIRTEEN',
+  '13:00-14:00': 'THIRTEEN_FOURTEEN',
+  '14:00-15:00': 'FOURTEEN_FIFTEEN',
+  '15:00-16:00': 'FIFTEEN_SIXTEEN',
+  '16:00-17:00': 'SIXTEEN_SEVENTEEN',
+  '17:00-18:00': 'SEVENTEEN_EIGHTEEN',
+  '18:00-19:00': 'EIGHTEEN_NINETEEN',
+  '19:00-20:00': 'NINETEEN_TWENTY',
+  '20:00-21:00': 'TWENTY_TWENTYONE',
+
+  // 2 hours
+  '08:00-10:00': 'EIGHT_TEN',
+  '10:00-12:00': 'TEN_TWELVE',
+  '12:00-14:00': 'TWELVE_FOURTEEN',
+  '14:00-16:00': 'FOURTEEN_SIXTEEN',
+  '16:00-18:00': 'SIXTEEN_EIGHTEEN',
+  '18:00-20:00': 'EIGHTEEN_TWENTY',
+
+  // 3 hours
+  '09:00-12:00': 'NINE_TWELVE',
+  '12:00-15:00': 'TWELVE_FIFTEEN',
+  '15:00-18:00': 'FIFTEEN_EIGHTEEN',
+  '18:00-21:00': 'EIGHTEEN_TWENTYONE',
 }

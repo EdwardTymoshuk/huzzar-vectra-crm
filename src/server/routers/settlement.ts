@@ -1,10 +1,10 @@
 import { prisma } from '@/utils/prisma'
-import { sortCodes } from '@/utils/sortCodes'
-import { writeTechnicianSummaryReport } from '@/utils/writeTechnicianSummaryReport'
+import { writeTechnicianSummaryReport } from '@/utils/reports/writeTechnicianSummaryReport'
 import {
   WorkCodeSummaryRow,
   writeWorkCodeExecutionReport,
-} from '@/utils/writeWorkCodeExecutionReport'
+} from '@/utils/reports/writeWorkCodeExecutionReport'
+import { sortCodes } from '@/utils/sortCodes'
 import { format } from 'date-fns'
 import { z } from 'zod'
 import { adminOrCoord, loggedInEveryone } from '../roleHelpers'
@@ -138,7 +138,7 @@ export const settlementRouter = router({
 
       // Import and use the Excel export util
       const { writeToBufferStyled } = await import(
-        '@/utils/writeToBufferStyled'
+        '@/utils/reports/writeToBufferStyled'
       )
       const filename = `Raport_rozliczen_${year}_${String(month).padStart(
         2,
@@ -298,7 +298,7 @@ export const settlementRouter = router({
       }))
 
       const { writeTechnicianReportExcel } = await import(
-        '@/utils/writeTechnicianReportExcel'
+        '@/utils/reports/writeTechnicianReportExcel'
       )
       const filename = `Raport_rozliczen_technika_${
         tech?.name || 'Nieznany'
@@ -491,7 +491,7 @@ export const settlementRouter = router({
     .input(z.object({ year: z.number().min(2020) }))
     .mutation(async ({ input }) => {
       const { writeInstallationTemplateFromDb } = await import(
-        '@/utils/writeInstallationTemplateFromDb'
+        '@/utils/reports/writeInstallationTemplateFromDb'
       )
       const buf = await writeInstallationTemplateFromDb(input.year)
       return buf.toString('base64')

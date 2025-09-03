@@ -1,3 +1,4 @@
+// src/app/.../ImportOrdersModal.tsx
 'use client'
 
 import { Button } from '@/app/components/ui/button'
@@ -8,14 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import { OrderFormData } from '@/types'
-import { parseUnifiedOrdersFromExcel } from '@/utils/excelParsers'
+import {
+  parseOrdersFromExcel,
+  type ParsedOrderFromExcel,
+} from '@/utils/excelParsers'
 import { trpc } from '@/utils/trpc'
-import { DragEvent, useState } from 'react'
+import { DragEvent, useMemo, useState } from 'react'
 import { MdFileUpload } from 'react-icons/md'
 import { toast } from 'sonner'
 
-// Allowed file extensions for Excel
 const ALLOWED_EXTENSIONS = ['xls', 'xlsx']
 
 interface ImportOrdersModalProps {
@@ -24,144 +26,151 @@ interface ImportOrdersModalProps {
 }
 
 /**
- * ImportOrdersModal component:
- * - Allows user to select an Excel file (drag & drop or click).
- * - Parses the file and uploads the orders to the database.
- * - Checks file type and required columns before proceeding.
+ * ImportOrdersModal:
+ * - Parses the new planner Excel format.
+ * - Resolves technician by NAME to user ID (active users).
+ * - Sends status, operator, timeSlot, and notes (with external client id).
  */
 const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   open,
   onClose,
 }) => {
-  // Stores the selected file from input or drag & drop
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  // Stores the parsed orders from the Excel file
-  const [orders, setOrders] = useState<OrderFormData[]>([])
-  // Manages the hover state when dragging over the drop zone
+  const [orders, setOrders] = useState<ParsedOrderFromExcel[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
 
   const utils = trpc.useUtils()
   const createOrderMutation = trpc.order.createOrder.useMutation()
 
-  /**
-   * Checks if the file has an allowed extension (.xls or .xlsx).
-   * Returns true if valid, false otherwise.
-   */
+  // Fetch active technicians to resolve names → IDs
+  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
+    status: 'ACTIVE',
+  })
+
+  /** Build a name → id map (case-insensitive) */
+  const techNameToId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of technicians) {
+      if (!t?.name || !t?.id) continue
+      map.set(t.name.trim().toLowerCase(), t.id)
+    }
+    return map
+  }, [technicians])
+
   const isExcelFile = (file: File) => {
-    const parts = file.name.split('.')
-    const ext = parts[parts.length - 1].toLowerCase()
-    return ALLOWED_EXTENSIONS.includes(ext)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    return !!ext && ALLOWED_EXTENSIONS.includes(ext)
   }
 
-  /**
-   * Called whenever the user selects a file via the <input type="file"/>.
-   * We validate file type, then parse it if it's valid.
-   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (!isExcelFile(file)) {
-        toast.error(
-          'Nieobsługiwany format pliku. Akceptowane są tylko pliki Excel (.xls, .xlsx).'
-        )
-        return
-      }
-      setSelectedFile(file)
-      parseExcelFile(file)
+    if (!file) return
+    if (!isExcelFile(file)) {
+      toast.error(
+        'Nieobsługiwany format pliku. Akceptowane są tylko .xls/.xlsx.'
+      )
+      return
     }
+    setSelectedFile(file)
+    parseExcelFile(file)
   }
 
-  /**
-   * Called when a file is dropped into the drop zone.
-   * We validate file type, then parse it if it's valid.
-   */
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragOver(false)
     const file = e.dataTransfer.files?.[0]
-    if (file) {
-      if (!isExcelFile(file)) {
-        toast.error(
-          'Nieobsługiwany format pliku. Akceptowane są tylko pliki Excel (.xls, .xlsx).'
-        )
-        return
-      }
-      setSelectedFile(file)
-      parseExcelFile(file)
+    if (!file) return
+    if (!isExcelFile(file)) {
+      toast.error(
+        'Nieobsługiwany format pliku. Akceptowane są tylko .xls/.xlsx.'
+      )
+      return
     }
+    setSelectedFile(file)
+    parseExcelFile(file)
   }
 
-  /**
-   * Uses our parser function to convert the Excel file into an array of orders.
-   * If any required columns are missing, we throw an error with a relevant message.
-   */
   const parseExcelFile = async (file: File) => {
     try {
-      const result = await parseUnifiedOrdersFromExcel(file)
+      const result = await parseOrdersFromExcel(file)
       setOrders(result)
-    } catch (error: unknown) {
-      // Then we narrow it down to 'Error' if possible.
-      console.error('Error parsing Excel file:', error)
-
-      if (error instanceof Error) {
-        // If it's an Error object, we can safely access 'error.message'
-        toast.error(error.message)
-      } else {
-        // Otherwise, we provide a fallback message
-        toast.error(
-          'Błąd podczas parsowania pliku Excel. Sprawdź poprawność formatu.'
-        )
-      }
+      toast.success(`Wczytano ${result.length} rekordów z pliku.`)
+    } catch (err) {
+      console.error('Error parsing Excel file:', err)
+      const msg =
+        err instanceof Error ? err.message : 'Błąd podczas parsowania pliku.'
+      toast.error(msg)
     }
   }
 
-  /**
-   * Uploads parsed orders to the database.
-   */
   const uploadOrders = async () => {
     if (!orders.length) {
-      toast.error(
-        'Brak danych do dodania. Upewnij się, że plik Excel jest prawidłowy.'
-      )
+      toast.error('Brak danych do dodania.')
       return
     }
 
     try {
-      // We batch-create orders in parallel
       const results = await Promise.allSettled(
-        orders.map((order) =>
-          createOrderMutation.mutateAsync({
-            ...order,
-            // If equipmentNeeded is a string, split it; otherwise use array or default
-            equipmentNeeded:
-              typeof order.equipmentNeeded === 'string'
-                ? order.equipmentNeeded.split(',').map((s) => s.trim())
-                : order.equipmentNeeded || [],
+        orders.map((o) => {
+          // Resolve assignedToId from name (if provided)
+          const assignedToId = o.assignedToName
+            ? techNameToId.get(o.assignedToName.trim().toLowerCase())
+            : undefined
+
+          // If technician name not found: keep unassigned, but append info to notes
+          const notes =
+            assignedToId || !o.assignedToName
+              ? o.notes
+              : `${
+                  o.notes ? o.notes + ' | ' : ''
+                }Technik (nieznaleziony po nazwie): ${o.assignedToName}`
+
+          // Build payload for createOrder (server zod expects arrays for equipmentNeeded)
+          return createOrderMutation.mutateAsync({
+            operator: o.operator,
+            type: o.type,
+            orderNumber: o.orderNumber,
+            date: o.date,
+            timeSlot: o.timeSlot,
+            contractRequired: false,
+            equipmentNeeded: [],
+            clientPhoneNumber: undefined, // not provided in new file; keep undefined
+            notes,
+            status: o.status,
+            county: undefined,
+            municipality: undefined,
+            city: o.city,
+            street: o.street,
+            postalCode: o.postalCode,
+            assignedToId: assignedToId, // may be undefined if not found
           })
-        )
+        })
       )
 
       const addedCount = results.filter((r) => r.status === 'fulfilled').length
       const duplicateCount = results.filter(
         (r) =>
           r.status === 'rejected' &&
-          (r as PromiseRejectedResult).reason.message.includes(
+          (r as PromiseRejectedResult).reason?.message?.includes(
             'Unique constraint failed'
           )
       ).length
 
       if (addedCount === 0) {
-        toast.warning('Wszystkie zlecenia z pliku już są dodane.')
+        toast.warning(
+          'Wszystkie zlecenia z pliku już istnieją lub wystąpiły błędy.'
+        )
       } else {
         toast.success(
-          `Dodano ${addedCount} zlecenie(a). Pominięto ${duplicateCount} duplikatów.`
+          `Dodano ${addedCount}. Pominięto duplikaty: ${duplicateCount}.`
         )
       }
+
       utils.order.getOrders.invalidate()
       onClose()
     } catch (error) {
       console.error('Error adding orders:', error)
-      toast.error('Wystąpił błąd podczas dodawania zleceń do systemu.')
+      toast.error('Wystąpił błąd podczas dodawania zleceń.')
     }
   }
 
@@ -171,11 +180,11 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         <DialogHeader>
           <DialogTitle>Wczytaj plik ze zleceniami</DialogTitle>
           <DialogDescription>
-            Przeciągnij plik Excel lub kliknij, aby wybrać z komputera.
+            Przeciągnij plik Excel lub kliknij, aby wybrać.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Drag & Drop area */}
+        {/* Drag & Drop */}
         <div
           onDrop={handleDrop}
           onDragOver={(e) => {
@@ -187,7 +196,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           onClick={() => document.getElementById('fileInput')?.click()}
         >
           <MdFileUpload className="text-5xl mx-auto text-gray-400" />
-
           <p className="mt-2 text-gray-500">
             {isDragOver
               ? 'Upuść plik tutaj'
@@ -196,7 +204,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
               : 'Przeciągnij plik lub kliknij tutaj'}
           </p>
 
-          {/* Hidden file input for fallback click */}
           <input
             id="fileInput"
             type="file"
@@ -206,7 +213,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           />
         </div>
 
-        {/* Button to upload parsed orders */}
         <Button
           className="w-full"
           disabled={!orders.length}
