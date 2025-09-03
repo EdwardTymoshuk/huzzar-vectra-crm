@@ -14,7 +14,7 @@ import {
   type ParsedOrderFromExcel,
 } from '@/utils/excelParsers'
 import { trpc } from '@/utils/trpc'
-import { DragEvent, useMemo, useState } from 'react'
+import { DragEvent, useState } from 'react'
 import { MdFileUpload } from 'react-icons/md'
 import { toast } from 'sonner'
 
@@ -25,12 +25,14 @@ interface ImportOrdersModalProps {
   onClose: () => void
 }
 
-/**
- * ImportOrdersModal:
- * - Parses the new planner Excel format.
- * - Resolves technician by NAME to user ID (active users).
- * - Sends status, operator, timeSlot, and notes (with external client id).
- */
+/** Normalize human names for robust matching. */
+const norm = (s: string) =>
+  s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\([^)]*\)\s*$/, '')
+
 const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   open,
   onClose,
@@ -41,21 +43,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
 
   const utils = trpc.useUtils()
   const createOrderMutation = trpc.order.createOrder.useMutation()
-
-  // Fetch active technicians to resolve names → IDs
-  const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
-    status: 'ACTIVE',
-  })
-
-  /** Build a name → id map (case-insensitive) */
-  const techNameToId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const t of technicians) {
-      if (!t?.name || !t?.id) continue
-      map.set(t.name.trim().toLowerCase(), t.id)
-    }
-    return map
-  }, [technicians])
 
   const isExcelFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -103,6 +90,46 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     }
   }
 
+  /**
+   * Resolve unique technician names to IDs via backend search endpoint.
+   * Returns a map: normalizedName -> userId (or undefined when not found).
+   */
+  const resolveTechniciansByName = async (
+    names: string[]
+  ): Promise<Map<string, string | undefined>> => {
+    const unique = Array.from(
+      new Set(names.map((n) => norm(n)).filter(Boolean))
+    )
+    const map = new Map<string, string | undefined>()
+
+    // Short-circuit when nothing to resolve
+    if (unique.length === 0) return map
+
+    // Fetch per name (keeps code simple & reliable; endpoint is fast and capped by limit)
+    await Promise.all(
+      unique.map(async (n) => {
+        try {
+          const results = await utils.user.searchTechniciansByName.fetch({
+            query: n,
+            limit: 5,
+          })
+          if (!results || results.length === 0) {
+            map.set(n, undefined)
+            return
+          }
+          // Prefer exact case-insensitive match after normalization, else take the first result
+          const exact = results.find((r) => norm(r.name) === n)
+          map.set(n, (exact ?? results[0]).id)
+        } catch (e) {
+          console.error('resolveTechniciansByName error for', n, e)
+          map.set(n, undefined)
+        }
+      })
+    )
+
+    return map
+  }
+
   const uploadOrders = async () => {
     if (!orders.length) {
       toast.error('Brak danych do dodania.')
@@ -110,22 +137,23 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     }
 
     try {
+      // Gather unique technician display names present in parsed rows
+      const namesToResolve = orders
+        .map((o) => o.assignedToName)
+        .filter((v): v is string => !!v)
+
+      const nameToIdMap = await resolveTechniciansByName(namesToResolve)
+
+      let unresolvedTechCount = 0
+
       const results = await Promise.allSettled(
         orders.map((o) => {
-          // Resolve assignedToId from name (if provided)
           const assignedToId = o.assignedToName
-            ? techNameToId.get(o.assignedToName.trim().toLowerCase())
+            ? nameToIdMap.get(norm(o.assignedToName))
             : undefined
+          if (!assignedToId && o.assignedToName) unresolvedTechCount++
 
-          // If technician name not found: keep unassigned, but append info to notes
-          const notes =
-            assignedToId || !o.assignedToName
-              ? o.notes
-              : `${
-                  o.notes ? o.notes + ' | ' : ''
-                }Technik (nieznaleziony po nazwie): ${o.assignedToName}`
-
-          // Build payload for createOrder (server zod expects arrays for equipmentNeeded)
+          // Payload — DO NOT append any technician info to notes
           return createOrderMutation.mutateAsync({
             operator: o.operator,
             type: o.type,
@@ -134,15 +162,15 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             timeSlot: o.timeSlot,
             contractRequired: false,
             equipmentNeeded: [],
-            clientPhoneNumber: undefined, // not provided in new file; keep undefined
-            notes,
+            clientPhoneNumber: undefined,
+            notes: o.notes, // only external client ID if provided by parser
             status: o.status,
             county: undefined,
             municipality: undefined,
             city: o.city,
             street: o.street,
             postalCode: o.postalCode,
-            assignedToId: assignedToId, // may be undefined if not found
+            assignedToId,
           })
         })
       )
@@ -156,13 +184,19 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           )
       ).length
 
-      if (addedCount === 0) {
+      if (addedCount > 0) {
+        toast.success(
+          `Dodano ${addedCount}. Pominięto duplikaty: ${duplicateCount}.`
+        )
+      } else {
         toast.warning(
           'Wszystkie zlecenia z pliku już istnieją lub wystąpiły błędy.'
         )
-      } else {
-        toast.success(
-          `Dodano ${addedCount}. Pominięto duplikaty: ${duplicateCount}.`
+      }
+
+      if (unresolvedTechCount > 0) {
+        toast.warning(
+          `Nie przypisano ${unresolvedTechCount} zleceń — nie znaleziono technika po nazwie.`
         )
       }
 
@@ -184,7 +218,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Drag & Drop */}
         <div
           onDrop={handleDrop}
           onDragOver={(e) => {
