@@ -13,6 +13,7 @@ import {
   parseOrdersFromExcel,
   type ParsedOrderFromExcel,
 } from '@/utils/excelParsers'
+import { normalizeName } from '@/utils/normalizeName'
 import { trpc } from '@/utils/trpc'
 import { DragEvent, useState } from 'react'
 import { MdFileUpload } from 'react-icons/md'
@@ -24,14 +25,6 @@ interface ImportOrdersModalProps {
   open: boolean
   onClose: () => void
 }
-
-/** Normalize human names for robust matching. */
-const norm = (s: string) =>
-  s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .replace(/\([^)]*\)\s*$/, '')
 
 const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   open,
@@ -98,7 +91,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     names: string[]
   ): Promise<Map<string, string | undefined>> => {
     const unique = Array.from(
-      new Set(names.map((n) => norm(n)).filter(Boolean))
+      new Set(names.map((n) => normalizeName(n)).filter(Boolean))
     )
     const map = new Map<string, string | undefined>()
 
@@ -118,7 +111,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             return
           }
           // Prefer exact case-insensitive match after normalization, else take the first result
-          const exact = results.find((r) => norm(r.name) === n)
+          const exact = results.find((r) => normalizeName(r.name) === n)
           map.set(n, (exact ?? results[0]).id)
         } catch (e) {
           console.error('resolveTechniciansByName error for', n, e)
@@ -135,7 +128,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
       toast.error('Brak danych do dodania.')
       return
     }
-
     try {
       // Gather unique technician display names present in parsed rows
       const namesToResolve = orders
@@ -149,11 +141,19 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
       const results = await Promise.allSettled(
         orders.map((o) => {
           const assignedToId = o.assignedToName
-            ? nameToIdMap.get(norm(o.assignedToName))
+            ? nameToIdMap.get(normalizeName(o.assignedToName))
             : undefined
-          if (!assignedToId && o.assignedToName) unresolvedTechCount++
 
-          // Payload — DO NOT append any technician info to notes
+          // Log missing match (only once per row)
+          if (!assignedToId && o.assignedToName) {
+            console.warn(
+              `Brak technika: "${o.assignedToName}" → ${normalizeName(
+                o.assignedToName
+              )} (brak dopasowania)`
+            )
+            unresolvedTechCount++
+          }
+
           return createOrderMutation.mutateAsync({
             operator: o.operator,
             type: o.type,
@@ -163,7 +163,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             contractRequired: false,
             equipmentNeeded: [],
             clientPhoneNumber: undefined,
-            notes: o.notes, // only external client ID if provided by parser
+            notes: o.notes,
             status: o.status,
             county: undefined,
             municipality: undefined,
