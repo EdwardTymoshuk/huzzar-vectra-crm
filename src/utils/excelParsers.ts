@@ -317,14 +317,25 @@ function mapStatus(raw: string): OrderStatus {
   return 'PENDING'
 }
 
-/** Extract *first* technician name from text (may contain groups, commas, IDs in parentheses). */
+/**
+ * Extract *first* technician name from text (may contain groups, commas, IDs in parentheses).
+ * Handles both "Imię Nazwisko" and "Nazwisko Imię (rola)" formats.
+ */
 function parseTechnicianName(techStr: string): string | undefined {
   if (!techStr) return undefined
   // Split by comma → take first person/group
   let first = techStr.split(',')[0]?.trim() ?? ''
-  // Remove trailing "(id)" if present
+  // Remove trailing "(Technik/Instalator)" or other roles
   first = first.replace(/\([^)]*\)\s*$/, '').trim()
-  return first || undefined
+  // Handle "Nazwisko Imię" → convert to "Imię Nazwisko" if two words detected
+  const nameParts = first.split(' ').filter(Boolean)
+  // If name has 2 parts, we assume "Nazwisko Imię" and reverse it
+  if (nameParts.length === 2) {
+    const [lastName, firstName] = nameParts
+    return `${firstName.toUpperCase()} ${lastName.toUpperCase()}`
+  }
+  // If already single word or more complex (e.g., "Anna Maria Kowalska"), return as-is (uppercase)
+  return first.toUpperCase()
 }
 
 /** Convert "HH:MM-HH:MM" into TimeSlot; snap to closest defined if not exact. */
