@@ -326,7 +326,7 @@ export function parseTechnicianName(techStr: string): string | undefined {
   if (!techStr) return undefined
 
   // Take only the first entry before comma
-  let first = techStr.split(',')[0] ?? ''
+  const first = techStr.split(',')[0] ?? ''
 
   return normalizeName(first)
 }
