@@ -1,4 +1,4 @@
-// src/app/.../ImportOrdersModal.tsx
+// src/app/admin-panel/components/ordes/ImportOrdersModal.tsx
 'use client'
 
 import { Button } from '@/app/components/ui/button'
@@ -13,7 +13,6 @@ import {
   parseOrdersFromExcel,
   type ParsedOrderFromExcel,
 } from '@/utils/excelParsers'
-import { normalizeName } from '@/utils/normalizeName'
 import { trpc } from '@/utils/trpc'
 import { DragEvent, useState } from 'react'
 import { MdFileUpload } from 'react-icons/md'
@@ -35,13 +34,16 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   const [isDragOver, setIsDragOver] = useState(false)
 
   const utils = trpc.useUtils()
-  const createOrderMutation = trpc.order.createOrder.useMutation()
+  // ✅ Single backend call that: resolves technicians, creates orders, returns summary
+  const importMutation = trpc.order.importParsedOrders.useMutation()
 
+  /** Check file extension against accepted Excel formats. */
   const isExcelFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
     return !!ext && ALLOWED_EXTENSIONS.includes(ext)
   }
 
+  /** Handle manual file selection. */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -55,6 +57,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     parseExcelFile(file)
   }
 
+  /** Handle drag & drop area. */
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragOver(false)
@@ -70,6 +73,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     parseExcelFile(file)
   }
 
+  /** Parse Excel on client — returns normalized orders ready for BE import. */
   const parseExcelFile = async (file: File) => {
     try {
       const result = await parseOrdersFromExcel(file)
@@ -83,128 +87,35 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     }
   }
 
-  /**
-   * Resolve unique technician names to IDs via backend search endpoint.
-   * Returns a map: normalizedName -> userId (or undefined when not found).
-   */
-  const resolveTechniciansByName = async (
-    names: string[]
-  ): Promise<Map<string, string | undefined>> => {
-    const unique = Array.from(
-      new Set(names.map((n) => normalizeName(n)).filter(Boolean))
-    )
-    const map = new Map<string, string | undefined>()
-
-    // Short-circuit when nothing to resolve
-    if (unique.length === 0) return map
-
-    // Fetch per name (keeps code simple & reliable; endpoint is fast and capped by limit)
-    await Promise.all(
-      unique.map(async (n) => {
-        try {
-          const results = await utils.user.searchTechniciansByName.fetch({
-            query: n,
-            limit: 5,
-          })
-          if (!results || results.length === 0) {
-            map.set(n, undefined)
-            return
-          }
-          // Prefer exact case-insensitive match after normalization, else take the first result
-          const exact = results.find((r) => normalizeName(r.name) === n)
-          map.set(n, (exact ?? results[0]).id)
-        } catch (e) {
-          console.error('resolveTechniciansByName error for', n, e)
-          map.set(n, undefined)
-        }
-      })
-    )
-
-    return map
-  }
-
+  /** Upload parsed orders — backend resolves technicians + creates orders. */
   const uploadOrders = async () => {
     if (!orders.length) {
       toast.error('Brak danych do dodania.')
       return
     }
     try {
-      // Gather unique technician display names present in parsed rows
-      const namesToResolve = orders
-        .map((o) => o.assignedToName)
-        .filter((v): v is string => !!v)
+      const res = await importMutation.mutateAsync({ orders })
+      const { created, duplicates, unresolved } = res
 
-      const nameToIdMap = await resolveTechniciansByName(namesToResolve)
-
-      let unresolvedTechCount = 0
-
-      const results = await Promise.allSettled(
-        orders.map((o) => {
-          const assignedToId = o.assignedToName
-            ? nameToIdMap.get(normalizeName(o.assignedToName))
-            : undefined
-
-          // Log missing match (only once per row)
-          if (!assignedToId && o.assignedToName) {
-            console.warn(
-              `Brak technika: "${o.assignedToName}" → ${normalizeName(
-                o.assignedToName
-              )} (brak dopasowania)`
-            )
-            unresolvedTechCount++
-          }
-
-          return createOrderMutation.mutateAsync({
-            operator: o.operator,
-            type: o.type,
-            orderNumber: o.orderNumber,
-            date: o.date,
-            timeSlot: o.timeSlot,
-            contractRequired: false,
-            equipmentNeeded: [],
-            clientPhoneNumber: undefined,
-            notes: o.notes,
-            status: o.status,
-            county: undefined,
-            municipality: undefined,
-            city: o.city,
-            street: o.street,
-            postalCode: o.postalCode,
-            assignedToId,
-          })
-        })
-      )
-
-      const addedCount = results.filter((r) => r.status === 'fulfilled').length
-      const duplicateCount = results.filter(
-        (r) =>
-          r.status === 'rejected' &&
-          (r as PromiseRejectedResult).reason?.message?.includes(
-            'Unique constraint failed'
-          )
-      ).length
-
-      if (addedCount > 0) {
-        toast.success(
-          `Dodano ${addedCount}. Pominięto duplikaty: ${duplicateCount}.`
-        )
+      if (created > 0) {
+        toast.success(`Dodano ${created}. Duplikaty: ${duplicates}.`)
       } else {
-        toast.warning(
-          'Wszystkie zlecenia z pliku już istnieją lub wystąpiły błędy.'
-        )
+        toast.warning(`Brak nowych zleceń. Duplikaty: ${duplicates}.`)
       }
 
-      if (unresolvedTechCount > 0) {
+      if (unresolved.length) {
+        // Log for debugging; optionally show in a dedicated UI
+        console.warn('Unresolved technicians:', unresolved)
         toast.warning(
-          `Nie przypisano ${unresolvedTechCount} zleceń — nie znaleziono technika po nazwie.`
+          `Nie przypisano ${unresolved.length} zleceń — brak dopasowania technika.`
         )
       }
 
       utils.order.getOrders.invalidate()
       onClose()
     } catch (error) {
-      console.error('Error adding orders:', error)
-      toast.error('Wystąpił błąd podczas dodawania zleceń.')
+      console.error('Error importing orders:', error)
+      toast.error('Wystąpił błąd podczas importu.')
     }
   }
 
@@ -248,10 +159,10 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
 
         <Button
           className="w-full"
-          disabled={!orders.length}
+          disabled={!orders.length || importMutation.isLoading}
           onClick={uploadOrders}
         >
-          Wczytaj do systemu
+          {importMutation.isLoading ? 'Importuję...' : 'Wczytaj do systemu'}
         </Button>
       </DialogContent>
     </Dialog>

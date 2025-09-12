@@ -1,26 +1,21 @@
 /**
- * Normalize a full name by:
- * - Removing role annotations like "(Technik)"
- * - Trimming spaces
- * - Lowercasing
- * - Reordering to "first last" regardless of input
- * - Sorting alphabetically to tolerate order
+ * normalizeName:
+ * - Remove "(...)" annotations (roles, groups)
+ * - Collapse whitespace, trim
+ * - Lowercase
+ * - Strip diacritics for robust matching
+ * - Split to tokens and sort alphabetically (order-insensitive)
  */
-export function normalizeName(raw: string): string {
+export const normalizeName = (raw: string): string => {
   if (!raw) return ''
-
   // Remove anything in parentheses
-  let cleaned = raw.replace(/\([^)]*\)/g, '')
-
-  // Remove multiple spaces and trim
-  cleaned = cleaned.replace(/\s+/g, ' ').trim()
-
-  // Lowercase and split
-  const parts = cleaned.toLowerCase().split(' ')
-
-  // Remove short garbage
-  const valid = parts.filter((p) => p.length > 1)
-
-  // Sort alphabetically so both "piotr gierszewski" and "gierszewski piotr" are equal
-  return valid.sort().join(' ')
+  let s = raw.replace(/\([^)]*\)/g, '')
+  // Collapse spaces
+  s = s.replace(/\s+/g, ' ').trim().toLowerCase()
+  // Strip diacritics (Ł -> l, ą -> a, etc.)
+  s = s.normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  // Tokenize and drop 1-letter noise
+  const tokens = s.split(' ').filter((t) => t.length > 1)
+  // Sort so "piotr gierszewski" === "gierszewski piotr"
+  return tokens.sort().join(' ')
 }
