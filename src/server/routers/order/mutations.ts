@@ -1,6 +1,6 @@
 import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { toUtcStartOfDay } from '@/utils/dates/toUtcStartOfDay'
+import { normalizeName } from '@/utils/normalizeName'
 import { prisma } from '@/utils/prisma'
 import {
   DeviceCategory,
@@ -148,7 +148,7 @@ export const mutationsRouter = router({
           operator: input.operator,
           type: input.type,
           orderNumber: input.orderNumber,
-          date: toUtcStartOfDay(input.date),
+          date: new Date(input.date),
           timeSlot: input.timeSlot,
           contractRequired: input.contractRequired,
           equipmentNeeded: input.equipmentNeeded ?? [],
@@ -199,7 +199,7 @@ export const mutationsRouter = router({
         where: { id: input.id },
         data: {
           orderNumber: input.orderNumber,
-          date: toUtcStartOfDay(input.date),
+          date: new Date(input.date),
           timeSlot: input.timeSlot,
           contractRequired: input.contractRequired,
           equipmentNeeded: input.equipmentNeeded ?? [],
@@ -925,5 +925,79 @@ export const mutationsRouter = router({
         })
       })
       return { success: true }
+    }),
+  importParsedOrders: adminOrCoord
+    .input(z.object({ orders: z.array(parsedOrderSchema) }))
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const orders = input.orders
+      if (orders.length === 0)
+        return { created: 0, duplicates: 0, unresolved: [] as string[] }
+
+      // 1) Fetch active technicians once
+      const technicians = await prisma.user.findMany({
+        where: { role: 'TECHNICIAN', status: 'ACTIVE' },
+        select: { id: true, name: true },
+      })
+
+      // 2) Build normalized lookup map
+      const techMap = new Map<string, string>()
+      for (const t of technicians) {
+        const key = normalizeName(t.name)
+        if (!techMap.has(key)) techMap.set(key, t.id)
+      }
+
+      // 3) Prepare payloads and unresolved
+      const unresolved: string[] = []
+      const payloads = orders.map((o) => {
+        let assignedToId: string | null = null
+        if (o.assignedToName) {
+          const key = normalizeName(o.assignedToName)
+          assignedToId = techMap.get(key) ?? null
+          if (!assignedToId) unresolved.push(o.assignedToName)
+        }
+        return {
+          operator: o.operator,
+          type: o.type,
+          orderNumber: o.orderNumber,
+          date: o.date,
+          timeSlot: o.timeSlot,
+          contractRequired: false,
+          equipmentNeeded: [],
+          clientPhoneNumber: null,
+          notes: o.notes,
+          status: o.status,
+          county: null,
+          municipality: null,
+          city: o.city,
+          street: o.street,
+          postalCode: o.postalCode,
+          assignedToId,
+        }
+      })
+
+      // 4) Create with duplicate counting
+      let created = 0
+      let duplicates = 0
+
+      await prisma.$transaction(async (tx) => {
+        for (const data of payloads) {
+          try {
+            await tx.order.create({ data })
+            created++
+          } catch (e) {
+            const msg = (e as Error).message || ''
+            if (msg.includes('Unique constraint failed')) {
+              duplicates++
+              continue
+            }
+            throw e
+          }
+        }
+      })
+
+      return { created, duplicates, unresolved }
     }),
 })
