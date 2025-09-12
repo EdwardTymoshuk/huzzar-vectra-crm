@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { trpc } from '@/utils/trpc'
 
 type Props = {

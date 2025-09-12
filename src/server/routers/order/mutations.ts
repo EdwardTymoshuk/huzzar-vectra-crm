@@ -1,5 +1,6 @@
 import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
+import { toUtcStartOfDay } from '@/utils/dates/toUtcStartOfDay'
 import { normalizeName } from '@/utils/normalizeName'
 import { prisma } from '@/utils/prisma'
 import {
@@ -94,7 +95,7 @@ const parsedOrderSchema = z.object({
   city: z.string(),
   street: z.string(),
   postalCode: z.string(),
-  date: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Wymagany format YYYY-MM-DD'),
   timeSlot: z.nativeEnum(TimeSlot),
   assignedToName: z.string().optional(),
   notes: z.string(),
@@ -148,7 +149,7 @@ export const mutationsRouter = router({
           operator: input.operator,
           type: input.type,
           orderNumber: input.orderNumber,
-          date: new Date(input.date),
+          date: toUtcStartOfDay(input.date),
           timeSlot: input.timeSlot,
           contractRequired: input.contractRequired,
           equipmentNeeded: input.equipmentNeeded ?? [],
@@ -199,7 +200,7 @@ export const mutationsRouter = router({
         where: { id: input.id },
         data: {
           orderNumber: input.orderNumber,
-          date: new Date(input.date),
+          date: toUtcStartOfDay(input.date),
           timeSlot: input.timeSlot,
           contractRequired: input.contractRequired,
           equipmentNeeded: input.equipmentNeeded ?? [],
@@ -962,7 +963,7 @@ export const mutationsRouter = router({
           operator: o.operator,
           type: o.type,
           orderNumber: o.orderNumber,
-          date: o.date,
+          date: toUtcStartOfDay(o.date),
           timeSlot: o.timeSlot,
           contractRequired: false,
           equipmentNeeded: [],

@@ -3,7 +3,7 @@
 import { Card } from '@/app/components/ui/card'
 import { Progress } from '@/app/components/ui/progress'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { buildDateParam } from '@/utils/buildDateParam'
+import { buildDateParam } from '@/utils/dates/buildDateParam'
 import { trpc } from '@/utils/trpc'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 
