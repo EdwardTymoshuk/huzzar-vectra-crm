@@ -100,7 +100,7 @@ const RowActionsDropdown = ({
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => onDelete(user)}>
-              <MdDelete className="mr-2 h-4 w-4 text-red-500" />
+              <MdDelete className="mr-2 h-4 w-4 text-danger" />
               Usuń na stałe
             </DropdownMenuItem>
           </>

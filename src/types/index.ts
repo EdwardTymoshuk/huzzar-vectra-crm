@@ -164,8 +164,8 @@ export type ServiceType = 'DTV' | 'NET' | 'TEL' | 'ATV'
 
 export type ActivatedService = {
   id: string
-  type: ServiceType // 'DTV' | 'INTERNET' | 'TEL' | 'ATV'
-  deviceType?: 'DECODER_1_WAY' | 'DECODER_2_WAY' | 'MODEM' | 'ROUTER'
+  type: ServiceType
+  deviceType?: DeviceCategory
   deviceId?: string
   serialNumber?: string
   deviceId2?: string

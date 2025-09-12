@@ -90,7 +90,7 @@ export const queriesRouter = router({
       return prisma.warehouse.findMany({
         where: {
           assignedToId: id,
-          status: { in: ['AVAILABLE', 'ASSIGNED', 'COLLECTED_FROM_CLIENT'] },
+          status: { in: ['AVAILABLE', 'ASSIGNED'] },
           ...(input.itemType ? { itemType: input.itemType } : {}),
           orderAssignments: {
             none: {},

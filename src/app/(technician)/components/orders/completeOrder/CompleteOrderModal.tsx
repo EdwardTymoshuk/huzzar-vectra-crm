@@ -19,35 +19,176 @@ import {
 } from '@/app/components/ui/select'
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
-import { devicesTypeMap, orderFailureReasons } from '@/lib/constants'
+import { devicesTypeMap } from '@/lib/constants'
 import { ActivatedService, IssuedItemDevice } from '@/types'
 import { getErrMessage } from '@/utils/errorHandler'
 import { getSettlementWorkCodes } from '@/utils/getSettlementWorkCodes'
+import { useRole } from '@/utils/roleHelpers/useRole'
 import { trpc } from '@/utils/trpc'
 import { genUUID } from '@/utils/uuid'
 import { DeviceCategory, Order, OrderStatus, OrderType } from '@prisma/client'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import DeviceSummaryRow from './DeviceSummaryRow'
+import FailureReasonSelect from './FailureReasonSelect'
 import { InstallationSection } from './InstallationSection'
 import MaterialSelector from './MaterialSelector'
-import { ServicesSection } from './ServicesSection'
+import ServicesSection from './ServicesSection'
+
+// TYPES
+
+type TechDeviceInput = {
+  id: string
+  name: string
+  serialNumber: string | null
+  category: DeviceCategory | null
+}
+
+type AssignedEquipmentInput = {
+  warehouseId?: string | null
+  warehouse?: {
+    id: string
+    name: string
+    serialNumber: string | null
+    category: DeviceCategory | null
+    status?: string | null
+  } | null
+}
+
+type ServiceDb = {
+  id?: string | null
+  type: ActivatedService['type']
+  deviceId?: string | null
+  serialNumber?: string | null
+  deviceId2?: string | null
+  serialNumber2?: string | null
+  usDbmDown?: number | null
+  usDbmUp?: number | null
+  usDbmConfirmed?: boolean | null
+  speedTest?: string | null
+  speedTestConfirmed?: boolean | null
+  notes?: string | null
+  deviceType?: ActivatedService['deviceType'] | null
+}
+
+type UsedMaterialDb = { materialId?: string | null; quantity?: number | null }
+
+type CollectedDeviceDb = {
+  id?: string | null
+  name?: string | null
+  category?: DeviceCategory | null
+  serialNumber?: string | null
+}
+
+type OrderExtras = {
+  services?: ServiceDb[]
+  usedMaterials?: UsedMaterialDb[]
+  collectedDevices?: CollectedDeviceDb[]
+  failureReason?: string | null
+  assignedEquipment?: AssignedEquipmentInput[]
+}
+
+// HELPERS
+
+const isIssuedItemDevice = (x: unknown): x is IssuedItemDevice =>
+  !!x &&
+  typeof x === 'object' &&
+  typeof (x as { id?: unknown }).id === 'string' &&
+  typeof (x as { name?: unknown }).name === 'string'
+
+const mapTechToIssued = (
+  src: readonly TechDeviceInput[] | undefined
+): IssuedItemDevice[] =>
+  (src ?? []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    serialNumber: d.serialNumber ?? '',
+    category: d.category ?? DeviceCategory.OTHER,
+    type: 'DEVICE',
+  }))
+
+const mapAssignedToIssued = (
+  src: readonly AssignedEquipmentInput[] | undefined
+): IssuedItemDevice[] =>
+  (src ?? []).flatMap((e) => {
+    const id = e.warehouse?.id ?? e.warehouseId ?? null
+    const name = e.warehouse?.name ?? null
+    if (!id || !name) return []
+    return [
+      {
+        id,
+        name,
+        serialNumber: e.warehouse?.serialNumber ?? '',
+        category: e.warehouse?.category ?? DeviceCategory.OTHER,
+        type: 'DEVICE' as const,
+      },
+    ]
+  })
+
+const normalizeServices = (
+  src: readonly ServiceDb[] | undefined
+): ActivatedService[] =>
+  (src ?? []).map((o) => ({
+    id: o.id ?? crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+    type: o.type,
+    deviceId: o.deviceId ?? undefined,
+    serialNumber: o.serialNumber ?? undefined,
+    deviceId2: o.deviceId2 ?? undefined,
+    serialNumber2: o.serialNumber2 ?? undefined,
+    usDbmDown: typeof o.usDbmDown === 'number' ? o.usDbmDown : undefined,
+    usDbmUp: typeof o.usDbmUp === 'number' ? o.usDbmUp : undefined,
+    usDbmConfirmed: o.usDbmConfirmed ?? undefined,
+    speedTest: o.speedTest ?? undefined,
+    speedTestConfirmed: o.speedTestConfirmed ?? undefined,
+    notes: o.notes ?? undefined,
+    deviceType: o.deviceType ?? undefined,
+  }))
+
+const normalizeMaterials = (
+  src: readonly UsedMaterialDb[] | undefined
+): { id: string; quantity: number }[] =>
+  (src ?? []).flatMap((m) =>
+    m.materialId && typeof m.quantity === 'number'
+      ? [{ id: m.materialId, quantity: m.quantity }]
+      : []
+  )
+
+const normalizeCollected = (
+  src: readonly CollectedDeviceDb[] | undefined
+): {
+  id: string
+  name: string
+  category: DeviceCategory
+  serialNumber: string
+}[] =>
+  (src ?? []).flatMap((d) => {
+    if (!d?.name || !d?.serialNumber) return []
+    return [
+      {
+        id: d.id ?? genUUID(),
+        name: d.name,
+        category: d.category ?? DeviceCategory.OTHER,
+        serialNumber: d.serialNumber,
+      },
+    ]
+  })
+
+// COMPONENT
 
 type Props = {
   open: boolean
   onCloseAction: () => void
   order: Order
   orderType: OrderType
+  mode?: 'complete' | 'amend'
 }
 
-/* -------------------------------------------------------------------------- */
-/*                           Complete Order Modal                             */
-/* -------------------------------------------------------------------------- */
 export const CompleteOrderModal = ({
   open,
   onCloseAction,
   order,
   orderType,
+  mode = 'complete',
 }: Props) => {
   /* ---------------- base/installation state ---------------- */
   const [status, setStatus] = useState<OrderStatus>('COMPLETED')
@@ -90,6 +231,8 @@ export const CompleteOrderModal = ({
   const [collectName, setCollectName] = useState('')
   const [collectSN, setCollectSN] = useState('')
 
+  const { isAdmin, isCoordinator } = useRole()
+
   const addCollected = () => {
     if (collectName.trim().length < 2) {
       toast.error('Podaj nazwę urządzenia.')
@@ -128,15 +271,89 @@ export const CompleteOrderModal = ({
   })
   const { data: workCodeDefs } = trpc.rateDefinition.getAllRates.useQuery()
 
-  /* stock devices for SerialScanInput */
-  const stockOptions = techDevices
-    .filter((d) => d.category)
-    .map((d) => ({
-      id: d.id,
-      name: d.name,
-      serialNumber: d.serialNumber,
-      category: d.category ?? 'OTHER',
-    }))
+  /* ---------------- merge stock + already-assigned ---------------- */
+  const oExtra: Order & OrderExtras = order as Order & OrderExtras
+
+  const prevAssignedIds = useMemo<string[]>(
+    () =>
+      (oExtra.assignedEquipment ?? [])
+        .map((e) => e.warehouse?.id ?? e.warehouseId ?? undefined)
+        .filter((x): x is string => typeof x === 'string'),
+    [oExtra.assignedEquipment]
+  )
+
+  const collectedFromAssigned = useMemo(
+    () =>
+      (oExtra.assignedEquipment ?? []).flatMap((e) => {
+        const w = e.warehouse
+        if (
+          w?.status === 'COLLECTED_FROM_CLIENT' &&
+          w?.name &&
+          w?.serialNumber
+        ) {
+          return [
+            {
+              id: genUUID(),
+              name: w.name,
+              category: w.category ?? DeviceCategory.OTHER,
+              serialNumber: w.serialNumber.toUpperCase(),
+            },
+          ]
+        }
+        return []
+      }),
+    [oExtra.assignedEquipment]
+  )
+
+  const stockOptions = useMemo<IssuedItemDevice[]>(() => {
+    const fromTech = mapTechToIssued(techDevices as TechDeviceInput[])
+    const fromAssigned = mapAssignedToIssued(oExtra.assignedEquipment)
+    const map = new Map<string, IssuedItemDevice>()
+    for (const d of [...fromTech, ...fromAssigned]) map.set(d.id, d)
+    return Array.from(map.values())
+  }, [techDevices, oExtra.assignedEquipment])
+
+  /* ---------------- amend prefill (from getOrderById) ---------------- */
+  useEffect(() => {
+    if (mode !== 'amend') return
+    setStatus(order.status ?? 'COMPLETED')
+    setNotes(order.notes ?? '')
+    setFailureReason(oExtra.failureReason ?? '')
+
+    setActivatedServices(normalizeServices(oExtra.services))
+    setMaterials(normalizeMaterials(oExtra.usedMaterials))
+
+    const normCollected = normalizeCollected(oExtra.collectedDevices)
+    if (normCollected.length > 0) {
+      setCollected(normCollected)
+      setCollectEnabled(true)
+    } else if (collectedFromAssigned.length > 0) {
+      setCollected(collectedFromAssigned)
+      setCollectEnabled(true)
+    } else {
+      setCollected([])
+      setCollectEnabled(false)
+    }
+
+    if (orderType !== 'INSTALATION') {
+      const hadIssued = (oExtra.assignedEquipment?.length ?? 0) > 0
+      setUsedEnabled(hadIssued)
+      setSelectedDevices([])
+    } else {
+      setUsedEnabled(false)
+      setSelectedDevices([])
+    }
+  }, [
+    mode,
+    order,
+    orderType,
+    oExtra.failureReason,
+    oExtra.services,
+    oExtra.usedMaterials,
+    oExtra.collectedDevices,
+    oExtra.assignedEquipment,
+    collectedFromAssigned,
+  ])
 
   /* ---------------- validation + submit ---------------- */
   const validate = () => {
@@ -149,16 +366,15 @@ export const CompleteOrderModal = ({
       return false
     }
 
-    if (
-      status === 'COMPLETED' &&
-      orderType !== 'INSTALATION' &&
-      usedEnabled &&
-      selectedDevices.length === 0
-    ) {
-      toast.error(
-        'Dodaj przynajmniej jedno urządzenie z magazynu albo wyłącz przełącznik „Wydanie urządzeń”.'
-      )
-      return false
+    if (status === 'COMPLETED' && orderType !== 'INSTALATION' && usedEnabled) {
+      const hasNew = selectedDevices.length > 0
+      const hadPrev = prevAssignedIds.length > 0
+      if (!hasNew && !hadPrev) {
+        toast.error(
+          'Dodaj przynajmniej jedno urządzenie z magazynu albo wyłącz przełącznik „Wydanie urządzeń”.'
+        )
+        return false
+      }
     }
 
     if (collectEnabled && collected.length === 0) {
@@ -175,32 +391,64 @@ export const CompleteOrderModal = ({
     return true
   }
 
-  const mutation = trpc.order.completeOrder.useMutation({
+  /* ---------------- mutations ---------------- */
+  const techAmendMutation = trpc.order.amendCompletion.useMutation({
     onSuccess: () => {
       toast.success('Zlecenie zostało zaktualizowane.')
       onCloseAction()
     },
-    onError: (err) => {
-      toast.error('Błąd zapisu zlecenia.', {
-        description: getErrMessage(err),
-      })
-    },
+    onError: (err) =>
+      toast.error('Błąd zapisu zlecenia.', { description: getErrMessage(err) }),
   })
+
+  const adminAmendMutation = trpc.order.adminEditCompletion.useMutation({
+    onSuccess: () => {
+      toast.success('Zlecenie zostało zaktualizowane.')
+      onCloseAction()
+    },
+    onError: (err) =>
+      toast.error('Błąd zapisu zlecenia.', { description: getErrMessage(err) }),
+  })
+
+  const completeMutation = trpc.order.completeOrder.useMutation({
+    onSuccess: (data) => {
+      if (data?.warnings?.length) data.warnings.forEach((w) => toast.warning(w))
+      toast.success('Zlecenie zostało zakończone.')
+      onCloseAction()
+    },
+    onError: (err) =>
+      toast.error('Błąd zapisu zlecenia.', { description: getErrMessage(err) }),
+  })
+
+  const mutation =
+    mode === 'amend'
+      ? isAdmin || isCoordinator
+        ? adminAmendMutation
+        : techAmendMutation
+      : completeMutation
 
   const submit = () => {
     if (!validate()) return
 
-    const equipmentIds =
-      orderType === 'INSTALATION'
-        ? (activatedServices
-            .flatMap((s) => [s.deviceId, s.deviceId2])
-            .filter(Boolean) as string[])
-        : usedEnabled
-        ? selectedDevices.map((d) => d.id)
-        : []
+    let equipmentIds: string[] = []
+
+    if (status === 'COMPLETED') {
+      if (orderType === 'INSTALATION') {
+        equipmentIds = activatedServices
+          .flatMap((s) => [s.deviceId, s.deviceId2])
+          .filter((x): x is string => typeof x === 'string')
+      } else if (usedEnabled) {
+        equipmentIds =
+          mode === 'amend'
+            ? selectedDevices.length > 0
+              ? selectedDevices.map((d) => d.id)
+              : prevAssignedIds
+            : selectedDevices.map((d) => d.id)
+      }
+    }
 
     const workCodes =
-      orderType === 'INSTALATION'
+      status === 'COMPLETED' && orderType === 'INSTALATION'
         ? getSettlementWorkCodes(activatedServices, workCodeDefs ?? [], install)
         : undefined
 
@@ -213,16 +461,18 @@ export const CompleteOrderModal = ({
       equipmentIds,
       usedMaterials: materials,
       collectedDevices: collectEnabled ? collected : [],
-      services: Array.isArray(activatedServices) ? activatedServices : [],
+      services: activatedServices,
     })
   }
 
   /* ---------------- render ---------------- */
   return (
-    <Dialog open={open} onOpenChange={onCloseAction}>
+    <Dialog open={open} onOpenChange={(next) => !next && onCloseAction()}>
       <DialogContent className="max-w-lg md:max-w-2xl w-[95vw] flex flex-col gap-4">
         <DialogHeader>
-          <DialogTitle>Zakończ zlecenie</DialogTitle>
+          <DialogTitle>
+            {mode === 'amend' ? 'Edytuj / uzupełnij odpis' : 'Zakończ zlecenie'}
+          </DialogTitle>
         </DialogHeader>
 
         {/* ---------------- STATUS toggle ---------------- */}
@@ -247,7 +497,6 @@ export const CompleteOrderModal = ({
             <div className="animate-pulse h-12 bg-muted rounded" />
           ) : (
             <>
-              {/* INSTALLATION sections */}
               {orderType === 'INSTALATION' && (
                 <>
                   <h4 className="font-semibold">Uruchomione usługi</h4>
@@ -256,6 +505,7 @@ export const CompleteOrderModal = ({
                     devices={stockOptions}
                     value={activatedServices}
                     onChangeAction={setActivatedServices}
+                    mode={mode}
                   />
                   <h4 className="font-semibold">Instalacja</h4>
                   <InstallationSection
@@ -266,7 +516,6 @@ export const CompleteOrderModal = ({
                 </>
               )}
 
-              {/* Devices from stock — only for serwisu/awarii */}
               {orderType !== 'INSTALATION' && (
                 <div className="pt-4 space-y-2">
                   <div className="flex items-center gap-3">
@@ -288,7 +537,9 @@ export const CompleteOrderModal = ({
                       <h4 className="font-semibold">Urządzenia wydane</h4>
                       <SerialScanInput
                         devices={stockOptions}
-                        onAddDevice={handleAddStockDevice}
+                        onAddDevice={(dev: unknown) => {
+                          if (isIssuedItemDevice(dev)) handleAddStockDevice(dev)
+                        }}
                         variant="block"
                       />
                       {selectedDevices.map((d) => (
@@ -298,12 +549,16 @@ export const CompleteOrderModal = ({
                           onRemove={handleRemoveStockDevice}
                         />
                       ))}
+                      {selectedDevices.length === 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Brak dodanych urządzeń.
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
               )}
 
-              {/* Toggle + collected */}
               <div className="pt-4 space-y-2">
                 <div className="flex items-center gap-3">
                   <Switch
@@ -318,7 +573,6 @@ export const CompleteOrderModal = ({
 
                 {collectEnabled && (
                   <>
-                    {/* mini-form */}
                     <div className="flex flex-col md:flex-row gap-2">
                       <Select
                         value={collectCat}
@@ -342,7 +596,7 @@ export const CompleteOrderModal = ({
                         placeholder="Nazwa urządzenia"
                         value={collectName}
                         onChange={(e) => setCollectName(e.target.value)}
-                        className="flex-1"
+                        className="flex-1 [text-transform:uppercase]"
                       />
                       <Input
                         placeholder="Numer seryjny"
@@ -358,7 +612,6 @@ export const CompleteOrderModal = ({
                       </Button>
                     </div>
 
-                    {/* list */}
                     {collected.map((d) => (
                       <DeviceSummaryRow
                         key={d.id}
@@ -372,11 +625,15 @@ export const CompleteOrderModal = ({
                         onRemove={() => removeCollected(d.id)}
                       />
                     ))}
+                    {collected.length === 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Brak odebranych urządzeń.
+                      </div>
+                    )}
                   </>
                 )}
               </div>
 
-              {/* Materials */}
               <h4 className="font-semibold mt-4">Zużyty materiał</h4>
               <MaterialSelector
                 selected={materials}
@@ -387,22 +644,12 @@ export const CompleteOrderModal = ({
             </>
           )
         ) : (
-          /* ================  NOT COMPLETED  ================ */
-          <Select value={failureReason} onValueChange={setFailureReason}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Wybierz powód niewykonania" />
-            </SelectTrigger>
-            <SelectContent>
-              {orderFailureReasons.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {r}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FailureReasonSelect
+            value={failureReason}
+            onChange={setFailureReason}
+          />
         )}
 
-        {/* Notes */}
         <Textarea
           placeholder="Uwagi (opcjonalnie)"
           value={notes}
@@ -411,7 +658,11 @@ export const CompleteOrderModal = ({
 
         <DialogFooter>
           <Button onClick={submit} disabled={mutation.isLoading}>
-            {mutation.isLoading ? 'Zapisywanie...' : 'Zapisz i zakończ'}
+            {mutation.isLoading
+              ? 'Zapisywanie...'
+              : mode === 'amend'
+              ? 'Zapisz zmiany'
+              : 'Zapisz i zakończ'}
           </Button>
         </DialogFooter>
       </DialogContent>

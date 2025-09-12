@@ -36,7 +36,7 @@ const DeviceSummaryRow = ({
       <CardContent className="flex flex-col gap-2 py-3">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="font-semibold">
+            <span className="font-semibold uppercase">
               {/* Only label if no device name */}
               {!device.name
                 ? label ?? ''

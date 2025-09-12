@@ -27,7 +27,7 @@ interface Props {
 const SerialScanInput = ({
   onAddDevice,
   devices = [],
-  validStatuses,
+  validStatuses = ['AVAILABLE', 'ASSIGNED'],
   variant = 'inline',
   isDeviceUsed,
 }: Props) => {

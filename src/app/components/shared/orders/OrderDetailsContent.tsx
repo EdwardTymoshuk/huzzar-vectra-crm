@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 /*  OrderDetailsContent – read-only block for presenting order details        */
 /*  – No transfer / mutation logic inside                                     */
-/*  – Props:                                                                 */
+/*  – Props:                                                                  */
 /*      • order – full object (shape = getOrderById)                          */
 /*      • hideTechnician – when true, hides the “Technik” row (technician UI) */
 /* -------------------------------------------------------------------------- */
@@ -17,6 +17,7 @@ import {
 } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { DeviceCategory, OrderStatus, Prisma, TimeSlot } from '@prisma/client'
+import React from 'react'
 
 /* exact payload returned by getOrderById */
 export type OrderWithDetails = Prisma.OrderGetPayload<{
@@ -37,7 +38,7 @@ type Props = {
 /* -------------------------------------------------------------------------- */
 
 const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
-  /* ---------- destructure order ---------- */
+  // Destructure order (read-only view model)
   const {
     orderNumber,
     city,
@@ -57,6 +58,7 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
     notes,
   } = order
 
+  // Split equipment into issued vs collected
   const issued = assignedEquipment.filter(
     (e) => e.warehouse.status !== 'COLLECTED_FROM_CLIENT'
   )
@@ -64,10 +66,9 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
     (e) => e.warehouse.status === 'COLLECTED_FROM_CLIENT'
   )
 
-  // services that have no deviceId → e.g. ATV, TEL
+  // Services without device link (e.g., ATV, TEL)
   const standalone = services.filter((s) => !s.deviceId)
 
-  /* ---------- render ---------- */
   return (
     <div className="space-y-6 text-sm">
       {/* ===== Header ===== */}
@@ -81,23 +82,22 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
           label="Slot czasowy"
           value={getTimeSlotLabel(timeSlot as TimeSlot)}
         />
-        <p>
-          <span className="font-semibold">Status:</span>{' '}
-          <Badge className={statusColorMap[status] + ' w-fit'}>
-            {statusMap[status]}
-          </Badge>
-        </p>
+        <HeaderRow
+          label="Status"
+          value={
+            <Badge className={statusColorMap[status] + ' w-fit'}>
+              {statusMap[status]}
+            </Badge>
+          }
+        />
         {!hideTechnician && (
-          <p>
-            <span className="font-semibold">Technik:</span>{' '}
-            {assignedTo?.name || 'Nieznany'}
-          </p>
+          <HeaderRow label="Technik" value={assignedTo?.name || 'Nieznany'} />
         )}
         {closedAt && (
-          <p>
-            <span className="font-semibold">Data zakończenia:</span>{' '}
-            {new Date(closedAt).toLocaleString()}
-          </p>
+          <HeaderRow
+            label="Data zakończenia"
+            value={new Date(closedAt).toLocaleString()}
+          />
         )}
       </div>
 
@@ -172,12 +172,13 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
         })}
       />
 
+      {/* ===== Additional standalone services ===== */}
       {standalone.length > 0 && (
         <Section
           title="Dodatkowe usługi"
           list={standalone.map((s) => {
-            // human-readable label (można zrobić mapę, tu najkrócej):
-            const label = s.type === 'ATV' ? 'ATV' : ''
+            const label =
+              s.type === 'ATV' ? 'ATV' : s.type === 'TEL' ? 'TEL' : s.type
             return s.notes ? `${label}: ${s.notes}` : label
           })}
         />
@@ -197,6 +198,7 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
 export default OrderDetailsContent
 
 /* Utility section component ------------------------------------------------- */
+// Renders a titled list; shows a dash when the list is empty.
 const Section = ({ title, list }: { title: string; list: string[] }) => (
   <section className="pt-4 border-t border-border space-y-1">
     <h4 className="font-semibold">{title}</h4>
@@ -212,9 +214,17 @@ const Section = ({ title, list }: { title: string; list: string[] }) => (
   </section>
 )
 
-/* ----------HeaderRow helper---------- */
-const HeaderRow = ({ label, value }: { label: string; value: string }) => (
-  <p>
-    <span className="font-semibold">{label}:</span> {value}
-  </p>
+/* HeaderRow helper ---------------------------------------------------------- */
+// Use <div> instead of <p> so that block elements (e.g. Badge) are valid children.
+const HeaderRow = ({
+  label,
+  value,
+}: {
+  label: string
+  value: React.ReactNode
+}) => (
+  <div className="flex items-center gap-2">
+    <span className="font-semibold">{label}:</span>
+    <span className="inline-flex items-center">{value}</span>
+  </div>
 )
