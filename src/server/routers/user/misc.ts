@@ -51,37 +51,37 @@ export const miscUserRouter = router({
       })
     ),
   /** Search technician(s) by name (case-insensitive, normalized) */
-  // searchTechniciansByName: adminCoordOrWarehouse
-  //   .input(
-  //     z.object({
-  //       query: z.string().min(1),
-  //       limit: z.number().min(1).max(50).optional().default(10),
-  //     })
-  //   )
-  //   .query(async ({ input }) => {
-  //     // Normalize: trim, collapse spaces, remove trailing "(...)" from query
-  //     const cleaned = input.query
-  //       .trim()
-  //       .replace(/\s+/g, ' ')
-  //       .replace(/\([^)]*\)\s*$/, '')
+  searchTechniciansByName: adminCoordOrWarehouse
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(50).optional().default(10),
+      })
+    )
+    .query(async ({ input }) => {
+      // Normalize: trim, collapse spaces, remove trailing "(...)" from query
+      const cleaned = input.query
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/\([^)]*\)\s*$/, '')
 
-  //     return prisma.user.findMany({
-  //       where: {
-  //         role: 'TECHNICIAN',
-  //         name: {
-  //           contains: cleaned,
-  //           mode: 'insensitive',
-  //         },
-  //       },
-  //       orderBy: { name: 'asc' },
-  //       take: input.limit,
-  //       select: {
-  //         id: true,
-  //         name: true,
-  //         status: true,
-  //         phoneNumber: true,
-  //         email: true,
-  //       },
-  //     })
-  //   }),
+      return prisma.user.findMany({
+        where: {
+          role: 'TECHNICIAN',
+          name: {
+            contains: cleaned,
+            mode: 'insensitive',
+          },
+        },
+        orderBy: { name: 'asc' },
+        take: input.limit,
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          phoneNumber: true,
+          email: true,
+        },
+      })
+    }),
 })
