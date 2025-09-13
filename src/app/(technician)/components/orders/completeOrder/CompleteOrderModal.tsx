@@ -86,6 +86,7 @@ type OrderExtras = {
   collectedDevices?: CollectedDeviceDb[]
   failureReason?: string | null
   assignedEquipment?: AssignedEquipmentInput[]
+  settlementEntries?: { code: string; quantity: number }[]
 }
 
 // HELPERS
@@ -274,6 +275,30 @@ export const CompleteOrderModal = ({
   /* ---------------- merge stock + already-assigned ---------------- */
   const oExtra: Order & OrderExtras = order as Order & OrderExtras
 
+  const extractInstallFromSettlement = (
+    entries: { code: string; quantity: number }[] = [],
+    rates: { code: string }[] = []
+  ) => {
+    const lower = (s: string) => s?.toLowerCase?.() ?? ''
+    const findCode = (needle: string) =>
+      rates.find((r) => lower(r.code).includes(needle))?.code
+
+    const pionCode = findCode('pion')
+    const listwaCode = findCode('listw')
+
+    const pion =
+      (pionCode
+        ? entries.find((e) => e.code === pionCode)?.quantity
+        : entries.find((e) => lower(e.code).includes('pion'))?.quantity) ?? 0
+
+    const listwa =
+      (listwaCode
+        ? entries.find((e) => e.code === listwaCode)?.quantity
+        : entries.find((e) => lower(e.code).includes('listw'))?.quantity) ?? 0
+
+    return { pion, listwa }
+  }
+
   const prevAssignedIds = useMemo<string[]>(
     () =>
       (oExtra.assignedEquipment ?? [])
@@ -320,6 +345,13 @@ export const CompleteOrderModal = ({
     setNotes(order.notes ?? '')
     setFailureReason(oExtra.failureReason ?? '')
 
+    const entries = (oExtra.settlementEntries ?? []).map(
+      ({ code, quantity }) => ({ code, quantity })
+    )
+    const { pion, listwa } = extractInstallFromSettlement(entries, workCodeDefs)
+
+    setInstall({ pion, listwa })
+
     setActivatedServices(normalizeServices(oExtra.services))
     setMaterials(normalizeMaterials(oExtra.usedMaterials))
 
@@ -353,6 +385,7 @@ export const CompleteOrderModal = ({
     oExtra.collectedDevices,
     oExtra.assignedEquipment,
     collectedFromAssigned,
+    workCodeDefs,
   ])
 
   /* ---------------- validation + submit ---------------- */
