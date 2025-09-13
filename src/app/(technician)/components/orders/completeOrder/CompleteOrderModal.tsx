@@ -357,21 +357,25 @@ export const CompleteOrderModal = ({
 
   /* ---------------- validation + submit ---------------- */
   const validate = () => {
-    if (
-      status === 'COMPLETED' &&
-      orderType === 'INSTALATION' &&
-      activatedServices.length === 0
-    ) {
+    if (status === OrderStatus.NOT_COMPLETED) {
+      if (!failureReason) {
+        toast.error('Wybierz powód niewykonania.')
+        return false
+      }
+      return true
+    }
+
+    if (orderType === OrderType.INSTALATION && activatedServices.length === 0) {
       toast.error('Dodaj przynajmniej jedną usługę.')
       return false
     }
 
-    if (status === 'COMPLETED' && orderType !== 'INSTALATION' && usedEnabled) {
+    if (orderType !== OrderType.INSTALATION && usedEnabled) {
       const hasNew = selectedDevices.length > 0
-      const hadPrev = prevAssignedIds.length > 0
+      const hadPrev = (oExtra.assignedEquipment?.length ?? 0) > 0
       if (!hasNew && !hadPrev) {
         toast.error(
-          'Dodaj przynajmniej jedno urządzenie z magazynu albo wyłącz przełącznik „Wydanie urządzeń”.'
+          'Dodaj przynajmniej jedno urządzenie z magazynu albo wyłącz „Wydanie urządzeń”.'
         )
         return false
       }
@@ -384,10 +388,52 @@ export const CompleteOrderModal = ({
       return false
     }
 
-    if (status === 'NOT_COMPLETED' && !failureReason) {
-      toast.error('Wybierz powód niewykonania.')
-      return false
+    const tmobile =
+      order.operator
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '')
+        .includes('TMOBILE') || order.operator === 'TMPL'
+
+    for (const s of activatedServices) {
+      if (s.type === 'DTV') {
+        if (!s.deviceId && !s.serialNumber) {
+          toast.error('DTV: dodaj dekoder (wymagany nr seryjny).')
+          return false
+        }
+        const isTwoWay = s.deviceType === 'DECODER_2_WAY'
+        if (isTwoWay) {
+          if (s.usDbmDown === undefined || s.usDbmUp === undefined) {
+            toast.error(
+              'DTV: wprowadź DS i US (przycisk „Dodaj” nie jest wymagany).'
+            )
+            return false
+          }
+        }
+      }
+
+      if (s.type === 'NET') {
+        if (!s.deviceId && !s.serialNumber) {
+          toast.error('NET: dodaj Modem/ONT (wymagany nr seryjny).')
+          return false
+        }
+        if (tmobile && !s.deviceId2 && !s.serialNumber2) {
+          toast.error('NET (T-Mobile): dodaj Router.')
+          return false
+        }
+        if (
+          s.usDbmDown === undefined ||
+          s.usDbmUp === undefined ||
+          !s.speedTest
+        ) {
+          toast.error(
+            'NET: wprowadź DS/US oraz Speedtest (przycisk „Dodaj” nie jest wymagany).'
+          )
+          return false
+        }
+      }
     }
+
     return true
   }
 

@@ -259,11 +259,6 @@ const ServicesSection: React.FC<Props> = ({
                       <Button
                         variant="outline"
                         onClick={() => {
-                          patch(svc.id, {
-                            usDbmDown: svc.usDbmDown,
-                            usDbmUp: svc.usDbmUp,
-                            usDbmConfirmed: true,
-                          })
                           setEditDtv((st) => ({ ...st, [svc.id]: false }))
                         }}
                       >
@@ -298,7 +293,6 @@ const ServicesSection: React.FC<Props> = ({
                       }
                 }
                 extra={
-                  // show metrics row when 2-way or any metric present
                   showDtvExtra ? (
                     <div className="text-sm text-muted-foreground mt-1">
                       DS: {svc.usDbmDown ?? '—'} dBm | US: {svc.usDbmUp ?? '—'}{' '}
@@ -319,7 +313,11 @@ const ServicesSection: React.FC<Props> = ({
                       : '—'
                     : undefined
                 }
-                onEdit={() => setEditDtv((st) => ({ ...st, [svc.id]: true }))}
+                onEdit={
+                  is2way
+                    ? () => setEditDtv((st) => ({ ...st, [svc.id]: true }))
+                    : undefined
+                }
               />
             )
           }
@@ -468,12 +466,6 @@ const ServicesSection: React.FC<Props> = ({
                       <Button
                         variant="outline"
                         onClick={() => {
-                          patch(svc.id, {
-                            usDbmDown: svc.usDbmDown,
-                            usDbmUp: svc.usDbmUp,
-                            speedTest: svc.speedTest,
-                            speedTestConfirmed: true,
-                          })
                           setEditNet((st) => ({ ...st, [svc.id]: false }))
                         }}
                       >
