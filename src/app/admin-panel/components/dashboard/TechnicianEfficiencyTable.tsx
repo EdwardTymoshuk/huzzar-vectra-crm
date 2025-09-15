@@ -59,14 +59,12 @@ const TechnicianEfficiencyTable = ({ date, range }: Props) => {
             <TableHead>Technik</TableHead>
             <TableHead>Wykonane</TableHead>
             <TableHead>Niewykonane</TableHead>
-            <TableHead>W trakcie</TableHead>
-            <TableHead>Wycofane</TableHead>
             <TableHead>Skuteczność</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((tech, index) => {
-            const { completed, notCompleted, inProgress, canceled } = tech
+            const { completed, notCompleted } = tech
             const total = completed + notCompleted
             const successRate =
               total > 0 ? Math.round((completed / total) * 100) : 0
@@ -84,8 +82,6 @@ const TechnicianEfficiencyTable = ({ date, range }: Props) => {
                 <TableCell>{tech.technicianName}</TableCell>
                 <TableCell>{completed}</TableCell>
                 <TableCell>{notCompleted}</TableCell>
-                <TableCell>{inProgress}</TableCell>
-                <TableCell>{canceled}</TableCell>
                 <TableCell>
                   <Badge variant={variant}>{successRate}%</Badge>
                 </TableCell>

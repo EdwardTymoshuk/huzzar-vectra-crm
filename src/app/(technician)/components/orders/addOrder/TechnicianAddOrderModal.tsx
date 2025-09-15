@@ -63,9 +63,7 @@ export const TechnicianAddOrderModal = ({
     try {
       const createdOrder = await createOrderMutation.mutateAsync({
         ...data,
-        contractRequired: false,
         postalCode: '00-000',
-        equipmentNeeded: [],
         assignedToId: session?.user.id,
         status: OrderStatus.ASSIGNED,
       })

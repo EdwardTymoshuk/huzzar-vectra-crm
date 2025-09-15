@@ -59,7 +59,7 @@ export const OrderFormFieldsTechnician = ({
               <SelectContent>
                 <SelectItem value="INSTALATION">Instalacja</SelectItem>
                 <SelectItem value="SERVICE">Serwis</SelectItem>
-                <SelectItem value="OUTAGE">Awaria</SelectItem>
+                <SelectItem value="OUTAGE">Linia</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
@@ -74,7 +74,7 @@ export const OrderFormFieldsTechnician = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              Operator <span className="text-danger">*</span>
+              Operator <span className="text-destructive">*</span>
             </FormLabel>
             <Select
               onValueChange={field.onChange}
@@ -103,7 +103,9 @@ export const OrderFormFieldsTechnician = ({
         name="orderNumber"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Numer zlecenia *</FormLabel>
+            <FormLabel>
+              Numer zlecenia <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. ZL/12345" />
             </FormControl>
@@ -118,7 +120,9 @@ export const OrderFormFieldsTechnician = ({
         name="date"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Data *</FormLabel>
+            <FormLabel>
+              Data <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input type="date" {...field} />
             </FormControl>
@@ -133,7 +137,9 @@ export const OrderFormFieldsTechnician = ({
         name="timeSlot"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Przedział czasowy *</FormLabel>
+            <FormLabel>
+              Przedział czasowy <span className="text-destructive">*</span>
+            </FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz przedział czasowy" />
@@ -157,7 +163,9 @@ export const OrderFormFieldsTechnician = ({
         name="city"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Miasto *</FormLabel>
+            <FormLabel>
+              Miasto <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. Gdańsk" />
             </FormControl>
@@ -172,7 +180,10 @@ export const OrderFormFieldsTechnician = ({
         name="street"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Ulica *</FormLabel>
+            <FormLabel>
+              Adres (ulica, nr domu, mieszkanie){' '}
+              <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. Długa 1" />
             </FormControl>

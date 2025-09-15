@@ -75,17 +75,10 @@ const EditOrderModal = ({
       orderNumber: order.orderNumber,
       date: new Date(order.date).toISOString().split('T')[0],
       timeSlot: order.timeSlot,
-      contractRequired: order.contractRequired,
       city: order.city,
       street: order.street,
       postalCode: order.postalCode,
-      county: order.county || '',
-      municipality: order.municipality || '',
-      clientPhoneNumber: order.clientPhoneNumber || '',
       notes: order.notes || '',
-      equipmentNeeded: order.equipmentNeeded
-        ? order.equipmentNeeded.join(', ')
-        : '',
       assignedToId: order.assignedToId || 'none',
       status: order.status || OrderStatus.PENDING,
     },
@@ -95,19 +88,11 @@ const EditOrderModal = ({
 
   /**
    * Handle form submission to update existing order.
-   * Convert equipmentNeeded from comma-separated string to string[],
+
    * fallback status if needed, etc.
    */
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true)
-
-    // Convert to array
-    const equipmentArr = data.equipmentNeeded
-      ? data.equipmentNeeded
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : []
 
     // Fallback to 'PENDING' if there's no status
     let finalStatus = data.status
@@ -123,7 +108,6 @@ const EditOrderModal = ({
       id: order.id,
       ...data,
       status: finalStatus,
-      equipmentNeeded: equipmentArr,
       assignedToId:
         data.assignedToId === 'none' ? undefined : data.assignedToId,
     })

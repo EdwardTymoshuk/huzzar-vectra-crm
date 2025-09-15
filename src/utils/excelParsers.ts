@@ -282,17 +282,6 @@ function mapStatus(raw: string): OrderStatus {
   if (['przypisane', 'przypisano'].includes(s)) return 'ASSIGNED'
   if (
     [
-      'w toku',
-      'in progress',
-      'progress',
-      'rozpoczęte',
-      'w drodze',
-      'w realizacji',
-    ].includes(s)
-  )
-    return 'IN_PROGRESS' as OrderStatus
-  if (
-    [
       'zakończone',
       'zrealizowane',
       'zrealizowano',
@@ -302,8 +291,6 @@ function mapStatus(raw: string): OrderStatus {
     ].includes(s)
   )
     return 'COMPLETED'
-  if (['canseled', 'anulowano', 'anulowane', 'rejected'].includes(s))
-    return 'CANCELED'
   if (
     [
       'niezrealizowane',

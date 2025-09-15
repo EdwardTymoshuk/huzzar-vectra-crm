@@ -76,7 +76,6 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
         <HeaderRow label="Nr zlecenia" value={orderNumber} />
         <HeaderRow label="Adres" value={`${city}, ${street}`} />
         <HeaderRow label="Operator" value={operator} />
-        <HeaderRow label="Nr kontaktowy" value={clientPhoneNumber ?? '—'} />
         <HeaderRow label="Data" value={new Date(date).toLocaleDateString()} />
         <HeaderRow
           label="Slot czasowy"

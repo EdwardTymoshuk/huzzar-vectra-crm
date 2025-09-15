@@ -81,9 +81,6 @@ export const orderSchema = z.object({
   timeSlot: z.nativeEnum(TimeSlot, {
     required_error: 'Przedział czasowy jest wymagany',
   }),
-  contractRequired: z.boolean({
-    required_error: 'Pole wymagane (Tak/Nie)',
-  }),
   city: z
     .string({
       required_error: 'Miasto jest wymagane',
@@ -91,41 +88,21 @@ export const orderSchema = z.object({
     .min(2, 'Miasto musi mieć co najmniej 2 znaki'),
   street: z
     .string({
-      required_error: 'Ulica jest wymagana',
+      required_error: 'Adres jest wymagany',
     })
-    .min(3, 'Ulica musi mieć co najmniej 3 znaki'),
+    .min(3, 'Adres musi mieć co najmniej 3 znaki'),
   postalCode: z
-    .string({
-      required_error: 'Kod pocztowy jest wymagany',
-    })
-    .min(5, 'Kod pocztowy musi mieć co najmniej 5 znaków'),
-
-  // Optional
-  county: z.string().optional(),
-  municipality: z.string().optional(),
-  assignedToId: z.string().optional(),
-  clientPhoneNumber: z
     .string()
-    .trim()
-    .optional()
-    .refine(
-      (val) => !val || /^(\+48)?\d{9}$/.test(val),
-      'Nieprawidłowy numer telefonu'
-    ),
+    .min(5, 'Kod pocztowy musi mieć co najmniej 5 znaków')
+    .optional(),
+  assignedToId: z.string({
+    required_error: 'Wymagane przypisanie technika',
+  }),
   notes: z.string().optional(),
-
-  /**
-   * equipmentNeeded is a simple string in the form,
-   * e.g. "router, kabel". We turn it into an array in onSubmit.
-   */
-  equipmentNeeded: z.string().optional(),
-
   status: z.nativeEnum(OrderStatus),
 })
 
 export const technicianOrderSchema = orderSchema.omit({
-  contractRequired: true,
   postalCode: true,
   assignedToId: true,
-  equipmentNeeded: true,
 })

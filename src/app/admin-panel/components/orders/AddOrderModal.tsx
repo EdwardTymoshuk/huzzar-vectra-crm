@@ -46,19 +46,14 @@ export function AddOrderModal({
     resolver: zodResolver(orderSchema),
     defaultValues: {
       type: 'INSTALATION',
-      operator: 'VCTR',
+      operator: 'VECTRA',
       orderNumber: '',
       date: '',
       timeSlot: 'EIGHT_TEN',
-      contractRequired: false,
       city: '',
       street: '',
-      postalCode: '',
-      county: '',
-      municipality: '',
-      clientPhoneNumber: '',
+      postalCode: '00-000',
       notes: '',
-      equipmentNeeded: '',
       assignedToId: 'none',
       status: OrderStatus.PENDING,
     },
@@ -68,21 +63,12 @@ export function AddOrderModal({
 
   /**
    * Handles the form submission:
-   * - Converts 'equipmentNeeded' from comma-separated string to string[]
    * - Falls back to 'PENDING' if status is not provided
    * - On success, shows a toast, invalidates the orders list, resets the form, and closes the modal
    * - On error, shows a toast and reverts the submit button state
    */
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true)
-
-    // Convert `equipmentNeeded` to string[]
-    const equipmentArr = data.equipmentNeeded
-      ? data.equipmentNeeded
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : []
 
     // If no status is given, default to 'PENDING'
     const finalStatus =
@@ -94,7 +80,6 @@ export function AddOrderModal({
       await createOrderMutation.mutateAsync({
         ...data,
         status: finalStatus,
-        equipmentNeeded: equipmentArr,
         assignedToId:
           data.assignedToId === 'none' ? undefined : data.assignedToId,
       })

@@ -102,20 +102,6 @@ const OrderDetailsPanel = ({
                 {order.assignedTo?.name || 'Nieprzypisany'}
               </p>
               <p>
-                <strong>Telefon klienta:</strong>{' '}
-                {order.clientPhoneNumber || 'Brak'}
-              </p>
-              <p>
-                <strong>Wymaga umowy:</strong>{' '}
-                {order.contractRequired ? 'Tak' : 'Nie'}
-              </p>
-              <p>
-                <strong>Potrzebny sprzęt:</strong>{' '}
-                {order.equipmentNeeded.length > 0
-                  ? order.equipmentNeeded.join(', ')
-                  : 'Brak'}
-              </p>
-              <p>
                 <strong>Uwagi:</strong> {order.notes || 'Brak'}
               </p>
             </div>

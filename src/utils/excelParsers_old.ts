@@ -158,11 +158,9 @@ export async function parseUnifiedOrdersFromExcel(
           postalCode,
           date: isoDate,
           timeSlot,
-          contractRequired: false,
           assignedToId,
           clientPhoneNumber: clientNumber,
           status: 'PENDING',
-          equipmentNeeded: '',
           notes: notes,
         }
       })

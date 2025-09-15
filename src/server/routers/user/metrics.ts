@@ -35,12 +35,7 @@ export const metricsRouter = router({
         end.setHours(23, 59, 59, 999)
       }
 
-      const relevant: OrderStatus[] = [
-        'COMPLETED',
-        'NOT_COMPLETED',
-        'IN_PROGRESS',
-        'CANCELED',
-      ]
+      const relevant: OrderStatus[] = ['COMPLETED', 'NOT_COMPLETED']
 
       const rows = await prisma.order.findMany({
         where: {
@@ -62,8 +57,6 @@ export const metricsRouter = router({
           technicianName: string
           completed: number
           notCompleted: number
-          inProgress: number
-          canceled: number
         }
       >()
 
@@ -75,15 +68,11 @@ export const metricsRouter = router({
             technicianName: r.assignedTo?.name ?? 'Nieznany',
             completed: 0,
             notCompleted: 0,
-            inProgress: 0,
-            canceled: 0,
           })
         }
         const e = map.get(id)!
         if (r.status === 'COMPLETED') e.completed++
         else if (r.status === 'NOT_COMPLETED') e.notCompleted++
-        else if (r.status === 'IN_PROGRESS') e.inProgress++
-        else e.canceled++
       })
 
       return [...map.values()].sort(

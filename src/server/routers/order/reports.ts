@@ -52,12 +52,10 @@ export const reportsRouter = router({
           select: { status: true },
         })
 
-        const sum = { completed: 0, failed: 0, inProgress: 0, canceled: 0 }
+        const sum = { completed: 0, failed: 0 }
         rows.forEach((o) => {
           if (o.status === 'COMPLETED') sum.completed++
           else if (o.status === 'NOT_COMPLETED') sum.failed++
-          else if (o.status === 'IN_PROGRESS') sum.inProgress++
-          else if (o.status === 'CANCELED') sum.canceled++
         })
 
         const total = Object.values(sum).reduce((a, b) => a + b, 0)
@@ -86,8 +84,6 @@ export const reportsRouter = router({
         prevTotal: previous.total,
         prevCompleted: previous.completed,
         prevFailed: previous.failed,
-        prevInProgress: previous.inProgress,
-        prevCanceled: previous.canceled,
       }
     }),
 

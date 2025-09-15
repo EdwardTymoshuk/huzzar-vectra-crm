@@ -59,18 +59,8 @@ const OrderStatsSection = ({ date, range }: Props) => {
     )
   }
 
-  const {
-    total,
-    completed,
-    failed,
-    inProgress,
-    canceled,
-    prevTotal,
-    prevCompleted,
-    prevFailed,
-    prevInProgress,
-    prevCanceled,
-  } = data
+  const { total, completed, failed, prevTotal, prevCompleted, prevFailed } =
+    data
 
   const totalForSuccess = completed + failed
   const successRate =
@@ -139,21 +129,6 @@ const OrderStatsSection = ({ date, range }: Props) => {
             <p className="text-sm text-muted-foreground">Niewykonane</p>
             <p className="text-2xl font-bold text-danger">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
-          </Card>
-        </div>
-
-        {/* In progress and canceled orders */}
-        <div className="grid grid-cols-2 gap-4 md:col-span-2">
-          <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">W trakcie</p>
-            <p className="text-2xl font-bold text-yellow-500">{inProgress}</p>
-            {formatChange(percentDiff(inProgress, prevInProgress))}
-          </Card>
-
-          <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Wycofane</p>
-            <p className="text-2xl font-bold text-gray-500">{canceled}</p>
-            {formatChange(percentDiff(canceled, prevCanceled))}
           </Card>
         </div>
       </div>

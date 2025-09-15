@@ -37,18 +37,15 @@ model Order {
   orderNumber       String
   date              DateTime
   timeSlot          TimeSlot
-  contractRequired  Boolean
-  equipmentNeeded   String[]               @default([])
   clientPhoneNumber String?
   notes             String?
-  /// order life-cycle
   status            OrderStatus            @default(PENDING)
   /// address
   county            String?
   municipality      String?
   city              String
   street            String
-  postalCode        String
+  postalCode        String?
   /// relations
   assignedToId      String?
   createdAt         DateTime               @default(now())
@@ -253,10 +250,8 @@ enum UserStatus {
 enum OrderStatus {
   PENDING
   ASSIGNED
-  IN_PROGRESS
   COMPLETED
   NOT_COMPLETED
-  CANCELED
 }
 
 enum OrderType {

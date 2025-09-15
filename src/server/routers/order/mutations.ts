@@ -111,9 +111,6 @@ export const mutationsRouter = router({
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(TimeSlot),
-
-        contractRequired: z.boolean(),
-        equipmentNeeded: z.array(z.string()).optional(),
         clientPhoneNumber: z
           .string()
           .optional()
@@ -150,9 +147,6 @@ export const mutationsRouter = router({
           orderNumber: input.orderNumber,
           date: new Date(input.date),
           timeSlot: input.timeSlot,
-          contractRequired: input.contractRequired,
-          equipmentNeeded: input.equipmentNeeded ?? [],
-          clientPhoneNumber: input.clientPhoneNumber,
           notes: input.notes,
           status: input.status,
           county: input.county,
@@ -173,8 +167,6 @@ export const mutationsRouter = router({
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(TimeSlot),
-        contractRequired: z.boolean(),
-        equipmentNeeded: z.array(z.string()).optional(),
         clientPhoneNumber: z.string().optional(),
         notes: z.string().optional(),
         status: z.nativeEnum(OrderStatus),
@@ -201,9 +193,6 @@ export const mutationsRouter = router({
           orderNumber: input.orderNumber,
           date: new Date(input.date),
           timeSlot: input.timeSlot,
-          contractRequired: input.contractRequired,
-          equipmentNeeded: input.equipmentNeeded ?? [],
-          clientPhoneNumber: input.clientPhoneNumber,
           notes: input.notes,
           status: input.status,
           county: input.county,
@@ -964,8 +953,6 @@ export const mutationsRouter = router({
           orderNumber: o.orderNumber,
           date: o.date,
           timeSlot: o.timeSlot,
-          contractRequired: false,
-          equipmentNeeded: [],
           clientPhoneNumber: null,
           notes: o.notes,
           status: o.status,

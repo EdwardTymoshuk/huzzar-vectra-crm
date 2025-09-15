@@ -79,23 +79,19 @@ export const techniciansMenuItems: MenuItem[] = [
  */
 export const statusMap: Record<string, string> = {
   PENDING: 'NIE PRZYPISANE',
-  IN_PROGRESS: 'W TRAKCIE',
   ASSIGNED: 'PRZYPISANE',
   COMPLETED: 'WYKONANE',
   NOT_COMPLETED: 'NIEWYKONANE',
-  CANCELED: 'WYCOFANE',
 }
 
 /**
  * Mapping of status colors.
  */
 export const statusColorMap: Record<string, string> = {
-  PENDING: 'bg-muted hover:bg-muted/80 text-text-secodnary text-center',
-  IN_PROGRESS: 'bg-primary hover:bg-primary/80 text-white text-center',
+  PENDING: 'bg-primary hover:bg-primary/80 text-white text-center',
   ASSIGNED: 'bg-warning hover:bg-warning/80 text-white text-center',
   COMPLETED: 'bg-success hover:bg-success/80 text-white text-center',
   NOT_COMPLETED: 'bg-danger hover:bg-danger/80 text-white text-center',
-  CANCELED: 'bg-secondary hover:bg-secondary/80 text-white text-center',
 }
 
 /**
@@ -104,7 +100,7 @@ export const statusColorMap: Record<string, string> = {
 export const orderTypeMap: Record<string, string> = {
   INSTALATION: 'Instalacja',
   SERVICE: 'Serwis',
-  OUTAGE: 'Awaria',
+  OUTAGE: 'Linia',
 }
 
 /**
@@ -349,7 +345,7 @@ export const orderFailureReasons = [
   'Uszkodzony kabel sygnałowy',
   'Brak sygnału na budynku',
   'Instalator nie dotarł do AB',
-  'Awaria',
+  'Linia',
   'Błędne dane na umowie',
   'Niezgodność umowy z zamówieniem',
   'Błędny termin realizacji zlecenia',

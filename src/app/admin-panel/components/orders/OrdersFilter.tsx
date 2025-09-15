@@ -72,7 +72,7 @@ const OrdersFilter = ({
               <SelectItem value="all">Wszystkie</SelectItem>
               <SelectItem value="INSTALATION">Instalacja</SelectItem>
               <SelectItem value="SERVICE">Serwis</SelectItem>
-              <SelectItem value="OUTAGE">Awaria</SelectItem>
+              <SelectItem value="OUTAGE">Linia</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -94,10 +94,8 @@ const OrdersFilter = ({
               <SelectItem value="all">Wszystkie</SelectItem>
               <SelectItem value="PENDING">Nieprzypisane</SelectItem>
               <SelectItem value="ASSIGNED">Przypisane</SelectItem>
-              <SelectItem value="IN_PROGRESS">W trakcie</SelectItem>
               <SelectItem value="COMPLETED">Wykonane</SelectItem>
               <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
-              <SelectItem value="CANCELED">Wycofane</SelectItem>
             </SelectContent>
           </Select>
         </div>

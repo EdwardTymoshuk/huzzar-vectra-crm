@@ -45,14 +45,10 @@ type OrderStats = {
   total: number
   completed: number
   failed: number
-  inProgress: number
-  canceled: number
   successRate: number
   prevTotal: number
   prevCompleted: number
   prevFailed: number
-  prevInProgress: number
-  prevCanceled: number
 }
 
 export const technicianReportsRouter = router({
@@ -84,15 +80,13 @@ export const technicianReportsRouter = router({
           select: { status: true },
         })
 
-        const sum = { completed: 0, failed: 0, inProgress: 0, canceled: 0 }
+        const sum = { completed: 0, failed: 0 }
         rows.forEach((o) => {
           if (o.status === 'COMPLETED') sum.completed++
           else if (o.status === 'NOT_COMPLETED') sum.failed++
-          else if (o.status === 'IN_PROGRESS') sum.inProgress++
-          else if (o.status === 'CANCELED') sum.canceled++
         })
 
-        const total = sum.completed + sum.failed + sum.inProgress + sum.canceled
+        const total = sum.completed + sum.failed
         const successBase = sum.completed + sum.failed
         const successRate =
           successBase > 0 ? Math.round((sum.completed / successBase) * 100) : 0
@@ -114,8 +108,6 @@ export const technicianReportsRouter = router({
         prevTotal: previous.total,
         prevCompleted: previous.completed,
         prevFailed: previous.failed,
-        prevInProgress: previous.inProgress,
-        prevCanceled: previous.canceled,
       }
     }),
 

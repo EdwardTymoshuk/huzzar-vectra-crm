@@ -158,8 +158,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             orderNumber: o.orderNumber,
             date: o.date,
             timeSlot: o.timeSlot,
-            contractRequired: false,
-            equipmentNeeded: [],
             clientPhoneNumber: undefined,
             notes: o.notes,
             status: o.status,

@@ -69,7 +69,7 @@ export function OrderFormFields({
               <SelectContent>
                 <SelectItem value="INSTALATION">Instalacja</SelectItem>
                 <SelectItem value="SERVICE">Serwis</SelectItem>
-                <SelectItem value="OUTAGE">Awaria</SelectItem>
+                <SelectItem value="OUTAGE">Linia</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
@@ -84,7 +84,7 @@ export function OrderFormFields({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              Operator <span className="text-danger">*</span>
+              Operator <span className="text-destructive">*</span>
             </FormLabel>
             <Select
               onValueChange={field.onChange}
@@ -113,7 +113,9 @@ export function OrderFormFields({
         name="orderNumber"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Numer zlecenia *</FormLabel>
+            <FormLabel>
+              Numer zlecenia <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. ZL/12345" />
             </FormControl>
@@ -128,7 +130,9 @@ export function OrderFormFields({
         name="date"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Data *</FormLabel>
+            <FormLabel>
+              Data <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input type="date" {...field} />
             </FormControl>
@@ -143,7 +147,9 @@ export function OrderFormFields({
         name="timeSlot"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Przedział czasowy *</FormLabel>
+            <FormLabel>
+              Przedział czasowy <span className="text-destructive">*</span>
+            </FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz przedział czasowy" />
@@ -161,37 +167,15 @@ export function OrderFormFields({
         )}
       />
 
-      {/* Contract required toggle */}
-      <FormField
-        control={control}
-        name="contractRequired"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Wymaga umowy? *</FormLabel>
-            <Select
-              onValueChange={(val) => field.onChange(val === 'true')}
-              value={String(field.value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tak / Nie" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="true">Tak</SelectItem>
-                <SelectItem value="false">Nie</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
       {/* City */}
       <FormField
         control={control}
         name="city"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Miasto *</FormLabel>
+            <FormLabel>
+              Miasto <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. Gdańsk" />
             </FormControl>
@@ -206,132 +190,13 @@ export function OrderFormFields({
         name="street"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Ulica *</FormLabel>
+            <FormLabel>
+              Adres (ulica, nr domu, mieszkanie){' '}
+              <span className="text-destructive">*</span>
+            </FormLabel>
             <FormControl>
               <Input {...field} placeholder="np. Długa 1" />
             </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Postal code */}
-      <FormField
-        control={control}
-        name="postalCode"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Kod pocztowy *</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder="00-000" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* County (optional) */}
-      <FormField
-        control={control}
-        name="county"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Powiat (opcjonalnie)</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder="np. Gdańsk" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Municipality (optional) */}
-      <FormField
-        control={control}
-        name="municipality"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Gmina (opcjonalnie)</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder="np. Gdańsk" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Client phone number (optional) */}
-      <FormField
-        control={control}
-        name="clientPhoneNumber"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Telefon klienta (opcjonalnie)</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder="np. 500600700" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Notes (optional) */}
-      <FormField
-        control={control}
-        name="notes"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Uwagi (opcjonalnie)</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder="np. dzwonić przed wizytą" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Equipment needed (optional, comma separated) */}
-      <FormField
-        control={control}
-        name="equipmentNeeded"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Dostarczany sprzęt (opcjonalnie)</FormLabel>
-            <FormControl>
-              <Input
-                value={field.value || ''}
-                onChange={(e) => field.onChange(e.target.value)}
-                placeholder="np. router, dekoder"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Order status */}
-      <FormField
-        control={control}
-        name="status"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Status (opcjonalny)</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value ?? 'PENDING'}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PENDING">NIEPRZYPISANE</SelectItem>
-                <SelectItem value="ASSIGNED">PRZYPISANE</SelectItem>
-                <SelectItem value="IN_PROGRESS">W TRAKCIE</SelectItem>
-                <SelectItem value="COMPLETED">WYKONANE</SelectItem>
-                <SelectItem value="NOT_COMPLETED">NIEWYKONANE</SelectItem>
-                <SelectItem value="CANCELED">WYCOFANE</SelectItem>
-              </SelectContent>
-            </Select>
             <FormMessage />
           </FormItem>
         )}
@@ -343,7 +208,9 @@ export function OrderFormFields({
         name="assignedToId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Przypisany technik (opcjonalnie)</FormLabel>
+            <FormLabel>
+              Przypisany technik <span className="text-destructive">*</span>
+            </FormLabel>
             <Select
               onValueChange={(value) => {
                 const selected = value === 'none' ? null : value
@@ -380,6 +247,20 @@ export function OrderFormFields({
                 )}
               </SelectContent>
             </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      {/* Notes (optional) */}
+      <FormField
+        control={control}
+        name="notes"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Uwagi (opcjonalnie)</FormLabel>
+            <FormControl>
+              <Input {...field} placeholder="np. dzwonić przed wizytą" />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}
