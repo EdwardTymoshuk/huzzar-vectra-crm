@@ -3,6 +3,7 @@ import { router } from '@/server/trpc'
 import { sortedTimeSlotsByHour } from '@/lib/constants'
 import {
   adminCoordOrWarehouse,
+  adminOnly,
   adminOrCoord,
   loggedInEveryone,
 } from '@/server/roleHelpers'
@@ -10,6 +11,7 @@ import type { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { isTechnician } from '@/utils/roleHelpers/roleCheck'
 import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
+import { TRPCError } from '@trpc/server'
 import { endOfDay, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
@@ -237,5 +239,89 @@ export const queriesRouter = router({
           serialNumber: eq.warehouse.serialNumber,
         })),
       }
+    }),
+  getCompanySuccessOverTime: adminOnly
+    .input(
+      z.object({
+        date: z.date(),
+        range: z.enum(['day', 'month', 'year']),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { date, range } = input
+      const prisma = ctx.prisma
+
+      if (!date) throw new TRPCError({ code: 'BAD_REQUEST' })
+
+      // Fetch all orders within a relevant time span depending on selected range
+      let dateFrom: Date
+      let dateTo: Date
+
+      const year = date.getFullYear()
+      const month = date.getMonth() // 0–11
+
+      if (range === 'day') {
+        // Full selected month
+        dateFrom = new Date(year, month, 1)
+        dateTo = new Date(year, month + 1, 0, 23, 59, 59)
+      } else if (range === 'month') {
+        // Full selected year
+        dateFrom = new Date(year, 0, 1)
+        dateTo = new Date(year, 11, 31, 23, 59, 59)
+      } else {
+        // Last 5 years up to selected year
+        dateFrom = new Date(year - 4, 0, 1)
+        dateTo = new Date(year, 11, 31, 23, 59, 59)
+      }
+
+      // Load all orders within date range
+      const orders = await prisma.order.findMany({
+        where: {
+          date: {
+            gte: dateFrom,
+            lte: dateTo,
+          },
+        },
+        select: {
+          date: true,
+          status: true,
+        },
+      })
+
+      // Group and calculate success rate per period
+      const grouped = new Map<
+        string | number,
+        { total: number; completed: number }
+      >()
+
+      for (const o of orders) {
+        const d = o.date
+
+        let key: string | number
+        if (range === 'day') {
+          key = d.getDate() // day of month: 1–31
+        } else if (range === 'month') {
+          key = d.getMonth() + 1 // month: 1–12
+        } else {
+          key = d.getFullYear() // year: e.g. 2025
+        }
+
+        const current = grouped.get(key) ?? { total: 0, completed: 0 }
+        current.total += 1
+        if (o.status === 'COMPLETED') current.completed += 1
+        grouped.set(key, current)
+      }
+
+      // Convert to output format with calculated percentage
+      return Array.from(grouped.entries())
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([key, { total, completed }]) => ({
+          ...(range === 'day'
+            ? { day: Number(key) }
+            : range === 'month'
+            ? { month: Number(key) }
+            : { year: Number(key) }),
+          successRate: total === 0 ? 0 : Math.round((completed / total) * 100),
+        }))
     }),
 })

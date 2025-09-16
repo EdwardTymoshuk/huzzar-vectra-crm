@@ -13,7 +13,8 @@ type Props = {
   range: 'day' | 'month' | 'year'
 }
 
-const COLORS = ['#16a34a', '#dc2626'] // zielony, czerwony
+// Chart colors: green for success, red for failure
+const COLORS = ['#16a34a', '#dc2626']
 
 const OrderStatsSection = ({ date, range }: Props) => {
   const dateParam = buildDateParam(date, range)
@@ -23,7 +24,9 @@ const OrderStatsSection = ({ date, range }: Props) => {
     range,
   })
 
-  // Render change indicator with icon and color
+  /**
+   * Render change indicator with icon and color
+   */
   const formatChange = (value: number) => {
     const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight
     const color = value >= 0 ? 'text-success' : 'text-danger'
@@ -35,7 +38,9 @@ const OrderStatsSection = ({ date, range }: Props) => {
     )
   }
 
-  // Calculate percentage difference between current and previous value
+  /**
+   * Calculate percentage difference between current and previous value
+   */
   const percentDiff = (current: number, prev: number) => {
     if (prev === 0) return current > 0 ? 100 : 0
     return Math.round(((current - prev) / prev) * 100)
@@ -43,9 +48,9 @@ const OrderStatsSection = ({ date, range }: Props) => {
 
   if (isLoading || !data) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 my-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-[100px] w-full" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-[150px] w-full" />
         ))}
       </div>
     )
@@ -80,9 +85,9 @@ const OrderStatsSection = ({ date, range }: Props) => {
 
   return (
     <div className="mb-6 space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        {/* PieChart with success rate badge */}
-        <Card className="flex flex-col items-center justify-center md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* PieChart */}
+        <Card className="flex flex-col items-center justify-center">
           <div className="w-full h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -108,8 +113,8 @@ const OrderStatsSection = ({ date, range }: Props) => {
           </div>
         </Card>
 
-        {/* Total orders */}
-        <Card className="p-4 text-center flex flex-col justify-center items-center md:col-span-2">
+        {/* Wszystkie zlecenia */}
+        <Card className="p-4 text-center flex flex-col justify-center items-center">
           <p className="text-sm text-muted-foreground mb-1">
             Wszystkie zlecenia
           </p>
@@ -117,16 +122,18 @@ const OrderStatsSection = ({ date, range }: Props) => {
           {formatChange(percentDiff(total, prevTotal))}
         </Card>
 
-        {/* Completed and failed orders */}
-        <div className="grid grid-cols-2 gap-4 md:col-span-2">
-          <Card className="p-4 text-center">
+        {/* Wykonane + Niewykonane */}
+        <div className="grid grid-cols-2 md:grid-cols-1 gap-4">
+          {/* Wykonane */}
+          <Card className="p-4 text-center flex flex-col justify-center items-center">
             <p className="text-sm text-muted-foreground">Wykonane</p>
             <p className="text-2xl font-bold text-success">{completed}</p>
             {formatChange(percentDiff(completed, prevCompleted))}
           </Card>
 
-          <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Niewykonane</p>
+          {/* Niewykonane */}
+          <Card className="p-4 text-center flex flex-col justify-center items-center">
+            <p className="text-sm text-muted-foreground ">Niewykonane</p>
             <p className="text-2xl font-bold text-danger">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
           </Card>

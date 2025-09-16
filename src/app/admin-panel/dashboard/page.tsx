@@ -7,6 +7,7 @@ import { useRole } from '@/utils/roleHelpers/useRole'
 import { useState } from 'react'
 import DashboardFilters from '../components/dashboard/DashboardFilters'
 import OrderStatsSection from '../components/dashboard/OrderStatsSection'
+import SuccessChart from '../components/dashboard/SuccessChart'
 import TechnicianEfficiencyTable from '../components/dashboard/TechnicianEfficiencyTable'
 
 /**
@@ -19,7 +20,7 @@ const DashboardPage = () => {
   const [selectedDay, setSelectedDay] = useState<Date>(new Date())
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [selectedYear, setSelectedYear] = useState<Date>(new Date())
-  const [range, setRange] = useState<'day' | 'month' | 'year'>('day')
+  const [range, setRange] = useState<'day' | 'month' | 'year'>('month')
 
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
   if (isPageLoading) return null
@@ -50,6 +51,7 @@ const DashboardPage = () => {
         onChangeRange={setRange}
       />
       <OrderStatsSection date={getSelectedDate()} range={range} />
+      <SuccessChart date={getSelectedDate()} range={range} />
       <TechnicianEfficiencyTable date={getSelectedDate()} range={range} />
     </MaxWidthWrapper>
   )

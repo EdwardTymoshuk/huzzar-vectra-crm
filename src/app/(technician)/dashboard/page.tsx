@@ -17,7 +17,7 @@ const TechnicianDashboardPage = () => {
   const [selectedDay, setSelectedDay] = useState<Date>(new Date())
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [selectedYear, setSelectedYear] = useState<Date>(new Date())
-  const [range, setRange] = useState<'day' | 'month' | 'year'>('day')
+  const [range, setRange] = useState<'day' | 'month' | 'year'>('month')
 
   const getSelectedDate = (): Date | undefined => {
     if (range === 'day') return selectedDay

@@ -51,7 +51,9 @@ const DashboardFilters = ({
         >
           <TabsList>
             <TabsTrigger value="day">Dzień</TabsTrigger>
-            <TabsTrigger value="month">Miesiąc</TabsTrigger>
+            <TabsTrigger defaultChecked value="month">
+              Miesiąc
+            </TabsTrigger>
             <TabsTrigger value="year">Rok</TabsTrigger>
           </TabsList>
         </Tabs>
