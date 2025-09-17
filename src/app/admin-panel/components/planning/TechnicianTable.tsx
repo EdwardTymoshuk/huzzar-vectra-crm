@@ -28,8 +28,10 @@ type Props = {
 }
 
 /**
- * TechnicianTable displays assigned orders grouped by time slots for a technician.
- * Each order is draggable and has an "unassign" button.
+ * TechnicianTable shows assigned orders grouped by time slots for a technician.
+ * - Each order remains draggable.
+ * - "Unassign" button removes the assignment.
+ * - Labels and messages are in Polish (as per product requirement).
  */
 const TechnicianTable = ({ slots, onUnassign }: Props) => {
   return (
@@ -73,6 +75,8 @@ const TechnicianTable = ({ slots, onUnassign }: Props) => {
                             <button
                               onClick={() => onUnassign(order.id)}
                               className="text-muted-foreground hover:text-destructive"
+                              aria-label="Odepnij zlecenie"
+                              title="Odepnij"
                             >
                               <MdClose />
                             </button>

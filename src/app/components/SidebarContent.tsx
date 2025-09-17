@@ -81,9 +81,7 @@ const SidebarContentInner = ({
           const isDetailsPage = pathname?.startsWith(`/admin-panel/${item.key}`)
           const isActive =
             item.key === 'orders'
-              ? isTabMatch ||
-                currentTab === 'planning' ||
-                pathname?.includes('/orders')
+              ? isTabMatch || pathname?.includes('/orders')
               : isTabMatch || isDetailsPage
 
           return (

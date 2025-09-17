@@ -23,7 +23,7 @@ const SearchInput = ({
   className,
 }: SearchInputProps) => {
   return (
-    <div className={cn('relative w-full', className)}>
+    <search className={cn('relative w-full', className)}>
       <MdOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
       <Input
         placeholder={placeholder ?? 'Szukaj'}
@@ -31,7 +31,7 @@ const SearchInput = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-    </div>
+    </search>
   )
 }
 

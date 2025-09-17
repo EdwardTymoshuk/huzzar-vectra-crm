@@ -77,7 +77,7 @@ const EditOrderModal = ({
       timeSlot: order.timeSlot,
       city: order.city,
       street: order.street,
-      postalCode: order.postalCode,
+      postalCode: order.postalCode || '',
       notes: order.notes || '',
       assignedToId: order.assignedToId || 'none',
       status: order.status || OrderStatus.PENDING,

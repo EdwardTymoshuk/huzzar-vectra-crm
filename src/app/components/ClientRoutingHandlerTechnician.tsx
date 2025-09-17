@@ -24,7 +24,12 @@ const ClientRoutingHandlerTechnician = ({
   const searchParams = useSearchParams()
 
   const { isWarehouseman, isLoading } = useRole()
-  if (isLoading) return <LoaderSpinner />
+  if (isLoading)
+    return (
+      <div className="w-full h-screen">
+        <LoaderSpinner />
+      </div>
+    )
 
   if (isWarehouseman) {
     redirect('/admin-panel?tab=warehouse')

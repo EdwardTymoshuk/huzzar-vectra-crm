@@ -34,7 +34,7 @@ const OrderTable = () => {
           {...provided.droppableProps}
           className={`min-h-52 p-2 border rounded-md transition ${
             snapshot.isDraggingOver
-              ? 'border-blue-500 bg-blue-100'
+              ? 'border-secondary bg-muted'
               : 'border-border bg-card text-card-foreground'
           }`}
         >

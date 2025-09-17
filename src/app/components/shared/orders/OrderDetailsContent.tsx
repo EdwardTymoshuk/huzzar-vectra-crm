@@ -44,7 +44,6 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
     city,
     street,
     operator,
-    clientPhoneNumber,
     date,
     timeSlot,
     status,

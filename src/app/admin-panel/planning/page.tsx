@@ -3,17 +3,14 @@
 import LoadingOverlay from '@/app/components/shared/LoadingOverlay'
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
-import { Button } from '@/app/components/ui/button'
 import { TechnicianAssignment } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
 import { TimeSlot } from '@prisma/client'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { MdKeyboardArrowLeft } from 'react-icons/md'
 import { toast } from 'sonner'
-import OrdersList from '../../components/planning/OrdersList'
-import TechniciansList from '../../components/planning/TechniciansList'
+import OrdersList from '../components/planning/OrdersList'
+import TechniciansList from '../components/planning/TechniciansList'
 
 /**
  * PlanningPage:
@@ -22,7 +19,6 @@ import TechniciansList from '../../components/planning/TechniciansList'
  * - Now resilient to server errors (spinner always stops, error toast shown).
  */
 const PlanningPage = () => {
-  const router = useRouter()
   const trpcUtils = trpc.useUtils()
 
   const [isProcessing, setProcessing] = useState(false)
@@ -176,17 +172,7 @@ const PlanningPage = () => {
   return (
     <MaxWidthWrapper>
       <PageHeader title="Planowanie zleceń" />
-      <Button
-        className="justify-start w-fit"
-        variant="ghost"
-        onClick={() => router.back()}
-      >
-        <MdKeyboardArrowLeft />
-        Powrót
-      </Button>
-
       <LoadingOverlay show={isProcessing} />
-
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
           {/* Pass setProcessing so child actions can toggle the global overlay */}

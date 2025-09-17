@@ -12,7 +12,12 @@ import LoaderSpinner from '../components/shared/LoaderSpinner'
 const AdminPanelRootPage = () => {
   const { isWarehouseman, isLoading } = useRole()
 
-  if (isLoading) return <LoaderSpinner />
+  if (isLoading)
+    return (
+      <div className="w-full h-screen">
+        <LoaderSpinner />
+      </div>
+    )
 
   if (isWarehouseman) return redirect('/admin-panel?tab=warehouse')
 

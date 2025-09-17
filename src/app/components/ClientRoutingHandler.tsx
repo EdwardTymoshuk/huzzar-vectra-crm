@@ -9,12 +9,12 @@ import LoaderSpinner from './shared/LoaderSpinner'
 // Admin pages
 const pages: Record<string, React.ComponentType> = {
   dashboard: dynamic(() => import('@/app/admin-panel/dashboard/page')),
+  planning: dynamic(() => import('@/app/admin-panel/planning/page')),
   orders: dynamic(() => import('@/app/admin-panel/orders/page')),
   warehouse: dynamic(() => import('@/app/admin-panel/warehouse/page')),
   billing: dynamic(() => import('@/app/admin-panel/billing/page')),
   employees: dynamic(() => import('@/app/admin-panel/employees/page')),
   settings: dynamic(() => import('@/app/admin-panel/settings/page')),
-  planning: dynamic(() => import('@/app/admin-panel/orders/planning/page')),
 }
 
 const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
@@ -23,15 +23,20 @@ const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {
 
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
 
-  if (isPageLoading) return <LoaderSpinner />
+  if (isPageLoading)
+    return (
+      <div className="w-full h-screen">
+        <LoaderSpinner />
+      </div>
+    )
 
   const getActiveKeyFromPathname = (pathname: string): string => {
     if (pathname.includes('/warehouse')) return 'warehouse'
+    if (pathname.includes('/planning')) return 'planning'
     if (pathname.includes('/orders')) return 'orders'
     if (pathname.includes('/employees')) return 'employees'
     if (pathname.includes('/billing')) return 'billing'
     if (pathname.includes('/settings')) return 'settings'
-    if (pathname.includes('/planning')) return 'planning'
     return 'dashboard'
   }
 

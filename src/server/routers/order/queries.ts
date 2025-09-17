@@ -1,3 +1,4 @@
+// src/server/routers/order/queries.ts
 import { router } from '@/server/trpc'
 
 import { sortedTimeSlotsByHour } from '@/lib/constants'
@@ -19,6 +20,36 @@ type OrderWithAssigned = Prisma.OrderGetPayload<{
   include: { assignedTo: { select: { id: true; name: true } } }
 }>
 
+/* -----------------------------------------------------------
+ * Small, strongly-typed concurrency-limited map helper.
+ * Prevents spawning too many geocoding requests at once.
+ * ----------------------------------------------------------- */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const ret: R[] = new Array(items.length)
+  let idx = 0
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const current = idx++
+      if (current >= items.length) return
+      ret[current] = await mapper(items[current], current)
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () =>
+    worker()
+  )
+  await Promise.all(workers)
+  return ret
+}
+
+/* -----------------------------------------------------------
+ * queriesRouter
+ * ----------------------------------------------------------- */
 export const queriesRouter = router({
   /** Paginated order list with filters and sort */
   getOrders: loggedInEveryone
@@ -38,8 +69,10 @@ export const queriesRouter = router({
         Pick<OrderWithAssigned, 'status' | 'assignedToId' | 'type'>
       > = {}
 
+      // Technicians only see their own orders
       if (isTechnician(ctx)) filters.assignedToId = ctx.user!.id
 
+      // Admin/Coordinator may filter by assignedToId (or 'unassigned')
       if (
         ['ADMIN', 'COORDINATOR'].includes(ctx.user!.role) &&
         input.assignedToId !== undefined
@@ -164,11 +197,10 @@ export const queriesRouter = router({
       }
 
       assigned.forEach((o) => push(o.assignedTo!.id ?? 'unassigned', o))
-
       return Object.values(byTech)
     }),
 
-  /** Unassigned orders for planner drag-&-drop */
+  /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */
   getUnassignedOrders: adminOrCoord.query(async ({ ctx }) => {
     const rows = await ctx.prisma.order.findMany({
       where: { assignedToId: null },
@@ -184,16 +216,87 @@ export const queriesRouter = router({
         date: true,
       },
       orderBy: { timeSlot: 'asc' },
+      take: 300, // cap payload
     })
 
-    return Promise.all(
-      rows.map(async (r) => {
-        const coords = await getCoordinatesFromAddress(
-          `${cleanStreetName(r.street)}, ${r.postalCode}, ${r.city}`
-        )
-        return { ...r, lat: coords?.lat ?? null, lng: coords?.lng ?? null }
-      })
-    )
+    // Nothing to do if no rows
+    if (rows.length === 0) return []
+
+    /* ---------------- helpers ---------------- */
+
+    /** Accept only valid PL postal codes and ignore placeholders like "00-000". */
+    const isUsablePostalCode = (pc?: string | null): boolean => {
+      if (!pc) return false
+      const trimmed = pc.trim()
+      // Strict PL format NN-NNN
+      if (!/^\d{2}-\d{3}$/.test(trimmed)) return false
+      // Treat "00-000" as a placeholder (do not use for geocoding)
+      if (trimmed === '00-000') return false
+      return true
+    }
+
+    /** Build address variants for robust geocoding when postal code is missing/placeholder. */
+    const buildAddressVariants = (r: (typeof rows)[number]): string[] => {
+      const street = cleanStreetName(r.street)
+      const city = (r.city ?? '').trim()
+      const pc = isUsablePostalCode(r.postalCode) ? r.postalCode!.trim() : null
+
+      const variants: string[] = []
+      if (street && city && pc)
+        variants.push(`${street}, ${pc}, ${city}, Polska`)
+      if (street && city) variants.push(`${street}, ${city}, Polska`)
+      if (city) variants.push(`${city}, Polska`)
+      return variants
+    }
+
+    /** Try multiple address variants until one returns coordinates. */
+    const geocodeWithFallback = async (variants: string[]) => {
+      for (const v of variants) {
+        const coords = await getCoordinatesFromAddress(v)
+        if (coords) return coords
+      }
+      return null
+    }
+
+    /* --------------- main --------------- */
+
+    const MAX_GEOCODES = 20
+    const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
+
+    const head = rows.slice(0, MAX_GEOCODES)
+    const tail = rows.slice(MAX_GEOCODES)
+
+    const enrich = async (r: (typeof rows)[number]) => {
+      const variants = buildAddressVariants(r)
+      const coords = await geocodeWithFallback(variants)
+      return { ...r, lat: coords?.lat ?? null, lng: coords?.lng ?? null }
+    }
+
+    try {
+      // Run initial chunk with limited concurrency; never throw the whole route on single failure
+      const headResults = await mapWithConcurrency(
+        head,
+        CONCURRENCY,
+        async (row) => {
+          try {
+            return await enrich(row)
+          } catch {
+            // Be fail-safe: fallback without coords
+            return { ...row, lat: null, lng: null }
+          }
+        }
+      )
+
+      const normalizedTail = tail.map((r) => ({ ...r, lat: null, lng: null }))
+      return [...headResults, ...normalizedTail]
+    } catch (e) {
+      // HARD FALLBACK: if geocoding infra is down, still return orders without coordinates
+      console.error(
+        'Geocoding batch failed — returning rows without coordinates',
+        e
+      )
+      return rows.map((r) => ({ ...r, lat: null, lng: null }))
+    }
   }),
 
   /** Accounting-level order breakdown */
@@ -240,6 +343,8 @@ export const queriesRouter = router({
         })),
       }
     }),
+
+  /** Company success trend for dashboard chart (day/month/year granularity) */
   getCompanySuccessOverTime: adminOnly
     .input(
       z.object({
@@ -253,7 +358,7 @@ export const queriesRouter = router({
 
       if (!date) throw new TRPCError({ code: 'BAD_REQUEST' })
 
-      // Fetch all orders within a relevant time span depending on selected range
+      // Decide time window based on the selected range
       let dateFrom: Date
       let dateTo: Date
 
@@ -261,34 +366,24 @@ export const queriesRouter = router({
       const month = date.getMonth() // 0–11
 
       if (range === 'day') {
-        // Full selected month
         dateFrom = new Date(year, month, 1)
         dateTo = new Date(year, month + 1, 0, 23, 59, 59)
       } else if (range === 'month') {
-        // Full selected year
         dateFrom = new Date(year, 0, 1)
         dateTo = new Date(year, 11, 31, 23, 59, 59)
       } else {
-        // Last 5 years up to selected year
         dateFrom = new Date(year - 4, 0, 1)
         dateTo = new Date(year, 11, 31, 23, 59, 59)
       }
 
-      // Load all orders within date range
       const orders = await prisma.order.findMany({
         where: {
-          date: {
-            gte: dateFrom,
-            lte: dateTo,
-          },
+          date: { gte: dateFrom, lte: dateTo },
         },
-        select: {
-          date: true,
-          status: true,
-        },
+        select: { date: true, status: true },
       })
 
-      // Group and calculate success rate per period
+      // Aggregate to success rate per bucket
       const grouped = new Map<
         string | number,
         { total: number; completed: number }
@@ -296,15 +391,10 @@ export const queriesRouter = router({
 
       for (const o of orders) {
         const d = o.date
-
         let key: string | number
-        if (range === 'day') {
-          key = d.getDate() // day of month: 1–31
-        } else if (range === 'month') {
-          key = d.getMonth() + 1 // month: 1–12
-        } else {
-          key = d.getFullYear() // year: e.g. 2025
-        }
+        if (range === 'day') key = d.getDate()
+        else if (range === 'month') key = d.getMonth() + 1
+        else key = d.getFullYear()
 
         const current = grouped.get(key) ?? { total: 0, completed: 0 }
         current.total += 1
@@ -312,7 +402,6 @@ export const queriesRouter = router({
         grouped.set(key, current)
       }
 
-      // Convert to output format with calculated percentage
       return Array.from(grouped.entries())
         .sort((a, b) => Number(a[0]) - Number(b[0]))
         .map(([key, { total, completed }]) => ({

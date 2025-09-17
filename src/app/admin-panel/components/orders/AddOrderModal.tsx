@@ -52,7 +52,7 @@ export function AddOrderModal({
       timeSlot: 'EIGHT_TEN',
       city: '',
       street: '',
-      postalCode: '00-000',
+      postalCode: '',
       notes: '',
       assignedToId: 'none',
       status: OrderStatus.PENDING,

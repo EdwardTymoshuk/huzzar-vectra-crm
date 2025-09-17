@@ -4,6 +4,7 @@ import { ActivatedService, MenuItem } from '@/types'
 import { RateDefinition, TimeSlot, WarehouseAction } from '@prisma/client'
 import {
   MdAssignment,
+  MdOutlineListAlt,
   MdOutlineSettings,
   MdPeopleAlt,
   MdReceiptLong,
@@ -20,6 +21,12 @@ export const adminsMenuItems: MenuItem[] = [
     name: 'Dashboard',
     icon: MdSpaceDashboard,
     href: '/admin-panel',
+  },
+  {
+    key: 'planning',
+    name: 'Planer',
+    icon: MdOutlineListAlt,
+    href: '/admin-panel/planning',
   },
   {
     key: 'orders',

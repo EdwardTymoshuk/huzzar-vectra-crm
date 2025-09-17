@@ -2,7 +2,6 @@
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import SearchInput from '@/app/components/shared/SearchInput'
-import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Button } from '@/app/components/ui/button'
 import {
   DropdownMenu,
@@ -12,12 +11,7 @@ import {
 } from '@/app/components/ui/dropdown-menu'
 import { useRole } from '@/utils/roleHelpers/useRole'
 import { useState } from 'react'
-import {
-  MdAdd,
-  MdCalendarMonth,
-  MdDownload,
-  MdUploadFile,
-} from 'react-icons/md'
+import { MdAdd, MdDownload, MdUploadFile } from 'react-icons/md'
 import AddOrderModal from './AddOrderModal'
 import ImportOrdersModal from './ImportOrdersModal'
 import ReportDialog from './ReportDialog'
@@ -61,14 +55,6 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* PLANOWANIE */}
-          <NavLink href="/admin-panel/orders?tab=planning" prefetch>
-            <Button variant="warning">
-              <MdCalendarMonth />
-              <span className="hidden lg:inline">Planowanie</span>
-            </Button>
-          </NavLink>
 
           {/* RAPORT */}
           <Button variant="default" onClick={() => setReportDialogOpen(true)}>

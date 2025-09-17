@@ -385,6 +385,7 @@ export const CompleteOrderModal = ({
     oExtra.collectedDevices,
     oExtra.assignedEquipment,
     collectedFromAssigned,
+    oExtra.settlementEntries,
     workCodeDefs,
   ])
 

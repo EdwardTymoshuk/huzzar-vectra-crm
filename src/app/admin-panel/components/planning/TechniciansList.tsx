@@ -2,44 +2,70 @@
 
 import DatePicker from '@/app/components/shared/DatePicker'
 import SearchInput from '@/app/components/shared/SearchInput'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/app/components/ui/accordion'
+import { Skeleton } from '@/app/components/ui/skeleton'
 import { getErrMessage } from '@/utils/errorHandler'
 import { trpc } from '@/utils/trpc'
 import { Droppable } from '@hello-pangea/dnd'
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import TechnicianTable from './TechnicianTable'
 
 type Props = { setProcessing: (v: boolean) => void }
 
+/** Single technician card skeleton used while assignments are loading. */
+const TechnicianCardSkeleton: React.FC = () => (
+  <div className="rounded-lg border bg-card">
+    <div className="px-4 py-3 border-b">
+      <Skeleton className="h-5 w-48" />
+    </div>
+    <div className="px-4 py-3 space-y-3">
+      {/* table header mimic */}
+      <div className="grid grid-cols-[1fr_2fr] gap-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      {/* a few rows mimic */}
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-[1fr_2fr] gap-4 py-2">
+          <Skeleton className="h-4 w-28" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
+/** Skeleton list container. */
+const TechniciansListSkeleton: React.FC<{ count?: number }> = ({ count = 4 }) => (
+  <div className="space-y-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <TechnicianCardSkeleton key={i} />
+    ))}
+  </div>
+)
+
 const TechniciansList = ({ setProcessing }: Props) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [expandedTechnicians, setExpandedTechnicians] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
 
   const trpcUtils = trpc.useUtils()
 
-  // NOTE: Keep the payload date as YYYY-MM-DD (en-CA) for server-side filtering.
-  const { data: assignments = [] } = trpc.order.getAssignedOrders.useQuery({
+  // NOTE: Keep the payload date as YYYY-MM-DD for server-side filtering.
+  const {
+    data: assignments = [],
+    isLoading,
+  } = trpc.order.getAssignedOrders.useQuery({
     date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : undefined,
   })
 
   const assignMutation = trpc.order.assignTechnician.useMutation({
-    // Centralize toast on mutation errors as well
-    onError: (err) => {
-      toast.error(getErrMessage(err))
-    },
+    onError: (err) => toast.error(getErrMessage(err)),
   })
 
-  /**
-   * Unassigns an order from a technician and refreshes relevant caches.
-   * Shows UX-friendly toasts and never leaks raw error details.
-   */
+  /** Unassigns an order from a technician and refreshes relevant caches. */
   const unassignOrder = async (orderId: string) => {
     setProcessing(true)
     try {
@@ -55,51 +81,21 @@ const TechniciansList = ({ setProcessing }: Props) => {
     }
   }
 
-  // Filter technicians (only those with defined id & name)
-  const existingTechnicians = assignments.filter(
-    (tech) => tech.technicianId && tech.technicianName
-  )
-
-  const filteredTechnicians = existingTechnicians.filter((tech) =>
-    tech.technicianName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  /** Toggles an accordion item by technician id. */
-  const handleAccordionChange = (techValue: string) => {
-    setExpandedTechnicians((prev) =>
-      prev.includes(techValue)
-        ? prev.filter((v) => v !== techValue)
-        : [...prev, techValue]
-    )
-  }
-
-  /** Expands an accordion item if not already expanded. */
-  const expandAccordion = (techId: string) => {
-    setExpandedTechnicians((prev) =>
-      prev.includes(techId) ? prev : [...prev, techId]
-    )
-  }
-
-  /**
-   * Wrapper used to auto-expand a technician panel when an item is dragged over it.
-   * This improves DnD ergonomics on narrow/mobile screens.
-   */
-  const DroppableContent: React.FC<{
-    technicianId: string
-    isDraggingOver: boolean
-    children: React.ReactNode
-  }> = ({ technicianId, isDraggingOver, children }) => {
-    useEffect(() => {
-      if (isDraggingOver) expandAccordion(technicianId)
-    }, [isDraggingOver, technicianId])
-    return <div>{children}</div>
-  }
+  // Filter technicians (only those with defined id & name and matching search)
+  const filteredTechnicians = useMemo(() => {
+    const existing = assignments.filter((t) => t.technicianId && t.technicianName)
+    if (!searchTerm) return existing
+    const q = searchTerm.toLowerCase()
+    return existing.filter((t) => t.technicianName.toLowerCase().includes(q))
+  }, [assignments, searchTerm])
 
   return (
     <div className="p-4 space-y-4">
+      {/* Header (unchanged structure) */}
       <div className="flex flex-col w-full items-center gap-4">
         <h2 className="text-lg font-semibold">Technicy</h2>
 
+        {/* DatePicker in its own row (to match original layout) */}
         <div className="w-full">
           <DatePicker
             range="day"
@@ -109,6 +105,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
           />
         </div>
 
+        {/* Search input in its own row (to match original layout) */}
         <div className="w-full">
           <SearchInput
             placeholder="Szukaj technika"
@@ -118,58 +115,48 @@ const TechniciansList = ({ setProcessing }: Props) => {
         </div>
       </div>
 
-      {filteredTechnicians.length === 0 ? (
+      {/* Content (no counters, no extra status line) */}
+      {isLoading ? (
+        <TechniciansListSkeleton />
+      ) : filteredTechnicians.length === 0 ? (
         <div className="flex w-full h-52 items-center justify-center">
           <p className="text-center text-muted-foreground">Brak techników</p>
         </div>
       ) : (
-        <Accordion
-          type="multiple"
-          className="w-full"
-          value={expandedTechnicians}
-        >
+        <div className="space-y-4">
           {filteredTechnicians.map((tech) => {
             const technicianId = tech.technicianId as string
             return (
-              <AccordionItem key={technicianId} value={technicianId}>
-                <AccordionTrigger
-                  onClick={() => handleAccordionChange(technicianId)}
-                >
+              <div key={technicianId} className="rounded-lg border bg-card">
+                {/* Simple header with only the technician name (no counters) */}
+                <div className="px-4 py-3 border-b font-semibold">
                   {tech.technicianName}
-                </AccordionTrigger>
+                </div>
 
-                <AccordionContent>
-                  <Droppable droppableId={technicianId} type="ORDER">
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`p-2 rounded-md transition border ${
-                          snapshot.isDraggingOver
-                            ? 'border-blue-500 bg-muted'
-                            : 'border-border bg-card'
-                        }`}
-                      >
-                        <DroppableContent
-                          technicianId={technicianId}
-                          isDraggingOver={snapshot.isDraggingOver}
-                        >
-                          <TechnicianTable
-                            technicianId={technicianId}
-                            slots={tech.slots}
-                            onUnassign={unassignOrder}
-                          />
-                        </DroppableContent>
-
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </AccordionContent>
-              </AccordionItem>
+                {/* Always visible droppable area (accordion removed) */}
+                <Droppable droppableId={technicianId} type="ORDER">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={[
+                        'p-3 transition',
+                        snapshot.isDraggingOver ? 'bg-muted/60' : 'bg-card',
+                      ].join(' ')}
+                    >
+                      <TechnicianTable
+                        technicianId={technicianId}
+                        slots={tech.slots}
+                        onUnassign={unassignOrder}
+                      />
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
             )
           })}
-        </Accordion>
+        </div>
       )}
     </div>
   )

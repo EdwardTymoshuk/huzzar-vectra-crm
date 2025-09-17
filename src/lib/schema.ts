@@ -91,10 +91,7 @@ export const orderSchema = z.object({
       required_error: 'Adres jest wymagany',
     })
     .min(3, 'Adres musi mieć co najmniej 3 znaki'),
-  postalCode: z
-    .string()
-    .min(5, 'Kod pocztowy musi mieć co najmniej 5 znaków')
-    .optional(),
+  postalCode: z.string().max(6).optional().default(''),
   assignedToId: z.string({
     required_error: 'Wymagane przypisanie technika',
   }),
