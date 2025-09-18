@@ -3,12 +3,6 @@
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import SearchInput from '@/app/components/shared/SearchInput'
 import { Button } from '@/app/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/app/components/ui/dropdown-menu'
 import { useRole } from '@/utils/roleHelpers/useRole'
 import { useState } from 'react'
 import { MdAdd, MdDownload, MdUploadFile } from 'react-icons/md'
@@ -26,7 +20,6 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
   const [isReportDialogOpen, setReportDialogOpen] = useState(false)
   const [isImportModalOpen, setImportModalOpen] = useState(false)
 
-  // Extract current user's role from session for role-based access control
   const { isAdmin, isCoordinator, isLoading: isPageLoading } = useRole()
   if (isPageLoading) return <LoaderSpinner />
   const canManageOrders = isAdmin || isCoordinator
@@ -36,27 +29,19 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       {/* LEFT ACTIONS */}
       {canManageOrders && (
         <div className="flex flex-wrap gap-2">
-          {/* ADD DROPDOWN */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="success">
-                <MdAdd />
-                <span className="hidden lg:inline">Dodaj</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setAddModalOpen(true)}>
-                <MdAdd />
-                Dodaj ręcznie
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setImportModalOpen(true)}>
-                <MdUploadFile />
-                Wczytaj z Excela
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* ADD MANUALLY */}
+          <Button variant="success" onClick={() => setAddModalOpen(true)}>
+            <MdAdd />
+            <span className="hidden lg:inline">Dodaj ręcznie</span>
+          </Button>
 
-          {/* RAPORT */}
+          {/* IMPORT EXCEL */}
+          <Button variant="warning" onClick={() => setImportModalOpen(true)}>
+            <MdUploadFile />
+            <span className="hidden lg:inline">Wczytaj z Excela</span>
+          </Button>
+
+          {/* REPORT */}
           <Button variant="default" onClick={() => setReportDialogOpen(true)}>
             <MdDownload />
             <span className="hidden lg:inline">Raport</span>
@@ -73,23 +58,20 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         />
       </div>
 
+      {/* MODALS */}
       {canManageOrders && (
         <>
-          {/* MODAL: Dodaj ręcznie */}
           <AddOrderModal
             open={isAddModalOpen}
             onCloseAction={() => setAddModalOpen(false)}
           />
-
-          {/* DIALOG: Raport */}
-          <ReportDialog
-            open={isReportDialogOpen}
-            onClose={() => setReportDialogOpen(false)}
-          />
-
           <ImportOrdersModal
             open={isImportModalOpen}
             onClose={() => setImportModalOpen(false)}
+          />
+          <ReportDialog
+            open={isReportDialogOpen}
+            onClose={() => setReportDialogOpen(false)}
           />
         </>
       )}
