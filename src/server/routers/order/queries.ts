@@ -10,6 +10,7 @@ import {
 } from '@/server/roleHelpers'
 import type { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
+import { getNextLineOrderNumber } from '@/utils/nextLineOrderNumber'
 import { isTechnician } from '@/utils/roleHelpers/roleCheck'
 import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
@@ -413,4 +414,7 @@ export const queriesRouter = router({
           successRate: total === 0 ? 0 : Math.round((completed / total) * 100),
         }))
     }),
+  getNextOutageOrderNumber: loggedInEveryone.query(async () => {
+    return await getNextLineOrderNumber()
+  }),
 })

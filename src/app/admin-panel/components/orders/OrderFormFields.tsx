@@ -33,11 +33,25 @@ export function OrderFormFields({
   form: UseFormReturn<OrderFormData>
 }) {
   const [operatorList, setOperatorList] = useState<string[]>([])
-  const { control } = form
+  const { setValue, getValues, watch, control } = form
+
+  const type = watch('type')
 
   // Fetch operator list from database
   const { data: operatorsData, isLoading: isOperatorsLoading } =
     trpc.operatorDefinition.getAllDefinitions.useQuery()
+
+  // TRPC query for next outage order number
+  const { data: nextOutageOrderNumber } =
+    trpc.order.getNextOutageOrderNumber.useQuery(undefined, {
+      enabled: type === 'OUTAGE',
+    })
+
+  useEffect(() => {
+    if (type === 'OUTAGE' && nextOutageOrderNumber) {
+      setValue('orderNumber', nextOutageOrderNumber)
+    }
+  }, [type, nextOutageOrderNumber, setValue])
 
   useEffect(() => {
     if (operatorsData) {
@@ -117,7 +131,11 @@ export function OrderFormFields({
               Numer zlecenia <span className="text-destructive">*</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder="np. ZL/12345" />
+              <Input
+                {...field}
+                placeholder="np. ZL/12345"
+                disabled={type === 'OUTAGE'}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -217,14 +235,14 @@ export function OrderFormFields({
                 field.onChange(selected)
 
                 // Automatically adjust status based on assignment
-                const currentStatus = form.getValues('status')
+                const currentStatus = getValues('status')
                 if (selected && currentStatus === OrderStatus.PENDING) {
-                  form.setValue('status', OrderStatus.ASSIGNED)
+                  setValue('status', OrderStatus.ASSIGNED)
                 } else if (
                   !selected &&
                   currentStatus === OrderStatus.ASSIGNED
                 ) {
-                  form.setValue('status', OrderStatus.PENDING)
+                  setValue('status', OrderStatus.PENDING)
                 }
               }}
               value={field.value ?? 'none'}
