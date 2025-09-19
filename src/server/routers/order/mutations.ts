@@ -160,21 +160,17 @@ export const mutationsRouter = router({
     }),
 
   /** ✅ Edit existing order */
-  editOrder: adminOnly
+  editOrder: adminOrCoord
     .input(
       z.object({
         id: z.string(),
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(TimeSlot),
-        clientPhoneNumber: z.string().optional(),
         notes: z.string().optional(),
         status: z.nativeEnum(OrderStatus),
-        county: z.string().optional(),
-        municipality: z.string().optional(),
         city: z.string(),
         street: z.string(),
-        postalCode: z.string(),
         assignedToId: z.string().optional(),
       })
     )
@@ -195,11 +191,8 @@ export const mutationsRouter = router({
           timeSlot: input.timeSlot,
           notes: input.notes,
           status: input.status,
-          county: input.county,
-          municipality: input.municipality,
           city: input.city,
           street: input.street,
-          postalCode: input.postalCode,
           assignedToId: input.assignedToId ?? null,
         },
       })

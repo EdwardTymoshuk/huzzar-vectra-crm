@@ -215,7 +215,7 @@ const OrdersTableInner = ({
         <div className="w-full md:min-w-[1050px]">
           {/* Header */}
           <div
-            className={`${GRID} gap-2 px-4 py-2 border-b text-sm text-start font-normal text-muted-foreground select-none`}
+            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-sm text-start font-normal text-muted-foreground select-none`}
           >
             <span>Operator</span>
             <span>Typ</span>

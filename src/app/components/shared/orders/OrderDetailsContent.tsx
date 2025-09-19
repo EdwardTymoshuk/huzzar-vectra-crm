@@ -33,11 +33,16 @@ export type OrderWithDetails = Prisma.OrderGetPayload<{
 type Props = {
   order: OrderWithDetails
   hideTechnician?: boolean
+  isConfirmed?: boolean
 }
 
 /* -------------------------------------------------------------------------- */
 
-const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
+const OrderDetailsContent = ({
+  order,
+  hideTechnician = false,
+  isConfirmed = false,
+}: Props) => {
   // Destructure order (read-only view model)
   const {
     orderNumber,
@@ -69,7 +74,7 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
   const standalone = services.filter((s) => !s.deviceId)
 
   return (
-    <div className="space-y-6 text-sm">
+    <div className="space-y-6 text-sm w-full">
       {/* ===== Header ===== */}
       <div className="space-y-1">
         <HeaderRow label="Nr zlecenia" value={orderNumber} />
@@ -83,9 +88,14 @@ const OrderDetailsContent = ({ order, hideTechnician = false }: Props) => {
         <HeaderRow
           label="Status"
           value={
-            <Badge className={statusColorMap[status] + ' w-fit'}>
-              {statusMap[status]}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge className={statusColorMap[status] + ' w-fit'}>
+                {statusMap[status]}
+              </Badge>
+              {isConfirmed && (
+                <Badge className="bg-success w-fit">ZATWIERDZONE</Badge>
+              )}
+            </div>
           }
         />
         {!hideTechnician && (
