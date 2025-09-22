@@ -42,8 +42,6 @@ const DeviceDefinitionsList = () => {
   const { data: categories = [] } =
     trpc.deviceDefinition.getAllCategories.useQuery()
 
-  console.log(categories)
-
   const deleteMutation = trpc.deviceDefinition.deleteDefinition.useMutation({
     onSuccess: () => {
       toast.success('Urządzenie zostało usunięte.')

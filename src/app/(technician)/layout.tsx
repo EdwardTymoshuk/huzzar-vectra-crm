@@ -1,53 +1,22 @@
 import Providers from '@/app/components/Providers'
-import '@/app/globals.css'
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Suspense } from 'react'
 import ClientRoutingHandlerTechnician from '../components/ClientRoutingHandlerTechnician'
 import LoaderLogo from '../components/shared/LoaderLogo'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-})
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
-
-export const metadata: Metadata = {
-  title: 'V-CRM HUZZAR',
-  description: 'System zarządzania technikami i zleceniami V-CRM HUZZAR',
-}
-
 /**
- * Technician layout sharing the same Providers and ClientRoutingHandler.
+ * Technician layout:
+ * - Wraps technician routes with Providers, Suspense and routing handler.
+ * - Does NOT render <html>/<body> (these belong only to RootLayout).
  */
-const TechnicianLayout = ({
-  children,
-}: Readonly<{ children: React.ReactNode }>) => {
+const TechnicianLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <html lang="pl">
-      <head>
-        <meta
-          name="viewport"
-          content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=overlays-content"
-        />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
-        <Providers>
-          <Suspense fallback={<LoaderLogo show={true} />}>
-            <ClientRoutingHandlerTechnician>
-              {children}
-            </ClientRoutingHandlerTechnician>
-          </Suspense>
-        </Providers>
-      </body>
-    </html>
+    <Providers>
+      <Suspense fallback={<LoaderLogo show={true} />}>
+        <ClientRoutingHandlerTechnician>
+          {children}
+        </ClientRoutingHandlerTechnician>
+      </Suspense>
+    </Providers>
   )
 }
 

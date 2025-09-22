@@ -1,55 +1,102 @@
 'use client'
 
-/* ---------------------------------------------------------------------
- * ItemHeaderAdmin
- * Container for admin panel – aggregates global statistics and passes
- * them to ItemStatsCard.  Admin sees both warehouse and technicians data.
- * ------------------------------------------------------------------- */
-
 import ItemStatsCard from '@/app/components/shared/warehouse/ItemStatsCard'
 import { devicesTypeMap } from '@/lib/constants'
-import { WarehouseWithRelations } from '@/types'
-import { Warehouse } from '@prisma/client'
-import { useEffect, useState } from 'react'
+import { SlimWarehouseItem } from '@/utils/warehouse'
+import { useMemo } from 'react'
 
-type Props = { items: WarehouseWithRelations[] }
+type Props = { items: SlimWarehouseItem[] }
 
+/**
+ * ItemHeader
+ * Aggregated, read-only summary for a homogeneous list of items (same name/category).
+ * - Derives everything from props using memoized selectors.
+ * - Works for both DEVICE (count-based) and MATERIAL (quantity-based) items.
+ */
 const ItemHeader = ({ items }: Props) => {
-  const [first, setFirst] = useState<Warehouse | null>(null)
-  useEffect(() => setFirst(items[0]), [items])
+  // Ensure we always have a consistent "first item" reference, or undefined
+  const first = items.length > 0 ? items[0] : undefined
+
+  const isDevice = first?.itemType === 'DEVICE'
+
+  // Small helpers for clarity
+  const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0)
+  const money = (n: number | undefined) =>
+    typeof n === 'number' ? n.toFixed(2) : '—'
+
+  /**
+   * Derive disjoint subsets of items by status:
+   * - stockInWarehouse: available, not assigned, not on any order
+   * - heldByTechnicians: assigned to a technician, not on any order
+   * - assignedToOrders: assigned to an order
+   */
+  const { stockInWarehouse, heldByTechnicians, assignedToOrders } =
+    useMemo(() => {
+      const stockInWarehouse = items.filter(
+        (i) =>
+          i.status === 'AVAILABLE' &&
+          i.assignedToId === null &&
+          i.orderAssignments.length === 0
+      )
+
+      const heldByTechnicians = items.filter(
+        (i) =>
+          i.status === 'ASSIGNED' &&
+          i.assignedToId !== null &&
+          i.orderAssignments.length === 0
+      )
+
+      const assignedToOrders = items.filter(
+        (i) => i.status === 'ASSIGNED_TO_ORDER' && i.orderAssignments.length > 0
+      )
+
+      return { stockInWarehouse, heldByTechnicians, assignedToOrders }
+    }, [items])
+
+  /** Aggregate counts/quantities */
+  const warehouseQty = useMemo(
+    () =>
+      isDevice
+        ? stockInWarehouse.length
+        : sum(stockInWarehouse.map((i) => i.quantity)),
+    [isDevice, stockInWarehouse]
+  )
+
+  const technicianQty = useMemo(
+    () =>
+      isDevice
+        ? heldByTechnicians.length
+        : sum(heldByTechnicians.map((i) => i.quantity)),
+    [isDevice, heldByTechnicians]
+  )
+
+  const usedInOrders = useMemo(
+    () =>
+      isDevice
+        ? assignedToOrders.length
+        : sum(assignedToOrders.map((i) => i.quantity)),
+    [isDevice, assignedToOrders]
+  )
+
+  /** Monetary totals apply only to MATERIAL */
+  const warehouseValue = useMemo(() => {
+    if (isDevice) return undefined
+    return stockInWarehouse.reduce(
+      (acc, i) => acc + i.quantity * (i.price ?? 0),
+      0
+    )
+  }, [isDevice, stockInWarehouse])
+
+  const technicianValue = useMemo(() => {
+    if (isDevice) return undefined
+    return heldByTechnicians.reduce(
+      (acc, i) => acc + i.quantity * (i.price ?? 0),
+      0
+    )
+  }, [isDevice, heldByTechnicians])
+
+  // Final render guard – after all hooks
   if (!first) return null
-
-  const isDevice = first.itemType === 'DEVICE'
-
-  /* ---- dataset partitions ---- */
-  const warehouse = items.filter(
-    (i) =>
-      i.status === 'AVAILABLE' &&
-      !i.assignedToId &&
-      i.orderAssignments.length === 0
-  )
-  const technicians = items.filter(
-    (i) => i.status === 'ASSIGNED' && i.orderAssignments.length === 0
-  )
-  const issued = items.filter((i) => i.orderAssignments.length > 0)
-
-  /* ---- aggregates ---- */
-  const whQty = isDevice
-    ? warehouse.length
-    : warehouse.reduce((s, i) => s + i.quantity, 0)
-  const techQty = isDevice
-    ? technicians.length
-    : technicians.reduce((s, i) => s + i.quantity, 0)
-  const usedQty = isDevice
-    ? issued.length
-    : issued.reduce((s, i) => s + i.quantity, 0)
-
-  const whVal = !isDevice
-    ? warehouse.reduce((s, i) => s + i.quantity * (i.price ?? 0), 0)
-    : undefined
-  const techVal = !isDevice
-    ? technicians.reduce((s, i) => s + i.quantity * (i.price ?? 0), 0)
-    : undefined
 
   return (
     <ItemStatsCard
@@ -59,16 +106,14 @@ const ItemHeader = ({ items }: Props) => {
           ? devicesTypeMap[first.category ?? ''] ?? '—'
           : first.index ?? '—'
       }
-      price={first.price?.toFixed(2) ?? '—'}
+      price={money(first.price)}
       isDevice={isDevice}
-      /* stock blocks */
-      warehouseQty={whQty}
-      warehouseValue={whVal}
-      technicianQty={techQty}
-      technicianValue={techVal}
+      warehouseQty={warehouseQty}
+      warehouseValue={warehouseValue}
+      technicianQty={technicianQty}
+      technicianValue={technicianValue}
       technicianLabel="Stan techników"
-      /* other */
-      usedInOrders={usedQty}
+      usedInOrders={usedInOrders}
       showWarehouse
       showTechnician
     />

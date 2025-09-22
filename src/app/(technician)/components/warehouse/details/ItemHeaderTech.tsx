@@ -2,41 +2,53 @@
 
 /* ---------------------------------------------------------------------
  * ItemHeaderTech
- * Container for technician panel – shows ONLY the logged-in
- * technician’s own stock (“Stan magazynowy”) and items issued
- * on his orders.  The global technicians block is hidden.
+ * Technician panel header – shows only the logged-in technician’s stock.
+ * Displays:
+ * - personal warehouse (“Stan magazynowy”)
+ * - number of items already used/issued on orders
  * ------------------------------------------------------------------- */
 
 import ItemStatsCard from '@/app/components/shared/warehouse/ItemStatsCard'
 import { devicesTypeMap } from '@/lib/constants'
-import { WarehouseWithRelations } from '@/types'
-import { Warehouse } from '@prisma/client'
+import { SlimWarehouseItem } from '@/utils/warehouse'
 import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
-type Props = { items: WarehouseWithRelations[] }
+type Props = { items: SlimWarehouseItem[] }
 
 const ItemHeaderTech = ({ items }: Props) => {
   const { data: session } = useSession()
   const techId = session?.user.id
-  const [first, setFirst] = useState<Warehouse | null>(null)
-  useEffect(() => setFirst(items[0]), [items])
-  if (!first || !techId) return null
 
+  // memoize subsets regardless of conditions
+  const { mine, issued } = useMemo(() => {
+    if (!techId)
+      return {
+        mine: [] as SlimWarehouseItem[],
+        issued: [] as SlimWarehouseItem[],
+      }
+
+    return {
+      mine: items.filter(
+        (i) => i.assignedToId === techId && i.orderAssignments.length === 0
+      ),
+      issued: items.filter(
+        (i) => i.assignedToId === techId && i.orderAssignments.length > 0
+      ),
+    }
+  }, [items, techId])
+
+  // if no data → nothing to render
+  if (!items.length || !techId) return null
+
+  const first = items[0]
   const isDevice = first.itemType === 'DEVICE'
-
-  /* ---- subsets for current technician ---- */
-  const mine = items.filter(
-    (i) => i.assignedToId === techId && i.orderAssignments.length === 0
-  )
-  const issued = items.filter(
-    (i) => i.assignedToId === techId && i.orderAssignments.length > 0
-  )
 
   /* ---- counts ---- */
   const myQty = isDevice
     ? mine.length
     : mine.reduce((s, i) => s + i.quantity, 0)
+
   const usedQty = isDevice
     ? issued.length
     : issued.reduce((s, i) => s + i.quantity, 0)
@@ -55,13 +67,11 @@ const ItemHeaderTech = ({ items }: Props) => {
       }
       price={first.price?.toFixed(2) ?? '—'}
       isDevice={isDevice}
-      /* personal warehouse as “Stan magazynowy” */
       warehouseQty={myQty}
       warehouseValue={myVal}
-      /* orders */
       usedInOrders={usedQty}
-      showWarehouse /* show personal stock */
-      showTechnician={false} /* hide global technicians block */
+      showWarehouse
+      showTechnician={false}
     />
   )
 }

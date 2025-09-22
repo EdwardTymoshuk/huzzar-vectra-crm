@@ -6,6 +6,19 @@ import { WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
+/** Actions relevant for date columns */
+// const RelevantActions: WarehouseAction[] = [
+//   WarehouseAction.RECEIVED,
+//   WarehouseAction.ISSUED,
+//   WarehouseAction.RETURNED,
+//   WarehouseAction.RETURNED_TO_OPERATOR,
+//   WarehouseAction.TRANSFER,
+//   WarehouseAction.COLLECTED_FROM_CLIENT,
+// ]
+
+/** Modes for the ItemTabs views. */
+const Modes = ['warehouse', 'technicians', 'orders', 'returned'] as const
+
 export const queriesRouter = router({
   /** 📦 Get all warehouse items (ordered by creation date) */
   getAll: loggedInEveryone.query(() => {
@@ -14,42 +27,109 @@ export const queriesRouter = router({
     })
   }),
 
-  /** 📦 Get items by name (scope = all | technician) */
+  /**
+   * 📦 Get items by name for a concrete mode (Magazyn/Technicy/Wydane/Zwrócone).
+   * Server-side filtering keeps payload small and ensures typing matches WarehouseWithRelations.
+   */
   getItemsByName: loggedInEveryone
     .input(
       z.object({
         name: z.string().min(1),
         scope: z.enum(['all', 'technician']).default('all'),
+        mode: z.enum(Modes).optional(),
       })
     )
     .query(async ({ input, ctx }) => {
       const techId = ctx.user?.id
+      const baseWhere = {
+        name: { equals: input.name.trim(), mode: 'insensitive' as const },
+      }
 
-      return prisma.warehouse.findMany({
-        where: {
-          name: { equals: input.name.trim(), mode: 'insensitive' },
+      let whereClause: Record<string, unknown> = { ...baseWhere }
 
-          ...(input.scope === 'technician' && techId
-            ? {
-                OR: [
-                  { assignedToId: techId },
-                  { history: { some: { performedById: techId } } },
-                ],
-              }
-            : {}),
-        },
-        include: {
-          assignedTo: true,
-          orderAssignments: { include: { order: true } },
+      switch (input.mode) {
+        case 'warehouse':
+          whereClause = {
+            ...baseWhere,
+            assignedToId: null,
+            status: 'AVAILABLE',
+            orderAssignments: { none: {} },
+          }
+          break
+        case 'technicians':
+          whereClause = {
+            ...baseWhere,
+            assignedToId: { not: null },
+            status: 'ASSIGNED',
+            orderAssignments: { none: {} },
+          }
+
+        case 'orders':
+          whereClause = {
+            ...baseWhere,
+            status: 'ASSIGNED_TO_ORDER',
+            orderAssignments: { some: {} },
+          }
+          break
+        case 'returned':
+          whereClause = {
+            ...baseWhere,
+            status: { in: ['RETURNED', 'RETURNED_TO_OPERATOR'] },
+          }
+          break
+        default:
+          if (input.scope === 'technician' && techId) {
+            whereClause = {
+              ...baseWhere,
+              OR: [
+                { assignedToId: techId },
+                { history: { some: { performedById: techId } } },
+              ],
+            }
+          }
+      }
+
+      const items = await prisma.warehouse.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          itemType: true,
+          category: true,
+          serialNumber: true,
+          index: true,
+          unit: true,
+          createdAt: true,
+          updatedAt: true,
+          quantity: true,
+          price: true,
+          status: true,
+          assignedToId: true,
+          transferPending: true,
+          assignedTo: { select: { id: true, name: true } },
+          orderAssignments: {
+            take: 1,
+            select: {
+              order: {
+                select: { id: true, orderNumber: true, createdAt: true },
+              },
+            },
+          },
           history: {
-            include: { performedBy: true, assignedTo: true },
+            select: {
+              action: true,
+              actionDate: true,
+              performedBy: { select: { id: true, name: true } },
+              assignedTo: { select: { id: true, name: true } },
+            },
             orderBy: { actionDate: 'asc' },
           },
         },
         orderBy: { createdAt: 'asc' },
       })
-    }),
 
+      return items
+    }),
   /** 🔍 Get warehouse item by serial number */
   getBySerialNumber: loggedInEveryone
     .input(z.object({ serial: z.string().min(1) }))

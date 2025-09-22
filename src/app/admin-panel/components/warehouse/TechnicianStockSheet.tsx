@@ -41,7 +41,6 @@ const TechnicianStockSheet = ({ open, setOpen }: Props) => {
       { technicianId: technicianId! },
       { enabled: !!technicianId }
     )
-
   // Reset selection when sheet closes
   useEffect(() => {
     if (!open) {

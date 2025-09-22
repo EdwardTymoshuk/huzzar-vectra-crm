@@ -12,7 +12,7 @@ import { Skeleton } from '@/app/components/ui/skeleton'
 import { devicesTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
 import { toast } from 'sonner'
 
@@ -26,14 +26,21 @@ import { toast } from 'sonner'
 
 const TechnicianWarehouseItemPage = () => {
   const [searchTerm, setSearchTerm] = useState<string>('')
+  const [name, setName] = useState<string>('')
 
-  const name = decodeURIComponent(useParams<{ name: string }>().name)
-  const { data, isLoading, isError } = trpc.warehouse.getItemsByName.useQuery({
-    name,
-    scope: 'technician',
-  })
-
+  const params = useParams<{ name: string }>()
   const router = useRouter()
+
+  const { data, isLoading, isError } = trpc.warehouse.getItemsByName.useQuery(
+    { name, scope: 'technician' },
+    { enabled: !!name }
+  )
+
+  useEffect(() => {
+    if (params?.name) {
+      setName(decodeURIComponent(params.name))
+    }
+  }, [params])
 
   /* ------------------------------- states ------------------------------ */
   if (isLoading) return <Skeleton className="h-[200px] w-full" />
@@ -60,7 +67,7 @@ const TechnicianWarehouseItemPage = () => {
       <div className="flex flex-col sm:flex-row justify-between gap-2 w-full">
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={() => router.push('/?tab=warehouse')}
           className="text-start w-fit"
         >
           <MdKeyboardArrowLeft />
