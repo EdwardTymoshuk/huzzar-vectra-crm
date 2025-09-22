@@ -6,34 +6,33 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import AssignmentsTable from './AssignmentsTable'
-import OrdersTable from './OrdersTable'
+import AssignmentsTable from '../orders/AssignmentsTable'
+import PlanningBoard from './PlanningBoard'
 
 /**
- * OrdersTabs component:
- * - Switches between 'Lista zleceń' and 'Podział zleceń'
+ * PlanningTabs:
+ * - Switches between "Planowanie" (drag & drop board) and "Zbiórówka".
  */
-
-type Props = {
-  searchTerm: string
-}
-
-const OrdersTabs = ({ searchTerm }: Props) => {
+const PlanningTabs = () => {
   return (
-    <Tabs defaultValue="list" className="w-full">
+    <Tabs defaultValue="planning" className="w-full">
       <div className="w-full flex justify-center">
         <TabsList className="w-full md:w-1/2 lg:w-1/4 justify-center">
-          <TabsTrigger value="list" className="w-full">
-            Lista zleceń
+          <TabsTrigger value="planning" className="w-full">
+            Planowanie
           </TabsTrigger>
           <TabsTrigger value="assignments" className="w-full">
             Zbiórówka
           </TabsTrigger>
         </TabsList>
       </div>
-      <TabsContent value="list">
-        <OrdersTable searchTerm={searchTerm} />
+
+      {/* --- Planowanie --- */}
+      <TabsContent value="planning">
+        <PlanningBoard />
       </TabsContent>
+
+      {/* --- Zbiórówka --- */}
       <TabsContent value="assignments">
         <AssignmentsTable />
       </TabsContent>
@@ -41,4 +40,4 @@ const OrdersTabs = ({ searchTerm }: Props) => {
   )
 }
 
-export default OrdersTabs
+export default PlanningTabs

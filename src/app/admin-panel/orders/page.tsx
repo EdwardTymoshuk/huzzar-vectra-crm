@@ -5,7 +5,7 @@
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import { useState } from 'react'
-import OrdersTabs from '../components/orders/OrdersTabs'
+import OrdersTable from '../components/orders/OrdersTable'
 import OrdersToolbar from '../components/orders/OrdersToolbar'
 
 /**
@@ -19,7 +19,7 @@ const OrdersPage = () => {
       <PageHeader title="Zlecenia" />
       <div className="space-y-6">
         <OrdersToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-        <OrdersTabs searchTerm={searchTerm} />
+        <OrdersTable searchTerm={searchTerm} />
       </div>
     </MaxWidthWrapper>
   )

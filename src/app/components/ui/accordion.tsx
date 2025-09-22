@@ -1,6 +1,5 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
 import { Accordion as AccordionPrimitive } from 'radix-ui'
 import * as React from 'react'
 
@@ -23,21 +22,25 @@ AccordionItem.displayName = 'AccordionItem'
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, asChild, ...props }, ref) => (
   <AccordionPrimitive.Header className="flex">
     <AccordionPrimitive.Trigger
       ref={ref}
+      asChild={asChild}
+      {...props}
       className={cn(
         'flex flex-1 items-center justify-between py-4 font-bold text-xl transition-all [&[data-state=open]>svg]:rotate-180',
         className
       )}
-      {...props}
     >
       {children}
-      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+      {/* {!asChild && (
+        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+      )} */}
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
 ))
+
 AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
 const AccordionContent = React.forwardRef<

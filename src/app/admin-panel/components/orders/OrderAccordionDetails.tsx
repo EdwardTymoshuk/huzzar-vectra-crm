@@ -69,7 +69,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
           {canAmend && !isWarehouseman && (
             <Button variant="warning" onClick={() => setOpenAmend(true)}>
               <MdEdit className="mr-1" />
-              Edytuj
+              Edytuj odpis
             </Button>
           )}
 

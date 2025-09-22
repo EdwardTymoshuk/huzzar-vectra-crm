@@ -38,6 +38,7 @@ import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { useRole } from '@/utils/roleHelpers/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, OrderType, Prisma } from '@prisma/client'
+import { ChevronDown } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdDelete, MdEdit, MdVisibility } from 'react-icons/md'
@@ -186,7 +187,7 @@ const OrdersTableInner = ({
 
   /* ---------------------------- Render ---------------------------- */
   const GRID =
-    'grid grid-cols-[120px_90px_140px_110px_120px_110px_minmax(260px,2fr)_minmax(160px,1fr)_max-content]'
+    'grid grid-cols-[120px_90px_140px_110px_120px_110px_minmax(260px,2fr)_minmax(160px,1fr)_max-content_40px]'
 
   return (
     <div>
@@ -281,11 +282,12 @@ const OrdersTableInner = ({
                   <AccordionItem key={o.id} value={o.id}>
                     {/* Row (trigger) */}
                     <AccordionTrigger
-                      className=" px-4 py-3 hover:bg-muted/50 justify-start"
-                      onClick={() => setOpenRowId(open ? null : o.id)}
+                      className="text-sm px-4 py-3 hover:bg-muted/50 justify-start hover: cursor-pointer"
+                      asChild
                     >
                       <div
-                        className={`${GRID} w-full gap-2 items-center text-start text-sm`}
+                        onClick={() => setOpenRowId(open ? null : o.id)}
+                        className={`${GRID} w-full gap-2 items-center text-start`}
                       >
                         <span>{o.operator}</span>
                         <span>{orderTypeMap[o.type]}</span>
@@ -456,6 +458,7 @@ const OrdersTableInner = ({
                             </DropdownMenu>
                           )}
                         </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
                       </div>
                     </AccordionTrigger>
 
