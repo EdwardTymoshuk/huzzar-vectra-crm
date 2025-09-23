@@ -43,7 +43,7 @@ interface Props {
 
 /**
  * EditDeviceDefinitionDialog:
- * Modal for editing an existing device definition with alerts and price.
+ * Modal for editing an existing device definition with alerts, price and provider.
  */
 const EditDeviceDefinitionDialog = ({
   open,
@@ -61,18 +61,20 @@ const EditDeviceDefinitionDialog = ({
     resolver: zodResolver(deviceSchema),
     defaultValues: {
       ...item,
+      provider: item.provider ?? undefined,
     },
   })
 
   useEffect(() => {
     form.reset({
       ...item,
+      provider: item.provider ?? undefined,
     })
   }, [item, form])
 
   const mutation = trpc.deviceDefinition.editDefinition.useMutation({
     onSuccess: () => {
-      toast.success('Podkategoria została zaktualizowana.')
+      toast.success('Urządzenie zostało zaktualizowane.')
       utils.deviceDefinition.getAllDefinitions.invalidate()
       onClose()
     },
@@ -85,18 +87,21 @@ const EditDeviceDefinitionDialog = ({
       (def) =>
         def.id !== item.id &&
         def.name.toLowerCase() === trimmedName.toLowerCase() &&
-        def.category === data.category
+        def.category === data.category &&
+        def.provider === data.provider
     )
 
     if (alreadyExists) {
-      toast.error('Takie urządzenie już istnieje w danej kategorii.')
+      toast.error(
+        'Takie urządzenie już istnieje w danej kategorii i operatorze.'
+      )
       return
     }
 
     mutation.mutate({
       id: item.id,
       ...data,
-      name: data.name.trim(),
+      name: trimmedName,
     })
   }
 
@@ -104,13 +109,14 @@ const EditDeviceDefinitionDialog = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edytuj podkategorię</DialogTitle>
+          <DialogTitle>Edytuj urządzenie</DialogTitle>
           <DialogDescription>
-            Zmień kategorię, nazwę, cenę lub progi ostrzeżeń.
+            Zmień kategorię, operatora, nazwę, cenę lub progi ostrzeżeń.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Category */}
             <FormField
               control={form.control}
               name="category"
@@ -134,20 +140,46 @@ const EditDeviceDefinitionDialog = ({
               )}
             />
 
+            {/* Provider */}
+            <FormField
+              control={form.control}
+              name="provider"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Operator</FormLabel>
+                  <Select
+                    value={field.value ?? ''}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wybierz operatora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VECTRA">Vectra</SelectItem>
+                      <SelectItem value="MMP">MMP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Name */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nazwa podkategorii</FormLabel>
+                  <FormLabel>Nazwa urządzenia</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="np. FunBox 6" />
+                    <Input {...field} placeholder="np. HUAWEI EG8145X6" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Price */}
             <FormField
               control={form.control}
               name="price"
@@ -162,6 +194,7 @@ const EditDeviceDefinitionDialog = ({
               )}
             />
 
+            {/* Alerts */}
             <FormField
               control={form.control}
               name="warningAlert"
@@ -175,7 +208,6 @@ const EditDeviceDefinitionDialog = ({
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="alarmAlert"

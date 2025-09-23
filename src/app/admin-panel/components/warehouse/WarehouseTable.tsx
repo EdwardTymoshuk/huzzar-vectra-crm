@@ -27,19 +27,18 @@ import PaginationControls from '../warehouse/history/PaginationControls'
 
 type Props = {
   itemType: WarehouseItemType
-  /** Optional: narrow results to given subcategory (e.g., within DEVICE). */
-  subcategoryFilter?: string
   /** Free-text search across grouped item `name`. */
   searchTerm: string
 }
 
-type SortField = null | 'name' | 'category'
+type SortField = null | 'name' | 'category' | 'provider'
 type SortOrder = null | 'asc' | 'desc'
 
 /** Grouped row shape: 1 row per unique `name` (+ derived fields). */
 type GroupedItem = {
   name: string
   category: string
+  provider: string
   quantity: number
   price: number
 }
@@ -51,43 +50,34 @@ type GroupedItem = {
  * - Reuses global PaginationControls and the 30/50/100 buttons pattern.
  * - Strong typing to avoid implicit-`any` traps.
  */
-const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
+const WarehouseTable = ({ itemType, searchTerm }: Props) => {
   const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery()
 
-  // Sorting
+  // Sorting state
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
 
-  // Pagination (same UX as OrdersTable)
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(30)
 
-  /** 1) Base filtering by type/subcategory; show only AVAILABLE for base view. */
+  /** 1) Base filtering by type; show only AVAILABLE for base view. */
   const filtered = useMemo(() => {
     if (!data) return []
-
-    // If subcategoryFilter provided, it overrides generic itemType filtering
-    if (subcategoryFilter) {
-      return data.filter(
-        (item) =>
-          item.subcategory === subcategoryFilter && item.status === 'AVAILABLE'
-      )
-    }
-
     return data.filter(
       (item) => item.itemType === itemType && item.status === 'AVAILABLE'
     )
-  }, [data, itemType, subcategoryFilter])
+  }, [data, itemType])
 
-  /** 2) Group by `name`: sum quantities, keep latest price/category. */
+  /** 2) Group by `name`: sum quantities, keep latest price/category/provider. */
   const grouped: GroupedItem[] = useMemo(() => {
     const acc = filtered.reduce<Record<string, GroupedItem>>((map, item) => {
-      const key = item.name
+      const key = `${item.name}-${item.provider ?? ''}`
       if (!map[key]) {
         map[key] = {
           name: item.name,
-          // Prefer explicit category; fallback to subcategory; dash if neither present.
-          category: item.category ?? item.subcategory ?? '—',
+          category: item.category ?? '—',
+          provider: item.provider ?? '—',
           quantity: 0,
           price: Number(item.price ?? 0),
         }
@@ -95,6 +85,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
       map[key].quantity += item.quantity
       if (item.price != null) map[key].price = Number(item.price)
       if (item.category) map[key].category = item.category
+      if (item.provider) map[key].provider = item.provider
       return map
     }, {})
     return Object.values(acc)
@@ -107,7 +98,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
     return grouped.filter((it) => it.name.toLowerCase().includes(q))
   }, [grouped, searchTerm])
 
-  /** 4) Sort by selected field (name/category). */
+  /** 4) Sort by selected field (name/category/provider). */
   const sortedItems: GroupedItem[] = useMemo(() => {
     const items = [...searchedItems]
     if (!sortField || !sortOrder) return items
@@ -121,7 +112,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
     })
   }, [searchedItems, sortField, sortOrder])
 
-  /** 5) Pagination AFTER filter/search/sort for stable UX. */
+  /** 5) Pagination AFTER filter/search/sort. */
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / itemsPerPage))
 
   useEffect(() => {
@@ -133,7 +124,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
     return sortedItems.slice(start, start + itemsPerPage)
   }, [sortedItems, currentPage, itemsPerPage])
 
-  /** Toggle/cycle sort for a field: asc → desc → off. */
+  /** Toggle/cycle sort for a field. */
   const handleSort = (field: SortField) => {
     if (sortField !== field) {
       setSortField(field)
@@ -144,7 +135,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
       )
       if (sortOrder === 'desc') setSortField(null)
     }
-    setCurrentPage(1) // reset page on sort change
+    setCurrentPage(1)
   }
 
   /** Header sort icon helper. */
@@ -191,8 +182,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
 
   return (
     <div className="border rounded-md mb-4">
-      {/* Top actions: items-per-page (same pattern as OrdersTable) */}
-      <div className="flex items-center justify-between p-2">
+      <div className="flex items-center justify-end p-2">
         <div className="flex gap-2">
           {[30, 50, 100].map((n) => (
             <Button
@@ -201,15 +191,12 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
               size="sm"
               onClick={() => {
                 setItemsPerPage(n)
-                setCurrentPage(1) // reset page on size change
+                setCurrentPage(1)
               }}
             >
               {n}
             </Button>
           ))}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          Razem pozycji: {sortedItems.length}
         </div>
       </div>
 
@@ -226,17 +213,27 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
               </div>
             </TableHead>
 
-            {/* Category column is meaningful mainly for DEVICE tab */}
             {itemType === 'DEVICE' && (
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => handleSort('category')}
-              >
-                <div className="flex items-center gap-1">
-                  <span>Kategoria</span>
-                  {renderSortIcon('category')}
-                </div>
-              </TableHead>
+              <>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('category')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Kategoria</span>
+                    {renderSortIcon('category')}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('provider')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Operator</span>
+                    {renderSortIcon('provider')}
+                  </div>
+                </TableHead>
+              </>
             )}
 
             <TableHead>Ilość dostępna</TableHead>
@@ -257,7 +254,7 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
                 : 'success'
 
             return (
-              <TableRow key={`${item.name}-${item.category}`}>
+              <TableRow key={`${item.name}-${item.category}-${item.provider}`}>
                 <TableCell>
                   <Highlight
                     highlightClassName="bg-yellow-200"
@@ -268,16 +265,17 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
                 </TableCell>
 
                 {itemType === 'DEVICE' && (
-                  <TableCell>
-                    {/* Use mapped label when available, fallback to raw category */}
-                    {devicesTypeMap[item.category] ?? item.category}
-                  </TableCell>
+                  <>
+                    <TableCell>
+                      {devicesTypeMap[item.category] ?? item.category}
+                    </TableCell>
+                    <TableCell>{item.provider ?? '—'}</TableCell>
+                  </>
                 )}
 
                 <TableCell>
                   <Badge variant={variant}>{item.quantity}</Badge>
                 </TableCell>
-
                 <TableCell>{item.price.toFixed(2)} zł</TableCell>
                 <TableCell>{value.toFixed(2)} zł</TableCell>
 
@@ -299,7 +297,6 @@ const WarehouseTable = ({ itemType, subcategoryFilter, searchTerm }: Props) => {
         </TableBody>
       </Table>
 
-      {/* Bottom pagination — same control as OrdersTable */}
       <PaginationControls
         page={currentPage}
         totalPages={totalPages}

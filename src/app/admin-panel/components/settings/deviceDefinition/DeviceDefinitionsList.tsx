@@ -27,9 +27,15 @@ import { toast } from 'sonner'
 import AddDeviceDefinitionDialog from './AddDeviceDefinitionDialog'
 import EditDeviceDefinitionDialog from './EditDeviceDefinitionDialog'
 
-type SortField = 'name' | 'category' | null
+/** Available sort fields for device definitions table */
+type SortField = 'name' | 'category' | 'provider' | null
 type SortOrder = 'asc' | 'desc' | null
 
+/**
+ * DeviceDefinitionsList
+ * - Displays all device definitions with category, provider, alerts and price.
+ * - Supports search, sorting, editing and deleting.
+ */
 const DeviceDefinitionsList = () => {
   const [editingItem, setEditingItem] = useState<DeviceDefinition | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -50,6 +56,7 @@ const DeviceDefinitionsList = () => {
     onError: () => toast.error('Błąd podczas usuwania.'),
   })
 
+  /** Normalizes null values to defaults */
   const safeData: DeviceDefinition[] = useMemo(() => {
     if (!data) return []
     return data.map((item) => ({
@@ -60,23 +67,26 @@ const DeviceDefinitionsList = () => {
     }))
   }, [data])
 
+  /** Search by device name */
   const filtered = useMemo(() => {
     return safeData.filter((item) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [safeData, searchTerm])
 
+  /** Sort by selected field */
   const sorted = useMemo(() => {
     if (!sortField || !sortOrder) return filtered
     return [...filtered].sort((a, b) => {
-      const aVal = a[sortField] ?? ''
-      const bVal = b[sortField] ?? ''
+      const aVal = (a[sortField] ?? '') as string
+      const bVal = (b[sortField] ?? '') as string
       return sortOrder === 'asc'
         ? aVal.localeCompare(bVal)
         : bVal.localeCompare(aVal)
     })
   }, [filtered, sortField, sortOrder])
 
+  /** Handles header click for sorting */
   const handleSort = (field: SortField) => {
     if (sortField !== field) {
       setSortField(field)
@@ -119,10 +129,11 @@ const DeviceDefinitionsList = () => {
       </div>
 
       <Card className="overflow-x-auto">
-        <div className="min-w-[800px]">
+        <div className="min-w-[950px]">
           <Table>
             <TableHeader>
               <TableRow>
+                {/* Name */}
                 <TableHead
                   className="cursor-pointer select-none"
                   onClick={() => handleSort('name')}
@@ -140,6 +151,8 @@ const DeviceDefinitionsList = () => {
                     )}
                   </div>
                 </TableHead>
+
+                {/* Category */}
                 <TableHead
                   className="cursor-pointer select-none"
                   onClick={() => handleSort('category')}
@@ -157,12 +170,33 @@ const DeviceDefinitionsList = () => {
                     )}
                   </div>
                 </TableHead>
+
+                {/* Provider */}
+                <TableHead
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('provider')}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Operator</span>
+                    {sortField === 'provider' ? (
+                      sortOrder === 'asc' ? (
+                        <TiArrowSortedUp className="w-4 h-4" />
+                      ) : (
+                        <TiArrowSortedDown className="w-4 h-4" />
+                      )
+                    ) : (
+                      <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </TableHead>
+
                 <TableHead>Alert (ostrzeżenie)</TableHead>
                 <TableHead>Alert (krytyczny)</TableHead>
                 <TableHead>Cena</TableHead>
                 <TableHead>Akcje</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {sorted.map((item) => (
                 <TableRow key={item.id}>
@@ -171,6 +205,9 @@ const DeviceDefinitionsList = () => {
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {devicesTypeMap[item.category]}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {item.provider ?? '—'}
                   </TableCell>
                   <TableCell>{item.warningAlert}</TableCell>
                   <TableCell>{item.alarmAlert}</TableCell>

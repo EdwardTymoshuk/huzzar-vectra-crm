@@ -1,7 +1,7 @@
 import { deviceSchema } from '@/lib/schema'
 import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { prisma } from '@/utils/prisma'
-import { DeviceCategory } from '@prisma/client'
+import { DeviceCategory, DeviceProvider } from '@prisma/client'
 import { z } from 'zod'
 import { router } from '../../trpc'
 
@@ -12,6 +12,7 @@ export const deviceDefinitionRouter = router({
       select: {
         id: true,
         category: true,
+        provider: true,
         name: true,
         warningAlert: true,
         alarmAlert: true,
@@ -31,6 +32,7 @@ export const deviceDefinitionRouter = router({
     return prisma.deviceDefinition.create({
       data: {
         category: input.category,
+        provider: input.provider,
         name: input.name.trim(),
         warningAlert: input.warningAlert,
         alarmAlert: input.alarmAlert,
@@ -46,6 +48,7 @@ export const deviceDefinitionRouter = router({
         .object({
           id: z.string(),
           category: z.nativeEnum(DeviceCategory),
+          provider: z.nativeEnum(DeviceProvider).nullable().optional(),
           name: z.string().min(2),
           warningAlert: z.number().min(1),
           alarmAlert: z.number().min(1),
@@ -62,6 +65,7 @@ export const deviceDefinitionRouter = router({
         where: { id: input.id },
         data: {
           category: input.category,
+          provider: input.provider,
           name: input.name.trim(),
           warningAlert: input.warningAlert,
           alarmAlert: input.alarmAlert,
@@ -77,6 +81,7 @@ export const deviceDefinitionRouter = router({
           name: input.name.trim(),
         },
         data: {
+          provider: input.provider,
           price: input.price,
           warningAlert: input.warningAlert,
           alarmAlert: input.alarmAlert,

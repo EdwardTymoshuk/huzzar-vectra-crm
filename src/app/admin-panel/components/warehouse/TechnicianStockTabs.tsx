@@ -24,9 +24,7 @@ type Props = {
  * - Passes correct itemType to TechnicianStockTable.
  */
 const TechnicianStockTabs = ({ items, searchTerm }: Props) => {
-  const devices = items.filter(
-    (i) => i.itemType === 'DEVICE' && i.subcategory !== 'ZA'
-  )
+  const devices = items.filter((i) => i.itemType === 'DEVICE')
   const materials = items.filter((i) => i.itemType === 'MATERIAL')
 
   return (

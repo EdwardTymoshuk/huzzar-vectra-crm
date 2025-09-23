@@ -59,6 +59,7 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
     defaultValues: {
       name: '',
       category: 'OTHER',
+      provider: 'VECTRA',
       warningAlert: 10,
       alarmAlert: 5,
       price: 0,
@@ -80,7 +81,8 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
     const alreadyExists = allDefinitions?.some(
       (def) =>
         def.name.toLowerCase() === trimmedName.toLowerCase() &&
-        def.category === data.category
+        def.category === data.category &&
+        def.provider === data.provider
     )
 
     if (alreadyExists) {
@@ -111,6 +113,29 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="provider"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Operator</FormLabel>
+                  <Select
+                    value={field.value ?? undefined}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wybierz operatora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VECTRA">VECTRA</SelectItem>
+                      <SelectItem value="MMP">MMP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="category"

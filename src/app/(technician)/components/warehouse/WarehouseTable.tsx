@@ -69,7 +69,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
         if (!acc[item.name]) {
           acc[item.name] = {
             name: item.name,
-            category: item.category ?? item.subcategory ?? '—',
+            category: item.category ?? '—',
             quantity: 0,
             price: item.price,
           }
