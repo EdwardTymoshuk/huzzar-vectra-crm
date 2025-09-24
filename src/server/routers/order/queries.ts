@@ -63,15 +63,16 @@ export const queriesRouter = router({
         status: z.nativeEnum(OrderStatus).optional(),
         assignedToId: z.string().optional(),
         type: z.nativeEnum(OrderType).optional(),
+        searchTerm: z.string().optional(),
       })
     )
     .query(async ({ input, ctx }) => {
-      const filters: Partial<
-        Pick<OrderWithAssigned, 'status' | 'assignedToId' | 'type'>
-      > = {}
+      const filters: Prisma.OrderWhereInput = {}
 
       // Technicians only see their own orders
-      if (isTechnician(ctx)) filters.assignedToId = ctx.user!.id
+      if (isTechnician(ctx)) {
+        filters.assignedToId = ctx.user!.id
+      }
 
       // Admin/Coordinator may filter by assignedToId (or 'unassigned')
       if (
@@ -84,6 +85,16 @@ export const queriesRouter = router({
 
       if (input.status) filters.status = input.status
       if (input.type) filters.type = input.type
+
+      // 🔍 Search logic
+      if (input.searchTerm && input.searchTerm.trim() !== '') {
+        const q = input.searchTerm.trim()
+        filters.OR = [
+          { orderNumber: { contains: q, mode: 'insensitive' } },
+          { city: { contains: q, mode: 'insensitive' } },
+          { street: { contains: q, mode: 'insensitive' } },
+        ]
+      }
 
       const orders = await ctx.prisma.order.findMany({
         where: filters,
@@ -98,6 +109,7 @@ export const queriesRouter = router({
           assignedTo: true,
         },
       })
+
       const totalOrders = await ctx.prisma.order.count({ where: filters })
       return { orders, totalOrders }
     }),

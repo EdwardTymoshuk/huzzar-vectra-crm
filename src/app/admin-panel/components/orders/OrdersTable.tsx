@@ -35,6 +35,7 @@ import {
 } from '@/app/components/ui/select'
 import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
+import { useDebounce } from '@/utils/hooks/useDebounce'
 import { useRole } from '@/utils/roleHelpers/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, OrderType, Prisma } from '@prisma/client'
@@ -63,32 +64,18 @@ type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
 type Props = { searchTerm: string }
 
-type TechnicianLite = { id: string; name: string } // typed minimal technician item
+type TechnicianLite = { id: string; name: string }
 
 /* ============================ Guard shell ========================== */
-/**
- * OrdersTable:
- * - Guard wrapper that resolves role and returns a loader if session is loading.
- * - Delegates to OrdersTableInner so all other hooks are always called
- *   unconditionally (complies with React rules-of-hooks).
- */
 const OrdersTable = ({ searchTerm }: Props) => {
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
-
-  // Early return is allowed only here (no other hooks called yet).
   if (isPageLoading) return <LoaderSpinner />
-
   return <OrdersTableInner searchTerm={searchTerm} readOnly={isWarehouseman} />
 }
 
 export default OrdersTable
 
 /* ============================ Inner table ========================== */
-/**
- * OrdersTableInner:
- * - Contains all data hooks (tRPC queries/mutations) and UI logic.
- * - No early returns before hooks to keep a stable hook order.
- */
 const OrdersTableInner = ({
   searchTerm,
   readOnly,
@@ -120,7 +107,8 @@ const OrdersTableInner = ({
     useState<OrderWithAssignedTo | null>(null)
 
   /* ---------------------------- Data ------------------------------ */
-  // Orders list
+  const debouncedSearch = useDebounce(searchTerm, 300)
+
   const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
@@ -128,6 +116,7 @@ const OrdersTableInner = ({
     status: statusFilter ?? undefined,
     assignedToId: technicianFilter ?? undefined,
     type: orderTypeFilter ?? undefined,
+    searchTerm: debouncedSearch || undefined,
   })
 
   const orders = useMemo<OrderWithAssignedTo[]>(
@@ -140,30 +129,16 @@ const OrdersTableInner = ({
     Math.ceil((data?.totalOrders ?? 0) / itemsPerPage)
   )
 
-  // Clamp currentPage when filters/sorting change totalPages
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  // Technicians for inline assign select
   const { data: techniciansData } = trpc.user.getTechnicians.useQuery({
     status: 'ACTIVE',
   })
   const technicians: TechnicianLite[] = useMemo(
     () => (techniciansData ?? []).map((t) => ({ id: t.id, name: t.name })),
     [techniciansData]
-  )
-
-  // Local search filter (by number or address)
-  const filtered: OrderWithAssignedTo[] = useMemo(
-    () =>
-      orders.filter((o) => {
-        const num = o.orderNumber.toLowerCase()
-        const addr = `${o.city} ${o.street}`.toLowerCase()
-        const q = searchTerm.toLowerCase()
-        return num.includes(q) || addr.includes(q)
-      }),
-    [orders, searchTerm]
   )
 
   /* -------------------------- Mutations --------------------------- */
@@ -221,7 +196,6 @@ const OrdersTableInner = ({
             <span>Operator</span>
             <span>Typ</span>
             <span>Nr zlecenia</span>
-
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('date')}
@@ -237,7 +211,6 @@ const OrdersTableInner = ({
                 <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
-
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('status')}
@@ -253,7 +226,6 @@ const OrdersTableInner = ({
                 <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
-
             <span>Slot</span>
             <span>Adres</span>
             <span>Technik</span>
@@ -270,19 +242,18 @@ const OrdersTableInner = ({
             <p className="py-10 text-center text-danger">
               Błąd ładowania danych.
             </p>
-          ) : !filtered.length ? (
+          ) : !orders.length ? (
             <p className="py-10 text-center text-muted-foreground">
               Brak danych do wyświetlenia.
             </p>
           ) : (
             <Accordion type="multiple">
-              {filtered.map((o) => {
+              {orders.map((o) => {
                 const open = openRowId === o.id
                 return (
                   <AccordionItem key={o.id} value={o.id}>
-                    {/* Row (trigger) */}
                     <AccordionTrigger
-                      className="text-sm px-4 py-3 hover:bg-muted/50 justify-start hover: cursor-pointer"
+                      className="text-sm px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
                       asChild
                     >
                       <div
@@ -291,7 +262,6 @@ const OrdersTableInner = ({
                       >
                         <span>{o.operator}</span>
                         <span>{orderTypeMap[o.type]}</span>
-
                         <span
                           className="min-w-0 whitespace-normal break-words"
                           title={o.orderNumber}
@@ -302,10 +272,7 @@ const OrdersTableInner = ({
                             autoEscape
                           />
                         </span>
-
                         <span>{new Date(o.date).toLocaleDateString()}</span>
-
-                        {/* Status (inline edit) */}
                         <span
                           onDoubleClick={(e) => {
                             e.stopPropagation()
@@ -347,10 +314,7 @@ const OrdersTableInner = ({
                             </Badge>
                           )}
                         </span>
-
                         <span>{getTimeSlotLabel(o.timeSlot)}</span>
-
-                        {/* Address */}
                         <span
                           className="min-w-0 w-full whitespace-normal break-words"
                           title={`${o.city}, ${o.street}`}
@@ -361,8 +325,6 @@ const OrdersTableInner = ({
                             autoEscape
                           />
                         </span>
-
-                        {/* Technician (inline assign) */}
                         <span
                           onDoubleClick={(e) => {
                             e.stopPropagation()
@@ -412,8 +374,6 @@ const OrdersTableInner = ({
                             </span>
                           )}
                         </span>
-
-                        {/* Actions */}
                         <span className="text-right">
                           {!readOnly && (
                             <DropdownMenu>
@@ -461,8 +421,6 @@ const OrdersTableInner = ({
                         <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
                       </div>
                     </AccordionTrigger>
-
-                    {/* Details */}
                     <AccordionContent className="bg-muted/40 px-4 py-3">
                       <OrderAccordionDetails order={{ id: o.id }} />
                     </AccordionContent>
