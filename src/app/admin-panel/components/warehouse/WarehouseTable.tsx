@@ -24,17 +24,16 @@ import {
   TiArrowUnsorted,
 } from 'react-icons/ti'
 import PaginationControls from '../warehouse/history/PaginationControls'
+import WarehouseFilter from './WarehouseFilter'
 
 type Props = {
   itemType: WarehouseItemType
-  /** Free-text search across grouped item `name`. */
   searchTerm: string
 }
 
 type SortField = null | 'name' | 'category' | 'provider'
 type SortOrder = null | 'asc' | 'desc'
 
-/** Grouped row shape: 1 row per unique `name` (+ derived fields). */
 type GroupedItem = {
   name: string
   category: string
@@ -43,33 +42,38 @@ type GroupedItem = {
   price: number
 }
 
-/**
- * WarehouseTable
- * - Pipeline: filter → group → search → sort → paginate.
- * - Works for both DEVICE and MATERIAL tabs.
- * - Reuses global PaginationControls and the 30/50/100 buttons pattern.
- * - Strong typing to avoid implicit-`any` traps.
- */
 const WarehouseTable = ({ itemType, searchTerm }: Props) => {
   const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery()
 
-  // Sorting state
+  // Sorting
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
 
-  // Pagination state
+  // Filters
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [providerFilter, setProviderFilter] = useState<string | null>(null)
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(30)
 
-  /** 1) Base filtering by type; show only AVAILABLE for base view. */
+  /** 1) Base filtering */
   const filtered = useMemo(() => {
     if (!data) return []
-    return data.filter(
-      (item) => item.itemType === itemType && item.status === 'AVAILABLE'
-    )
-  }, [data, itemType])
+    return data.filter((item) => {
+      const matchesType =
+        item.itemType === itemType && item.status === 'AVAILABLE'
+      const matchesCategory = categoryFilter
+        ? item.category === categoryFilter
+        : true
+      const matchesProvider = providerFilter
+        ? item.provider === providerFilter
+        : true
+      return matchesType && matchesCategory && matchesProvider
+    })
+  }, [data, itemType, categoryFilter, providerFilter])
 
-  /** 2) Group by `name`: sum quantities, keep latest price/category/provider. */
+  /** 2) Group by name+provider */
   const grouped: GroupedItem[] = useMemo(() => {
     const acc = filtered.reduce<Record<string, GroupedItem>>((map, item) => {
       const key = `${item.name}-${item.provider ?? ''}`
@@ -91,18 +95,17 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     return Object.values(acc)
   }, [filtered])
 
-  /** 3) Search by name (case-insensitive). */
+  /** 3) Search */
   const searchedItems: GroupedItem[] = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!q) return grouped
     return grouped.filter((it) => it.name.toLowerCase().includes(q))
   }, [grouped, searchTerm])
 
-  /** 4) Sort by selected field (name/category/provider). */
+  /** 4) Sort */
   const sortedItems: GroupedItem[] = useMemo(() => {
     const items = [...searchedItems]
     if (!sortField || !sortOrder) return items
-
     return items.sort((a, b) => {
       const aVal = (a[sortField] ?? '') as string
       const bVal = (b[sortField] ?? '') as string
@@ -112,7 +115,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     })
   }, [searchedItems, sortField, sortOrder])
 
-  /** 5) Pagination AFTER filter/search/sort. */
+  /** 5) Pagination */
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / itemsPerPage))
 
   useEffect(() => {
@@ -124,7 +127,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     return sortedItems.slice(start, start + itemsPerPage)
   }, [sortedItems, currentPage, itemsPerPage])
 
-  /** Toggle/cycle sort for a field. */
+  /** Handlers */
   const handleSort = (field: SortField) => {
     if (sortField !== field) {
       setSortField(field)
@@ -138,7 +141,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     setCurrentPage(1)
   }
 
-  /** Header sort icon helper. */
   const renderSortIcon = (field: Exclude<SortField, null>) => {
     if (sortField !== field) {
       return <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
@@ -150,8 +152,9 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     )
   }
 
-  /* ---------------------- LOADING / EMPTY STATES ---------------------- */
+  /* ---------------------- UI states ---------------------- */
 
+  /* ---------------------- LOADING ---------------------- */
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -170,19 +173,16 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     )
   }
 
-  if (sortedItems.length === 0) {
-    return (
-      <p className="pt-8 text-sm text-center text-muted-foreground">
-        Brak pozycji w tej kategorii.
-      </p>
-    )
-  }
-
-  /* ----------------------------- RENDER ------------------------------- */
-
+  /* ---------------------- Render ---------------------- */
   return (
     <div className="border rounded-md mb-4">
-      <div className="flex items-center justify-end p-2">
+      {/* Filters & page size */}
+      <div className="flex items-center justify-between p-2">
+        <WarehouseFilter
+          setCategoryFilter={setCategoryFilter}
+          setProviderFilter={setProviderFilter}
+        />
+
         <div className="flex gap-2">
           {[30, 50, 100].map((n) => (
             <Button
@@ -244,56 +244,68 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
         </TableHeader>
 
         <TableBody>
-          {pageItems.map((item) => {
-            const value = item.price * item.quantity
-            const variant: 'default' | 'success' | 'warning' | 'danger' =
-              item.quantity <= 5
-                ? 'danger'
-                : item.quantity <= 15
-                ? 'warning'
-                : 'success'
+          {pageItems.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={itemType === 'DEVICE' ? 6 : 4}>
+                <p className="py-6 text-center text-muted-foreground">
+                  Brak pozycji w tej kategorii.
+                </p>
+              </TableCell>
+            </TableRow>
+          ) : (
+            pageItems.map((item) => {
+              const value = item.price * item.quantity
+              const variant: 'default' | 'success' | 'warning' | 'danger' =
+                item.quantity <= 5
+                  ? 'danger'
+                  : item.quantity <= 15
+                  ? 'warning'
+                  : 'success'
 
-            return (
-              <TableRow key={`${item.name}-${item.category}-${item.provider}`}>
-                <TableCell>
-                  <Highlight
-                    highlightClassName="bg-yellow-200"
-                    searchWords={[searchTerm]}
-                    autoEscape
-                    textToHighlight={item.name}
-                  />
-                </TableCell>
+              return (
+                <TableRow
+                  key={`${item.name}-${item.category}-${item.provider}`}
+                >
+                  <TableCell>
+                    <Highlight
+                      highlightClassName="bg-yellow-200"
+                      searchWords={[searchTerm]}
+                      autoEscape
+                      textToHighlight={item.name}
+                    />
+                  </TableCell>
 
-                {itemType === 'DEVICE' && (
-                  <>
-                    <TableCell>
-                      {devicesTypeMap[item.category] ?? item.category}
-                    </TableCell>
-                    <TableCell>{item.provider ?? '—'}</TableCell>
-                  </>
-                )}
+                  {itemType === 'DEVICE' && (
+                    <>
+                      <TableCell>
+                        {devicesTypeMap[item.category] ?? item.category}
+                      </TableCell>
+                      <TableCell>{item.provider ?? '—'}</TableCell>
+                    </>
+                  )}
 
-                <TableCell>
-                  <Badge variant={variant}>{item.quantity}</Badge>
-                </TableCell>
-                <TableCell>{item.price.toFixed(2)} zł</TableCell>
-                <TableCell>{value.toFixed(2)} zł</TableCell>
+                  <TableCell>
+                    <Badge variant={variant}>{item.quantity}</Badge>
+                  </TableCell>
+                  <TableCell>{item.price.toFixed(2)} zł</TableCell>
+                  <TableCell>{value.toFixed(2)} zł</TableCell>
 
-                <TableCell>
-                  <Button asChild size="sm" variant="ghost">
-                    <NavLink
-                      href={`/admin-panel/warehouse/details/${encodeURIComponent(
-                        item.name.trim()
-                      )}`}
-                      prefetch
-                    >
-                      <MdKeyboardArrowRight />
-                    </NavLink>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            )
-          })}
+                  <TableCell>
+                    <Button asChild size="sm" variant="ghost">
+                      <NavLink
+                        href={`/admin-panel/warehouse/details/${encodeURIComponent(
+                          item.name.trim()
+                        )}`}
+                        prefetch
+                      >
+                        <MdKeyboardArrowRight />
+                      </NavLink>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
         </TableBody>
       </Table>
 
