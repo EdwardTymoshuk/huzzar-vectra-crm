@@ -20,7 +20,7 @@ import {
 } from '@hello-pangea/dnd'
 import { useState } from 'react'
 import DatePicker from '../../../components/shared/DatePicker'
-import OrderDetailsPanel from './OrderDetailsPanel'
+import OrderDetailsSheet from '../../../components/shared/orders/OrderDetailsSheet'
 
 /**
  * AssignmentsTable component:
@@ -226,7 +226,7 @@ const AssignmentsTable = () => {
       </DragDropContext>
 
       {/* Order details side panel */}
-      <OrderDetailsPanel
+      <OrderDetailsSheet
         orderId={selectedOrderId}
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}

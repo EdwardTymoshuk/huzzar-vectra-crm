@@ -17,10 +17,6 @@ import { TRPCError } from '@trpc/server'
 import { endOfDay, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
-type OrderWithAssigned = Prisma.OrderGetPayload<{
-  include: { assignedTo: { select: { id: true; name: true } } }
-}>
-
 /* -----------------------------------------------------------
  * Small, strongly-typed concurrency-limited map helper.
  * Prevents spawning too many geocoding requests at once.

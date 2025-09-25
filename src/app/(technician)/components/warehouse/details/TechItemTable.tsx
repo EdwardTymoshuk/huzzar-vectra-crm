@@ -1,5 +1,6 @@
 'use client'
 
+import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 /**
  * TechItemTable
  * -------------
@@ -9,7 +10,6 @@
  * • Uses SearchContext for filtering.
  */
 
-import SheetOrderDetails from '@/app/admin-panel/components/billing/SheetOrderDetails'
 import { Button } from '@/app/components/ui/button'
 import {
   Table,
@@ -165,7 +165,11 @@ const TechItemTable = ({ items, mode }: Props) => {
         </TableBody>
       </Table>
 
-      <SheetOrderDetails orderId={orderId} onClose={() => setOrderId(null)} />
+      <OrderDetailsSheet
+        orderId={orderId}
+        open={!!orderId}
+        onClose={() => setOrderId(null)}
+      />
     </>
   )
 }

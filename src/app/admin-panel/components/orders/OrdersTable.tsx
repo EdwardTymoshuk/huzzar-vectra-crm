@@ -49,10 +49,10 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
+import OrderDetailsSheet from '../../../components/shared/orders/OrderDetailsSheet'
 import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
-import OrderDetailsPanel from './OrderDetailsPanel'
 import OrdersFilter from './OrdersFilter'
 
 /* ============================== Types ============================== */
@@ -96,8 +96,7 @@ const OrdersTableInner = ({
   const [openRowId, setOpenRowId] = useState<string | null>(null)
 
   // Side panels / dialogs
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [orderId, setOrderId] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
     null
@@ -386,8 +385,7 @@ const OrdersTableInner = ({
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setSelectedOrderId(o.id)
-                                    setIsPanelOpen(true)
+                                    setOrderId(o.id)
                                   }}
                                 >
                                   <MdVisibility className="mr-2 w-4 h-4 text-warning" />
@@ -442,10 +440,10 @@ const OrdersTableInner = ({
       )}
 
       {/* Side panel */}
-      <OrderDetailsPanel
-        orderId={selectedOrderId}
-        open={isPanelOpen}
-        onClose={() => setIsPanelOpen(false)}
+      <OrderDetailsSheet
+        orderId={orderId}
+        open={!!orderId}
+        onClose={() => setOrderId(null)}
       />
 
       {/* Edit modal */}

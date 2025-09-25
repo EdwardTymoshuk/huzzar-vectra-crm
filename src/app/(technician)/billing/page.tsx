@@ -1,6 +1,5 @@
 'use client'
 
-import SheetOrderDetails from '@/app/admin-panel/components/billing/SheetOrderDetails'
 import EarningsDailyBadgeWithBar from '@/app/components/shared/EarningsDailyBadgeWithBar'
 import EfficiencyBadgeWithBar from '@/app/components/shared/EfficiencyBadgeWithBar'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
@@ -8,6 +7,7 @@ import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import MonthPicker from '@/app/components/shared/MonthPicker'
 import PageHeader from '@/app/components/shared/PageHeader'
 import TechnicianSummaryHeader from '@/app/components/shared/TechnicianSummaryHeader'
+import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import {
   Accordion,
   AccordionContent,
@@ -285,8 +285,9 @@ const BillingPage = () => {
           </Accordion>
 
           {/* Slideout sheet with order details */}
-          <SheetOrderDetails
+          <OrderDetailsSheet
             orderId={selectedOrderId}
+            open={!!selectedOrderId}
             onClose={() => setSelectedOrderId(null)}
           />
         </>

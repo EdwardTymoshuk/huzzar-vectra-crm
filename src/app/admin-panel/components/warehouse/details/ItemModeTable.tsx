@@ -1,5 +1,6 @@
 'use client'
 
+import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
 import {
   Table,
@@ -20,7 +21,6 @@ import {
 import { WarehouseAction } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
-import SheetOrderDetails from '../../billing/SheetOrderDetails'
 
 type Mode = 'warehouse' | 'technicians' | 'orders' | 'returned'
 
@@ -223,7 +223,11 @@ const ItemModeTable = ({ mode, items }: Props) => {
       </Table>
 
       {/* Lazy sheet for order details; controlled by local state */}
-      <SheetOrderDetails orderId={orderId} onClose={() => setOrderId(null)} />
+      <OrderDetailsSheet
+        orderId={orderId}
+        open={!!orderId}
+        onClose={() => setOrderId(null)}
+      />
     </>
   )
 }
