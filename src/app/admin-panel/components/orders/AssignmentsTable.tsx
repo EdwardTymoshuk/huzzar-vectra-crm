@@ -106,6 +106,7 @@ const AssignmentsTable = () => {
           selected={selectedDate}
           onChange={(date) => setSelectedDate(date ?? undefined)}
           range="day"
+          allowFuture
         />
       </div>
 
