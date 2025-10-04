@@ -108,7 +108,13 @@ const ReturnToOperator = ({ onClose }: Props) => {
     } else {
       setIssuedMaterials((prev) => [
         ...prev,
-        { id: item.id, type: 'MATERIAL', name: item.name, quantity: qty },
+        {
+          id: item.id,
+          type: 'MATERIAL',
+          name: item.name,
+          quantity: qty,
+          materialDefinitionId: item.materialDefinitionId ?? '',
+        },
       ])
     }
 

@@ -61,7 +61,7 @@ const AddRateDefinitionDialog: FC = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button variant="success">
           <MdAdd /> Dodaj stawkę
         </Button>
       </DialogTrigger>

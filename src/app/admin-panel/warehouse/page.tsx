@@ -7,6 +7,7 @@ import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFrom
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import WarehouseTabs from '../components/warehouse/WarehouseTabs'
 import WarehouseToolbar from '../components/warehouse/WarehouseToolbar'
+import LocationTransfersTable from '../components/warehouse/warehouseLocalizations/LocationTransfersTable'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -20,7 +21,12 @@ const WarehousePage = () => {
           setSearchTerm={setSearchTerm}
         />
         <WarehouseSummaryCard />
+
+        {/* incoming ↔ outgoing warehosue transfers */}
+        <LocationTransfersTable />
+
         <ReturnedFromTechniciansSection />
+
         <WarehouseTabs searchTerm={searchTerm} />
       </div>
     </MaxWidthWrapper>

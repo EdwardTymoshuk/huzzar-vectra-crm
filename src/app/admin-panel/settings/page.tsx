@@ -10,6 +10,7 @@ import DeviceDefinitionsSection from '../components/settings/deviceDefinition/De
 import MaterialDefinitionsSection from '../components/settings/materialDefinition/MaterialDefinitionsSection'
 import OperatorsDefinitionSection from '../components/settings/operatorsSection/OperatorsDefinitionSection'
 import RatesSection from '../components/settings/rateSection/RatesSection'
+import WarehouseLocationsSection from '../components/settings/warehouseLocationsSection/WarehouseLocationsSection'
 
 const SettingPage = () => {
   const { data: session, status } = useSession()
@@ -40,6 +41,9 @@ const SettingPage = () => {
       {/* ADMIN ONLY */}
       {role === 'ADMIN' && <AdminsSection title="Administratorzy" />}
       {role === 'ADMIN' && <RatesSection title="Stawki" />}
+      {role === 'ADMIN' && (
+        <WarehouseLocationsSection title="Oddziały magazynów" />
+      )}
 
       {/* COMMON FOR ADMIN & COORDINATOR */}
       <DeviceDefinitionsSection title="Urządzenia" />

@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
 import { useState } from 'react'
+import { CgArrowsExchangeAlt } from 'react-icons/cg'
 import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
@@ -22,6 +23,7 @@ import AddModal from './add/AddModal'
 import DeviceCheckSheet from './deviceCheck/DeviceCheckSheet'
 import IssueModal from './issue/IssueModal'
 import ReturnModal from './return/ReturnModal'
+import LocationTransferModal from './warehouseLocalizations/LocationTransferModal'
 
 type Props = {
   searchTerm: string
@@ -36,6 +38,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
   const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [isIssueModalOpen, setIssueModalOpen] = useState(false)
   const [isReturnModalOpen, setReturnModalOpen] = useState(false)
+  const [isTransferModalOpen, setTransferModalOpen] = useState(false)
 
   const [isStockSheetOpen, setStockSheetOpen] = useState(false)
   const [isSerialSheetOpen, setSerialSheetOpen] = useState(false)
@@ -93,6 +96,14 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
                 Historia magazynu
               </NavLink>
             </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={() => setTransferModalOpen(true)}
+              className="cursor-pointer"
+            >
+              <CgArrowsExchangeAlt className="mr-2 h-4 w-4" />
+              Przekazanie między oddziałami
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -128,6 +139,10 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       <DeviceCheckSheet
         open={isSerialSheetOpen}
         onClose={() => setSerialSheetOpen(false)}
+      />
+      <LocationTransferModal
+        open={isTransferModalOpen}
+        onCloseAction={() => setTransferModalOpen(false)}
       />
     </div>
   )

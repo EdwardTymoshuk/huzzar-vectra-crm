@@ -3,7 +3,7 @@
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
 import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import { useState } from 'react'
 import DashboardFilters from '../components/dashboard/DashboardFilters'
 import OrderStatsSection from '../components/dashboard/OrderStatsSection'

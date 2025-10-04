@@ -21,6 +21,7 @@ interface Props {
   /* warehouse block */
   warehouseQty?: number
   warehouseValue?: number
+  warehouseByLocation?: { id: string; name: string; qty: number }[]
   showWarehouse?: boolean
 
   /* technicians block */
@@ -42,6 +43,7 @@ const ItemStatsCard = ({
   /* warehouse */
   warehouseQty,
   warehouseValue,
+  warehouseByLocation,
   showWarehouse = true,
   /* technicians */
   technicianQty,
@@ -66,6 +68,7 @@ const ItemStatsCard = ({
           label="Stan magazynowy"
           qty={warehouseQty}
           value={!isDevice ? warehouseValue : undefined}
+          breakdown={warehouseByLocation}
         />
       )}
 
@@ -95,17 +98,28 @@ const StockBlock = ({
   label,
   qty,
   value,
+  breakdown,
 }: {
   label: string
   qty: number
   value?: number
+  breakdown?: { id: string; name: string; qty: number }[]
 }) => (
-  <div className="flex flex-col">
+  <div className="flex flex-col space-y-1">
     <Row label={label} value={qty.toString()} />
     {value !== undefined && (
       <p className="text-xs text-muted-foreground">
         Wartość: {value.toFixed(2)} zł
       </p>
+    )}
+    {breakdown && breakdown.length > 0 && (
+      <div className="pl-4 space-y-0.5">
+        {breakdown.map((loc) => (
+          <p key={loc.id} className="text-sm text-muted-foreground">
+            - {loc.name}: {loc.qty}
+          </p>
+        ))}
+      </div>
     )}
   </div>
 )

@@ -7,23 +7,28 @@ import { z } from 'zod'
 export const miscUserRouter = router({
   /** Other technicians (for transfer) */
   getOtherTechnicians: loggedInEveryone
-    .input(z.object({ excludeId: z.string().optional() }))
-    .query(({ ctx, input }) =>
-      prisma.user.findMany({
-        where: {
-          role: 'TECHNICIAN',
-          id: { not: input.excludeId ?? ctx.user!.id },
-        },
-        orderBy: { name: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          phoneNumber: true,
-          email: true,
-          status: true,
-        },
-      })
-    ),
+  .input(z.object({ excludeId: z.string().optional() }))
+  .query(({ ctx, input }) =>
+    prisma.user.findMany({
+      where: {
+        role: 'TECHNICIAN',
+        id: { not: input.excludeId ?? ctx.user!.id },
+        status: 'ACTIVE',
+      },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        role: true,          
+        status: true,
+        identyficator: true,  
+        locations: { select: { id: true, name: true } },
+      },
+    })
+  ),
+
   /** List of technicians */
   getTechnicians: adminCoordOrWarehouse
     .input(
@@ -47,9 +52,12 @@ export const miscUserRouter = router({
           role: true,
           status: true,
           identyficator: true,
+          locations: { select: { id: true, name: true } },
         },
+        orderBy: { name: 'asc' },
       })
     ),
+
   /** Search technician(s) by name (case-insensitive, normalized) */
   searchTechniciansByName: adminCoordOrWarehouse
     .input(
@@ -81,6 +89,7 @@ export const miscUserRouter = router({
           status: true,
           phoneNumber: true,
           email: true,
+          locations: { select: { id: true, name: true } },
         },
       })
     }),

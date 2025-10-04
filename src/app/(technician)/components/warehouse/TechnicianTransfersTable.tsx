@@ -23,13 +23,13 @@ type Row = {
   incoming: boolean
 }
 
-export default function TechnicianTransfersTable() {
+const TechnicianTransfersTable = () => {
   const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
 
   const { data: incoming = [], isLoading: incLoading } =
-    trpc.warehouse.getIncomingTransfers.useQuery(undefined, {
+    trpc.warehouse.getIncomingTechTransfers.useQuery(undefined, {
       staleTime: 30_000,
     })
 
@@ -38,7 +38,7 @@ export default function TechnicianTransfersTable() {
 
   const utils = trpc.useUtils()
 
-  const accept = trpc.warehouse.confirmTransfer.useMutation({
+  const accept = trpc.warehouse.confirmTechTransfer.useMutation({
     onSuccess: () => {
       setAcceptingId(null)
       utils.warehouse.invalidate()
@@ -48,17 +48,17 @@ export default function TechnicianTransfersTable() {
     onError: () => setAcceptingId(null),
   })
 
-  const reject = trpc.warehouse.rejectTransfer.useMutation({
+  const reject = trpc.warehouse.rejectTechTransfer.useMutation({
     onSuccess: () => {
       setRejectingId(null)
-      utils.warehouse.getIncomingTransfers.invalidate()
+      utils.warehouse.getIncomingTechTransfers.invalidate()
       utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
       toast.info('Przekazanie odrzucone.')
     },
     onError: () => setRejectingId(null),
   })
 
-  const cancel = trpc.warehouse.cancelTransfer.useMutation({
+  const cancel = trpc.warehouse.cancelTechTransfer.useMutation({
     onSuccess: () => {
       setCancelLoadingId(null)
       utils.warehouse.getTechnicianStock.invalidate({ technicianId: 'self' })
@@ -77,7 +77,6 @@ export default function TechnicianTransfersTable() {
     )
 
   const outgoing = myStock.filter((item) => item.transferPending)
-
   const rows: Row[] = [
     ...incoming.map((item) => ({ ...item, incoming: true })),
     ...outgoing.map((item) => ({ ...item, incoming: false })),
@@ -189,3 +188,5 @@ export default function TechnicianTransfersTable() {
     </div>
   )
 }
+
+export default TechnicianTransfersTable

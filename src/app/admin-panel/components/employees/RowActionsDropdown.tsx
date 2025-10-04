@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import { Role, UserStatus } from '@prisma/client'
+import { UserWithLocations } from '@/types'
 import { FaLock, FaLockOpen } from 'react-icons/fa6'
 import {
   MdDelete,
@@ -18,15 +18,7 @@ import {
 } from 'react-icons/md'
 
 type Props = {
-  user: {
-    id: string
-    name: string
-    email: string
-    phoneNumber: string
-    role: Role
-    status: UserStatus
-    identyficator: number | null
-  }
+  user: UserWithLocations
   onShowDetails: (user: Props['user']) => void
   onEdit: (user: Props['user']) => void
   onToggleStatus: (user: Props['user']) => void

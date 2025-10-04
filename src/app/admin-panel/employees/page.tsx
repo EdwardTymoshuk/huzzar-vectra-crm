@@ -12,7 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
 import EmployeesTable from '../components/employees/EmployeesTable'

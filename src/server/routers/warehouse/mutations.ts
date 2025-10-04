@@ -1,10 +1,28 @@
-// server/router/warehouse/mutations.ts
+// server/routers/warehouse/mutations.ts
 import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { DeviceCategory, WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+
+/**
+ * Helper – get active location ID from input or user session.
+ * Ensures we always resolve a locationId for warehouse operations.
+ */
+function resolveLocationId(
+  inputLocationId: string | undefined,
+  userLocations: { id: string; name: string }[] | undefined
+): string {
+  const locId = inputLocationId ?? userLocations?.[0]?.id
+  if (!locId) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Brak przypisanej lokalizacji. Wybierz magazyn.',
+    })
+  }
+  return locId
+}
 
 export const mutationsRouter = router({
   /** 📥 Add new items to warehouse */
@@ -21,18 +39,23 @@ export const mutationsRouter = router({
           })
         ),
         notes: z.string().optional(),
+        locationId: z.string().optional(), // manual location selection
       })
     )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
+      const activeLocationId = resolveLocationId(
+        input.locationId,
+        ctx.user?.locations
+      )
+
       for (const item of input.items) {
         if (item.type === 'DEVICE') {
           const def = await prisma.deviceDefinition.findFirst({
             where: { name: item.name, category: item.category ?? 'OTHER' },
           })
-
           if (!def || def.price === null) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
@@ -51,6 +74,7 @@ export const mutationsRouter = router({
               warningAlert: def.warningAlert,
               alarmAlert: def.alarmAlert,
               status: 'AVAILABLE',
+              locationId: activeLocationId,
             },
           })
 
@@ -68,7 +92,6 @@ export const mutationsRouter = router({
           const def = await prisma.materialDefinition.findFirst({
             where: { name: item.name },
           })
-
           if (!def || def.price === null) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
@@ -88,6 +111,7 @@ export const mutationsRouter = router({
               alarmAlert: def.alarmAlert,
               status: 'AVAILABLE',
               materialDefinitionId: def.id,
+              locationId: activeLocationId,
             },
           })
 
@@ -102,7 +126,6 @@ export const mutationsRouter = router({
           })
         }
       }
-
       return { success: true }
     }),
 
@@ -137,7 +160,6 @@ export const mutationsRouter = router({
               assignedToId: input.assignedToId,
             },
           })
-
           await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: item.id,
@@ -154,7 +176,6 @@ export const mutationsRouter = router({
             where: { id: item.id },
           })
           if (!original) throw new TRPCError({ code: 'NOT_FOUND' })
-
           if ((original.quantity ?? 0) < item.quantity) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
@@ -164,11 +185,7 @@ export const mutationsRouter = router({
 
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: {
-              quantity: {
-                decrement: item.quantity,
-              },
-            },
+            data: { quantity: { decrement: item.quantity } },
           })
 
           await prisma.warehouse.create({
@@ -182,6 +199,7 @@ export const mutationsRouter = router({
               assignedToId: input.assignedToId,
               status: 'ASSIGNED',
               materialDefinitionId: original.materialDefinitionId,
+              locationId: original.locationId, // keep original location
             },
           })
 
@@ -197,7 +215,6 @@ export const mutationsRouter = router({
           })
         }
       }
-
       return { success: true }
     }),
 
@@ -223,28 +240,27 @@ export const mutationsRouter = router({
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
       for (const item of input.items) {
-        /* ───── DEVICE ─────────────────────────────────────────────── */
         if (item.type === 'DEVICE') {
-          // 1️⃣  Read current status
           const current = await prisma.warehouse.findUnique({
             where: { id: item.id },
-            select: { status: true },
+            select: { status: true, locationId: true },
           })
           if (!current) throw new TRPCError({ code: 'NOT_FOUND' })
 
-          // 2️⃣  Decide next status
           const newStatus =
             current.status === 'COLLECTED_FROM_CLIENT'
-              ? 'RETURNED' // waits for shipping to operator
-              : 'AVAILABLE' // immediately back to stock
+              ? 'RETURNED'
+              : 'AVAILABLE'
 
-          // 3️⃣  Update warehouse row
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: { status: newStatus, assignedToId: null },
+            data: {
+              status: newStatus,
+              assignedToId: null,
+              locationId: current.locationId,
+            },
           })
 
-          // 4️⃣  Single history entry
           await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: item.id,
@@ -256,13 +272,11 @@ export const mutationsRouter = router({
           continue
         }
 
-        /* ───── MATERIAL ──────────────────────────────────────────── */
         if (item.type === 'MATERIAL') {
           const original = await prisma.warehouse.findUnique({
             where: { id: item.id },
           })
           if (!original) throw new TRPCError({ code: 'NOT_FOUND' })
-
           if ((original.quantity ?? 0) < item.quantity) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
@@ -270,15 +284,11 @@ export const mutationsRouter = router({
             })
           }
 
-          // Decrease technician row …
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: {
-              quantity: { decrement: item.quantity },
-            },
+            data: { quantity: { decrement: item.quantity } },
           })
 
-          // …and create fresh row in warehouse
           await prisma.warehouse.create({
             data: {
               itemType: 'MATERIAL',
@@ -289,6 +299,7 @@ export const mutationsRouter = router({
               price: original.price,
               status: 'AVAILABLE',
               materialDefinitionId: original.materialDefinitionId,
+              locationId: original.locationId, // preserve location
             },
           })
 
@@ -303,7 +314,6 @@ export const mutationsRouter = router({
           })
         }
       }
-
       return { success: true }
     }),
 
@@ -334,7 +344,6 @@ export const mutationsRouter = router({
             where: { id: item.id },
             data: { status: 'RETURNED_TO_OPERATOR' },
           })
-
           await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: item.id,
@@ -358,9 +367,7 @@ export const mutationsRouter = router({
 
           await prisma.warehouse.update({
             where: { id: item.id },
-            data: {
-              quantity: { decrement: item.quantity },
-            },
+            data: { quantity: { decrement: item.quantity } },
           })
 
           await prisma.warehouseHistory.create({
@@ -374,9 +381,10 @@ export const mutationsRouter = router({
           })
         }
       }
-
       return { success: true }
     }),
+
+  /** 📦 Collect device from client by technician */
   collectFromClient: loggedInEveryone
     .input(
       z.object({
@@ -393,7 +401,14 @@ export const mutationsRouter = router({
       const techId = ctx.user?.id
       if (!techId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-      // 1️⃣ create warehouse record that physically lives on technician
+      const activeLocationId = ctx.user?.locations?.[0]?.id
+      if (!activeLocationId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Technik nie ma przypisanej lokalizacji',
+        })
+      }
+
       const device = await prisma.warehouse.create({
         data: {
           itemType: 'DEVICE',
@@ -404,15 +419,14 @@ export const mutationsRouter = router({
           price: input.device.price ?? 0,
           status: 'COLLECTED_FROM_CLIENT',
           assignedToId: techId,
+          locationId: activeLocationId,
         },
       })
 
-      // 2️⃣ connect to order (traceability)
       await prisma.orderEquipment.create({
         data: { orderId: input.orderId, warehouseId: device.id },
       })
 
-      // 3️⃣ history entry
       await prisma.warehouseHistory.create({
         data: {
           warehouseItemId: device.id,
@@ -427,20 +441,16 @@ export const mutationsRouter = router({
       return { success: true, id: device.id }
     }),
 
-  /** 🗂️  Devices returned by technicians – waiting to be shipped to operator **/
+  /** 🗂️ Devices returned by technicians – waiting to be shipped to operator */
   getReturnedFromTechnicians: adminCoordOrWarehouse.query(() =>
     prisma.warehouse.findMany({
       where: { itemType: 'DEVICE', status: 'RETURNED' },
       include: {
-        /* potrzebne do dat + imienia technika */
         history: {
-          include: { performedBy: true }, // who did the action
+          include: { performedBy: true },
           orderBy: { actionDate: 'asc' },
         },
-        /* aby znać nr zlecenia i adres klienta */
-        orderAssignments: {
-          include: { order: true },
-        },
+        orderAssignments: { include: { order: true } },
       },
       orderBy: { updatedAt: 'asc' },
     })

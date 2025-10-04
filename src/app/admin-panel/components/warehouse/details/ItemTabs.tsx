@@ -1,3 +1,5 @@
+'use client'
+
 import {
   Tabs,
   TabsContent,
@@ -9,43 +11,47 @@ import { useMemo } from 'react'
 import ItemModeTable from './ItemModeTable'
 import MaterialHistoryByTabs from './MaterialHistoryByTabs'
 
-type Props = { items: SlimWarehouseItem[] }
+type Props = {
+  items: SlimWarehouseItem[]
+  activeLocationId?: 'all' | string // ✅ optional filter
+}
 
 /**
  * ItemTabs
- * Splits a homogeneous item list into 4 views:
- * - Warehouse: available, not assigned, not on any order
- * - Technicians: assigned to a technician, not on any order
- * - Orders: assigned to an order
- * - Returned: returned to warehouse or operator
+ * - Applies location filter to items.
+ * - Splits a homogeneous item list into 4 views:
+ *   warehouse / technicians / orders / returned
  */
-const ItemTabs = ({ items }: Props) => {
-  // These derived collections never mutate; memoize for render stability.
+const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
+  // Apply location filter once up-front for all tabs
+  const locFiltered = useMemo(() => {
+    if (activeLocationId === 'all') return items
+    return items.filter((i) => i.location?.id === activeLocationId)
+  }, [items, activeLocationId])
+
+  // Derived collections never mutate; memoize for render stability.
   const {
     stockInWarehouse,
     heldByTechnicians,
     assignedToOrders,
     returnedItems,
   } = useMemo(() => {
-    const stockInWarehouse = items.filter(
+    const stockInWarehouse = locFiltered.filter(
       (i) =>
         i.status === 'AVAILABLE' &&
         i.assignedToId === null &&
         i.orderAssignments.length === 0
     )
-
-    const heldByTechnicians = items.filter(
+    const heldByTechnicians = locFiltered.filter(
       (i) =>
         i.status === 'ASSIGNED' &&
         i.assignedToId !== null &&
         i.orderAssignments.length === 0
     )
-
-    const assignedToOrders = items.filter(
+    const assignedToOrders = locFiltered.filter(
       (i) => i.status === 'ASSIGNED_TO_ORDER' && i.orderAssignments.length > 0
     )
-
-    const returnedItems = items.filter(
+    const returnedItems = locFiltered.filter(
       (i) => i.status === 'RETURNED' || i.status === 'RETURNED_TO_OPERATOR'
     )
 
@@ -55,7 +61,7 @@ const ItemTabs = ({ items }: Props) => {
       assignedToOrders,
       returnedItems,
     }
-  }, [items])
+  }, [locFiltered])
 
   return (
     <Tabs defaultValue="warehouse" className="w-full">

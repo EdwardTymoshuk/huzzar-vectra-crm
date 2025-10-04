@@ -1,2 +1,0 @@
--- AlterEnum
-ALTER TYPE "WarehouseStatus" ADD VALUE 'RETURNED_TO_OPERATOR';

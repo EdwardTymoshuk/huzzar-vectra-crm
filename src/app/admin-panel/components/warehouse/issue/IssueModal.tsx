@@ -38,7 +38,7 @@ const IssueModal = ({ open, onCloseAction }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl space-y-4">
+      <DialogContent className="max-w-5xl space-y-4 overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Wydanie sprzętu do technika</DialogTitle>
         </DialogHeader>

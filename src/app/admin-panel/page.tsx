@@ -1,7 +1,7 @@
 //src/app/admin-panel/page.tsx
 'use client'
 
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import { redirect } from 'next/navigation'
 import LoaderSpinner from '../components/shared/LoaderSpinner'
 

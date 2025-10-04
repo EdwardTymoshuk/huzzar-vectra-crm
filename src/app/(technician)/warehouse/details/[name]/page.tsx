@@ -1,12 +1,9 @@
-//src//app/(technician)/warehouse/details/[name]/page.tsx
-
 'use client'
 
 import ItemTabs from '@/app/(technician)/components/warehouse/ItemTabs'
 import ItemHeaderTech from '@/app/(technician)/components/warehouse/details/ItemHeaderTech'
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
-import SearchInput from '@/app/components/shared/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { devicesTypeMap } from '@/lib/constants'
@@ -20,12 +17,10 @@ import { toast } from 'sonner'
  * TechnicianWarehouseItemPage
  * ---------------------------
  * Detail view for a single warehouse item in technician panel.
- * - Shows header, search within item history, and technician-specific ItemTabs.
- * - Link back to warehouse list preserves SPA behaviour.
+ * - Shows header and technician-specific ItemTabs.
+ * - Filtering moved inside TechItemTable.
  */
-
 const TechnicianWarehouseItemPage = () => {
-  const [searchTerm, setSearchTerm] = useState<string>('')
   const [name, setName] = useState<string>('')
 
   const params = useParams<{ name: string }>()
@@ -42,7 +37,6 @@ const TechnicianWarehouseItemPage = () => {
     }
   }, [params])
 
-  /* ------------------------------- states ------------------------------ */
   if (isLoading) return <Skeleton className="h-[200px] w-full" />
 
   if (isError || !data) {
@@ -58,29 +52,19 @@ const TechnicianWarehouseItemPage = () => {
     data[0].category ? devicesTypeMap[data[0].category!] : ''
   } ${name}`
 
-  /* -------------------------------- ui -------------------------------- */
   return (
     <MaxWidthWrapper className="space-y-4">
       <PageHeader title={headerTitle} />
 
-      {/* back + search bar */}
-      <div className="flex flex-col sm:flex-row justify-between gap-2 w-full">
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/?tab=warehouse')}
-          className="text-start w-fit"
-        >
-          <MdKeyboardArrowLeft />
-          Powrót
-        </Button>
-        <div className="w-full sm:w-1/2 lg:w-1/4">
-          <SearchInput
-            placeholder="Szukaj"
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-        </div>
-      </div>
+      {/* back only */}
+      <Button
+        variant="ghost"
+        onClick={() => router.back()}
+        className="text-start w-fit"
+      >
+        <MdKeyboardArrowLeft />
+        Powrót
+      </Button>
 
       <ItemHeaderTech items={data} />
       <ItemTabs items={data} />

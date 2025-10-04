@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { WarehouseFormData } from '@/types'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -24,11 +25,12 @@ const AddModal = ({
   const [notes, setNotes] = useState('') // 📝 Local state for optional notes
 
   const utils = trpc.useUtils()
+  const locationId = useActiveLocation() || undefined
 
   const addMutation = trpc.warehouse.addItems.useMutation({
     onSuccess: () => {
       toast.success('Sprzęt został przyjęty na magazyn.')
-      utils.warehouse.getAll.invalidate()
+      utils.warehouse.getAll.invalidate({ locationId })
       setItems([])
       setNotes('') // 🔄 Clear notes after successful mutation
       onCloseAction()
@@ -54,7 +56,7 @@ const AddModal = ({
       toast.warning('Dodaj przynajmniej jeden element.')
       return
     }
-    addMutation.mutate({ items, notes }) // 📤 Send optional notes to backend
+    addMutation.mutate({ items, notes, locationId }) // 📤 Send optional notes to backend
   }
 
   return (

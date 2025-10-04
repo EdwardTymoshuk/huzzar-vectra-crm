@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/app/components/ui/button'
+import { Checkbox } from '@/app/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   FormMessage,
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
+import { UserWithLocations } from '@/types'
 import { generateStrongPassword } from '@/utils/passwordGenerator'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -27,14 +29,15 @@ import { z } from 'zod'
 
 /**
  * Validation schema for editing user data.
- * - Password is optional: if left empty, it won't be changed.
- * - Role is also optional: if omitted, it won't be changed.
  */
 const employeeEditSchema = z.object({
   id: z.string(),
   name: z.string().min(2, 'Imię jest wymagane'),
   email: z.string().email('Niepoprawny adres e-mail'),
   phoneNumber: z.string().min(9, 'Numer telefonu jest wymagany'),
+  role: z
+    .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
+    .optional(),
   password: z
     .string()
     .transform((val) => (val.trim() === '' ? undefined : val))
@@ -53,52 +56,49 @@ const employeeEditSchema = z.object({
       }
     )
     .optional(),
-  role: z
-    .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
-    .optional(),
+  locationIds: z
+    .array(z.string())
+    .min(1, 'Wybierz przynajmniej jedną lokalizację'),
 })
 
 type EmployeeEditFormData = z.infer<typeof employeeEditSchema>
 
-type EmployeeData = {
-  id: string
-  name: string
-  email: string
-  phoneNumber: string
-  role: 'ADMIN' | 'TECHNICIAN' | 'COORDINATOR' | 'WAREHOUSEMAN' | 'USER'
-}
-
-/**
- * EmployeeEditDialog component:
- * - Allows updating employee details (name, role, phone, password).
- * - Provides a password generator for security.
- */
 const EmployeeEditDialog = ({
   employee,
   onClose,
 }: {
-  employee: EmployeeData
+  employee: UserWithLocations
   onClose: () => void
 }) => {
   const [isSpinning, setIsSpinning] = useState(false)
 
   const trpcUtils = trpc.useUtils()
 
+  const { data: locations, isLoading: isLoadingLocations } =
+    trpc.warehouse.getAllLocations.useQuery()
+
   const updateEmployeeMutation = trpc.user.editUser.useMutation({
     onSuccess: () => {
-      toast.success('Dane technika zostały zmienione.')
+      toast.success('Dane użytkownika zostały zaktualizowane.')
       trpcUtils.user.getTechnicians.invalidate()
+      trpcUtils.user.getAdmins.invalidate()
     },
     onError: () => toast.error('Błąd podczas aktualizacji danych.'),
   })
 
   const form = useForm<EmployeeEditFormData>({
     resolver: zodResolver(employeeEditSchema),
+    defaultValues: {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email,
+      phoneNumber: employee.phoneNumber,
+      role: employee.role,
+      password: '',
+      locationIds: employee.locations?.map((l) => l.id) ?? [],
+    },
   })
 
-  /**
-   * Generates a strong password and sets it in the form field.
-   */
   const handleGeneratePassword = () => {
     const password = generateStrongPassword()
     form.setValue('password', password, {
@@ -106,20 +106,12 @@ const EmployeeEditDialog = ({
       shouldDirty: true,
     })
     setIsSpinning(true)
-    setTimeout(() => {
-      setIsSpinning(false)
-    }, 500)
+    setTimeout(() => setIsSpinning(false), 500)
     toast.success('Wygenerowano silne hasło.')
   }
 
-  /**
-   * Handles updating the employee's details.
-   */
   const handleSave = async (values: EmployeeEditFormData) => {
-    await updateEmployeeMutation.mutateAsync({
-      ...values,
-      password: values.password || undefined,
-    })
+    await updateEmployeeMutation.mutateAsync(values)
     onClose()
   }
 
@@ -130,8 +122,9 @@ const EmployeeEditDialog = ({
         name: employee.name,
         email: employee.email,
         phoneNumber: employee.phoneNumber,
-        role: employee.role === 'USER' ? undefined : employee.role,
+        role: employee.role,
         password: '',
+        locationIds: employee.locations?.map((l) => l.id) ?? [],
       })
     }
   }, [employee, form])
@@ -206,7 +199,58 @@ const EmployeeEditDialog = ({
                 </FormItem>
               )}
             />
-            {/* Password + Generate Button */}
+
+            {/* Lokalizacje */}
+            <FormField
+              control={form.control}
+              name="locationIds"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Lokalizacje</FormLabel>
+                  <div className="space-y-2">
+                    {isLoadingLocations && (
+                      <p className="text-sm text-muted-foreground">
+                        Ładowanie lokalizacji...
+                      </p>
+                    )}
+                    {locations?.map((loc) => (
+                      <FormField
+                        key={loc.id}
+                        control={form.control}
+                        name="locationIds"
+                        render={({ field }) => (
+                          <FormItem
+                            key={loc.id}
+                            className="flex flex-row items-center space-x-3"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(loc.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    field.onChange([...field.value, loc.id])
+                                  } else {
+                                    field.onChange(
+                                      field.value.filter((id) => id !== loc.id)
+                                    )
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal">
+                              {loc.name}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Password + Generate */}
             <FormField
               control={form.control}
               name="password"
@@ -232,6 +276,7 @@ const EmployeeEditDialog = ({
                 </FormItem>
               )}
             />
+
             <div className="flex justify-end gap-2 mt-4">
               <Button type="button" variant="outline" onClick={onClose}>
                 Anuluj

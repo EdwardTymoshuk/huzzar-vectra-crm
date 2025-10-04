@@ -33,6 +33,7 @@ export type SlimWarehouseItem = {
   status: string
   assignedToId: string | null
   assignedTo?: { id: string; name: string } | null
+  location?: { id: string; name: string } | null
   transferPending: boolean
   orderAssignments: {
     order: { id: string; orderNumber: string; createdAt: Date } | null

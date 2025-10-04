@@ -1,7 +1,15 @@
 'use client'
 
+import SearchInput from '@/app/components/shared/SearchInput'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select'
 import {
   Table,
   TableBody,
@@ -10,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { useSearch } from '@/app/context/SearchContext'
+import { useRole } from '@/utils/hooks/useRole'
 import {
   SlimWarehouseItem,
   fmt,
@@ -31,49 +39,62 @@ interface Props {
 
 /**
  * ItemModeTable
- * A small, mode-aware table for warehouse items.
- * - Warehouse: received date + receiver
- * - Technicians: issued date + technician
- * - Orders: issued date + order number
- * - Returned: return date + who returned
+ * - Includes local search + location filter above the table.
+ * - Dynamically shows "Lokalizacja" column for admins and multi-location users.
  */
 const ItemModeTable = ({ mode, items }: Props) => {
-  const { searchTerm } = useSearch()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activeLocation, setActiveLocation] = useState<'all' | string>('all')
   const [orderId, setOrderId] = useState<string | null>(null)
 
-  // Avoid filtering on every keystroke for empty query; keep logic stable.
-  const filtered = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase()
-    if (!q) return items
-    return items.filter((it) =>
-      (it.itemType === 'MATERIAL'
-        ? it.index ?? it.name
-        : it.serialNumber ?? '—'
-      )
-        .toLowerCase()
-        .includes(q)
-    )
-  }, [items, searchTerm])
+  const { isAdmin, isCoordinator, isWarehouseman } = useRole()
+  const locations = Array.from(
+    new Map(
+      items
+        .filter((i) => i.location)
+        .map((i) => [i.location!.id, i.location!.name])
+    ).entries()
+  ).map(([id, name]) => ({ id, name }))
 
-  /**
-   * Pick the most relevant date per mode.
-   * We default to the *last* action when applicable (e.g., last RECEIVED, last ISSUED).
-   */
+  const showLocationColumn =
+    isAdmin || ((isCoordinator || isWarehouseman) && locations.length > 1)
+
+  // Apply filters
+  const filtered = useMemo(() => {
+    let data = items
+
+    // Filter by location
+    if (activeLocation !== 'all') {
+      data = data.filter((it) => it.location?.id === activeLocation)
+    }
+
+    // Filter by search
+    const q = searchTerm.trim().toLowerCase()
+    if (q) {
+      data = data.filter((it) =>
+        (it.itemType === 'MATERIAL'
+          ? it.index ?? it.name
+          : it.serialNumber ?? '—'
+        )
+          .toLowerCase()
+          .includes(q)
+      )
+    }
+
+    return data
+  }, [items, activeLocation, searchTerm])
+
   const pickDate = (it: SlimWarehouseItem): Date | null => {
     if (mode === 'warehouse') {
-      // Prefer the last RECEIVED; if missing (legacy), fall back to createdAt.
       return (
         getLastActionDate(it.history, WarehouseAction.RECEIVED) ??
         new Date(it.createdAt)
       )
     }
     if (mode === 'technicians') {
-      // Prefer the last ISSUED; if history is missing for legacy devices,
-      // consider using updatedAt (if provided in the type/data) as a last resort.
       return getLastActionDate(it.history, WarehouseAction.ISSUED)
     }
     if (mode === 'orders') {
-      // Issued to an order; fall back to order.createdAt when action is missing.
       return (
         getActionDate(it.history, WarehouseAction.ISSUED) ??
         (it.orderAssignments[0]?.order?.createdAt
@@ -82,7 +103,6 @@ const ItemModeTable = ({ mode, items }: Props) => {
       )
     }
     if (mode === 'returned') {
-      // The latest return event, either to warehouse or to operator.
       return (
         getLastActionDate(it.history, WarehouseAction.RETURNED) ??
         getLastActionDate(it.history, WarehouseAction.RETURNED_TO_OPERATOR)
@@ -92,7 +112,6 @@ const ItemModeTable = ({ mode, items }: Props) => {
   }
 
   if (items.length === 0) {
-    // Nice UX: show an empty state instead of an empty table.
     return (
       <div className="text-sm text-center text-muted-foreground py-6">
         Brak pozycji do wyświetlenia
@@ -102,6 +121,36 @@ const ItemModeTable = ({ mode, items }: Props) => {
 
   return (
     <>
+      {/* Controls above table */}
+      <div className="flex flex-col xs:flex-row justify-between items-center gap-3 mb-3">
+        <SearchInput
+          placeholder="Szukaj"
+          value={searchTerm}
+          onChange={setSearchTerm}
+          className="flex-1 w-full"
+        />
+        {showLocationColumn && (
+          <Select
+            value={activeLocation}
+            onValueChange={(val) =>
+              setActiveLocation((val as 'all' | string) ?? 'all')
+            }
+          >
+            <SelectTrigger className="flex-1 w-full xs:max-w-64">
+              <SelectValue placeholder="Filtruj po magazynie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszystkie magazyny</SelectItem>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -109,7 +158,7 @@ const ItemModeTable = ({ mode, items }: Props) => {
             <TableHead>
               {items[0]?.itemType === 'MATERIAL' ? 'Indeks' : 'Numer seryjny'}
             </TableHead>
-
+            {showLocationColumn && <TableHead>Lokalizacja</TableHead>}
             {mode === 'warehouse' && (
               <>
                 <TableHead>Data przyjęcia</TableHead>
@@ -150,7 +199,6 @@ const ItemModeTable = ({ mode, items }: Props) => {
                 ? it.orderAssignments[0]?.order
                 : undefined
 
-            // Pull the last relevant history entry to show actors.
             const lastReceived = getLastAction(
               it.history,
               WarehouseAction.RECEIVED
@@ -176,21 +224,21 @@ const ItemModeTable = ({ mode, items }: Props) => {
                     textToHighlight={identifier}
                   />
                 </TableCell>
-
+                {showLocationColumn && (
+                  <TableCell>{it.location?.name ?? '—'}</TableCell>
+                )}
                 {mode === 'warehouse' && (
                   <>
                     <TableCell>{fmt(date)}</TableCell>
                     <TableCell>{receivedBy}</TableCell>
                   </>
                 )}
-
                 {mode === 'technicians' && (
                   <>
                     <TableCell>{fmt(date)}</TableCell>
                     <TableCell>{issuedToTech}</TableCell>
                   </>
                 )}
-
                 {mode === 'orders' && (
                   <>
                     <TableCell>{fmt(date)}</TableCell>
@@ -209,7 +257,6 @@ const ItemModeTable = ({ mode, items }: Props) => {
                     </TableCell>
                   </>
                 )}
-
                 {mode === 'returned' && (
                   <>
                     <TableCell>{fmt(date)}</TableCell>
@@ -222,7 +269,6 @@ const ItemModeTable = ({ mode, items }: Props) => {
         </TableBody>
       </Table>
 
-      {/* Lazy sheet for order details; controlled by local state */}
       <OrderDetailsSheet
         orderId={orderId}
         open={!!orderId}

@@ -29,12 +29,13 @@ import { z } from 'zod'
 export interface Context {
   user?: {
     id: string
-    name?: string
-    email?: string
-    phoneNumber?: string
-    identyficator?: number | null
+    name: string
+    email: string
+    phoneNumber: string
+    identyficator: number | null
     role: Role
     status: UserStatus
+    locations: { id: string; name: string }[]
   } | null
   prisma: PrismaClient
 }
@@ -80,6 +81,7 @@ export type IssuedItemMaterial = {
   id: string
   type: 'MATERIAL'
   name: string
+  materialDefinitionId: string
   quantity: number
 }
 
@@ -179,3 +181,28 @@ export type ActivatedService = {
   speedTestConfirmed?: boolean
   notes?: string
 }
+
+export type BaseUser = Prisma.UserGetPayload<{
+  select: {
+    id: true
+    name: true
+    email: true
+    phoneNumber: true
+    role: true
+    status: true
+    identyficator: true
+  }
+}>
+
+export type UserWithLocations = Prisma.UserGetPayload<{
+  select: {
+    id: true
+    name: true
+    email: true
+    phoneNumber: true
+    role: true
+    status: true
+    identyficator: true
+    locations: { select: { id: true; name: true } }
+  }
+}>

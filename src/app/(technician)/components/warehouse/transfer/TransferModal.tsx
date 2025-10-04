@@ -1,6 +1,7 @@
 'use client'
 
 import TechnicianSelector from '@/app/components/shared/TechnicianSelector'
+import TransferItemsTabs from '@/app/components/shared/warehouse/TransferItemsTabs'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -11,7 +12,6 @@ import {
 import { UserWithBasic } from '@/types'
 import { useState } from 'react'
 import { CgArrowsExchange } from 'react-icons/cg'
-import TransferItemsTabs from './TransferItemsTabs'
 
 type Props = { open: boolean; onClose: () => void }
 
@@ -56,6 +56,7 @@ const TransferModal = ({ open, onClose }: Props) => {
                   setTech(t)
                   setEdit(false)
                 }}
+                mode="others"
               />
             </div>
           </div>

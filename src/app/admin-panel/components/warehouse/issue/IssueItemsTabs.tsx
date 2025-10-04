@@ -7,6 +7,7 @@ import {
   TabsTrigger,
 } from '@/app/components/ui/tabs'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -45,6 +46,19 @@ const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
         toast.error('Nie udało się wydać sprzętu.')
       },
     })
+
+  const activeLocationId = useActiveLocation()
+
+  const { data: warehouseDevices = [] } = trpc.warehouse.getAll.useQuery(
+    activeLocationId
+      ? { locationId: activeLocationId, itemType: 'DEVICE' as const }
+      : undefined,
+    { enabled: !!activeLocationId }
+  )
+
+  const availableDevices = warehouseDevices.filter(
+    (d) => d.status === 'AVAILABLE'
+  )
 
   const handleAddDevice = (device: IssuedItemDevice) => {
     if (!devices.find((d) => d.id === device.id)) {
@@ -126,7 +140,10 @@ const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
         </TabsList>
 
         <TabsContent value="devices" className="space-y-4">
-          <SerialScanInput onAddDevice={handleAddDevice} />
+          <SerialScanInput
+            onAddDevice={handleAddDevice}
+            devices={availableDevices}
+          />
         </TabsContent>
 
         <TabsContent value="materials" className="space-y-4">

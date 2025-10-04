@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/app/components/ui/button'
+import { Checkbox } from '@/app/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,9 @@ const userFormSchema = z.object({
     .regex(/[A-Z]/, 'Musi zawierać wielką literę')
     .regex(/\d/, 'Musi zawierać cyfrę')
     .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Musi zawierać znak specjalny'),
+  locationIds: z
+    .array(z.string())
+    .min(1, 'Wybierz przynajmniej jedną lokalizację'),
 })
 
 type UserFormValues = z.infer<typeof userFormSchema>
@@ -53,14 +57,15 @@ interface AddUserDialogProps {
 
 /**
  * AddUserDialog:
- * - Nie zawiera własnego triggera.
- * - Otwierany i zamykany tylko przez propsy open / onClose (kontrolowany przez rodzica).
- * - Po dodaniu użytkownika zamyka się i resetuje formularz.
+ * - Dodawanie użytkownika z przypisaniem do jednej lub wielu lokalizacji.
  */
 const AddUserDialog = ({ open, onClose, defaultRole }: AddUserDialogProps) => {
   const [isSpinning, setIsSpinning] = useState(false)
 
   const utils = trpc.useUtils()
+
+  const { data: locations, isLoading: isLoadingLocations } =
+    trpc.warehouse.getAllLocations.useQuery()
 
   const createUserMutation = trpc.user.createUser.useMutation({
     onSuccess: () => {
@@ -77,6 +82,7 @@ const AddUserDialog = ({ open, onClose, defaultRole }: AddUserDialogProps) => {
       phoneNumber: '',
       role: defaultRole,
       password: '',
+      locationIds: [],
     },
   })
 
@@ -170,6 +176,57 @@ const AddUserDialog = ({ open, onClose, defaultRole }: AddUserDialogProps) => {
                 </FormItem>
               )}
             />
+
+            {/* Lokalizacje */}
+            <FormField
+              control={form.control}
+              name="locationIds"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Lokalizacje</FormLabel>
+                  <div className="space-y-2">
+                    {isLoadingLocations && (
+                      <p className="text-sm text-muted-foreground">
+                        Ładowanie lokalizacji...
+                      </p>
+                    )}
+                    {locations?.map((loc) => (
+                      <FormField
+                        key={loc.id}
+                        control={form.control}
+                        name="locationIds"
+                        render={({ field }) => (
+                          <FormItem
+                            key={loc.id}
+                            className="flex flex-row items-center space-x-3"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(loc.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    field.onChange([...field.value, loc.id])
+                                  } else {
+                                    field.onChange(
+                                      field.value.filter((id) => id !== loc.id)
+                                    )
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal">
+                              {loc.name}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="password"

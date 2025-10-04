@@ -8,19 +8,34 @@ declare module 'next-auth' {
       name: string
       email: string
       phoneNumber: string
-      identyficator?: number | null
+      identyficator: number | null
       role: Role
       status: UserStatus
+      locations: { id: string; name: string }[]
     }
   }
 
   interface User {
     id: string
-    name?: string | null
-    email?: string | null
+    name: string
+    email: string
     phoneNumber: string
-    identyficator?: number | null
+    identyficator: number | null
     role: Role
     status: UserStatus
+    locations: { id: string; name: string }[]
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id: string
+    email: string
+    name: string
+    phoneNumber: string
+    identyficator: number | null
+    role: Role
+    status: UserStatus
+    locations: { id: string; name: string }[]
   }
 }

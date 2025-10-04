@@ -92,34 +92,46 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
 
           {/* Success state */}
           {query.data && (
-            <div className="text-sm space-y-2 border-t pt-4">
-              <p>
-                <strong>Nazwa:</strong> {query.data.name}
-              </p>
-              <p>
-                <strong>Status:</strong>{' '}
-                {devicesStatusMap[query.data.status] ?? query.data.status}
-              </p>
-              <p>
-                <strong>Na stanie:</strong>{' '}
-                {query.data.assignedTo?.name ?? 'Magazyn'}
-              </p>
-              <p>
-                <strong>Przypisany do zlecenia:</strong>{' '}
-                {query.data.assignedOrder?.orderNumber ?? 'Brak'}
-              </p>
-
-              {/* NEW: last operation */}
-              {query.data.lastActionDate && (
-                <p>
-                  <strong>Ostatnia operacja:</strong>{' '}
-                  {actionMap[query.data.lastAction ?? ''] ??
-                    query.data.lastAction}
-                  {' — '}
-                  {dayjs(query.data.lastActionDate).format('DD.MM.YYYY HH:mm')}
-                </p>
-              )}
-            </div>
+            <section className="text-sm border-t pt-4">
+              <h4 className="font-semibold mb-2">Szczegóły urządzenia</h4>
+              <dl className="space-y-2">
+                <div>
+                  <dt className="font-medium">Nazwa</dt>
+                  <dd>{query.data.name}</dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Status</dt>
+                  <dd>
+                    {devicesStatusMap[query.data.status] ?? query.data.status}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Na stanie</dt>
+                  <dd>
+                    {query.data.assignedTo
+                      ? query.data.assignedTo.name
+                      : `Magazyn ${query.data.location?.name ?? ''}`}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Przypisany do zlecenia</dt>
+                  <dd>{query.data.assignedOrder?.orderNumber ?? 'Brak'}</dd>
+                </div>
+                {query.data.lastActionDate && (
+                  <div>
+                    <dt className="font-medium">Ostatnia operacja</dt>
+                    <dd>
+                      {actionMap[query.data.lastAction ?? ''] ??
+                        query.data.lastAction}
+                      {' — '}
+                      {dayjs(query.data.lastActionDate).format(
+                        'DD.MM.YYYY HH:mm'
+                      )}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
           )}
         </div>
       </SheetContent>

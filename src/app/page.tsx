@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client'
 
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import { useRouter } from 'next/navigation'
 import ClientRoutingHandlerTechnician from './components/ClientRoutingHandlerTechnician'
 import LoaderLogo from './components/shared/LoaderLogo'

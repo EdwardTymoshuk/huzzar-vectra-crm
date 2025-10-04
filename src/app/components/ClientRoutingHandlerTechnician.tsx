@@ -1,6 +1,6 @@
 'use client'
 
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import dynamic from 'next/dynamic'
 import { redirect, usePathname, useSearchParams } from 'next/navigation'
 import LayoutShell from './shared/LayoutShell'

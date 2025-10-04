@@ -20,7 +20,9 @@ export const adminUserRouter = router({
         name: true,
         role: true,
         status: true,
+        locations: { select: { id: true, name: true } },
       },
+      orderBy: { name: 'asc' },
     })
   ),
 
@@ -38,6 +40,7 @@ export const adminUserRouter = router({
           role: true,
           status: true,
           identyficator: true,
+          locations: { select: { id: true, name: true } },
         },
       })
       if (!user)
@@ -60,12 +63,12 @@ export const adminUserRouter = router({
         role: z
           .enum(['TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN'])
           .default('TECHNICIAN'),
+        locationIds: z.array(z.string()).optional(), // nowe pole
       })
     )
     .mutation(async ({ input }) => {
       const hash = await bcrypt.hash(input.password, 10)
 
-      // Tworzenie konta użytkownika
       const newUser = await prisma.user.create({
         data: {
           name: input.name,
@@ -75,6 +78,13 @@ export const adminUserRouter = router({
           identyficator: input.identyficator,
           role: input.role,
           status: 'ACTIVE',
+          ...(input.locationIds
+            ? {
+                locations: {
+                  connect: input.locationIds.map((id) => ({ id })),
+                },
+              }
+            : {}),
         },
       })
 
@@ -92,7 +102,7 @@ export const adminUserRouter = router({
       return newUser
     }),
 
-  /** Edit user (optional password / role) */
+  /** Edit user */
   editUser: adminOnly
     .input(
       z.object({
@@ -112,6 +122,7 @@ export const adminUserRouter = router({
         role: z
           .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
           .optional(),
+        locationIds: z.array(z.string()).optional(), // nowe pole
       })
     )
     .mutation(async ({ input }) => {
@@ -122,6 +133,11 @@ export const adminUserRouter = router({
       }
       if (input.password) data.password = await bcrypt.hash(input.password, 10)
       if (input.role) data.role = input.role
+      if (input.locationIds) {
+        data.locations = {
+          set: input.locationIds.map((id) => ({ id })), // nadpisuje relacje
+        }
+      }
       return prisma.user.update({ where: { id: input.id }, data })
     }),
 
@@ -156,22 +172,20 @@ export const adminUserRouter = router({
       })
     ),
 
-  // server/routers/user/admin.ts
+  /** Delete user */
   deleteUser: adminOnly
     .input(
       z.object({
         id: z.string(),
-        force: z.boolean().optional(), // true  → hard delete
+        force: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
       if (input.force) {
-        // hard delete !!!
         await prisma.user.delete({ where: { id: input.id } })
         return { ok: true }
       }
 
-      // soft delete + anonimization
       const anonEmail = `deleted-${input.id}@example.invalid`
       await prisma.user.update({
         where: { id: input.id },

@@ -19,7 +19,7 @@ import { UserWithBasic } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSession } from 'next-auth/react'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -32,50 +32,44 @@ type FormData = z.infer<typeof formSchema>
 interface Props {
   value: UserWithBasic | null
   onChange: (tech: UserWithBasic | null) => void
+  /** mode: "all" → show all technicians (admin/coord/warehouse),
+   *         "others" → show other technicians excluding myself (for transfers) */
+  mode?: 'all' | 'others'
 }
 
 /**
  * TechnicianSelector
  * ------------------------------------------------
- * Dropdown with active technicians (excluding myself).
- * Emits full technician object (`UserWithBasic`) to a parent.
+ * Dropdown with technicians list.
+ * - mode="all"    → admin/coord/warehouse, all technicians
+ * - mode="others" → technician app, excludes current user
  */
-const TechnicianSelector = ({ value, onChange }: Props) => {
-  /* form init */
+const TechnicianSelector = ({ value, onChange, mode = 'all' }: Props) => {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { technicianId: '' },
   })
 
-  /* current user – we filter him out */
   const { data: session } = useSession()
   const myId = session?.user.id
 
-  /* get technicians list */
+  // --- fetch technicians depending on mode ---
   const { data: techniciansRaw = [], isLoading } =
-    trpc.user.getTechnicians.useQuery({
-      status: 'ACTIVE',
-    })
+    mode === 'others'
+      ? trpc.user.getOtherTechnicians.useQuery({ excludeId: myId })
+      : trpc.user.getTechnicians.useQuery({ status: 'ACTIVE' })
 
-  /* strip myself from the list */
-  const technicians = useMemo(
-    () => techniciansRaw.filter((t) => t.id !== myId),
-    [techniciansRaw, myId]
-  )
-
-  /* keep external value in sync with form */
+  // --- sync external value with form ---
   useEffect(() => {
     if (value) form.setValue('technicianId', value.id)
   }, [value, form])
 
-  /* handle selection */
   const handleChange = (id: string) => {
-    const selected = technicians.find((t) => t.id === id) ?? null
+    const selected = techniciansRaw.find((t) => t.id === id) ?? null
     onChange(selected)
     form.setValue('technicianId', id)
   }
 
-  /* -------------- render -------------- */
   return (
     <Form {...form}>
       <FormField
@@ -97,7 +91,7 @@ const TechnicianSelector = ({ value, onChange }: Props) => {
               </FormControl>
 
               <SelectContent>
-                {technicians.map((tech) => (
+                {techniciansRaw.map((tech) => (
                   <SelectItem key={tech.id} value={tech.id}>
                     {tech.name}
                     {tech.identyficator ? ` | ${tech.identyficator}` : ''}

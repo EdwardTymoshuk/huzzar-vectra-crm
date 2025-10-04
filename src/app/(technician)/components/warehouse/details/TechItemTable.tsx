@@ -1,15 +1,7 @@
 'use client'
 
+import SearchInput from '@/app/components/shared/SearchInput'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
-/**
- * TechItemTable
- * -------------
- * Technician’s table view for warehouse items.
- * • Mirrors admin ItemModeTable for consistency.
- * • Shows stock assigned to the logged-in technician.
- * • Uses SearchContext for filtering.
- */
-
 import { Button } from '@/app/components/ui/button'
 import {
   Table,
@@ -19,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { useSearch } from '@/app/context/SearchContext'
 import {
   SlimWarehouseItem,
   fmt,
@@ -35,10 +26,18 @@ type Props = {
   mode: 'warehouse' | 'orders' | 'transfer'
 }
 
+/**
+ * TechItemTable
+ * -------------
+ * Technician’s table view for warehouse items.
+ * • Includes search input above the table (local state).
+ * • Mirrors admin ItemModeTable for consistency.
+ */
 const TechItemTable = ({ items, mode }: Props) => {
-  const { searchTerm } = useSearch()
+  const [searchTerm, setSearchTerm] = useState('')
   const [orderId, setOrderId] = useState<string | null>(null)
 
+  // Filter by search
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!q) return items
@@ -52,24 +51,44 @@ const TechItemTable = ({ items, mode }: Props) => {
     )
   }, [items, searchTerm])
 
+  // Resolve the most relevant date depending on mode
   const pickDate = (it: SlimWarehouseItem): Date | null => {
     if (mode === 'warehouse') {
-      // last issue to technician
       return getLastActionDate(it.history, WarehouseAction.ISSUED)
     }
     if (mode === 'orders') {
-      // date of last issue OR fallback to order creation
       return (
         getLastActionDate(it.history, WarehouseAction.ISSUED) ??
         it.orderAssignments[0]?.order?.createdAt ??
         null
       )
     }
+    if (mode === 'transfer') {
+      return getLastActionDate(it.history, WarehouseAction.TRANSFER)
+    }
     return null
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="text-sm text-center text-muted-foreground py-6">
+        Brak pozycji do wyświetlenia
+      </div>
+    )
   }
 
   return (
     <>
+      {/* Controls above table */}
+      <div className="flex flex-col xs:flex-row justify-between items-center gap-3 mb-3">
+        <SearchInput
+          placeholder="Szukaj"
+          value={searchTerm}
+          onChange={setSearchTerm}
+          className="flex-1 w-full"
+        />
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -123,7 +142,7 @@ const TechItemTable = ({ items, mode }: Props) => {
                 <TableCell>
                   <Highlight
                     highlightClassName="bg-yellow-200"
-                    searchWords={[searchTerm]}
+                    searchWords={searchTerm.trim() ? [searchTerm] : []}
                     autoEscape
                     textToHighlight={identifier}
                   />

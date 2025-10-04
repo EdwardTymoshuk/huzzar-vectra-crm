@@ -7,8 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// The user model, representing all users in the system.
-/// Includes technicians, coordinators, warehouse managers, and admins.
+/// -------------------------------
+/// User model
+/// -------------------------------
 model User {
   id                        String              @id @default(uuid())
   email                     String              @unique
@@ -21,6 +22,7 @@ model User {
   status                    UserStatus          @default(ACTIVE)
   updatedAt                 DateTime            @updatedAt
   deletedAt                 DateTime?
+
   orders                    Order[]
   transferredOrders         Order[]             @relation("OrderTransfer")
   orderHistory              OrderHistory[]
@@ -29,9 +31,17 @@ model User {
   transferredWarehouseItems Warehouse[]         @relation("WarehouseTransfer")
   warehouseHistoryAssigned  WarehouseHistory[]  @relation("WarehouseHistoryAssignedTo")
   warehouseHistoryPerformed WarehouseHistory[]  @relation("WarehouseHistoryPerformedBy")
+
+  locations WarehouseLocation[] @relation("UserLocations")
+
+  // Location transfers
+  requestedTransfers LocationTransfer[] @relation("RequestedTransfers")
+  confirmedTransfers LocationTransfer[] @relation("ConfirmedTransfers")
 }
 
-/// The order model, representing job assignments in the system.
+/// -------------------------------
+/// Order model
+/// -------------------------------
 model Order {
   id                String                 @id @default(uuid())
   orderNumber       String
@@ -40,25 +50,25 @@ model Order {
   clientPhoneNumber String?
   notes             String?
   status            OrderStatus            @default(PENDING)
-  /// address
+
   county            String?
   municipality      String?
   city              String
   street            String
   postalCode        String?
-  /// relations
+
   assignedToId      String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
   operator          String
   type              OrderType
-  /// set when technician marks COMPLETED / NOT_COMPLETED
+
   closedAt          DateTime?
-  /// required only for NOT_COMPLETED
   failureReason     String?
   transferPending   Boolean                @default(false)
   transferToId      String?
   completedAt       DateTime?
+
   assignedTo        User?                  @relation(fields: [assignedToId], references: [id])
   transferTo        User?                  @relation("OrderTransfer", fields: [transferToId], references: [id])
   assignedEquipment OrderEquipment[]       @relation("OrderToOrderEquipment")
@@ -71,32 +81,36 @@ model Order {
   @@unique([orderNumber, date])
 }
 
-/// Material consumed during order execution.
+/// -------------------------------
+/// OrderMaterial
+/// -------------------------------
 model OrderMaterial {
   id         String             @id @default(uuid())
-  /// order reference
   orderId    String
-  /// material reference (definition)
   materialId String
   quantity   Int
   unit       MaterialUnit
+
   material   MaterialDefinition @relation("MaterialToOrderMaterial", fields: [materialId], references: [id])
   order      Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
 
+/// -------------------------------
 model OrderSettlementEntry {
   id       String         @id @default(uuid())
   orderId  String
   code     String
   quantity Int
+
   rate     RateDefinition @relation("RateDefinitionToSettlement", fields: [code], references: [code])
   order    Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
 
+/// -------------------------------
 model OrderService {
   id              String       @id @default(uuid())
   orderId         String
@@ -105,19 +119,18 @@ model OrderService {
   serialNumber    String?
   deviceId2       String?
   serialNumber2   String?
-
   speedTest       String?
   usDbmDown       Float?
   usDbmUp         Float?
   notes           String?
-
   createdAt       DateTime     @default(now())
 
   order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   @@index([orderId])
 }
 
-/// Tracks changes in order statuses.
+/// -------------------------------
 model OrderHistory {
   id            String      @id @default(uuid())
   orderId       String
@@ -127,14 +140,17 @@ model OrderHistory {
   statusAfter   OrderStatus
   notes         String?
   equipmentUsed String[]
+
   changedBy     User        @relation(fields: [changedById], references: [id])
   order         Order       @relation(fields: [orderId], references: [id])
 }
 
+/// -------------------------------
 model OrderEquipment {
   id          String    @id @default(uuid())
   orderId     String
   warehouseId String
+
   order       Order     @relation("OrderToOrderEquipment", fields: [orderId], references: [id], onDelete: Cascade)
   warehouse   Warehouse @relation("WarehouseToOrderEquipment", fields: [warehouseId], references: [id])
 
@@ -142,7 +158,9 @@ model OrderEquipment {
   @@index([orderId])
 }
 
-/// Represents items stored in the warehouse.
+/// -------------------------------
+/// Warehouse
+/// -------------------------------
 model Warehouse {
   id                   String              @id @default(uuid())
   itemType             WarehouseItemType
@@ -163,49 +181,22 @@ model Warehouse {
   materialDefinitionId String?
   transferPending      Boolean             @default(false)
   transferToId         String?
+
   orderAssignments     OrderEquipment[]    @relation("WarehouseToOrderEquipment")
   assignedTo           User?               @relation("WarehouseAssignedTo", fields: [assignedToId], references: [id])
   materialDefinition   MaterialDefinition? @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
   transferTo           User?               @relation("WarehouseTransfer", fields: [transferToId], references: [id])
   history              WarehouseHistory[]
+
+  locationId           String              @default("gdansk")
+  location             WarehouseLocation   @relation(fields: [locationId], references: [id])
+
+  transferLines        LocationTransferLine[] @relation("WarehouseToTransferLines")
 }
 
-/// Defines different types of devices available in the warehouse.
-model DeviceDefinition {
-  id           String         @id @default(uuid())
-  category     DeviceCategory
-  provider     DeviceProvider?
-  name         String
-  alarmAlert   Int?           @default(5)
-  warningAlert Int?           @default(10)
-  price        Float?         @default(0)
-}
-
-model MaterialDefinition {
-  id             String          @id @default(uuid())
-  name           String          @unique
-  alarmAlert     Int?            @default(5)
-  index          String?
-  warningAlert   Int?            @default(10)
-  unit           MaterialUnit    @default(PIECE)
-  price          Float?          @default(0)
-  orderMaterials OrderMaterial[] @relation("MaterialToOrderMaterial")
-  warehouseItems Warehouse[]     @relation("MaterialDefinitionToWarehouse")
-}
-
-model OperatorDefinition {
-  operator String @unique
-}
-
-/// Represents rate definitions for different services.
-model RateDefinition {
-  id          String                 @id @default(uuid())
-  code        String                 @unique
-  amount      Float
-  settlements OrderSettlementEntry[] @relation("RateDefinitionToSettlement")
-}
-
-/// Tracks warehouse operations like receiving, issuing, or returning items.
+/// -------------------------------
+/// WarehouseHistory
+/// -------------------------------
 model WarehouseHistory {
   id              String          @id @default(uuid())
   warehouseItemId String
@@ -216,12 +207,135 @@ model WarehouseHistory {
   notes           String?
   quantity        Int?
   assignedOrderId String?
-  assignedOrder   Order?          @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
-  assignedTo      User?           @relation("WarehouseHistoryAssignedTo", fields: [assignedToId], references: [id])
-  performedBy     User            @relation("WarehouseHistoryPerformedBy", fields: [performedById], references: [id])
+
+  fromLocationId  String?
+  toLocationId    String?
+
+  locationTransferId String?
+  locationTransfer   LocationTransfer? @relation("LocationTransferToHistory", fields: [locationTransferId], references: [id])
+
   warehouseItem   Warehouse       @relation(fields: [warehouseItemId], references: [id])
+  performedBy     User            @relation("WarehouseHistoryPerformedBy", fields: [performedById], references: [id])
+  assignedTo      User?           @relation("WarehouseHistoryAssignedTo", fields: [assignedToId], references: [id])
+  assignedOrder   Order?          @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
 }
 
+/// -------------------------------
+/// WarehouseLocation
+/// -------------------------------
+model WarehouseLocation {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  items     Warehouse[]
+
+  users User[] @relation("UserLocations")
+
+  transfersFrom LocationTransfer[] @relation("TransfersFromLocation")
+  transfersTo   LocationTransfer[] @relation("TransfersToLocation")
+}
+
+/// -------------------------------
+/// LocationTransfer
+/// -------------------------------
+model LocationTransfer {
+  id             String                 @id @default(uuid())
+  fromLocationId String
+  toLocationId   String
+  status         LocationTransferStatus @default(REQUESTED)
+
+  notes          String?
+  createdAt      DateTime               @default(now())
+  requestedById  String
+  confirmedById  String?
+  confirmedAt    DateTime?
+
+  fromLocation   WarehouseLocation      @relation("TransfersFromLocation", fields: [fromLocationId], references: [id])
+  toLocation     WarehouseLocation      @relation("TransfersToLocation",   fields: [toLocationId],   references: [id])
+
+  requestedBy    User                   @relation("RequestedTransfers", fields: [requestedById], references: [id])
+  confirmedBy    User?                  @relation("ConfirmedTransfers", fields: [confirmedById], references: [id])
+
+  lines          LocationTransferLine[]
+  histories      WarehouseHistory[]     @relation("LocationTransferToHistory")
+
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([status])
+}
+
+/// -------------------------------
+/// LocationTransferLine
+/// -------------------------------
+model LocationTransferLine {
+  id                   String              @id @default(uuid())
+  transferId           String
+  itemType             WarehouseItemType
+  category             DeviceCategory?
+
+  warehouseItemId      String?
+  materialDefinitionId String?
+  quantity             Int?
+  unit                 MaterialUnit?
+
+  nameSnapshot         String?
+  indexSnapshot        String?
+
+  transfer             LocationTransfer    @relation(fields: [transferId], references: [id])
+  warehouseItem        Warehouse?          @relation("WarehouseToTransferLines", fields: [warehouseItemId], references: [id])
+  materialDefinition   MaterialDefinition? @relation("MaterialDefinitionToTransferLines", fields: [materialDefinitionId], references: [id])
+
+  @@index([transferId])
+  @@index([warehouseItemId])
+  @@index([materialDefinitionId])
+}
+
+/// -------------------------------
+/// DeviceDefinition
+/// -------------------------------
+model DeviceDefinition {
+  id           String         @id @default(uuid())
+  category     DeviceCategory
+  provider     DeviceProvider?
+  name         String
+  alarmAlert   Int?           @default(5)
+  warningAlert Int?           @default(10)
+  price        Float?         @default(0)
+}
+
+/// -------------------------------
+/// MaterialDefinition
+/// -------------------------------
+model MaterialDefinition {
+  id             String                  @id @default(uuid())
+  name           String                  @unique
+  alarmAlert     Int?                    @default(5)
+  index          String?
+  warningAlert   Int?                    @default(10)
+  unit           MaterialUnit            @default(PIECE)
+  price          Float?                  @default(0)
+
+  orderMaterials OrderMaterial[]         @relation("MaterialToOrderMaterial")
+  warehouseItems Warehouse[]             @relation("MaterialDefinitionToWarehouse")
+  transferLines  LocationTransferLine[]  @relation("MaterialDefinitionToTransferLines")
+}
+
+/// -------------------------------
+model OperatorDefinition {
+  operator String @unique
+}
+
+/// -------------------------------
+model RateDefinition {
+  id          String                 @id @default(uuid())
+  code        String                 @unique
+  amount      Float
+  settlements OrderSettlementEntry[] @relation("RateDefinitionToSettlement")
+}
+
+/// -------------------------------
 model TechnicianSettings {
   userId          String   @id
   workingDaysGoal Int
@@ -230,16 +344,16 @@ model TechnicianSettings {
   user            User     @relation(fields: [userId], references: [id])
 }
 
-/// Defines user roles within the system.
+/// -------------------------------
+/// ENUMS
+/// -------------------------------
 enum Role {
   TECHNICIAN
   COORDINATOR
   WAREHOUSEMAN
   ADMIN
-  USER
 }
 
-/// Defines the status of a user.
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -247,7 +361,6 @@ enum UserStatus {
   DELETED
 }
 
-/// Defines the status of an order.
 enum OrderStatus {
   PENDING
   ASSIGNED
@@ -261,7 +374,6 @@ enum OrderType {
   OUTAGE
 }
 
-/// Defines time slots for order scheduling.
 enum TimeSlot {
   EIGHT_TEN          @map("8-10")
   TEN_TWELVE         @map("10-12")
@@ -288,13 +400,11 @@ enum TimeSlot {
   TWENTY_TWENTYONE   @map("20-21")
 }
 
-/// Defines item types in the warehouse.
 enum WarehouseItemType {
   DEVICE
   MATERIAL
 }
 
-/// Defines categories of devices.
 enum DeviceCategory {
   MODEM
   DECODER_1_WAY
@@ -305,13 +415,11 @@ enum DeviceCategory {
   UA
 }
 
-/// Defines measurement units for warehouse items.
 enum MaterialUnit {
   PIECE
   METER
 }
 
-/// Defines the status of items in the warehouse.
 enum WarehouseStatus {
   AVAILABLE
   ASSIGNED
@@ -322,7 +430,6 @@ enum WarehouseStatus {
   COLLECTED_FROM_CLIENT
 }
 
-/// Defines possible warehouse operations.
 enum WarehouseAction {
   RECEIVED
   ISSUED
@@ -339,8 +446,15 @@ enum ServiceType {
   ATV
 }
 
-/// Defines device provider categories.
 enum DeviceProvider {
   VECTRA
   MMP
+}
+
+enum LocationTransferStatus {
+  REQUESTED
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+  CANCELED
 }

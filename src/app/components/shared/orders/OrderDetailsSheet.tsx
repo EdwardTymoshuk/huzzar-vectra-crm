@@ -10,7 +10,7 @@ import {
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { orderTypeMap, statusMap, timeSlotMap } from '@/lib/constants'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderHistory } from '@prisma/client'
 

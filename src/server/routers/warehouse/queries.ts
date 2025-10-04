@@ -1,31 +1,75 @@
-// server/routers/warehouse/queries.ts
-import { loggedInEveryone } from '@/server/roleHelpers'
+import {
+  adminCoordOrWarehouse,
+  adminOnly,
+  loggedInEveryone,
+} from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
+import { UserWithLocations } from '@/types'
 import { prisma } from '@/utils/prisma'
-import { WarehouseItemType } from '@prisma/client'
+import { Prisma, WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
-/** Actions relevant for date columns */
-// const RelevantActions: WarehouseAction[] = [
-//   WarehouseAction.RECEIVED,
-//   WarehouseAction.ISSUED,
-//   WarehouseAction.RETURNED,
-//   WarehouseAction.RETURNED_TO_OPERATOR,
-//   WarehouseAction.TRANSFER,
-//   WarehouseAction.COLLECTED_FROM_CLIENT,
-// ]
+/**
+ * Helper to resolve effective locationId for current user.
+ * - ADMIN/COORDINATOR → must pass locationId explicitly
+ * - WAREHOUSEMAN → use provided locationId or default to the first assigned
+ * - TECHNICIAN → forbidden (they use getTechnicianStock)
+ */
+function resolveLocationId(
+  user: UserWithLocations,
+  input?: { locationId?: string }
+): string {
+  if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
+    if (!input?.locationId) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'LocationId is required for admins and coordinators',
+      })
+    }
+    return input.locationId
+  }
 
-/** Modes for the ItemTabs views. */
+  if (user.role === 'WAREHOUSEMAN') {
+    if (!user.locations || user.locations.length === 0) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Warehouseman has no location assigned',
+      })
+    }
+    return input?.locationId ?? user.locations[0].id
+  }
+
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'Technicians should not call this endpoint',
+  })
+}
+
+/** Modes for the ItemTabs views */
 const Modes = ['warehouse', 'technicians', 'orders', 'returned'] as const
 
 export const queriesRouter = router({
   /** 📦 Get all warehouse items (ordered by creation date) */
-  getAll: loggedInEveryone.query(() => {
-    return prisma.warehouse.findMany({
-      orderBy: { createdAt: 'desc' },
-    })
-  }),
+  getAll: loggedInEveryone
+    .input(
+      z
+        .object({
+          locationId: z.string().optional(),
+          itemType: z.nativeEnum(WarehouseItemType).optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const locId = resolveLocationId(ctx.user!, input)
+      return prisma.warehouse.findMany({
+        where: {
+          locationId: locId,
+          ...(input?.itemType ? { itemType: input.itemType } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+    }),
 
   /**
    * 📦 Get items by name for a concrete mode (Magazyn/Technicy/Wydane/Zwrócone).
@@ -63,7 +107,7 @@ export const queriesRouter = router({
             status: 'ASSIGNED',
             orderAssignments: { none: {} },
           }
-
+          break
         case 'orders':
           whereClause = {
             ...baseWhere,
@@ -89,7 +133,7 @@ export const queriesRouter = router({
           }
       }
 
-      const items = await prisma.warehouse.findMany({
+      return prisma.warehouse.findMany({
         where: whereClause,
         select: {
           id: true,
@@ -107,6 +151,7 @@ export const queriesRouter = router({
           assignedToId: true,
           transferPending: true,
           assignedTo: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
           orderAssignments: {
             take: 1,
             select: {
@@ -127,9 +172,8 @@ export const queriesRouter = router({
         },
         orderBy: { createdAt: 'asc' },
       })
-
-      return items
     }),
+
   /** 🔍 Get warehouse item by serial number */
   getBySerialNumber: loggedInEveryone
     .input(z.object({ serial: z.string().min(1) }))
@@ -172,25 +216,16 @@ export const queriesRouter = router({
           assignedToId: id,
           status: { in: ['AVAILABLE', 'ASSIGNED'] },
           ...(input.itemType ? { itemType: input.itemType } : {}),
-          orderAssignments: {
-            none: {},
-          },
+          orderAssignments: { none: {} },
         },
         include: {
           assignedTo: true,
           transferTo: true,
           history: {
-            include: {
-              performedBy: true,
-              assignedTo: true,
-            },
+            include: { performedBy: true, assignedTo: true },
             orderBy: { actionDate: 'asc' },
           },
-          orderAssignments: {
-            include: {
-              order: true,
-            },
-          },
+          orderAssignments: { include: { order: true } },
         },
       })
     }),
@@ -210,15 +245,14 @@ export const queriesRouter = router({
         include: {
           assignedTo: { select: { id: true, name: true } },
           orderAssignments: {
-            include: {
-              order: { select: { id: true, orderNumber: true } },
-            },
+            include: { order: { select: { id: true, orderNumber: true } } },
           },
           history: {
             orderBy: { actionDate: 'desc' },
             take: 1,
             select: { action: true, actionDate: true },
           },
+          location: { select: { id: true, name: true } },
         },
       })
 
@@ -230,7 +264,6 @@ export const queriesRouter = router({
       }
 
       const last = item.history[0] ?? null
-
       return {
         id: item.id,
         name: item.name,
@@ -239,9 +272,11 @@ export const queriesRouter = router({
         assignedOrder: item.orderAssignments[0]?.order ?? null,
         lastAction: last?.action ?? null,
         lastActionDate: last?.actionDate ?? null,
+        location: item.location,
       }
     }),
-  // server/warehouse/router.ts  (lub w osobnym pliku)
+
+  /** 🔎 Autocomplete search by serial number (available devices only) */
   searchDevices: loggedInEveryone
     .input(z.object({ q: z.string().min(2) }))
     .query(({ ctx, input }) =>
@@ -259,7 +294,8 @@ export const queriesRouter = router({
         select: { id: true, serialNumber: true, name: true },
       })
     ),
-  /** 🛠️  List of devices/materials collected from clients (technician view) */
+
+  /** 🛠️  Devices/materials collected from clients (technician view) */
   getCollectedWithDetails: loggedInEveryone.query(({ ctx }) => {
     const techId = ctx.user?.id
     if (!techId) throw new TRPCError({ code: 'UNAUTHORIZED' })
@@ -267,13 +303,11 @@ export const queriesRouter = router({
     return prisma.warehouse.findMany({
       where: { assignedToId: techId, status: 'COLLECTED_FROM_CLIENT' },
       include: {
-        /* last COLLECTED_FROM_CLIENT timestamp – for “days ago” badge */
         history: {
           where: { action: 'COLLECTED_FROM_CLIENT' },
           orderBy: { actionDate: 'desc' },
           take: 1,
         },
-        /* first (and only) order referenced by this item */
         orderAssignments: {
           include: {
             order: {
@@ -291,4 +325,109 @@ export const queriesRouter = router({
       orderBy: { updatedAt: 'asc' },
     })
   }),
+
+  /** 📍 Get warehouse locations depending on role */
+  getAllLocations: adminCoordOrWarehouse.query(async ({ ctx }) => {
+    const { user } = ctx
+    if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+    switch (user.role) {
+      case 'ADMIN':
+      case 'COORDINATOR':
+      case 'WAREHOUSEMAN':
+        return ctx.prisma.warehouseLocation.findMany({
+          orderBy: { name: 'asc' },
+          select: { id: true, name: true },
+        })
+      default:
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Technicians cannot access locations',
+        })
+    }
+  }),
+
+  /** 📍 Only user-assigned locations (for sidebar menu) */
+  getUserLocations: adminCoordOrWarehouse.query(async ({ ctx }) => {
+    const { user } = ctx
+    if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+    if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
+      // Admin/koordynator ma wszystkie
+      return ctx.prisma.warehouseLocation.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      })
+    }
+
+    if (user.role === 'WAREHOUSEMAN') {
+      // Magazynier tylko przypisane
+      return user.locations
+    }
+
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Technicians cannot access locations',
+    })
+  }),
+
+  /** ➕ Create new warehouse location */
+  createLocation: adminOnly
+    .input(z.object({ id: z.string().min(2), name: z.string().min(2) }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        return await ctx.prisma.warehouseLocation.create({
+          data: { id: input.id.trim().toLowerCase(), name: input.name.trim() },
+        })
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Identyfikator lub nazwa lokalizacji już istnieje.',
+          })
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Nie udało się dodać lokalizacji.',
+        })
+      }
+    }),
+
+  /** 🗑️ Delete warehouse location */
+  deleteLocation: adminOnly
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      try {
+        return await ctx.prisma.warehouseLocation.delete({
+          where: { id: input.id },
+        })
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2025'
+        ) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Lokalizacja już nie istnieje.',
+          })
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Nie udało się usunąć lokalizacji.',
+        })
+      }
+    }),
+
+  /** ✏️ Update warehouse location */
+  updateLocation: adminOnly
+    .input(z.object({ id: z.string(), name: z.string().min(2) }))
+    .mutation(({ input, ctx }) =>
+      ctx.prisma.warehouseLocation.update({
+        where: { id: input.id },
+        data: { name: input.name },
+      })
+    ),
 })

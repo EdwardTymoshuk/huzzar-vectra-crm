@@ -255,7 +255,6 @@ export const userRoleMap: Record<string, string> = {
   ADMIN: 'ADMINISTRATOR',
   COORDINATOR: 'KOORDYNATOR',
   WAREHOUSEMAN: 'MAGAZYNIER',
-  USER: 'UŻYTKOWNIK',
 }
 
 /**

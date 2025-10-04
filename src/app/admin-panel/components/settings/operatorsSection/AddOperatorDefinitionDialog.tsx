@@ -70,7 +70,7 @@ const AddOperatorDefinitionDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button variant="success">
           <MdAdd />
           Dodaj operatora
         </Button>

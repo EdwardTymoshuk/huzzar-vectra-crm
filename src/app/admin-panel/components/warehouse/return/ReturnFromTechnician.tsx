@@ -100,7 +100,13 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     } else {
       setIssuedMaterials((prev) => [
         ...prev,
-        { id: '', type: 'MATERIAL', name: materialName, quantity: qty },
+        {
+          id: '',
+          type: 'MATERIAL',
+          name: materialName,
+          quantity: qty,
+          materialDefinitionId: '',
+        },
       ])
     }
 

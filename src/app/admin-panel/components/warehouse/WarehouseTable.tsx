@@ -13,6 +13,8 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { devicesTypeMap } from '@/lib/constants'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { WarehouseItemType } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
@@ -43,8 +45,6 @@ type GroupedItem = {
 }
 
 const WarehouseTable = ({ itemType, searchTerm }: Props) => {
-  const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery()
-
   // Sorting
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
@@ -56,6 +56,16 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(30)
+
+  const locationId = useActiveLocation()
+  const { isAdmin, isCoordinator, isTechnician } = useRole()
+
+  const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery(
+    { locationId: locationId ?? undefined },
+    {
+      enabled: isAdmin || isCoordinator ? !!locationId : !isTechnician,
+    }
+  )
 
   /** 1) Base filtering */
   const filtered = useMemo(() => {
@@ -169,6 +179,14 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     return (
       <p className="text-sm text-muted-foreground">
         Nie udało się załadować danych.
+      </p>
+    )
+  }
+
+  if ((isAdmin || isCoordinator) && !locationId) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Wybierz magazyn z menu po lewej.
       </p>
     )
   }

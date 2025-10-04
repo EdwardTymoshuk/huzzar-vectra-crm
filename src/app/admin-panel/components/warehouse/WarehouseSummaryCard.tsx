@@ -4,6 +4,8 @@
 
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 
 /**
@@ -12,7 +14,17 @@ import { trpc } from '@/utils/trpc'
  * - Helps admins track inventory value at a glance.
  */
 const WarehouseSummaryCard = () => {
-  const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery()
+
+  const locationId = useActiveLocation()
+  const { isAdmin, isCoordinator, isTechnician } = useRole()
+
+  const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery(
+    { locationId: locationId ?? undefined },
+    {
+      enabled: isAdmin || isCoordinator ? !!locationId : !isTechnician,
+    }
+  )
+
 
   if (isLoading || !data) {
     return <Skeleton className="h-[140px] w-full" />

@@ -7,6 +7,7 @@ import { Input } from '@/app/components/ui/input'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { sumTechnicianMaterialStock } from '@/lib/warehouse'
 import { IssuedItemMaterial } from '@/types'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -29,7 +30,11 @@ const MaterialIssueTable = ({
   >({})
   const [expandedRows, setExpandedRows] = useState<string[]>([])
 
-  const { data: warehouseItems, isLoading } = trpc.warehouse.getAll.useQuery()
+  const activeLocationId = useActiveLocation()
+
+  const { data: warehouseItems, isLoading } = trpc.warehouse.getAll.useQuery(
+    activeLocationId ? { locationId: activeLocationId } : undefined
+  )
 
   const materials = useMemo(() => {
     return (
@@ -79,10 +84,16 @@ const MaterialIssueTable = ({
     const quantityToIssue = materialQuantities[id] ?? 1
     if (quantityToIssue > remaining || quantityToIssue <= 0) return
 
+    if (!item.materialDefinitionId) {
+      console.error('Material without materialDefinitionId in warehouse!', item)
+      return
+    }
+
     onAddMaterial({
       id: item.id,
       type: 'MATERIAL',
       name: item.name,
+      materialDefinitionId: item.materialDefinitionId,
       quantity: quantityToIssue,
     })
 

@@ -36,7 +36,7 @@ import {
 import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { useDebounce } from '@/utils/hooks/useDebounce'
-import { useRole } from '@/utils/roleHelpers/useRole'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, OrderType, Prisma } from '@prisma/client'
 import { ChevronDown } from 'lucide-react'

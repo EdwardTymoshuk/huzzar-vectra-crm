@@ -17,7 +17,7 @@ import { devicesTypeMap } from '@/lib/constants'
 import { DeviceDefinition } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { useMemo, useState } from 'react'
-import { MdEdit, MdOutlineDelete } from 'react-icons/md'
+import { MdDelete, MdEdit } from 'react-icons/md'
 import {
   TiArrowSortedDown,
   TiArrowSortedUp,
@@ -231,7 +231,7 @@ const DeviceDefinitionsList = () => {
                       aria-label="Usuń"
                       className="w-7 h-7"
                     >
-                      <MdOutlineDelete className="w-4 h-4" />
+                      <MdDelete className="w-4 h-4" />
                     </Button>
                   </TableCell>
                 </TableRow>

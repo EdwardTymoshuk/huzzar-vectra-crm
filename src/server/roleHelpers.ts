@@ -37,5 +37,5 @@ export const technicianOnly = t.procedure.use(requireRole('TECHNICIAN'))
 
 // ✅ All authenticated roles (including read-only users)
 export const loggedInEveryone = t.procedure.use(
-  requireRole('ADMIN', 'COORDINATOR', 'TECHNICIAN', 'WAREHOUSEMAN', 'USER')
+  requireRole('ADMIN', 'COORDINATOR', 'TECHNICIAN', 'WAREHOUSEMAN')
 )

@@ -1,7 +1,7 @@
 // src/lib/authOptions.ts
 import { prisma } from '@/utils/prisma'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { Role, User, UserStatus } from '@prisma/client'
+import { Role, UserStatus } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
@@ -17,10 +17,6 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
 
-      /**
-       * Only ACTIVE users can sign-in.
-       * Any other status → throw an Error → next-auth „CredentialsSignin” error.
-       */
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Brak e-maila lub hasła')
@@ -28,13 +24,14 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: { locations: { select: { id: true, name: true } } },
         })
         if (!user) throw new Error('Użytkownik nie istnieje')
 
-        /* ------- status gate -------- */
+        // status check
         switch (user.status as UserStatus) {
           case 'ACTIVE':
-            break // OK
+            break
           case 'SUSPENDED':
             throw new Error('Konto jest zawieszone')
           case 'INACTIVE':
@@ -43,36 +40,43 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Konto zostało usunięte')
         }
 
-        /* ------- password check ------- */
         const ok = await bcrypt.compare(credentials.password, user.password)
         if (!ok) throw new Error('Nieprawidłowe hasło')
 
-        /* ------- return object that matches the augmented `User` type ------- */
+        const locations = await prisma.warehouseLocation.findMany({
+          where: { users: { some: { id: user.id } } },
+          select: { id: true, name: true },
+        })
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           phoneNumber: user.phoneNumber,
-          identyficator: user.identyficator,
+          identyficator: user.identyficator ?? null,
           role: user.role as Role,
           status: user.status as UserStatus,
+          locations,
         }
       },
     }),
   ],
 
   callbacks: {
-    /**
-     * Copy JWT → session so the client can read `role`, `status`, etc.
-     */
     async session({ session, token }) {
-      if (token) session.user = token as User
+      session.user = {
+        id: token.id,
+        email: token.email,
+        name: token.name,
+        phoneNumber: token.phoneNumber,
+        identyficator: token.identyficator,
+        role: token.role,
+        status: token.status,
+        locations: token.locations,
+      }
       return session
     },
 
-    /**
-     * First login: transfer custom fields from `user` → `token`
-     */
     async jwt({ token, user }) {
       if (user) Object.assign(token, user)
       return token

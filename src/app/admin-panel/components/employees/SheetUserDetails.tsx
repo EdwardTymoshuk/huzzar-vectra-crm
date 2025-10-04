@@ -20,7 +20,9 @@ type Props = {
     | 'role'
     | 'status'
     | 'identyficator'
-  >
+  > & {
+    locations?: { id: string; name: string }[]
+  }
   open: boolean
   onClose: () => void
 }
@@ -28,6 +30,7 @@ type Props = {
 /**
  * SheetUserDetails:
  * - Displays detailed user info inside a side sheet.
+ * - Includes role, status, identyficator, and assigned locations.
  */
 const SheetUserDetails = ({ user, open, onClose }: Props) => {
   return (
@@ -59,6 +62,15 @@ const SheetUserDetails = ({ user, open, onClose }: Props) => {
             <span className="text-muted-foreground">Identyfikator:</span>{' '}
             <span className="font-medium">{user.identyficator ?? 'Brak'}</span>
           </div>
+
+          {user.locations && user.locations.length > 0 && (
+            <div>
+              <span className="text-muted-foreground">Lokalizacje:</span>{' '}
+              <span className="font-medium">
+                {user.locations.map((loc) => loc.name).join(', ')}
+              </span>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

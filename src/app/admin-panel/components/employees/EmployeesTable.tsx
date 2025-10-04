@@ -16,8 +16,9 @@ import {
   userStatusColorMap,
   userStatusNameMap,
 } from '@/lib/constants'
+import { UserWithLocations } from '@/types'
 import { trpc } from '@/utils/trpc'
-import { Prisma, UserStatus } from '@prisma/client'
+import { UserStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { toast } from 'sonner'
@@ -30,22 +31,14 @@ type Props = {
   status: UserStatus
 }
 
-type Employee = Prisma.UserGetPayload<{
-  select: {
-    id: true
-    name: true
-    email: true
-    phoneNumber: true
-    role: true
-    status: true
-    identyficator: true
-  }
-}>
-
 const EmployeesTable = ({ searchTerm, status }: Props) => {
-  const [selectedUser, setSelectedUser] = useState<Employee | null>(null)
-  const [editingUser, setEditingUser] = useState<Employee | null>(null)
-  const [userToDelete, setUserToDelete] = useState<Employee | null>(null)
+  const [selectedUser, setSelectedUser] = useState<UserWithLocations | null>(
+    null
+  )
+  const [editingUser, setEditingUser] = useState<UserWithLocations | null>(null)
+  const [userToDelete, setUserToDelete] = useState<UserWithLocations | null>(
+    null
+  )
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const utils = trpc.useUtils()
@@ -100,21 +93,21 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
       )
   }, [data, searchTerm, status])
 
-  const handleEdit = (user: Employee) => setEditingUser(user)
-  const handleShowDetails = (user: Employee) => setSelectedUser(user)
+  const handleEdit = (user: UserWithLocations) => setEditingUser(user)
+  const handleShowDetails = (user: UserWithLocations) => setSelectedUser(user)
 
-  const handleToggleStatus = (user: Employee) =>
+  const handleToggleStatus = (user: UserWithLocations) =>
     toggleStatusMutation.mutate({ id: user.id })
 
-  const handleArchiveUser = (user: Employee) => {
+  const handleArchiveUser = (user: UserWithLocations) => {
     archiveMutation.mutate({ id: user.id })
   }
 
-  const handleRestoreUser = (user: Employee) => {
+  const handleRestoreUser = (user: UserWithLocations) => {
     restoreMutation.mutate({ id: user.id })
   }
 
-  const handleDelete = (user: Employee) => {
+  const handleDelete = (user: UserWithLocations) => {
     setUserToDelete(user)
     setConfirmDeleteOpen(true)
   }
