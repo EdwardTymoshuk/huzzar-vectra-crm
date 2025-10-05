@@ -154,6 +154,8 @@ const DatePicker = ({
             toYear={
               allowFuture ? today.getFullYear() + 50 : today.getFullYear()
             }
+            locale={pl}
+            weekStartsOn={1}
           />
         )}
 
