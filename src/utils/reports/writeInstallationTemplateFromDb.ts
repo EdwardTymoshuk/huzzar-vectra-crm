@@ -440,8 +440,8 @@ export async function writeInstallationTemplateFromDb(
       )
       const modems = issuedEquip.filter(
         (e) =>
-          e.warehouse.category === DeviceCategory.MODEM ||
-          e.warehouse.category === DeviceCategory.ONT
+          e.warehouse.category === DeviceCategory.MODEM_GPON ||
+          e.warehouse.category === DeviceCategory.MODEM_HFC
       )
 
       const dec1Ids = new Set(dec1.map((d) => d.warehouse.id))

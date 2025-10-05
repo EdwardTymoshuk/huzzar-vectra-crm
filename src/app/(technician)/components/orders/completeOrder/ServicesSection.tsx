@@ -325,13 +325,13 @@ const ServicesSection: React.FC<Props> = ({
           if (svc.type === 'NET') {
             const modemOptions = devices.filter(
               (d) =>
-                d.category === DeviceCategory.MODEM ||
-                d.category === DeviceCategory.ONT
+                d.category === DeviceCategory.MODEM_GPON ||
+                d.category === DeviceCategory.MODEM_HFC
             )
             const routerOptions = devices.filter(
               (d) =>
-                d.category === DeviceCategory.UA ||
-                d.category === DeviceCategory.MODEM
+                d.category === DeviceCategory.MODEM_GPON ||
+                d.category === DeviceCategory.MODEM_HFC
             )
             const modem = deviceBy(devices, svc.deviceId, svc.serialNumber)
             const router = deviceBy(devices, svc.deviceId2, svc.serialNumber2)
@@ -364,7 +364,9 @@ const ServicesSection: React.FC<Props> = ({
                   device={{
                     name: modem?.name ?? '',
                     serial: svc.serialNumber ?? modem?.serialNumber ?? '',
-                    category: modem?.category ?? DeviceCategory.MODEM,
+                    category:
+                      modem?.category ??
+                      (DeviceCategory.MODEM_HFC || DeviceCategory.MODEM_GPON),
                   }}
                 >
                   <div className="text-sm mb-1 mt-2">Router</div>
@@ -396,7 +398,9 @@ const ServicesSection: React.FC<Props> = ({
                   device={{
                     name: modem?.name ?? '',
                     serial: svc.serialNumber ?? modem?.serialNumber ?? '',
-                    category: modem?.category ?? DeviceCategory.MODEM,
+                    category:
+                      modem?.category ??
+                      (DeviceCategory.MODEM_HFC || DeviceCategory.MODEM_GPON),
                   }}
                   extra={
                     needsRouter && (router || svc.serialNumber2) ? (
@@ -489,7 +493,10 @@ const ServicesSection: React.FC<Props> = ({
                     : {
                         name: modem?.name ?? '',
                         serial: svc.serialNumber ?? modem?.serialNumber ?? '',
-                        category: modem?.category ?? DeviceCategory.MODEM,
+                        category:
+                          modem?.category ??
+                          (DeviceCategory.MODEM_HFC ||
+                            DeviceCategory.MODEM_GPON),
                       }
                 }
                 extra={
