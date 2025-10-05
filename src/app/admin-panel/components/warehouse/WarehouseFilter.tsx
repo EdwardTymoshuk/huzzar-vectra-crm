@@ -14,13 +14,12 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { devicesTypeMap } from '@/lib/constants'
-import { DeviceCategory, DeviceProvider } from '@prisma/client'
+import { DeviceCategory } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type Props = {
   setCategoryFilter: (category: string | null) => void
-  setProviderFilter: (provider: string | null) => void
 }
 
 /**
@@ -29,15 +28,12 @@ type Props = {
  * - Options are always taken from schema enums (not from data),
  *   so filters remain available even if no items exist in table.
  */
-const WarehouseFilter = ({ setCategoryFilter, setProviderFilter }: Props) => {
+const WarehouseFilter = ({ setCategoryFilter }: Props) => {
   const [categoryValue, setCategoryValue] = useState<string>('all')
-  const [providerValue, setProviderValue] = useState<string>('all')
 
   const clearFilters = () => {
     setCategoryValue('all')
-    setProviderValue('all')
     setCategoryFilter(null)
-    setProviderFilter(null)
   }
 
   return (
@@ -67,30 +63,6 @@ const WarehouseFilter = ({ setCategoryFilter, setProviderFilter }: Props) => {
               {Object.values(DeviceCategory).map((cat) => (
                 <SelectItem key={cat} value={cat}>
                   {devicesTypeMap[cat] ?? cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Provider */}
-        <div>
-          <p className="text-sm font-medium mb-1">Operator</p>
-          <Select
-            value={providerValue}
-            onValueChange={(value) => {
-              setProviderValue(value)
-              setProviderFilter(value === 'all' ? null : value)
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Operator" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszyscy</SelectItem>
-              {Object.values(DeviceProvider).map((prov) => (
-                <SelectItem key={prov} value={prov}>
-                  {prov}
                 </SelectItem>
               ))}
             </SelectContent>

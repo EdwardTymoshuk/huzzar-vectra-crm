@@ -1,11 +1,11 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN', 'USER');
+CREATE TYPE "Role" AS ENUM ('TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'DELETED');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'NOT_COMPLETED', 'CANCELED');
+CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'ASSIGNED', 'COMPLETED', 'NOT_COMPLETED');
 
 -- CreateEnum
 CREATE TYPE "OrderType" AS ENUM ('INSTALATION', 'SERVICE', 'OUTAGE');
@@ -17,16 +17,22 @@ CREATE TYPE "TimeSlot" AS ENUM ('8-10', '10-12', '12-14', '14-16', '16-18', '18-
 CREATE TYPE "WarehouseItemType" AS ENUM ('DEVICE', 'MATERIAL');
 
 -- CreateEnum
-CREATE TYPE "DeviceCategory" AS ENUM ('MODEM', 'DECODER_1_WAY', 'DECODER_2_WAY', 'OTHER', 'AMPLIFIER', 'ONT', 'UA');
+CREATE TYPE "DeviceCategory" AS ENUM ('MODEM_HFC', 'MODEM_GPON', 'DECODER_1_WAY', 'DECODER_2_WAY', 'NETWORK_DEVICE', 'OTHER');
 
 -- CreateEnum
 CREATE TYPE "MaterialUnit" AS ENUM ('PIECE', 'METER');
 
 -- CreateEnum
-CREATE TYPE "WarehouseStatus" AS ENUM ('AVAILABLE', 'ASSIGNED', 'RETURNED', 'ASSIGNED_TO_ORDER', 'RETURNED_TO_OPERATOR', 'TRANSFER');
+CREATE TYPE "WarehouseStatus" AS ENUM ('AVAILABLE', 'ASSIGNED', 'RETURNED', 'ASSIGNED_TO_ORDER', 'RETURNED_TO_OPERATOR', 'TRANSFER', 'COLLECTED_FROM_CLIENT');
 
 -- CreateEnum
-CREATE TYPE "WarehouseAction" AS ENUM ('RECEIVED', 'ISSUED', 'RETURNED', 'RETURNED_TO_OPERATOR', 'TRANSFER');
+CREATE TYPE "WarehouseAction" AS ENUM ('RECEIVED', 'ISSUED', 'RETURNED', 'RETURNED_TO_OPERATOR', 'TRANSFER', 'COLLECTED_FROM_CLIENT');
+
+-- CreateEnum
+CREATE TYPE "ServiceType" AS ENUM ('DTV', 'NET', 'TEL', 'ATV');
+
+-- CreateEnum
+CREATE TYPE "LocationTransferStatus" AS ENUM ('REQUESTED', 'IN_TRANSIT', 'RECEIVED', 'REJECTED', 'CANCELED');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -51,8 +57,6 @@ CREATE TABLE "Order" (
     "orderNumber" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "timeSlot" "TimeSlot" NOT NULL,
-    "contractRequired" BOOLEAN NOT NULL,
-    "equipmentNeeded" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "clientPhoneNumber" TEXT,
     "notes" TEXT,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
@@ -60,7 +64,7 @@ CREATE TABLE "Order" (
     "municipality" TEXT,
     "city" TEXT NOT NULL,
     "street" TEXT NOT NULL,
-    "postalCode" TEXT NOT NULL,
+    "postalCode" TEXT,
     "assignedToId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -97,6 +101,24 @@ CREATE TABLE "OrderSettlementEntry" (
 );
 
 -- CreateTable
+CREATE TABLE "OrderService" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "type" "ServiceType" NOT NULL,
+    "deviceId" TEXT,
+    "serialNumber" TEXT,
+    "deviceId2" TEXT,
+    "serialNumber2" TEXT,
+    "speedTest" TEXT,
+    "usDbmDown" DOUBLE PRECISION,
+    "usDbmUp" DOUBLE PRECISION,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "notes" TEXT,
+
+    CONSTRAINT "OrderService_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "OrderHistory" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
@@ -125,7 +147,6 @@ CREATE TABLE "Warehouse" (
     "itemType" "WarehouseItemType" NOT NULL,
     "name" TEXT NOT NULL,
     "category" "DeviceCategory",
-    "subcategory" TEXT,
     "serialNumber" TEXT,
     "quantity" INTEGER NOT NULL,
     "unit" "MaterialUnit" NOT NULL DEFAULT 'PIECE',
@@ -140,8 +161,68 @@ CREATE TABLE "Warehouse" (
     "materialDefinitionId" TEXT,
     "transferPending" BOOLEAN NOT NULL DEFAULT false,
     "transferToId" TEXT,
+    "locationId" TEXT NOT NULL DEFAULT 'gdansk',
 
     CONSTRAINT "Warehouse_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WarehouseHistory" (
+    "id" TEXT NOT NULL,
+    "warehouseItemId" TEXT NOT NULL,
+    "action" "WarehouseAction" NOT NULL,
+    "performedById" TEXT NOT NULL,
+    "assignedToId" TEXT,
+    "actionDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "notes" TEXT,
+    "quantity" INTEGER,
+    "assignedOrderId" TEXT,
+    "fromLocationId" TEXT,
+    "locationTransferId" TEXT,
+    "toLocationId" TEXT,
+
+    CONSTRAINT "WarehouseHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WarehouseLocation" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WarehouseLocation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LocationTransfer" (
+    "id" TEXT NOT NULL,
+    "fromLocationId" TEXT NOT NULL,
+    "toLocationId" TEXT NOT NULL,
+    "status" "LocationTransferStatus" NOT NULL DEFAULT 'REQUESTED',
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "requestedById" TEXT NOT NULL,
+    "confirmedById" TEXT,
+    "confirmedAt" TIMESTAMP(3),
+
+    CONSTRAINT "LocationTransfer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LocationTransferLine" (
+    "id" TEXT NOT NULL,
+    "transferId" TEXT NOT NULL,
+    "itemType" "WarehouseItemType" NOT NULL,
+    "warehouseItemId" TEXT,
+    "materialDefinitionId" TEXT,
+    "quantity" INTEGER,
+    "unit" "MaterialUnit",
+    "nameSnapshot" TEXT,
+    "indexSnapshot" TEXT,
+    "category" "DeviceCategory",
+
+    CONSTRAINT "LocationTransferLine_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -184,21 +265,6 @@ CREATE TABLE "RateDefinition" (
 );
 
 -- CreateTable
-CREATE TABLE "WarehouseHistory" (
-    "id" TEXT NOT NULL,
-    "warehouseItemId" TEXT NOT NULL,
-    "action" "WarehouseAction" NOT NULL,
-    "performedById" TEXT NOT NULL,
-    "assignedToId" TEXT,
-    "actionDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "notes" TEXT,
-    "quantity" INTEGER,
-    "assignedOrderId" TEXT,
-
-    CONSTRAINT "WarehouseHistory_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "TechnicianSettings" (
     "userId" TEXT NOT NULL,
     "workingDaysGoal" INTEGER NOT NULL,
@@ -206,6 +272,14 @@ CREATE TABLE "TechnicianSettings" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TechnicianSettings_pkey" PRIMARY KEY ("userId")
+);
+
+-- CreateTable
+CREATE TABLE "_UserLocations" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_UserLocations_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -224,6 +298,9 @@ CREATE INDEX "OrderMaterial_orderId_idx" ON "OrderMaterial"("orderId");
 CREATE INDEX "OrderSettlementEntry_orderId_idx" ON "OrderSettlementEntry"("orderId");
 
 -- CreateIndex
+CREATE INDEX "OrderService_orderId_idx" ON "OrderService"("orderId");
+
+-- CreateIndex
 CREATE INDEX "OrderEquipment_orderId_idx" ON "OrderEquipment"("orderId");
 
 -- CreateIndex
@@ -233,6 +310,27 @@ CREATE UNIQUE INDEX "OrderEquipment_orderId_warehouseId_key" ON "OrderEquipment"
 CREATE UNIQUE INDEX "Warehouse_serialNumber_key" ON "Warehouse"("serialNumber");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "WarehouseLocation_name_key" ON "WarehouseLocation"("name");
+
+-- CreateIndex
+CREATE INDEX "LocationTransfer_fromLocationId_idx" ON "LocationTransfer"("fromLocationId");
+
+-- CreateIndex
+CREATE INDEX "LocationTransfer_toLocationId_idx" ON "LocationTransfer"("toLocationId");
+
+-- CreateIndex
+CREATE INDEX "LocationTransfer_status_idx" ON "LocationTransfer"("status");
+
+-- CreateIndex
+CREATE INDEX "LocationTransferLine_transferId_idx" ON "LocationTransferLine"("transferId");
+
+-- CreateIndex
+CREATE INDEX "LocationTransferLine_warehouseItemId_idx" ON "LocationTransferLine"("warehouseItemId");
+
+-- CreateIndex
+CREATE INDEX "LocationTransferLine_materialDefinitionId_idx" ON "LocationTransferLine"("materialDefinitionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "MaterialDefinition_name_key" ON "MaterialDefinition"("name");
 
 -- CreateIndex
@@ -240,6 +338,9 @@ CREATE UNIQUE INDEX "OperatorDefinition_operator_key" ON "OperatorDefinition"("o
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RateDefinition_code_key" ON "RateDefinition"("code");
+
+-- CreateIndex
+CREATE INDEX "_UserLocations_B_index" ON "_UserLocations"("B");
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -260,6 +361,9 @@ ALTER TABLE "OrderSettlementEntry" ADD CONSTRAINT "OrderSettlementEntry_code_fke
 ALTER TABLE "OrderSettlementEntry" ADD CONSTRAINT "OrderSettlementEntry_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "OrderService" ADD CONSTRAINT "OrderService_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OrderHistory" ADD CONSTRAINT "OrderHistory_changedById_fkey" FOREIGN KEY ("changedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -275,6 +379,9 @@ ALTER TABLE "OrderEquipment" ADD CONSTRAINT "OrderEquipment_warehouseId_fkey" FO
 ALTER TABLE "Warehouse" ADD CONSTRAINT "Warehouse_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Warehouse" ADD CONSTRAINT "Warehouse_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "WarehouseLocation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Warehouse" ADD CONSTRAINT "Warehouse_materialDefinitionId_fkey" FOREIGN KEY ("materialDefinitionId") REFERENCES "MaterialDefinition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -287,11 +394,47 @@ ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_assignedOrderId_
 ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_fromLocationId_fkey" FOREIGN KEY ("fromLocationId") REFERENCES "WarehouseLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_locationTransferId_fkey" FOREIGN KEY ("locationTransferId") REFERENCES "LocationTransfer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_performedById_fkey" FOREIGN KEY ("performedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_toLocationId_fkey" FOREIGN KEY ("toLocationId") REFERENCES "WarehouseLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WarehouseHistory" ADD CONSTRAINT "WarehouseHistory_warehouseItemId_fkey" FOREIGN KEY ("warehouseItemId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "LocationTransfer" ADD CONSTRAINT "LocationTransfer_confirmedById_fkey" FOREIGN KEY ("confirmedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LocationTransfer" ADD CONSTRAINT "LocationTransfer_fromLocationId_fkey" FOREIGN KEY ("fromLocationId") REFERENCES "WarehouseLocation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LocationTransfer" ADD CONSTRAINT "LocationTransfer_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LocationTransfer" ADD CONSTRAINT "LocationTransfer_toLocationId_fkey" FOREIGN KEY ("toLocationId") REFERENCES "WarehouseLocation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LocationTransferLine" ADD CONSTRAINT "LocationTransferLine_materialDefinitionId_fkey" FOREIGN KEY ("materialDefinitionId") REFERENCES "MaterialDefinition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LocationTransferLine" ADD CONSTRAINT "LocationTransferLine_transferId_fkey" FOREIGN KEY ("transferId") REFERENCES "LocationTransfer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LocationTransferLine" ADD CONSTRAINT "LocationTransferLine_warehouseItemId_fkey" FOREIGN KEY ("warehouseItemId") REFERENCES "Warehouse"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "TechnicianSettings" ADD CONSTRAINT "TechnicianSettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_UserLocations" ADD CONSTRAINT "_UserLocations_A_fkey" FOREIGN KEY ("A") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_UserLocations" ADD CONSTRAINT "_UserLocations_B_fkey" FOREIGN KEY ("B") REFERENCES "WarehouseLocation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

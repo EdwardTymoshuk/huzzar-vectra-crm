@@ -167,7 +167,6 @@ model Warehouse {
   materialDefinitionId String?
   transferPending      Boolean                @default(false)
   transferToId         String?
-  provider             DeviceProvider?        @map("subcategory")
   locationId           String                 @default("gdansk")
   transferLines        LocationTransferLine[] @relation("WarehouseToTransferLines")
   orderAssignments     OrderEquipment[]       @relation("WarehouseToOrderEquipment")
@@ -277,7 +276,6 @@ model DeviceDefinition {
   alarmAlert   Int?            @default(5)
   warningAlert Int?            @default(10)
   price        Float?          @default(0)
-  provider     DeviceProvider?
 }
 
 /// -------------------------------
@@ -380,13 +378,12 @@ enum WarehouseItemType {
 }
 
 enum DeviceCategory {
-  MODEM
+  MODEM_HFC
+  MODEM_GPON
   DECODER_1_WAY
   DECODER_2_WAY
+  NETWORK_DEVICE
   OTHER
-  AMPLIFIER
-  ONT
-  UA
 }
 
 enum MaterialUnit {
@@ -418,11 +415,6 @@ enum ServiceType {
   NET
   TEL
   ATV
-}
-
-enum DeviceProvider {
-  VECTRA
-  MMP
 }
 
 enum LocationTransferStatus {

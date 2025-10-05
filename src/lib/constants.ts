@@ -279,12 +279,11 @@ export const userStatusColorMap: Record<string, string> = {
  * Mapping of devices type to polish.
  */
 export const devicesTypeMap: Record<string, string> = {
-  MODEM: 'MODEM',
+  MODEM_HFC: 'MODEM HFC',
+  MODEM_GPON: 'MODEM GPON',
   DECODER_1_WAY: 'DEKODER 1 WAY',
   DECODER_2_WAY: 'DEKODER 2 WAY',
-  AMPLIFIER: 'WZMACNIACZ',
-  ONT: 'ONT',
-  UA: 'UA',
+  NETWORK_DEVICE: 'SPRZĘT SIECIOWY',
   OTHER: 'INNE',
 }
 /**

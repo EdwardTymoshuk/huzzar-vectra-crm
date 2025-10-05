@@ -43,7 +43,7 @@ interface Props {
 
 /**
  * EditDeviceDefinitionDialog:
- * Modal for editing an existing device definition with alerts, price and provider.
+ * Modal for editing an existing device definition with alerts, price.
  */
 const EditDeviceDefinitionDialog = ({
   open,
@@ -61,14 +61,12 @@ const EditDeviceDefinitionDialog = ({
     resolver: zodResolver(deviceSchema),
     defaultValues: {
       ...item,
-      provider: item.provider ?? undefined,
     },
   })
 
   useEffect(() => {
     form.reset({
       ...item,
-      provider: item.provider ?? undefined,
     })
   }, [item, form])
 
@@ -87,8 +85,7 @@ const EditDeviceDefinitionDialog = ({
       (def) =>
         def.id !== item.id &&
         def.name.toLowerCase() === trimmedName.toLowerCase() &&
-        def.category === data.category &&
-        def.provider === data.provider
+        def.category === data.category
     )
 
     if (alreadyExists) {
@@ -133,30 +130,6 @@ const EditDeviceDefinitionDialog = ({
                           {devicesTypeMap[cat]}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Provider */}
-            <FormField
-              control={form.control}
-              name="provider"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Operator</FormLabel>
-                  <Select
-                    value={field.value ?? ''}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz operatora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="VECTRA">Vectra</SelectItem>
-                      <SelectItem value="MMP">MMP</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

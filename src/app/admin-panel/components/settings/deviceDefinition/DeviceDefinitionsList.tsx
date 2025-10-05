@@ -28,12 +28,12 @@ import AddDeviceDefinitionDialog from './AddDeviceDefinitionDialog'
 import EditDeviceDefinitionDialog from './EditDeviceDefinitionDialog'
 
 /** Available sort fields for device definitions table */
-type SortField = 'name' | 'category' | 'provider' | null
+type SortField = 'name' | 'category' | null
 type SortOrder = 'asc' | 'desc' | null
 
 /**
  * DeviceDefinitionsList
- * - Displays all device definitions with category, provider, alerts and price.
+ * - Displays all device definitions with category, alerts and price.
  * - Supports search, sorting, editing and deleting.
  */
 const DeviceDefinitionsList = () => {
@@ -170,26 +170,6 @@ const DeviceDefinitionsList = () => {
                     )}
                   </div>
                 </TableHead>
-
-                {/* Provider */}
-                <TableHead
-                  className="cursor-pointer select-none"
-                  onClick={() => handleSort('provider')}
-                >
-                  <div className="flex items-center gap-1">
-                    <span>Operator</span>
-                    {sortField === 'provider' ? (
-                      sortOrder === 'asc' ? (
-                        <TiArrowSortedUp className="w-4 h-4" />
-                      ) : (
-                        <TiArrowSortedDown className="w-4 h-4" />
-                      )
-                    ) : (
-                      <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </TableHead>
-
                 <TableHead>Alert (ostrzeżenie)</TableHead>
                 <TableHead>Alert (krytyczny)</TableHead>
                 <TableHead>Cena</TableHead>
@@ -205,9 +185,6 @@ const DeviceDefinitionsList = () => {
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {devicesTypeMap[item.category]}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {item.provider ?? '—'}
                   </TableCell>
                   <TableCell>{item.warningAlert}</TableCell>
                   <TableCell>{item.alarmAlert}</TableCell>

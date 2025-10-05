@@ -33,13 +33,12 @@ type Props = {
   searchTerm: string
 }
 
-type SortField = null | 'name' | 'category' | 'provider'
+type SortField = null | 'name' | 'category'
 type SortOrder = null | 'asc' | 'desc'
 
 type GroupedItem = {
   name: string
   category: string
-  provider: string
   quantity: number
   price: number
 }
@@ -51,7 +50,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-  const [providerFilter, setProviderFilter] = useState<string | null>(null)
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -76,22 +74,18 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
       const matchesCategory = categoryFilter
         ? item.category === categoryFilter
         : true
-      const matchesProvider = providerFilter
-        ? item.provider === providerFilter
-        : true
-      return matchesType && matchesCategory && matchesProvider
+      return matchesType && matchesCategory
     })
-  }, [data, itemType, categoryFilter, providerFilter])
+  }, [data, itemType, categoryFilter])
 
-  /** 2) Group by name+provider */
+  /** 2) Group by name */
   const grouped: GroupedItem[] = useMemo(() => {
     const acc = filtered.reduce<Record<string, GroupedItem>>((map, item) => {
-      const key = `${item.name}-${item.provider ?? ''}`
+      const key = `${item.name} ?? ''}`
       if (!map[key]) {
         map[key] = {
           name: item.name,
           category: item.category ?? '—',
-          provider: item.provider ?? '—',
           quantity: 0,
           price: Number(item.price ?? 0),
         }
@@ -99,7 +93,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
       map[key].quantity += item.quantity
       if (item.price != null) map[key].price = Number(item.price)
       if (item.category) map[key].category = item.category
-      if (item.provider) map[key].provider = item.provider
       return map
     }, {})
     return Object.values(acc)
@@ -196,10 +189,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     <div className="border rounded-md mb-4">
       {/* Filters & page size */}
       <div className="flex items-center justify-between p-2">
-        <WarehouseFilter
-          setCategoryFilter={setCategoryFilter}
-          setProviderFilter={setProviderFilter}
-        />
+        <WarehouseFilter setCategoryFilter={setCategoryFilter} />
 
         <div className="flex gap-2">
           {[30, 50, 100].map((n) => (
@@ -242,15 +232,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                     {renderSortIcon('category')}
                   </div>
                 </TableHead>
-                <TableHead
-                  className="cursor-pointer select-none"
-                  onClick={() => handleSort('provider')}
-                >
-                  <div className="flex items-center gap-1">
-                    <span>Operator</span>
-                    {renderSortIcon('provider')}
-                  </div>
-                </TableHead>
               </>
             )}
 
@@ -281,9 +262,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                   : 'success'
 
               return (
-                <TableRow
-                  key={`${item.name}-${item.category}-${item.provider}`}
-                >
+                <TableRow key={`${item.name}-${item.category}`}>
                   <TableCell>
                     <Highlight
                       highlightClassName="bg-yellow-200"
@@ -298,7 +277,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                       <TableCell>
                         {devicesTypeMap[item.category] ?? item.category}
                       </TableCell>
-                      <TableCell>{item.provider ?? '—'}</TableCell>
                     </>
                   )}
 

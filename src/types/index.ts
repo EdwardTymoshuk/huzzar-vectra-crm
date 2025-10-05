@@ -10,7 +10,6 @@ import {
 } from '@/lib/schema'
 import {
   DeviceCategory,
-  DeviceProvider,
   Order,
   Prisma,
   PrismaClient,
@@ -101,7 +100,6 @@ export type OperatorFormData = z.infer<typeof operatorSchema>
 export type DeviceDefinition = {
   id: string
   category: DeviceCategory
-  provider?: DeviceProvider | null
   price: number
   name: string
   warningAlert: number

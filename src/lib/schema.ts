@@ -1,7 +1,6 @@
 // schema.ts
 import {
   DeviceCategory,
-  DeviceProvider,
   OrderStatus,
   OrderType,
   TimeSlot,
@@ -11,7 +10,6 @@ import { z } from 'zod'
 export const deviceSchema = z
   .object({
     category: z.nativeEnum(DeviceCategory),
-    provider: z.nativeEnum(DeviceProvider).nullable().optional(),
     name: z.string().min(2),
     serialNumber: z
       .string()
