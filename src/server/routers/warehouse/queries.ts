@@ -4,47 +4,12 @@ import {
   loggedInEveryone,
 } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { UserWithLocations } from '@/types'
 import { prisma } from '@/utils/prisma'
 import { Prisma, WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-
-/**
- * Helper to resolve effective locationId for current user.
- * - ADMIN/COORDINATOR → must pass locationId explicitly
- * - WAREHOUSEMAN → use provided locationId or default to the first assigned
- * - TECHNICIAN → forbidden (they use getTechnicianStock)
- */
-function resolveLocationId(
-  user: UserWithLocations,
-  input?: { locationId?: string }
-): string {
-  if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
-    if (!input?.locationId) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: 'LocationId is required for admins and coordinators',
-      })
-    }
-    return input.locationId
-  }
-
-  if (user.role === 'WAREHOUSEMAN') {
-    if (!user.locations || user.locations.length === 0) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Warehouseman has no location assigned',
-      })
-    }
-    return input?.locationId ?? user.locations[0].id
-  }
-
-  throw new TRPCError({
-    code: 'FORBIDDEN',
-    message: 'Technicians should not call this endpoint',
-  })
-}
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
+import { resolveLocationId } from '../_helpers/resolveLocationId'
 
 /** Modes for the ItemTabs views */
 const Modes = ['warehouse', 'technicians', 'orders', 'returned'] as const
@@ -61,7 +26,8 @@ export const queriesRouter = router({
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      const locId = resolveLocationId(ctx.user!, input)
+      const user = getUserOrThrow(ctx)
+      const locId = resolveLocationId(user, input)
       return prisma.warehouse.findMany({
         where: {
           locationId: locId,

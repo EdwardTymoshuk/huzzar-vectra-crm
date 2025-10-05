@@ -5,7 +5,12 @@ import { prisma } from '@/utils/prisma'
 import { WarehouseAction, WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
+/**
+ * historyRouter – handles retrieval of warehouse-related history logs.
+ * Includes per-item, per-material, and global paginated views.
+ */
 export const historyRouter = router({
   /** 📜 Get device history by item ID
    *  • scope = 'all'        – full log (admin view)
@@ -20,10 +25,13 @@ export const historyRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
+      const user = getUserOrThrow(ctx)
+
       const item = await prisma.warehouse.findUnique({
         where: { id: input.warehouseItemId },
         select: { id: true },
       })
+
       if (!item) {
         throw new TRPCError({
           code: 'NOT_FOUND',
@@ -35,10 +43,7 @@ export const historyRouter = router({
         input.scope === 'technician'
           ? {
               warehouseItemId: input.warehouseItemId,
-              OR: [
-                { performedById: ctx.user!.id },
-                { assignedToId: ctx.user!.id },
-              ],
+              OR: [{ performedById: user.id }, { assignedToId: user.id }],
             }
           : { warehouseItemId: input.warehouseItemId }
 
@@ -53,7 +58,7 @@ export const historyRouter = router({
       })
     }),
 
-  /** 📜 Get material history by item name (grouped) */
+  /** 📜 Get material history by item name (grouped view) */
   getHistoryByName: loggedInEveryone
     .input(
       z.object({
@@ -62,7 +67,7 @@ export const historyRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      const techId = ctx.user?.id
+      const user = getUserOrThrow(ctx)
 
       const rows = await prisma.warehouseHistory.findMany({
         where: {
@@ -70,9 +75,9 @@ export const historyRouter = router({
             name: input.name.trim(),
             itemType: WarehouseItemType.MATERIAL,
           },
-          ...(input.scope === 'technician' && techId
+          ...(input.scope === 'technician'
             ? {
-                OR: [{ assignedToId: techId }, { performedById: techId }],
+                OR: [{ assignedToId: user.id }, { performedById: user.id }],
               }
             : {}),
         },
@@ -126,10 +131,12 @@ export const historyRouter = router({
         prisma.warehouseHistory.findMany({
           where: whereClause,
           include: {
-            warehouseItem: true,
+            warehouseItem: { include: { location: true } },
             performedBy: true,
             assignedTo: true,
             assignedOrder: true,
+            fromLocation: true,
+            toLocation: true,
           },
           orderBy: { actionDate: 'desc' },
           skip: (page - 1) * limit,

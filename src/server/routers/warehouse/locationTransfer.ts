@@ -1,45 +1,9 @@
 import { adminCoordOrWarehouse } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { Prisma, WarehouseAction } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-
-/**
- * Creates a warehouse history entry for transfer-related actions.
- */
-const addHistory = ({
-  prisma,
-  itemId,
-  userId,
-  action,
-  qty,
-  notes,
-  fromLocationId,
-  toLocationId,
-  transferId,
-}: {
-  prisma: Prisma.TransactionClient
-  itemId: string
-  userId: string
-  action: WarehouseAction
-  qty: number
-  notes?: string | null
-  fromLocationId?: string | null
-  toLocationId?: string | null
-  transferId?: string | null
-}) =>
-  prisma.warehouseHistory.create({
-    data: {
-      warehouseItemId: itemId,
-      performedById: userId,
-      action,
-      quantity: qty,
-      notes,
-      fromLocationId,
-      toLocationId,
-      locationTransferId: transferId ?? null,
-    },
-  })
+import { addWarehouseHistory } from '../_helpers/addWarehouseHistory'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
 /**
  * Resolves the source location for a warehouseman or validates explicit input.
@@ -104,7 +68,7 @@ export const locationTransferRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const user = ctx.user!
+      const user = getUserOrThrow(ctx)
       const fromLocationId = resolveSingleLocation(user, input.fromLocationId)
 
       return await ctx.prisma.$transaction(async (tx) => {
@@ -204,7 +168,7 @@ export const locationTransferRouter = router({
   getIncomingLocationTransfers: adminCoordOrWarehouse
     .input(z.object({ locationId: z.string().optional() }))
     .query(({ ctx, input }) => {
-      const user = ctx.user!
+      const user = getUserOrThrow(ctx)
       const isAdmin = user.role === 'ADMIN'
       const locIds = user.locations.map((l) => l.id)
       const filterLocs = input.locationId
@@ -250,7 +214,7 @@ export const locationTransferRouter = router({
   getOutgoingLocationTransfers: adminCoordOrWarehouse
     .input(z.object({ locationId: z.string().optional() }))
     .query(({ ctx, input }) => {
-      const user = ctx.user!
+      const user = getUserOrThrow(ctx)
       const isAdmin = user.role === 'ADMIN'
       const locIds = user.locations.map((l) => l.id)
       const filterLocs = input.locationId
@@ -301,7 +265,7 @@ export const locationTransferRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const user = ctx.user!
+      const user = getUserOrThrow(ctx)
       const userLocs = user.locations.map((l) => l.id)
       const allowedLocs = input.locationId
         ? [...userLocs, input.locationId]
@@ -338,7 +302,7 @@ export const locationTransferRouter = router({
               },
             })
 
-            await addHistory({
+            await addWarehouseHistory({
               prisma: tx,
               itemId: line.warehouseItemId,
               userId: user.id,
@@ -370,7 +334,7 @@ export const locationTransferRouter = router({
                 data: { quantity: { increment: line.quantity } },
               })
 
-              await addHistory({
+              await addWarehouseHistory({
                 prisma: tx,
                 itemId: existing.id,
                 userId: user.id,
@@ -395,7 +359,7 @@ export const locationTransferRouter = router({
                 },
               })
 
-              await addHistory({
+              await addWarehouseHistory({
                 prisma: tx,
                 itemId: newRow.id,
                 userId: user.id,
@@ -437,7 +401,7 @@ export const locationTransferRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const user = ctx.user!
+      const user = getUserOrThrow(ctx)
       const userLocs = user.locations.map((l) => l.id)
       const allowedLocs = input.locationId
         ? [...userLocs, input.locationId]
@@ -532,7 +496,7 @@ export const locationTransferRouter = router({
       z.object({ transferId: z.string(), locationId: z.string().optional() })
     )
     .mutation(async ({ input, ctx }) => {
-      const user = ctx.user!
+      const user = getUserOrThrow(ctx)
       const userLocs = user.locations.map((l) => l.id)
       const allowedLocs = input.locationId
         ? [...userLocs, input.locationId]

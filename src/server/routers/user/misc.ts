@@ -3,33 +3,39 @@ import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
+/**
+ * miscUserRouter – provides auxiliary user queries (e.g., technician listings).
+ */
 export const miscUserRouter = router({
-  /** Other technicians (for transfer) */
+  /** 👥 Returns all technicians except the currently logged-in user (for transfers) */
   getOtherTechnicians: loggedInEveryone
-  .input(z.object({ excludeId: z.string().optional() }))
-  .query(({ ctx, input }) =>
-    prisma.user.findMany({
-      where: {
-        role: 'TECHNICIAN',
-        id: { not: input.excludeId ?? ctx.user!.id },
-        status: 'ACTIVE',
-      },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phoneNumber: true,
-        role: true,          
-        status: true,
-        identyficator: true,  
-        locations: { select: { id: true, name: true } },
-      },
-    })
-  ),
+    .input(z.object({ excludeId: z.string().optional() }))
+    .query(({ ctx, input }) => {
+      const user = getUserOrThrow(ctx)
 
-  /** List of technicians */
+      return prisma.user.findMany({
+        where: {
+          role: 'TECHNICIAN',
+          id: { not: input.excludeId ?? user.id },
+          status: 'ACTIVE',
+        },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phoneNumber: true,
+          role: true,
+          status: true,
+          identyficator: true,
+          locations: { select: { id: true, name: true } },
+        },
+      })
+    }),
+
+  /** 📋 Returns list of all technicians, optionally filtered by status */
   getTechnicians: adminCoordOrWarehouse
     .input(
       z.object({
@@ -58,7 +64,7 @@ export const miscUserRouter = router({
       })
     ),
 
-  /** Search technician(s) by name (case-insensitive, normalized) */
+  /** 🔍 Search technicians by name (case-insensitive and normalized) */
   searchTechniciansByName: adminCoordOrWarehouse
     .input(
       z.object({
@@ -67,7 +73,7 @@ export const miscUserRouter = router({
       })
     )
     .query(async ({ input }) => {
-      // Normalize: trim, collapse spaces, remove trailing "(...)" from query
+      // Normalize query: trim spaces and remove trailing parentheses
       const cleaned = input.query
         .trim()
         .replace(/\s+/g, ' ')

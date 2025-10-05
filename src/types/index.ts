@@ -128,12 +128,18 @@ export type WarehouseHistoryWithUser = WarehouseHistory & {
   assignedOrder: Order | null
 }
 
-export type WarehouseHistoryWithRelations = WarehouseHistory & {
-  warehouseItem: Warehouse
-  performedBy: User
-  assignedTo: User | null
-  assignedOrder: Order | null
-}
+export type WarehouseHistoryWithRelations = Prisma.WarehouseHistoryGetPayload<{
+  include: {
+    warehouseItem: {
+      include: { location: true }
+    }
+    performedBy: true
+    assignedTo: true
+    assignedOrder: true
+    fromLocation: true
+    toLocation: true
+  }
+}>
 
 export type GroupedWarehouseHistory = {
   id: string

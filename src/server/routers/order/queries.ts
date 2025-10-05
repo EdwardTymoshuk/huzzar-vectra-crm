@@ -16,6 +16,7 @@ import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { endOfDay, startOfDay } from 'date-fns'
 import { z } from 'zod'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
 /* -----------------------------------------------------------
  * Small, strongly-typed concurrency-limited map helper.
@@ -65,14 +66,17 @@ export const queriesRouter = router({
     .query(async ({ input, ctx }) => {
       const filters: Prisma.OrderWhereInput = {}
 
+      const user = getUserOrThrow(ctx)
+      const userId = user.id
+
       // Technicians only see their own orders
       if (isTechnician(ctx)) {
-        filters.assignedToId = ctx.user!.id
+        filters.assignedToId = userId
       }
 
       // Admin/Coordinator may filter by assignedToId (or 'unassigned')
       if (
-        ['ADMIN', 'COORDINATOR'].includes(ctx.user!.role) &&
+        ['ADMIN', 'COORDINATOR'].includes(user.role) &&
         input.assignedToId !== undefined
       ) {
         filters.assignedToId =

@@ -1,43 +1,21 @@
 // server/orders/transfer.ts
 import { technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { OrderStatus, Prisma } from '@prisma/client'
 import { z } from 'zod'
+import { addOrderHistory } from '../_helpers/addOrderHistory'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
 /**
- * Helper – writes a single history entry inside the current transaction
+ * transferRouter – handles technician-to-technician order transfers.
+ * Includes request, accept, and reject actions with history tracking.
  */
-const addHistory = async ({
-  orderId,
-  userId,
-  before,
-  after,
-  note,
-  prisma,
-}: {
-  orderId: string
-  userId: string
-  before: OrderStatus
-  after: OrderStatus
-  note: string | null
-  prisma: Prisma.TransactionClient // ← Transaction-scoped client
-}) =>
-  prisma.orderHistory.create({
-    data: {
-      orderId,
-      changedById: userId,
-      statusBefore: before,
-      statusAfter: after,
-      notes: note,
-      equipmentUsed: [],
-    },
-  })
-
 export const transferRouter = router({
   /** Returns transfers waiting for the current technician’s decision */
-  getIncomingTransfers: technicianOnly.query(({ ctx }) =>
-    ctx.prisma.order.findMany({
-      where: { transferToId: ctx.user!.id, transferPending: true },
+  getIncomingTransfers: technicianOnly.query(({ ctx }) => {
+    const user = getUserOrThrow(ctx)
+
+    return ctx.prisma.order.findMany({
+      where: { transferToId: user.id, transferPending: true },
       select: {
         id: true,
         orderNumber: true,
@@ -51,14 +29,15 @@ export const transferRouter = router({
         },
       },
     })
-  ),
+  }),
 
   /** Technician A → asks technician B to take the order */
   requestTransfer: technicianOnly
     .input(z.object({ orderId: z.string(), newTechnicianId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const { orderId, newTechnicianId } = input
-      const { id: me } = ctx.user!
+      const user = getUserOrThrow(ctx)
+      const me = user.id
 
       await ctx.prisma.$transaction(async (tx) => {
         const order = await tx.order.update({
@@ -67,7 +46,7 @@ export const transferRouter = router({
           select: { status: true },
         })
 
-        await addHistory({
+        await addOrderHistory({
           orderId,
           userId: me,
           before: order.status,
@@ -84,8 +63,9 @@ export const transferRouter = router({
   confirmTransfer: technicianOnly
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      const user = getUserOrThrow(ctx)
+      const { id: me } = user
       const { orderId } = input
-      const { id: me } = ctx.user!
 
       await ctx.prisma.$transaction(async (tx) => {
         const current = await tx.order.findUniqueOrThrow({
@@ -102,7 +82,7 @@ export const transferRouter = router({
           },
         })
 
-        await addHistory({
+        await addOrderHistory({
           orderId,
           userId: me,
           before: current.status,
@@ -119,8 +99,9 @@ export const transferRouter = router({
   rejectTransfer: technicianOnly
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      const user = getUserOrThrow(ctx)
+      const { id: me } = user
       const { orderId } = input
-      const { id: me } = ctx.user!
 
       await ctx.prisma.$transaction(async (tx) => {
         const current = await tx.order.findUniqueOrThrow({
@@ -133,7 +114,7 @@ export const transferRouter = router({
           data: { transferToId: null, transferPending: false },
         })
 
-        await addHistory({
+        await addOrderHistory({
           orderId,
           userId: me,
           before: current.status,

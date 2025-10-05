@@ -5,13 +5,19 @@ import { prisma } from '@/utils/prisma'
 import { TRPCError } from '@trpc/server'
 import bcrypt from 'bcrypt'
 import { z } from 'zod'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
+/**
+ * authUserRouter – handles authentication-related actions for logged-in users.
+ * Includes self info and password change functionality.
+ */
 export const authUserRouter = router({
-  /** Basic data of the currently logged-in user */
+  /** 👤 Basic data of the currently logged-in user */
   me: loggedInEveryone.query(({ ctx }) => {
-    if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+    const user = getUserOrThrow(ctx)
+
     return prisma.user.findUnique({
-      where: { id: ctx.user.id },
+      where: { id: user.id },
       select: {
         id: true,
         email: true,
@@ -23,7 +29,7 @@ export const authUserRouter = router({
     })
   }),
 
-  /** Change own password */
+  /** 🔒 Change own password */
   changePassword: loggedInEveryone
     .input(
       z.object({
@@ -39,19 +45,25 @@ export const authUserRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const uid = ctx.user!.id
-      const user = await prisma.user.findUnique({ where: { id: uid } })
-      if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+      const user = getUserOrThrow(ctx)
 
-      const ok = await bcrypt.compare(input.oldPassword, user.password)
-      if (!ok)
+      const found = await prisma.user.findUnique({ where: { id: user.id } })
+      if (!found) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const ok = await bcrypt.compare(input.oldPassword, found.password)
+      if (!ok) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Stare hasło jest nieprawidłowe.',
         })
+      }
 
       const hash = await bcrypt.hash(input.newPassword, 10)
-      await prisma.user.update({ where: { id: uid }, data: { password: hash } })
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hash },
+      })
+
       return { success: true }
     }),
 })

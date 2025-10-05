@@ -1,41 +1,15 @@
 import { technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { Prisma, WarehouseAction } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-
-const addHistory = ({
-  prisma,
-  itemId,
-  userId,
-  action,
-  qty,
-  notes,
-  assignedToId,
-}: {
-  prisma: Prisma.TransactionClient
-  itemId: string
-  userId: string
-  action: WarehouseAction
-  qty: number
-  notes?: string | null
-  assignedToId?: string | null
-}) =>
-  prisma.warehouseHistory.create({
-    data: {
-      warehouseItemId: itemId,
-      performedById: userId,
-      action,
-      quantity: qty,
-      notes,
-      assignedToId: assignedToId ?? null,
-    },
-  })
+import { addWarehouseHistory } from '../_helpers/addWarehouseHistory'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
 export const warehouseTransferRouter = router({
-  getIncomingTechTransfers: technicianOnly.query(({ ctx }) =>
-    ctx.prisma.warehouse.findMany({
-      where: { transferToId: ctx.user!.id, transferPending: true },
+  getIncomingTechTransfers: technicianOnly.query(({ ctx }) => {
+    const user = getUserOrThrow(ctx)
+    return ctx.prisma.warehouse.findMany({
+      where: { transferToId: user.id, transferPending: true },
       select: {
         id: true,
         name: true,
@@ -50,7 +24,7 @@ export const warehouseTransferRouter = router({
         assignedTo: { select: { id: true, name: true } },
       },
     })
-  ),
+  }),
 
   requestTechTransfer: technicianOnly
     .input(
@@ -66,7 +40,8 @@ export const warehouseTransferRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const me = ctx.user!.id
+      const user = getUserOrThrow(ctx)
+      const me = user.id
       await ctx.prisma.$transaction(async (tx) => {
         for (const { itemId, quantity } of input.items) {
           const row = await tx.warehouse.findUniqueOrThrow({
@@ -152,7 +127,8 @@ export const warehouseTransferRouter = router({
   confirmTechTransfer: technicianOnly
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      const me = ctx.user!.id
+      const user = getUserOrThrow(ctx)
+      const me = user.id
       await ctx.prisma.$transaction(async (tx) => {
         const pending = await tx.warehouse.findUniqueOrThrow({
           where: { id: input.itemId, transferToId: me, transferPending: true },
@@ -208,7 +184,7 @@ export const warehouseTransferRouter = router({
           })
         }
 
-        await addHistory({
+        await addWarehouseHistory({
           prisma: tx,
           itemId: targetId,
           userId: senderId,
@@ -223,7 +199,8 @@ export const warehouseTransferRouter = router({
   rejectTechTransfer: technicianOnly
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      const me = ctx.user!.id
+      const user = getUserOrThrow(ctx)
+      const me = user.id
       await ctx.prisma.$transaction(async (tx) => {
         const pending = await tx.warehouse.findUniqueOrThrow({
           where: { id: input.itemId, transferToId: me, transferPending: true },
@@ -282,7 +259,8 @@ export const warehouseTransferRouter = router({
   cancelTechTransfer: technicianOnly
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      const me = ctx.user!.id
+      const user = getUserOrThrow(ctx)
+      const me = user.id
       await ctx.prisma.$transaction(async (tx) => {
         const pending = await tx.warehouse.findUniqueOrThrow({
           where: { id: input.itemId, assignedToId: me, transferPending: true },

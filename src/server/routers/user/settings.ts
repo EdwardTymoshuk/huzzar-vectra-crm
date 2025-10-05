@@ -1,19 +1,24 @@
-//src/server/routers/user/settings.ts
-
+// src/server/routers/user/settings.ts
 import { technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
+/**
+ * settingsRouter – manages technician-specific settings (like personal goals)
+ */
 export const settingsRouter = router({
-  /** Get current goals */
-  getGoals: technicianOnly.query(({ ctx }) =>
-    prisma.technicianSettings.findUnique({
-      where: { userId: ctx.user!.id },
-    })
-  ),
+  /** 🎯 Get technician's personal goals */
+  getGoals: technicianOnly.query(({ ctx }) => {
+    const user = getUserOrThrow(ctx)
 
-  /** Save or update goals */
+    return prisma.technicianSettings.findUnique({
+      where: { userId: user.id },
+    })
+  }),
+
+  /** 💾 Save or update technician goals */
   saveGoals: technicianOnly
     .input(
       z.object({
@@ -22,18 +27,21 @@ export const settingsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const user = getUserOrThrow(ctx)
+
       await prisma.technicianSettings.upsert({
-        where: { userId: ctx.user!.id },
+        where: { userId: user.id },
         update: {
           workingDaysGoal: input.workDays,
           revenueGoal: input.incomeGoal,
         },
         create: {
-          userId: ctx.user!.id,
+          userId: user.id,
           workingDaysGoal: input.workDays,
           revenueGoal: input.incomeGoal,
         },
       })
+
       return { success: true }
     }),
 })

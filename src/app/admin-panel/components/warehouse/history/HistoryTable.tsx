@@ -1,13 +1,4 @@
-// components/warehouse/history/HistoryTable.tsx
 'use client'
-
-/**
- * HistoryTable – accordion list of grouped history entries.
- * ----------------------------------------------------------------------------
- * • Layout: 7-column grid (header + trigger rows) – identical desktop look.
- * • Wrapper `overflow-x-auto` + `min-w-[960px]` ⇒ horizontal scroll on mobile.
- * • Inside the accordion content nadal klasyczna tabela z itemami.
- */
 
 import {
   Accordion,
@@ -36,6 +27,12 @@ type Props = {
   entries: WarehouseHistoryWithRelations[]
 }
 
+/**
+ * HistoryTable – grouped warehouse history display with source/target and user.
+ * ----------------------------------------------------------------------------
+ * • Displays both technician operations and inter-location transfers.
+ * • Each row group (Accordion) represents one logical operation.
+ */
 const HistoryTable = ({ entries }: Props) => {
   if (!entries.length) {
     return (
@@ -45,14 +42,13 @@ const HistoryTable = ({ entries }: Props) => {
     )
   }
 
-  /** Group records by “operation” (±5 s, performer, action, notes). */
+  // Group records by “operation” (≈5s window, performer, action, notes)
   const groups = entries.reduce<
     Record<string, WarehouseHistoryWithRelations[]>
   >((acc, entry) => {
     const roundedTime = new Date(
       Math.floor(new Date(entry.actionDate).getTime() / 5000) * 5000
     ).toISOString()
-
     const key = `${roundedTime}__${entry.performedById}__${entry.action}__${
       entry.notes || ''
     }`
@@ -62,16 +58,15 @@ const HistoryTable = ({ entries }: Props) => {
   }, {})
 
   return (
-    /* Horizontal scroll container – mobile swipes, desktop 100 % width */
     <div className="w-full overflow-x-auto">
-      {/* fixed min-width so header + rows scroll together */}
-      <div className="min-w-[960px]">
-        {/* Header row */}
-        <div className="grid grid-cols-7 gap-2 px-4 py-2 text-sm border-b font-medium text-muted-foreground whitespace-nowrap">
+      <div className="min-w-[1100px]">
+        {/* Table header row */}
+        <div className="grid grid-cols-8 gap-2 px-4 py-2 text-sm border-b font-medium text-muted-foreground whitespace-nowrap">
           <span>Data</span>
           <span>Typ</span>
           <span>Od</span>
           <span>Do</span>
+          <span>Użytkownik</span>
           <span className="text-center">Pozycje</span>
           <span className="text-right">Uwagi</span>
           <span />
@@ -83,22 +78,37 @@ const HistoryTable = ({ entries }: Props) => {
             const { label, variant } = warehouseActionMap[first.action]
             const actionDate = new Date(first.actionDate)
 
-            /* Who / where the stock went to */
-            const to =
-              first.action === 'RETURNED_TO_OPERATOR'
-                ? 'Operator'
-                : first.action === 'RETURNED'
-                ? 'Magazyn'
-                : first.action === 'ISSUED'
-                ? first.assignedTo?.name ?? 'Nieznany'
-                : 'Magazyn'
+            /** Determine source ("Od") and destination ("Do") based on action type */
+            const getFromTo = () => {
+              const fromLoc = first.fromLocation?.name ?? '—'
+              const toLoc = first.toLocation?.name ?? '—'
+              const itemLoc = first.warehouseItem.location?.name ?? '—'
+
+              switch (first.action) {
+                case 'TRANSFER':
+                  return { from: fromLoc, to: toLoc }
+                case 'ISSUED':
+                  return { from: itemLoc, to: first.assignedTo?.name ?? '—' }
+                case 'RETURNED':
+                  return { from: first.assignedTo?.name ?? '—', to: itemLoc }
+                case 'RETURNED_TO_OPERATOR':
+                  return { from: itemLoc, to: 'Operator' }
+                case 'COLLECTED_FROM_CLIENT':
+                  return { from: 'Klient', to: itemLoc }
+                case 'RECEIVED':
+                  return { from: '—', to: first.toLocation?.name ?? '—' }
+                default:
+                  return { from: '—', to: '—' }
+              }
+            }
+
+            const { from, to } = getFromTo()
 
             return (
               <AccordionItem key={groupKey} value={`item-${index}`}>
-                {/* Trigger row – 7-column grid, no responsive stacking */}
                 <AccordionTrigger className="py-4 px-2 hover:bg-muted text-left">
-                  <div className="grid grid-cols-7 gap-2 items-center whitespace-nowrap text-sm w-full">
-                    {/* Data + godzina */}
+                  <div className="grid grid-cols-8 gap-2 items-center whitespace-nowrap text-sm w-full">
+                    {/* Date + time */}
                     <div>
                       <div>{format(actionDate, 'dd.MM.yyyy')}</div>
                       <div className="text-xs text-muted-foreground">
@@ -110,8 +120,10 @@ const HistoryTable = ({ entries }: Props) => {
                       {label}
                     </Badge>
 
-                    <span>{first.performedBy?.name || '—'}</span>
+                    <span>{from}</span>
                     <span>{to}</span>
+
+                    <span>{first.performedBy?.name ?? '—'}</span>
 
                     <span className="text-xs text-muted-foreground text-center">
                       {group.length}
@@ -121,12 +133,10 @@ const HistoryTable = ({ entries }: Props) => {
                       {first.notes ? first.notes.slice(0, 60) : '—'}
                     </span>
 
-                    {/* Ostatnia pusta kolumna –\u00A0miejsce na chevron z Accordion */}
                     <span />
                   </div>
                 </AccordionTrigger>
 
-                {/* Content – klasyczna tabela z pozycjami */}
                 <AccordionContent className="bg-muted/50 px-4 py-3">
                   <Table>
                     <TableHeader>

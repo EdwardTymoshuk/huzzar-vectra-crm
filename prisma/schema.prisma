@@ -22,7 +22,8 @@ model User {
   status                    UserStatus          @default(ACTIVE)
   updatedAt                 DateTime            @updatedAt
   deletedAt                 DateTime?
-
+  confirmedTransfers        LocationTransfer[]  @relation("ConfirmedTransfers")
+  requestedTransfers        LocationTransfer[]  @relation("RequestedTransfers")
   orders                    Order[]
   transferredOrders         Order[]             @relation("OrderTransfer")
   orderHistory              OrderHistory[]
@@ -31,12 +32,7 @@ model User {
   transferredWarehouseItems Warehouse[]         @relation("WarehouseTransfer")
   warehouseHistoryAssigned  WarehouseHistory[]  @relation("WarehouseHistoryAssignedTo")
   warehouseHistoryPerformed WarehouseHistory[]  @relation("WarehouseHistoryPerformedBy")
-
-  locations WarehouseLocation[] @relation("UserLocations")
-
-  // Location transfers
-  requestedTransfers LocationTransfer[] @relation("RequestedTransfers")
-  confirmedTransfers LocationTransfer[] @relation("ConfirmedTransfers")
+  locations                 WarehouseLocation[] @relation("UserLocations")
 }
 
 /// -------------------------------
@@ -50,33 +46,29 @@ model Order {
   clientPhoneNumber String?
   notes             String?
   status            OrderStatus            @default(PENDING)
-
   county            String?
   municipality      String?
   city              String
   street            String
   postalCode        String?
-
   assignedToId      String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
   operator          String
   type              OrderType
-
   closedAt          DateTime?
   failureReason     String?
   transferPending   Boolean                @default(false)
   transferToId      String?
   completedAt       DateTime?
-
   assignedTo        User?                  @relation(fields: [assignedToId], references: [id])
   transferTo        User?                  @relation("OrderTransfer", fields: [transferToId], references: [id])
   assignedEquipment OrderEquipment[]       @relation("OrderToOrderEquipment")
   history           OrderHistory[]
   usedMaterials     OrderMaterial[]
+  services          OrderService[]
   settlementEntries OrderSettlementEntry[]
   warehouseHistory  WarehouseHistory[]     @relation("OrderToWarehouseHistory")
-  services          OrderService[]
 
   @@unique([orderNumber, date])
 }
@@ -90,7 +82,6 @@ model OrderMaterial {
   materialId String
   quantity   Int
   unit       MaterialUnit
-
   material   MaterialDefinition @relation("MaterialToOrderMaterial", fields: [materialId], references: [id])
   order      Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -103,7 +94,6 @@ model OrderSettlementEntry {
   orderId  String
   code     String
   quantity Int
-
   rate     RateDefinition @relation("RateDefinitionToSettlement", fields: [code], references: [code])
   order    Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -112,20 +102,19 @@ model OrderSettlementEntry {
 
 /// -------------------------------
 model OrderService {
-  id              String       @id @default(uuid())
-  orderId         String
-  type            ServiceType
-  deviceId        String?
-  serialNumber    String?
-  deviceId2       String?
-  serialNumber2   String?
-  speedTest       String?
-  usDbmDown       Float?
-  usDbmUp         Float?
-  notes           String?
-  createdAt       DateTime     @default(now())
-
-  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id            String      @id @default(uuid())
+  orderId       String
+  type          ServiceType
+  deviceId      String?
+  serialNumber  String?
+  deviceId2     String?
+  serialNumber2 String?
+  speedTest     String?
+  usDbmDown     Float?
+  usDbmUp       Float?
+  createdAt     DateTime    @default(now())
+  notes         String?
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
@@ -140,7 +129,6 @@ model OrderHistory {
   statusAfter   OrderStatus
   notes         String?
   equipmentUsed String[]
-
   changedBy     User        @relation(fields: [changedById], references: [id])
   order         Order       @relation(fields: [orderId], references: [id])
 }
@@ -150,7 +138,6 @@ model OrderEquipment {
   id          String    @id @default(uuid())
   orderId     String
   warehouseId String
-
   order       Order     @relation("OrderToOrderEquipment", fields: [orderId], references: [id], onDelete: Cascade)
   warehouse   Warehouse @relation("WarehouseToOrderEquipment", fields: [warehouseId], references: [id])
 
@@ -162,79 +149,74 @@ model OrderEquipment {
 /// Warehouse
 /// -------------------------------
 model Warehouse {
-  id                   String              @id @default(uuid())
+  id                   String                 @id @default(uuid())
   itemType             WarehouseItemType
   name                 String
   category             DeviceCategory?
-  provider             DeviceProvider?     @map("subcategory")
-  serialNumber         String?             @unique
+  serialNumber         String?                @unique
   quantity             Int
-  unit                 MaterialUnit        @default(PIECE)
+  unit                 MaterialUnit           @default(PIECE)
   price                Float
   status               WarehouseStatus
   assignedToId         String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  alarmAlert           Int?                @default(5)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  alarmAlert           Int?                   @default(5)
   index                String?
-  warningAlert         Int?                @default(10)
+  warningAlert         Int?                   @default(10)
   materialDefinitionId String?
-  transferPending      Boolean             @default(false)
+  transferPending      Boolean                @default(false)
   transferToId         String?
-
-  orderAssignments     OrderEquipment[]    @relation("WarehouseToOrderEquipment")
-  assignedTo           User?               @relation("WarehouseAssignedTo", fields: [assignedToId], references: [id])
-  materialDefinition   MaterialDefinition? @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
-  transferTo           User?               @relation("WarehouseTransfer", fields: [transferToId], references: [id])
-  history              WarehouseHistory[]
-
-  locationId           String              @default("gdansk")
-  location             WarehouseLocation   @relation(fields: [locationId], references: [id])
-
+  provider             DeviceProvider?        @map("subcategory")
+  locationId           String                 @default("gdansk")
   transferLines        LocationTransferLine[] @relation("WarehouseToTransferLines")
+  orderAssignments     OrderEquipment[]       @relation("WarehouseToOrderEquipment")
+  assignedTo           User?                  @relation("WarehouseAssignedTo", fields: [assignedToId], references: [id])
+  location             WarehouseLocation      @relation(fields: [locationId], references: [id])
+  materialDefinition   MaterialDefinition?    @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
+  transferTo           User?                  @relation("WarehouseTransfer", fields: [transferToId], references: [id])
+  history              WarehouseHistory[]
 }
 
 /// -------------------------------
 /// WarehouseHistory
 /// -------------------------------
 model WarehouseHistory {
-  id              String          @id @default(uuid())
-  warehouseItemId String
-  action          WarehouseAction
-  performedById   String
-  assignedToId    String?
-  actionDate      DateTime        @default(now())
-  notes           String?
-  quantity        Int?
-  assignedOrderId String?
-
-  fromLocationId  String?
-  toLocationId    String?
-
+  id                 String             @id @default(uuid())
+  warehouseItemId    String
+  action             WarehouseAction
+  performedById      String
+  assignedToId       String?
+  actionDate         DateTime           @default(now())
+  notes              String?
+  quantity           Int?
+  assignedOrderId    String?
+  fromLocationId     String?
   locationTransferId String?
-  locationTransfer   LocationTransfer? @relation("LocationTransferToHistory", fields: [locationTransferId], references: [id])
-
-  warehouseItem   Warehouse       @relation(fields: [warehouseItemId], references: [id])
-  performedBy     User            @relation("WarehouseHistoryPerformedBy", fields: [performedById], references: [id])
-  assignedTo      User?           @relation("WarehouseHistoryAssignedTo", fields: [assignedToId], references: [id])
-  assignedOrder   Order?          @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
+  toLocationId       String?
+  assignedOrder      Order?             @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
+  assignedTo         User?              @relation("WarehouseHistoryAssignedTo", fields: [assignedToId], references: [id])
+  fromLocation       WarehouseLocation? @relation("FromLocationHistory", fields: [fromLocationId], references: [id])
+  locationTransfer   LocationTransfer?  @relation("LocationTransferToHistory", fields: [locationTransferId], references: [id])
+  performedBy        User               @relation("WarehouseHistoryPerformedBy", fields: [performedById], references: [id])
+  toLocation         WarehouseLocation? @relation("ToLocationHistory", fields: [toLocationId], references: [id])
+  warehouseItem      Warehouse          @relation(fields: [warehouseItemId], references: [id])
 }
 
 /// -------------------------------
 /// WarehouseLocation
 /// -------------------------------
 model WarehouseLocation {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  items     Warehouse[]
-
-  users User[] @relation("UserLocations")
-
+  id            String             @id @default(uuid())
+  name          String             @unique
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
   transfersFrom LocationTransfer[] @relation("TransfersFromLocation")
   transfersTo   LocationTransfer[] @relation("TransfersToLocation")
+  items         Warehouse[]
+  historyFrom   WarehouseHistory[] @relation("FromLocationHistory")
+  historyTo     WarehouseHistory[] @relation("ToLocationHistory")
+  users         User[]             @relation("UserLocations")
 }
 
 /// -------------------------------
@@ -245,19 +227,15 @@ model LocationTransfer {
   fromLocationId String
   toLocationId   String
   status         LocationTransferStatus @default(REQUESTED)
-
   notes          String?
   createdAt      DateTime               @default(now())
   requestedById  String
   confirmedById  String?
   confirmedAt    DateTime?
-
-  fromLocation   WarehouseLocation      @relation("TransfersFromLocation", fields: [fromLocationId], references: [id])
-  toLocation     WarehouseLocation      @relation("TransfersToLocation",   fields: [toLocationId],   references: [id])
-
-  requestedBy    User                   @relation("RequestedTransfers", fields: [requestedById], references: [id])
   confirmedBy    User?                  @relation("ConfirmedTransfers", fields: [confirmedById], references: [id])
-
+  fromLocation   WarehouseLocation      @relation("TransfersFromLocation", fields: [fromLocationId], references: [id])
+  requestedBy    User                   @relation("RequestedTransfers", fields: [requestedById], references: [id])
+  toLocation     WarehouseLocation      @relation("TransfersToLocation", fields: [toLocationId], references: [id])
   lines          LocationTransferLine[]
   histories      WarehouseHistory[]     @relation("LocationTransferToHistory")
 
@@ -273,19 +251,16 @@ model LocationTransferLine {
   id                   String              @id @default(uuid())
   transferId           String
   itemType             WarehouseItemType
-  category             DeviceCategory?
-
   warehouseItemId      String?
   materialDefinitionId String?
   quantity             Int?
   unit                 MaterialUnit?
-
   nameSnapshot         String?
   indexSnapshot        String?
-
+  category             DeviceCategory?
+  materialDefinition   MaterialDefinition? @relation("MaterialDefinitionToTransferLines", fields: [materialDefinitionId], references: [id])
   transfer             LocationTransfer    @relation(fields: [transferId], references: [id])
   warehouseItem        Warehouse?          @relation("WarehouseToTransferLines", fields: [warehouseItemId], references: [id])
-  materialDefinition   MaterialDefinition? @relation("MaterialDefinitionToTransferLines", fields: [materialDefinitionId], references: [id])
 
   @@index([transferId])
   @@index([warehouseItemId])
@@ -296,30 +271,29 @@ model LocationTransferLine {
 /// DeviceDefinition
 /// -------------------------------
 model DeviceDefinition {
-  id           String         @id @default(uuid())
+  id           String          @id @default(uuid())
   category     DeviceCategory
-  provider     DeviceProvider?
   name         String
-  alarmAlert   Int?           @default(5)
-  warningAlert Int?           @default(10)
-  price        Float?         @default(0)
+  alarmAlert   Int?            @default(5)
+  warningAlert Int?            @default(10)
+  price        Float?          @default(0)
+  provider     DeviceProvider?
 }
 
 /// -------------------------------
 /// MaterialDefinition
 /// -------------------------------
 model MaterialDefinition {
-  id             String                  @id @default(uuid())
-  name           String                  @unique
-  alarmAlert     Int?                    @default(5)
+  id             String                 @id @default(uuid())
+  name           String                 @unique
+  alarmAlert     Int?                   @default(5)
   index          String?
-  warningAlert   Int?                    @default(10)
-  unit           MaterialUnit            @default(PIECE)
-  price          Float?                  @default(0)
-
-  orderMaterials OrderMaterial[]         @relation("MaterialToOrderMaterial")
-  warehouseItems Warehouse[]             @relation("MaterialDefinitionToWarehouse")
-  transferLines  LocationTransferLine[]  @relation("MaterialDefinitionToTransferLines")
+  warningAlert   Int?                   @default(10)
+  unit           MaterialUnit           @default(PIECE)
+  price          Float?                 @default(0)
+  transferLines  LocationTransferLine[] @relation("MaterialDefinitionToTransferLines")
+  orderMaterials OrderMaterial[]        @relation("MaterialToOrderMaterial")
+  warehouseItems Warehouse[]            @relation("MaterialDefinitionToWarehouse")
 }
 
 /// -------------------------------

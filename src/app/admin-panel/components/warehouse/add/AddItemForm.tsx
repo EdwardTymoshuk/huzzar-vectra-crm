@@ -22,6 +22,7 @@ import {
 import { devicesStatusMap, devicesTypeMap } from '@/lib/constants'
 import { warehouseFormSchema } from '@/lib/schema'
 import { WarehouseFormData } from '@/types'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { DeviceCategory } from '@prisma/client'
@@ -47,10 +48,15 @@ const AddItemForm = ({
     defaultValues,
   })
 
+  const locationId = useActiveLocation()
+
   const { data: devices = [] } =
     trpc.deviceDefinition.getAllDefinitions.useQuery()
   const { data: materials = [] } = trpc.materialDefinition.getAll.useQuery()
-  const { data: allWarehouse = [] } = trpc.warehouse.getAll.useQuery()
+  const { data: allWarehouse = [] } = trpc.warehouse.getAll.useQuery(
+    locationId ? { locationId } : undefined,
+    { enabled: !!locationId }
+  )
 
   const handleSubmit = (data: WarehouseFormData) => {
     if (data.type === 'DEVICE') {

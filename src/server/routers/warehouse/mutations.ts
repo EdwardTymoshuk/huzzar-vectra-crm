@@ -5,24 +5,9 @@ import { prisma } from '@/utils/prisma'
 import { DeviceCategory, WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-
-/**
- * Helper – get active location ID from input or user session.
- * Ensures we always resolve a locationId for warehouse operations.
- */
-function resolveLocationId(
-  inputLocationId: string | undefined,
-  userLocations: { id: string; name: string }[] | undefined
-): string {
-  const locId = inputLocationId ?? userLocations?.[0]?.id
-  if (!locId) {
-    throw new TRPCError({
-      code: 'BAD_REQUEST',
-      message: 'Brak przypisanej lokalizacji. Wybierz magazyn.',
-    })
-  }
-  return locId
-}
+import { addWarehouseHistory } from '../_helpers/addWarehouseHistory'
+import { getUserOrThrow } from '../_helpers/getUserOrThrow'
+import { resolveLocationId } from '../_helpers/resolveLocationId'
 
 export const mutationsRouter = router({
   /** 📥 Add new items to warehouse */
@@ -43,13 +28,13 @@ export const mutationsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const userId = ctx.user?.id
+      const user = getUserOrThrow(ctx)
+      const userId = user.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-      const activeLocationId = resolveLocationId(
-        input.locationId,
-        ctx.user?.locations
-      )
+      const activeLocationId = resolveLocationId(user, {
+        locationId: input.locationId,
+      })
 
       for (const item of input.items) {
         if (item.type === 'DEVICE') {
@@ -84,6 +69,7 @@ export const mutationsRouter = router({
               action: 'RECEIVED',
               performedById: userId,
               notes: input.notes || undefined,
+              toLocationId: activeLocationId,
             },
           })
         }
@@ -114,15 +100,14 @@ export const mutationsRouter = router({
               locationId: activeLocationId,
             },
           })
-
-          await prisma.warehouseHistory.create({
-            data: {
-              warehouseItemId: created.id,
-              action: 'RECEIVED',
-              performedById: userId,
-              quantity: item.quantity ?? 1,
-              notes: input.notes || undefined,
-            },
+          await addWarehouseHistory({
+            prisma,
+            itemId: created.id,
+            userId,
+            action: 'RECEIVED',
+            qty: item.quantity ?? 1,
+            notes: input.notes,
+            toLocationId: activeLocationId,
           })
         }
       }
