@@ -141,24 +141,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead
-              className="cursor-pointer select-none"
-              onClick={() => toggleSort('name')}
-            >
-              <div className="flex items-center gap-1">
-                <span>Nazwa</span>
-                {sortField === 'name' ? (
-                  sortOrder === 'asc' ? (
-                    <TiArrowSortedUp className="w-4 h-4" />
-                  ) : (
-                    <TiArrowSortedDown className="w-4 h-4" />
-                  )
-                ) : (
-                  <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
-                )}
-              </div>
-            </TableHead>
-
             {itemType === 'DEVICE' && (
               <TableHead
                 className="cursor-pointer select-none"
@@ -178,7 +160,23 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                 </div>
               </TableHead>
             )}
-
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => toggleSort('name')}
+            >
+              <div className="flex items-center gap-1">
+                <span>Nazwa</span>
+                {sortField === 'name' ? (
+                  sortOrder === 'asc' ? (
+                    <TiArrowSortedUp className="w-4 h-4" />
+                  ) : (
+                    <TiArrowSortedDown className="w-4 h-4" />
+                  )
+                ) : (
+                  <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+            </TableHead>
             <TableHead>Ilość</TableHead>
             <TableHead>Cena j.</TableHead>
             <TableHead>Wartość</TableHead>
@@ -198,6 +196,9 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
 
             return (
               <TableRow key={item.name}>
+                {itemType === 'DEVICE' && (
+                  <TableCell>{devicesTypeMap[item.category]}</TableCell>
+                )}
                 <TableCell>
                   <Highlight
                     highlightClassName="bg-yellow-200"
@@ -206,10 +207,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                     textToHighlight={item.name}
                   />
                 </TableCell>
-
-                {itemType === 'DEVICE' && (
-                  <TableCell>{devicesTypeMap[item.category]}</TableCell>
-                )}
 
                 <TableCell>
                   <Badge variant={badgeVariant}>{item.quantity}</Badge>

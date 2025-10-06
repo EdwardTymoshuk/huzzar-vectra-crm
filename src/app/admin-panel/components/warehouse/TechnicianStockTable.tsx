@@ -38,8 +38,8 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Nazwa</TableHead>
             {itemType === 'DEVICE' && <TableHead>Typ</TableHead>}
+            <TableHead>Nazwa</TableHead>
             {itemType === 'DEVICE' && <TableHead>SN</TableHead>}
             {itemType === 'MATERIAL' && <TableHead>Ilość</TableHead>}
             {itemType === 'MATERIAL' && <TableHead>Jm</TableHead>}
@@ -50,6 +50,11 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
           {items.map((item) => {
             return (
               <TableRow key={item.id}>
+                {itemType === 'DEVICE' && (
+                  <TableCell>
+                    {devicesTypeMap[item.category ?? 'OTHER'] ?? '—'}
+                  </TableCell>
+                )}
                 <TableCell>
                   <Highlight
                     searchWords={[searchTerm]}
@@ -58,12 +63,6 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
                     autoEscape
                   />
                 </TableCell>
-
-                {itemType === 'DEVICE' && (
-                  <TableCell>
-                    {devicesTypeMap[item.category ?? 'OTHER'] ?? '—'}
-                  </TableCell>
-                )}
                 {itemType === 'DEVICE' && (
                   <TableCell>{item.serialNumber ?? '—'}</TableCell>
                 )}

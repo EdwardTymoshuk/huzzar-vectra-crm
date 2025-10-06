@@ -211,16 +211,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead
-              className="cursor-pointer select-none"
-              onClick={() => handleSort('name')}
-            >
-              <div className="flex items-center gap-1">
-                <span>Nazwa</span>
-                {renderSortIcon('name')}
-              </div>
-            </TableHead>
-
             {itemType === 'DEVICE' && (
               <>
                 <TableHead
@@ -234,6 +224,15 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                 </TableHead>
               </>
             )}
+            <TableHead
+              className="cursor-pointer select-none"
+              onClick={() => handleSort('name')}
+            >
+              <div className="flex items-center gap-1">
+                <span>Nazwa</span>
+                {renderSortIcon('name')}
+              </div>
+            </TableHead>
 
             <TableHead>Ilość dostępna</TableHead>
             <TableHead>Cena j.</TableHead>
@@ -263,6 +262,14 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
 
               return (
                 <TableRow key={`${item.name}-${item.category}`}>
+                  {itemType === 'DEVICE' && (
+                    <>
+                      <TableCell>
+                        {devicesTypeMap[item.category] ?? item.category}
+                      </TableCell>
+                    </>
+                  )}
+
                   <TableCell>
                     <Highlight
                       highlightClassName="bg-yellow-200"
@@ -271,14 +278,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                       textToHighlight={item.name}
                     />
                   </TableCell>
-
-                  {itemType === 'DEVICE' && (
-                    <>
-                      <TableCell>
-                        {devicesTypeMap[item.category] ?? item.category}
-                      </TableCell>
-                    </>
-                  )}
 
                   <TableCell>
                     <Badge variant={variant}>{item.quantity}</Badge>

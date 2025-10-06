@@ -133,14 +133,14 @@ const DeviceDefinitionsList = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                {/* Name */}
+                {/* Category */}
                 <TableHead
                   className="cursor-pointer select-none"
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort('category')}
                 >
                   <div className="flex items-center gap-1">
-                    <span>Nazwa</span>
-                    {sortField === 'name' ? (
+                    <span>Kategoria</span>
+                    {sortField === 'category' ? (
                       sortOrder === 'asc' ? (
                         <TiArrowSortedUp className="w-4 h-4" />
                       ) : (
@@ -151,15 +151,14 @@ const DeviceDefinitionsList = () => {
                     )}
                   </div>
                 </TableHead>
-
-                {/* Category */}
+                {/* Name */}
                 <TableHead
                   className="cursor-pointer select-none"
-                  onClick={() => handleSort('category')}
+                  onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center gap-1">
-                    <span>Kategoria</span>
-                    {sortField === 'category' ? (
+                    <span>Nazwa</span>
+                    {sortField === 'name' ? (
                       sortOrder === 'asc' ? (
                         <TiArrowSortedUp className="w-4 h-4" />
                       ) : (
@@ -181,10 +180,10 @@ const DeviceDefinitionsList = () => {
               {sorted.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="whitespace-nowrap">
-                    {item.name}
+                    {devicesTypeMap[item.category]}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {devicesTypeMap[item.category]}
+                    {item.name}
                   </TableCell>
                   <TableCell>{item.warningAlert}</TableCell>
                   <TableCell>{item.alarmAlert}</TableCell>
