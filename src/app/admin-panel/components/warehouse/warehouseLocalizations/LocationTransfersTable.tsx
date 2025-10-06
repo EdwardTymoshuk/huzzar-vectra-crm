@@ -28,7 +28,7 @@ import {
 } from '@prisma/client'
 import { format } from 'date-fns'
 import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 type LineRow = {
@@ -55,6 +55,7 @@ type TransferRow = {
 
 const LocationTransfersTable = () => {
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [showSkeleton, setShowSkeleton] = useState(false)
 
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
@@ -100,12 +101,17 @@ const LocationTransfersTable = () => {
     onError: () => setLoadingId(null),
   })
 
-  if (inLoading || outLoading)
-    return (
-      <div className="w-full flex justify-center">
-        <Skeleton className="h-8 w-full" />
-      </div>
-    )
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inLoading || outLoading) setShowSkeleton(true)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [inLoading, outLoading])
+
+  if (showSkeleton && (inLoading || outLoading))
+    return <Skeleton className="h-8 w-full" />
+
+  if (!incoming.length && !outgoing.length) return null
 
   const rows: TransferRow[] = [
     ...incoming.map((t) => ({
