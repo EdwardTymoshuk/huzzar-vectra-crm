@@ -20,17 +20,22 @@ const TechnicianCardSkeleton: React.FC = () => (
     </div>
     <div className="px-4 py-3 space-y-3">
       {/* table header mimic */}
-      <div className="grid grid-cols-[1fr_2fr] gap-4">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-24" />
+      {/* table header mimic */}
+      <div className="grid grid-cols-[1fr_2fr] gap-4 max-w-full overflow-hidden">
+        <Skeleton className="h-4 w-24 max-w-full" />
+        <Skeleton className="h-4 w-24 max-w-full" />
       </div>
+
       {/* a few rows mimic */}
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="grid grid-cols-[1fr_2fr] gap-4 py-2">
-          <Skeleton className="h-4 w-28" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="h-4 w-40" />
+        <div
+          key={i}
+          className="grid grid-cols-[1fr_2fr] gap-4 py-2 max-w-full overflow-hidden"
+        >
+          <Skeleton className="h-4 w-28 max-w-full" />
+          <div className="space-y-2 max-w-full overflow-hidden">
+            <Skeleton className="h-4 w-56 max-w-full" />
+            <Skeleton className="h-4 w-40 max-w-full" />
           </div>
         </div>
       ))}
@@ -39,8 +44,10 @@ const TechnicianCardSkeleton: React.FC = () => (
 )
 
 /** Skeleton list container. */
-const TechniciansListSkeleton: React.FC<{ count?: number }> = ({ count = 4 }) => (
-  <div className="space-y-4">
+const TechniciansListSkeleton: React.FC<{ count?: number }> = ({
+  count = 4,
+}) => (
+  <div className="w-full max-w-5xl mx-auto px-2 md:px-4 space-y-4">
     {Array.from({ length: count }).map((_, i) => (
       <TechnicianCardSkeleton key={i} />
     ))}
@@ -54,12 +61,10 @@ const TechniciansList = ({ setProcessing }: Props) => {
   const trpcUtils = trpc.useUtils()
 
   // NOTE: Keep the payload date as YYYY-MM-DD for server-side filtering.
-  const {
-    data: assignments = [],
-    isLoading,
-  } = trpc.order.getAssignedOrders.useQuery({
-    date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : undefined,
-  })
+  const { data: assignments = [], isLoading } =
+    trpc.order.getAssignedOrders.useQuery({
+      date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : undefined,
+    })
 
   const assignMutation = trpc.order.assignTechnician.useMutation({
     onError: (err) => toast.error(getErrMessage(err)),
@@ -83,7 +88,9 @@ const TechniciansList = ({ setProcessing }: Props) => {
 
   // Filter technicians (only those with defined id & name and matching search)
   const filteredTechnicians = useMemo(() => {
-    const existing = assignments.filter((t) => t.technicianId && t.technicianName)
+    const existing = assignments.filter(
+      (t) => t.technicianId && t.technicianName
+    )
     if (!searchTerm) return existing
     const q = searchTerm.toLowerCase()
     return existing.filter((t) => t.technicianName.toLowerCase().includes(q))
