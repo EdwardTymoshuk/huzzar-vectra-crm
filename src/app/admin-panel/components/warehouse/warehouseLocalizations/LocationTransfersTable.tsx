@@ -108,11 +108,25 @@ const LocationTransfersTable = () => {
     return () => clearTimeout(timer)
   }, [inLoading, outLoading])
 
-  if (showSkeleton && (inLoading || outLoading))
+  // show skeleton only when there are transfers and still loading
+  const hasAnyTransfer =
+    (incoming && incoming.length > 0) || (outgoing && outgoing.length > 0)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (hasAnyTransfer && (inLoading || outLoading)) setShowSkeleton(true)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [inLoading, outLoading, hasAnyTransfer])
+
+  // skeleton appears only for existing transfers
+  if (hasAnyTransfer && showSkeleton && (inLoading || outLoading))
     return <Skeleton className="h-8 w-full" />
 
-  if (!incoming.length && !outgoing.length) return null
+  // skip rendering if no transfers and not loading
+  if (!inLoading && !outLoading && !hasAnyTransfer) return null
 
+  // merge incoming and outgoing transfers into one list
   const rows: TransferRow[] = [
     ...incoming.map((t) => ({
       ...t,
@@ -125,8 +139,6 @@ const LocationTransfersTable = () => {
       lines: t.lines.map((l) => ({ ...l, quantity: l.quantity ?? 1 })),
     })),
   ]
-
-  if (!rows.length) return <></>
 
   return (
     <div className="border rounded-lg bg-card shadow-sm">
