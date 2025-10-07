@@ -28,6 +28,8 @@ interface Props {
   setStartDate: (val: Date | undefined) => void
   endDate?: Date
   setEndDate: (val: Date | undefined) => void
+  locationId?: string
+  setLocationId: (val: string | undefined) => void
 }
 
 const HistoryFilters = ({
@@ -39,9 +41,14 @@ const HistoryFilters = ({
   setStartDate,
   endDate,
   setEndDate,
+  locationId,
+  setLocationId,
 }: Props) => {
   // Fetch list of users that can appear in "performer" dropdown
   const { data: users = [] } = trpc.user.getAdmins.useQuery()
+
+  // Fetch list of warehosue locations
+  const { data: locations = [] } = trpc.warehouse.getAllLocations.useQuery()
 
   return (
     <form
@@ -72,6 +79,31 @@ const HistoryFilters = ({
             {Object.entries(warehouseActionMap).map(([key, { label }]) => (
               <SelectItem key={key} value={key}>
                 {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ---- LOCATION FILTER ----------------------------------------------- */}
+      <div className="flex flex-col space-y-1 w-full md:w-auto">
+        <label className="text-xs text-muted-foreground">Magazyn</label>
+        <Select
+          value={locationId ?? ''}
+          onValueChange={(val) => setLocationId(val || undefined)}
+        >
+          <SelectTrigger
+            className={cn(
+              'w-full md:w-[200px]',
+              locationId && 'border-2 border-primary'
+            )}
+          >
+            <SelectValue placeholder="Wszystkie lokalizacje" />
+          </SelectTrigger>
+          <SelectContent>
+            {locations.map((loc) => (
+              <SelectItem key={loc.id} value={loc.id}>
+                {loc.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -124,6 +156,7 @@ const HistoryFilters = ({
           setPerformerId(undefined)
           setStartDate(undefined)
           setEndDate(undefined)
+          setLocationId(undefined)
         }}
       >
         Wyczyść filtry

@@ -109,10 +109,19 @@ export const historyRouter = router({
         performerId: z.string().optional(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
+        locationId: z.string().optional(), // 👈 new filter
       })
     )
     .query(async ({ input }) => {
-      const { page, limit, actions, performerId, startDate, endDate } = input
+      const {
+        page,
+        limit,
+        actions,
+        performerId,
+        startDate,
+        endDate,
+        locationId,
+      } = input
 
       const whereClause = {
         ...(actions?.length ? { action: { in: actions } } : {}),
@@ -123,6 +132,15 @@ export const historyRouter = router({
                 ...(startDate ? { gte: new Date(startDate) } : {}),
                 ...(endDate ? { lte: new Date(endDate) } : {}),
               },
+            }
+          : {}),
+        ...(locationId
+          ? {
+              OR: [
+                { warehouseItem: { locationId } },
+                { fromLocationId: locationId },
+                { toLocationId: locationId },
+              ],
             }
           : {}),
       }

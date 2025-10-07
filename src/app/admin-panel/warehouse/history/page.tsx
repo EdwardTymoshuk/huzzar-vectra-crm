@@ -24,6 +24,7 @@ const WarehouseHistoryPage = () => {
   const [performerId, setPerformerId] = useState<string | undefined>()
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [endDate, setEndDate] = useState<Date | undefined>()
+  const [locationId, setLocationId] = useState<string | undefined>()
 
   const { data, isLoading, isError } =
     trpc.warehouse.getWarehouseHistory.useQuery({
@@ -33,6 +34,7 @@ const WarehouseHistoryPage = () => {
       performerId,
       startDate: startDate?.toISOString().split('T')[0],
       endDate: endDate?.toISOString().split('T')[0],
+      locationId,
     })
 
   return (
@@ -55,6 +57,8 @@ const WarehouseHistoryPage = () => {
         setStartDate={setStartDate}
         endDate={endDate}
         setEndDate={setEndDate}
+        locationId={locationId}
+        setLocationId={setLocationId}
       />
       {isLoading ? (
         <LoaderSpinner />
