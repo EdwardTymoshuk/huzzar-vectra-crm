@@ -219,7 +219,7 @@ const TechnicianOrdersTable = ({
       </div>
 
       <div className="w-full md:overflow-x-auto">
-        <div className="w-full md:min-w-[1050px]">
+        <div className="w-full min-w-fit md:min-w-[1050px]">
           <div className="hidden md:grid grid-cols-[150px_minmax(180px,1fr)_minmax(280px,2fr)_140px_120px_120px] gap-2 px-4 py-2 border-b text-sm text-muted-foreground select-none">
             <span>Typ</span>
             <span>Nr zlecenia</span>
