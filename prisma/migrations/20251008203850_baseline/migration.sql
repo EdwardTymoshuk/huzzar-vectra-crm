@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "OrderCreatedSource" AS ENUM ('PLANNER', 'MANUAL');
+
+-- CreateEnum
 CREATE TYPE "Role" AS ENUM ('TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN');
 
 -- CreateEnum
@@ -34,6 +37,9 @@ CREATE TYPE "ServiceType" AS ENUM ('DTV', 'NET', 'TEL', 'ATV');
 -- CreateEnum
 CREATE TYPE "LocationTransferStatus" AS ENUM ('REQUESTED', 'IN_TRANSIT', 'RECEIVED', 'REJECTED', 'CANCELED');
 
+-- CreateEnum
+CREATE TYPE "DeviceProvider" AS ENUM ('VECTRA', 'MMP');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -68,6 +74,7 @@ CREATE TABLE "Order" (
     "assignedToId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdSource" "OrderCreatedSource" NOT NULL DEFAULT 'PLANNER',
     "operator" TEXT NOT NULL,
     "type" "OrderType" NOT NULL,
     "closedAt" TIMESTAMP(3),
@@ -161,6 +168,7 @@ CREATE TABLE "Warehouse" (
     "materialDefinitionId" TEXT,
     "transferPending" BOOLEAN NOT NULL DEFAULT false,
     "transferToId" TEXT,
+    "subcategory" "DeviceProvider",
     "locationId" TEXT NOT NULL DEFAULT 'gdansk',
 
     CONSTRAINT "Warehouse_pkey" PRIMARY KEY ("id")
@@ -233,6 +241,7 @@ CREATE TABLE "DeviceDefinition" (
     "alarmAlert" INTEGER DEFAULT 5,
     "warningAlert" INTEGER DEFAULT 10,
     "price" DOUBLE PRECISION DEFAULT 0,
+    "provider" "DeviceProvider",
 
     CONSTRAINT "DeviceDefinition_pkey" PRIMARY KEY ("id")
 );
@@ -437,4 +446,3 @@ ALTER TABLE "_UserLocations" ADD CONSTRAINT "_UserLocations_A_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "_UserLocations" ADD CONSTRAINT "_UserLocations_B_fkey" FOREIGN KEY ("B") REFERENCES "WarehouseLocation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

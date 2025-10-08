@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:local": "cp .env.docker .env && npx prisma migrate dev",
+    "db:prod": "cp .env.local .env && npx prisma db push",
+    "db:pull:prod": "cp .env.local .env && npx prisma db pull",
+    "db:pull:local": "cp .env.docker .env && npx prisma db pull"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
