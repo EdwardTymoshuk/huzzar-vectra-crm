@@ -172,7 +172,6 @@ model Warehouse {
   materialDefinitionId String?
   transferPending      Boolean                @default(false)
   transferToId         String?
-  subcategory          DeviceProvider?
   locationId           String                 @default("gdansk")
   transferLines        LocationTransferLine[] @relation("WarehouseToTransferLines")
   orderAssignments     OrderEquipment[]       @relation("WarehouseToOrderEquipment")
@@ -282,7 +281,6 @@ model DeviceDefinition {
   alarmAlert   Int?            @default(5)
   warningAlert Int?            @default(10)
   price        Float?          @default(0)
-  provider     DeviceProvider?
 }
 
 /// -------------------------------
@@ -430,9 +428,4 @@ enum LocationTransferStatus {
   RECEIVED
   REJECTED
   CANCELED
-}
-
-enum DeviceProvider {
-  VECTRA
-  MMP
 }
