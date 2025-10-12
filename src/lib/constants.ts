@@ -224,11 +224,6 @@ export const sortedTimeSlotsByHour: TimeSlot[] = [
   'TWENTY_TWENTYONE',
 ]
 
-export const operatorColors: Record<string, string> = {
-  V: '#2B9FD8',
-  MMP: '#f94500',
-}
-
 export const timeSlotColorsV: Record<string, string> = {
   EIGHT_TEN: '#B3D9F0', // Lightest variant
   TEN_TWELVE: '#80C3E5',
@@ -248,6 +243,17 @@ export const timeSlotColorsMMP: Record<string, string> = {
 export const timeSlotColors: Record<string, Record<string, string>> = {
   V: timeSlotColorsV,
   MMP: timeSlotColorsMMP,
+}
+
+export const operatorColorsMap: Record<string, string> = {
+  VECTRA: '#2d4083',
+  PLAY: '#5d3582',
+  'T-MOBILE': '#f915bb',
+  ORANGE: '#fa7e18',
+  PLUS: '#65b233',
+  BIZNES: '#2083fe',
+  MULTIMEDIA: '#e77d1f',
+  DEFAULT: '#9ca3af',
 }
 
 export const userRoleMap: Record<string, string> = {

@@ -48,7 +48,10 @@ export interface TechnicianAssignment {
       id: string
       orderNumber: string
       address: string
+      date: Date
+      operator: string
       status: string
+      notes?: string
       assignedToId?: string
     }[]
   }[]

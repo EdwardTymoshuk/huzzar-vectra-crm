@@ -92,8 +92,6 @@ const OrdersFilter = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="PENDING">Nieprzypisane</SelectItem>
-              <SelectItem value="ASSIGNED">Przypisane</SelectItem>
               <SelectItem value="COMPLETED">Wykonane</SelectItem>
               <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
             </SelectContent>

@@ -2,168 +2,78 @@
 
 import LoadingOverlay from '@/app/components/shared/LoadingOverlay'
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
-import { TechnicianAssignment } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
-import { TimeSlot } from '@prisma/client'
-import { useState } from 'react'
+import dynamic from 'next/dynamic'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import OrdersList from './OrdersList'
 import TechniciansList from './TechniciansList'
 
 /**
- * PlanningPage:
- * - Single DragDropContext (move between unassigned/assigned/techs).
- * - Shows a global loading overlay while assigning/unassigning.
- * - Now resilient to server errors (spinner always stops, error toast shown).
+ * PlanningBoard:
+ * - Left: compact 2x2 card list of unassigned orders
+ * - Right: technician timeline grid (hour slots)
+ * - Bottom: shared map with markers
  */
-const PlanningBoard = () => {
-  const trpcUtils = trpc.useUtils()
+const MapView = dynamic(() => import('../../components/planning/MapView'), {
+  ssr: false,
+})
 
+const PlanningBoard = () => {
+  const utils = trpc.useUtils()
   const [isProcessing, setProcessing] = useState(false)
 
-  const getErrMessage = (err: unknown) => {
-    if (typeof err === 'string') return err
-    if (err && typeof err === 'object') {
-      // @ts-expect-error tRPC client error shape: err.message is fine for users
-      if (err.message) return String(err.message)
-    }
-    return 'Nie udało się zapisać zmian.'
-  }
+  const {
+    data: unassigned = [],
+    isLoading: isUnassignedLoading,
+    error: unassignedError,
+  } = trpc.order.getUnassignedOrders.useQuery(undefined, { staleTime: 60_000 })
 
-  // Assign/unassign mutation with optimistic update + hard error guard
-  const assignOrderMutation = trpc.order.assignTechnician.useMutation({
-    onMutate: async (variables: {
-      id: string
-      assignedToId?: string
-      orderDetails?: {
-        orderNumber: string
-        city: string
-        street: string
-        timeSlot: TimeSlot
-      }
-    }) => {
-      await trpcUtils.order.getUnassignedOrders.cancel()
-      await trpcUtils.order.getAssignedOrders.cancel()
-
-      const previousUnassigned = trpcUtils.order.getUnassignedOrders.getData()
-      const previousAssigned = trpcUtils.order.getAssignedOrders.getData()
-
-      // Remove from unassigned (optimistic) when assigning
-      if (variables.assignedToId) {
-        trpcUtils.order.getUnassignedOrders.setData(undefined, (old) =>
-          old ? old.filter((o) => o.id !== variables.id) : old
+  const markers = useMemo(
+    () =>
+      unassigned
+        .filter(
+          (r) =>
+            typeof r.lat === 'number' &&
+            typeof r.lng === 'number' &&
+            !Number.isNaN(r.lat) &&
+            !Number.isNaN(r.lng)
         )
-      }
-      // Add back to unassigned on optimistic unassign (optional)
-      if (!variables.assignedToId && variables.orderDetails) {
-        trpcUtils.order.getUnassignedOrders.setData(
-          undefined,
-          (old) => old ?? []
-        )
-      }
+        .map((r) => ({
+          id: r.id,
+          lat: r.lat!,
+          lng: r.lng!,
+          label: `${r.orderNumber} • ${r.city}, ${r.street}`,
+        })),
+    [unassigned]
+  )
 
-      // Optimistic push to the tech board (best-effort)
-      if (variables.assignedToId) {
-        trpcUtils.order.getAssignedOrders.setData(undefined, (old) => {
-          if (!old) return old
-          const newOrder = {
-            id: variables.id,
-            orderNumber: variables.orderDetails?.orderNumber || 'N/A',
-            address: `${variables.orderDetails?.city || 'City'}, ${
-              variables.orderDetails?.street || 'Street'
-            }`,
-            status: 'ASSIGNED' as const,
-            assignedToId: variables.assignedToId,
-          }
-          const technicianId = variables.assignedToId
-          const idx = old.findIndex((a) => a.technicianId === technicianId)
-
-          if (idx !== -1) {
-            const copy = [...old]
-            const assignment = { ...copy[idx] }
-            const timeSlot = variables.orderDetails?.timeSlot || 'EIGHT_TEN'
-            const sIdx = assignment.slots.findIndex(
-              (s) => s.timeSlot === timeSlot
-            )
-            if (sIdx !== -1) {
-              assignment.slots[sIdx] = {
-                ...assignment.slots[sIdx],
-                orders: [...assignment.slots[sIdx].orders, newOrder],
-              }
-            } else {
-              assignment.slots.push({ timeSlot, orders: [newOrder] })
-            }
-            copy[idx] = assignment
-            return copy
-          }
-
-          const newAssignment: TechnicianAssignment = {
-            technicianName: 'Technician',
-            technicianId: technicianId ?? null,
-            slots: [
-              {
-                timeSlot: variables.orderDetails?.timeSlot || 'EIGHT_TEN',
-                orders: [newOrder],
-              },
-            ],
-          }
-          return [...old, newAssignment]
-        })
-      }
-
-      return { previousUnassigned, previousAssigned }
-    },
-    onError: (err, _variables, ctx) => {
-      // rollback caches
-      if (ctx) {
-        trpcUtils.order.getUnassignedOrders.setData(
-          undefined,
-          () => ctx.previousUnassigned
-        )
-        trpcUtils.order.getAssignedOrders.setData(
-          undefined,
-          () => ctx.previousAssigned
-        )
-      }
-      // stop spinner + show error
-      setProcessing(false)
-      toast.error(getErrMessage(err))
-    },
+  const assignMutation = trpc.order.assignTechnician.useMutation({
+    onError: (err) => toast.error(err.message || 'Nie udało się przypisać.'),
     onSettled: async () => {
-      // whatever happened, refresh and stop loader
       await Promise.all([
-        trpcUtils.order.getUnassignedOrders.invalidate(),
-        trpcUtils.order.getAssignedOrders.invalidate(),
+        utils.order.getUnassignedOrders.invalidate(),
+        utils.order.getAssignedOrders.invalidate(),
       ])
       setProcessing(false)
     },
   })
-
-  const handleOrderDrop = async (orderId: string, technicianId: string) => {
-    // make extra sure we always stop the loader even if mutateAsync throws
-    try {
-      await assignOrderMutation.mutateAsync({
-        id: orderId,
-        assignedToId:
-          technicianId === 'UNASSIGNED_ORDERS' ? undefined : technicianId,
-      })
-    } catch {
-      // onError already toasts; we still guard here
-      setProcessing(false)
-    }
-  }
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return
     setProcessing(true)
     try {
       const { draggableId, destination } = result
-      if (!destination.droppableId) return
-      await handleOrderDrop(draggableId, destination.droppableId)
+      const techId =
+        destination.droppableId === 'UNASSIGNED_ORDERS'
+          ? undefined
+          : destination.droppableId
+      await assignMutation.mutateAsync({
+        id: draggableId,
+        assignedToId: techId,
+      })
     } catch {
-      // guard path (shouldn’t happen since onError handles it)
-      toast.error('Nie udało się przypisać zlecenia.')
       setProcessing(false)
     }
   }
@@ -171,13 +81,44 @@ const PlanningBoard = () => {
   return (
     <MaxWidthWrapper>
       <LoadingOverlay show={isProcessing} />
+
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-          {/* Pass setProcessing so child actions can toggle the global overlay */}
-          <TechniciansList setProcessing={setProcessing} />
-          <OrdersList />
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(340px,0.9fr)_2.1fr] gap-6 mt-4">
+          {/* Left: compact unassigned orders */}
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold text-center">
+              Zlecenia do realizacji (nieprzypisane)
+            </h2>
+            <OrdersList compact />
+          </section>
+
+          {/* Right: technicians timeline */}
+          <section className="space-y-3 min-w-0">
+            <h2 className="text-lg font-semibold text-center">
+              Harmonogram techników
+            </h2>
+            <TechniciansList setProcessing={setProcessing} />
+          </section>
         </div>
       </DragDropContext>
+
+      {/* Map at the bottom */}
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-center mb-2">Mapa</h2>
+        <div className="rounded-xl border overflow-hidden">
+          <MapView
+            mapKey={`planning-map-${markers.length}`}
+            markers={markers}
+          />
+        </div>
+        <p className="text-center text-xs text-muted-foreground mt-2">
+          {isUnassignedLoading
+            ? 'Ładowanie adresów…'
+            : unassignedError
+            ? 'Błąd ładowania adresów'
+            : `Zlecenia: ${unassigned.length} • Z geolokacją: ${markers.length}`}
+        </p>
+      </section>
     </MaxWidthWrapper>
   )
 }

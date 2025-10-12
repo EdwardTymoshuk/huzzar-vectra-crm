@@ -1,4 +1,3 @@
-// src/app/admin-panel/components/orders/OrdersTable.tsx
 'use client'
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
@@ -27,14 +26,12 @@ import {
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select'
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/app/components/ui/tooltip'
 import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
-import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { useDebounce } from '@/utils/hooks/useDebounce'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -55,7 +52,9 @@ import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
 import OrdersFilter from './OrdersFilter'
 
-/* ============================== Types ============================== */
+/* ============================================================
+ * Types
+ * ============================================================ */
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
   include: { assignedTo: { select: { id: true; name: true } } }
 }>
@@ -64,9 +63,9 @@ type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
 type Props = { searchTerm: string }
 
-type TechnicianLite = { id: string; name: string }
-
-/* ============================ Guard shell ========================== */
+/* ============================================================
+ * Guard shell
+ * ============================================================ */
 const OrdersTable = ({ searchTerm }: Props) => {
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
   if (isPageLoading) return <LoaderSpinner />
@@ -75,7 +74,9 @@ const OrdersTable = ({ searchTerm }: Props) => {
 
 export default OrdersTable
 
-/* ============================ Inner table ========================== */
+/* ============================================================
+ * OrdersTableInner — realized orders only (COMPLETED / NOT_COMPLETED)
+ * ============================================================ */
 const OrdersTableInner = ({
   searchTerm,
   readOnly,
@@ -91,8 +92,6 @@ const OrdersTableInner = ({
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
   const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | null>(null)
-  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
-  const [editingTechId, setEditingTechId] = useState<string | null>(null)
   const [openRowId, setOpenRowId] = useState<string | null>(null)
 
   // Side panels / dialogs
@@ -108,13 +107,14 @@ const OrdersTableInner = ({
   /* ---------------------------- Data ------------------------------ */
   const debouncedSearch = useDebounce(searchTerm, 300)
 
-  const { data, isLoading, isError } = trpc.order.getOrders.useQuery({
+  // ✅ Fetch only realized orders (COMPLETED or NOT_COMPLETED)
+  const { data, isLoading, isError } = trpc.order.getRealizedOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
     ...(sortField ? { sortField, sortOrder: sortOrder ?? 'asc' } : {}),
-    status: statusFilter ?? undefined,
     assignedToId: technicianFilter ?? undefined,
     type: orderTypeFilter ?? undefined,
+    status: statusFilter ?? undefined,
     searchTerm: debouncedSearch || undefined,
   })
 
@@ -132,19 +132,9 @@ const OrdersTableInner = ({
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  const { data: techniciansData } = trpc.user.getTechnicians.useQuery({
-    status: 'ACTIVE',
-  })
-  const technicians: TechnicianLite[] = useMemo(
-    () => (techniciansData ?? []).map((t) => ({ id: t.id, name: t.name })),
-    [techniciansData]
-  )
-
   /* -------------------------- Mutations --------------------------- */
   const utils = trpc.useUtils()
-  const updateStatus = trpc.order.toggleOrderStatus.useMutation()
   const deleteOrder = trpc.order.deleteOrder.useMutation()
-  const assignTech = trpc.order.assignTechnician.useMutation()
 
   /* --------------------------- Handlers --------------------------- */
   const handleSort = (field: 'date' | 'status') => {
@@ -159,10 +149,13 @@ const OrdersTableInner = ({
     }
   }
 
-  /* ---------------------------- Render ---------------------------- */
+  /* ---------------------------- Layout ---------------------------- */
   const GRID =
-    'grid grid-cols-[120px_90px_140px_110px_120px_110px_minmax(260px,2fr)_minmax(160px,1fr)_max-content_40px]'
+    'grid grid-cols-[110px_120px_160px_140px_minmax(260px,2fr)_120px_130px_40px_40px_20px]'
 
+  /* ============================================================
+   * Render
+   * ============================================================ */
   return (
     <div>
       {/* Filters & page size */}
@@ -187,14 +180,12 @@ const OrdersTableInner = ({
 
       {/* Scroll wrapper */}
       <div className="w-full overflow-x-auto">
-        <div className="w-full min-w-fit md:min-w-[1050px]">
+        <div className="w-full min-w-fit md:min-w-[1100px]">
           {/* Header */}
           <div
             className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-sm text-start font-normal text-muted-foreground select-none`}
           >
-            <span>Operator</span>
             <span>Typ</span>
-            <span>Nr zlecenia</span>
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('date')}
@@ -210,6 +201,10 @@ const OrdersTableInner = ({
                 <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
+            <span>Technik</span>
+            <span>Nr zlecenia</span>
+            <span>Adres</span>
+            <span>Operator</span>
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('status')}
@@ -225,14 +220,35 @@ const OrdersTableInner = ({
                 <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
-            <span>Slot</span>
-            <span>Adres</span>
-            <span>Technik</span>
+            {/* 🧠 P/R header with tooltip explanation */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 cursor-help font-medium">
+                    P/R
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  className="max-w-[220px] text-center bg-background"
+                >
+                  <p>
+                    <span className="text-success font-semibold">P</span> –
+                    dodane przez planer
+                  </p>
+                  <p>
+                    <span className="text-warning font-semibold">R</span> –
+                    dodane ręcznie
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             <span>Akcje</span>
             <span />
           </div>
 
-          {/* List / states */}
+          {/* Data / Loading / Empty states */}
           {isLoading ? (
             <div className="w-full py-10 flex items-center justify-center">
               <LoaderSpinner />
@@ -243,14 +259,14 @@ const OrdersTableInner = ({
             </p>
           ) : !orders.length ? (
             <p className="py-10 text-center text-muted-foreground">
-              Brak danych do wyświetlenia.
+              Brak zrealizowanych zleceń do wyświetlenia.
             </p>
           ) : (
             <Accordion type="multiple">
               {orders.map((o) => {
                 const open = openRowId === o.id
                 return (
-                  <AccordionItem key={o.id} value={o.id}>
+                  <AccordionItem key={o.id} value={o.id} className="min-w-fit">
                     <AccordionTrigger
                       className="text-sm px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
                       asChild
@@ -259,8 +275,19 @@ const OrdersTableInner = ({
                         onClick={() => setOpenRowId(open ? null : o.id)}
                         className={`${GRID} w-full gap-2 items-center text-start`}
                       >
-                        <span>{o.operator}</span>
                         <span>{orderTypeMap[o.type]}</span>
+                        <span>{new Date(o.date).toLocaleDateString()}</span>
+                        <span>
+                          {o.assignedTo ? (
+                            <Badge className="bg-secondary">
+                              {o.assignedTo.name}
+                            </Badge>
+                          ) : (
+                            <span className="italic text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                        </span>
                         <span
                           className="min-w-0 whitespace-normal break-words"
                           title={o.orderNumber}
@@ -271,49 +298,6 @@ const OrdersTableInner = ({
                             autoEscape
                           />
                         </span>
-                        <span>{new Date(o.date).toLocaleDateString()}</span>
-                        <span
-                          onDoubleClick={(e) => {
-                            e.stopPropagation()
-                            setEditingStatusId(o.id)
-                          }}
-                        >
-                          {editingStatusId === o.id ? (
-                            <Select
-                              defaultValue={o.status}
-                              onValueChange={(v) =>
-                                updateStatus.mutate(
-                                  { id: o.id, status: v as OrderStatus },
-                                  {
-                                    onSuccess: () =>
-                                      utils.order.getOrders.invalidate(),
-                                  }
-                                )
-                              }
-                              onOpenChange={(isO) =>
-                                !isO && setEditingStatusId(null)
-                              }
-                            >
-                              <SelectTrigger className="w-[110px] h-7">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(statusMap).map(([k, l]) => (
-                                  <SelectItem key={k} value={k}>
-                                    {l}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Badge
-                              className={statusColorMap[o.status] + ' w-fit'}
-                            >
-                              {statusMap[o.status]}
-                            </Badge>
-                          )}
-                        </span>
-                        <span>{getTimeSlotLabel(o.timeSlot)}</span>
                         <span
                           className="min-w-0 w-full whitespace-normal break-words"
                           title={`${o.city}, ${o.street}`}
@@ -324,55 +308,26 @@ const OrdersTableInner = ({
                             autoEscape
                           />
                         </span>
-                        <span
-                          onDoubleClick={(e) => {
-                            e.stopPropagation()
-                            setEditingTechId(o.id)
-                          }}
-                        >
-                          {editingTechId === o.id ? (
-                            <Select
-                              defaultValue={o.assignedTo?.id || 'none'}
-                              onValueChange={(v) =>
-                                assignTech.mutate(
-                                  {
-                                    id: o.id,
-                                    assignedToId: v === 'none' ? undefined : v,
-                                  },
-                                  {
-                                    onSuccess: () =>
-                                      utils.order.getOrders.invalidate(),
-                                  }
-                                )
-                              }
-                              onOpenChange={(isO) =>
-                                !isO && setEditingTechId(null)
-                              }
-                            >
-                              <SelectTrigger className="w-[150px] h-7">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">
-                                  Nieprzypisany
-                                </SelectItem>
-                                {technicians.map((t) => (
-                                  <SelectItem key={t.id} value={t.id}>
-                                    {t.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : o.assignedTo ? (
-                            <Badge className="bg-secondary">
-                              {o.assignedTo.name}
-                            </Badge>
+                        <span>{o.operator}</span>
+                        <span>
+                          <Badge
+                            className={statusColorMap[o.status] + ' w-fit'}
+                          >
+                            {statusMap[o.status]}
+                          </Badge>
+                        </span>
+                        <span>
+                          {o.createdSource === 'PLANNER' ? (
+                            <span className="text-success font-semibold cursor-help">
+                              P
+                            </span>
                           ) : (
-                            <span className="italic text-muted-foreground">
-                              —
+                            <span className="text-warning font-semibold cursor-help">
+                              R
                             </span>
                           )}
                         </span>
+                        {/* 🔹 Actions */}
                         <span className="text-right">
                           {!readOnly && (
                             <DropdownMenu>
@@ -416,9 +371,12 @@ const OrdersTableInner = ({
                             </DropdownMenu>
                           )}
                         </span>
-                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+
+                        <ChevronDown className="h-4 w-4 shrink-0 justify-self-end transition-transform duration-200" />
                       </div>
                     </AccordionTrigger>
+
+                    {/* Accordion details */}
                     <AccordionContent className="bg-muted/40 px-4 py-3">
                       <OrderAccordionDetails order={{ id: o.id }} />
                     </AccordionContent>
@@ -478,7 +436,7 @@ const OrdersTableInner = ({
               onClick={async () => {
                 if (!orderToDelete) return
                 await deleteOrder.mutateAsync({ id: orderToDelete.id })
-                utils.order.getOrders.invalidate()
+                utils.order.getRealizedOrders.invalidate()
                 setIsDeleteModalOpen(false)
               }}
             >

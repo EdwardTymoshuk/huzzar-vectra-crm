@@ -18,9 +18,9 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { format, startOfMonth } from 'date-fns'
+import { addDays, format, startOfMonth, subDays } from 'date-fns'
 import { useEffect, useState } from 'react'
-import { MdDownload } from 'react-icons/md'
+import { MdChevronLeft, MdChevronRight, MdDownload } from 'react-icons/md'
 import { toast } from 'sonner'
 
 type Props = {
@@ -31,17 +31,14 @@ type Props = {
 type ReportRange = 'day' | 'month'
 
 /**
- * ReportDialog
- * -----------------------------------
- * Allows the user to generate a daily or monthly Excel report from the Orders module.
- * - The user selects the type: "day" or "month"
- * - Based on the type, either a day picker or a month picker is shown
- * - The appropriate tRPC mutation is triggered
- * - The generated base64 is downloaded as an Excel file
+ * ReportDialog:
+ * - Allows generating daily or monthly Excel reports.
+ * - Includes navigation arrows for day switching.
+ * - Default day = yesterday.
  */
 const ReportDialog = ({ open, onClose }: Props) => {
   const [range, setRange] = useState<ReportRange>('day')
-  const [day, setDay] = useState<string>('') // format: yyyy-MM-dd
+  const [day, setDay] = useState<string>('') // yyyy-MM-dd
   const [month, setMonth] = useState<Date>(startOfMonth(new Date()))
 
   // tRPC mutations
@@ -49,19 +46,15 @@ const ReportDialog = ({ open, onClose }: Props) => {
   const monthlyReportMutation =
     trpc.settlement.generateMonthlyReport.useMutation()
 
-  /**
-   * Sets the default selected day on initial open
-   */
+  /** Initialize default date as "yesterday" when dialog opens */
   useEffect(() => {
     if (!day) {
-      const today = format(new Date(), 'yyyy-MM-dd')
-      setDay(today)
+      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
+      setDay(yesterday)
     }
   }, [day])
 
-  /**
-   * Handles generating and downloading the report based on the selected range
-   */
+  /** Handles report generation based on range */
   const handleDownload = async () => {
     try {
       let base64: string | undefined
@@ -91,7 +84,6 @@ const ReportDialog = ({ open, onClose }: Props) => {
         return
       }
 
-      // Convert base64 string to Blob and download
       const blob = base64ToBlob(
         base64,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -110,9 +102,7 @@ const ReportDialog = ({ open, onClose }: Props) => {
     }
   }
 
-  /**
-   * Converts a base64-encoded string to a Blob for file download
-   */
+  /** Converts base64 string to downloadable Blob */
   const base64ToBlob = (base64: string, mime: string): Blob => {
     const byteCharacters = atob(base64)
     const byteArrays = []
@@ -127,6 +117,17 @@ const ReportDialog = ({ open, onClose }: Props) => {
     return new Blob(byteArrays, { type: mime })
   }
 
+  /** Date navigation */
+  const handlePrevDay = () => {
+    const prev = subDays(new Date(day), 1)
+    setDay(format(prev, 'yyyy-MM-dd'))
+  }
+
+  const handleNextDay = () => {
+    const next = addDays(new Date(day), 1)
+    setDay(format(next, 'yyyy-MM-dd'))
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-md">
@@ -137,7 +138,7 @@ const ReportDialog = ({ open, onClose }: Props) => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col space-y-4 mt-2 w-full">
+        <div className="flex flex-col space-y-5 mt-2 w-full">
           {/* Report type selector */}
           <Select
             value={range}
@@ -152,16 +153,38 @@ const ReportDialog = ({ open, onClose }: Props) => {
             </SelectContent>
           </Select>
 
-          {/* Dynamic date/month picker */}
+          {/* Conditional picker */}
           {range === 'day' ? (
-            <DatePicker
-              selected={day ? new Date(day) : undefined}
-              onChange={(d) => {
-                if (d) setDay(format(d, 'yyyy-MM-dd'))
-              }}
-              range="day"
-              fullWidth
-            />
+            <div className="w-full flex items-center justify-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handlePrevDay}
+                aria-label="Poprzedni dzień"
+                className="px-6"
+              >
+                <MdChevronLeft className="w-5 h-5" />
+              </Button>
+
+              <DatePicker
+                selected={day ? new Date(day) : undefined}
+                onChange={(d) => {
+                  if (d) setDay(format(d, 'yyyy-MM-dd'))
+                }}
+                range="day"
+                fullWidth
+              />
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleNextDay}
+                aria-label="Następny dzień"
+                className="px-6"
+              >
+                <MdChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
           ) : (
             <MonthPicker
               selected={month}

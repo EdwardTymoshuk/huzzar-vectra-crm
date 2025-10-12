@@ -6,12 +6,15 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import AssignmentsTable from '../orders/AssignmentsTable'
+import AssignmentsTable from './AssignmentsTable'
+import AssignmentsToolbar from './AssignmentsToolbar'
 import PlanningBoard from './PlanningBoard'
+import PlanningToolbar from './PlanningToolbar'
 
 /**
  * PlanningTabs:
- * - Switches between "Planowanie" (drag & drop board) and "Zbiórówka".
+ * - Tab "Planowanie": planning toolbar (import + manual add) + board.
+ * - Tab "Zbiórówka": assignments toolbar (report only) + table.
  */
 const PlanningTabs = () => {
   return (
@@ -27,13 +30,15 @@ const PlanningTabs = () => {
         </TabsList>
       </div>
 
-      {/* --- Planowanie --- */}
+      {/* Planning tab: toolbar + board */}
       <TabsContent value="planning">
+        <PlanningToolbar />
         <PlanningBoard />
       </TabsContent>
 
-      {/* --- Zbiórówka --- */}
+      {/* Assignments tab: toolbar + table */}
       <TabsContent value="assignments">
+        <AssignmentsToolbar />
         <AssignmentsTable />
       </TabsContent>
     </Tabs>

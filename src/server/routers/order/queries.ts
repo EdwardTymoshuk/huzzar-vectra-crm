@@ -168,6 +168,8 @@ export const queriesRouter = router({
           timeSlot: true,
           status: true,
           assignedTo: { select: { id: true } },
+          operator: true,
+          date: true,
         },
         orderBy: { timeSlot: 'asc' },
       })
@@ -181,6 +183,8 @@ export const queriesRouter = router({
           street: string
           timeSlot: TimeSlot
           status: OrderStatus
+          operator: string
+          date: Date
         }
       ) => {
         if (!byTech[key]) {
@@ -206,11 +210,60 @@ export const queriesRouter = router({
           address: `${data.city}, ${data.street}`,
           status: data.status,
           assignedToId: key === 'unassigned' ? undefined : key,
+          operator: data.operator,
+          date: data.date,
         })
       }
 
       assigned.forEach((o) => push(o.assignedTo!.id ?? 'unassigned', o))
       return Object.values(byTech)
+    }),
+
+  getRealizedOrders: loggedInEveryone
+    .input(
+      z.object({
+        page: z.number().default(1),
+        limit: z.number().default(30),
+        sortField: z.enum(['date', 'status']).optional(),
+        sortOrder: z.enum(['asc', 'desc']).optional(),
+        assignedToId: z.string().optional(),
+        type: z.nativeEnum(OrderType).optional(),
+        status: z.nativeEnum(OrderStatus).optional(),
+        searchTerm: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const filters: Prisma.OrderWhereInput = {
+        status: { in: [OrderStatus.COMPLETED, OrderStatus.NOT_COMPLETED] },
+      }
+
+      if (input.assignedToId) filters.assignedToId = input.assignedToId
+      if (input.type) filters.type = input.type
+      if (input.status) filters.status = input.status
+
+      if (input.searchTerm && input.searchTerm.trim() !== '') {
+        const q = input.searchTerm.trim()
+        filters.OR = [
+          { orderNumber: { contains: q, mode: 'insensitive' } },
+          { city: { contains: q, mode: 'insensitive' } },
+          { street: { contains: q, mode: 'insensitive' } },
+        ]
+      }
+
+      const orders = await ctx.prisma.order.findMany({
+        where: filters,
+        orderBy: input.sortField
+          ? { [input.sortField]: input.sortOrder ?? 'asc' }
+          : { date: 'desc' },
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+        },
+      })
+
+      const totalOrders = await ctx.prisma.order.count({ where: filters })
+      return { orders, totalOrders }
     }),
 
   /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */

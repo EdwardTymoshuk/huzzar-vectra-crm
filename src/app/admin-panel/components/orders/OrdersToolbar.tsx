@@ -5,51 +5,40 @@ import SearchInput from '@/app/components/shared/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { useRole } from '@/utils/hooks/useRole'
 import { useState } from 'react'
-import { MdAdd, MdDownload, MdUploadFile } from 'react-icons/md'
+import { MdAdd } from 'react-icons/md'
 import AddOrderModal from './AddOrderModal'
-import ImportOrdersModal from './ImportOrdersModal'
-import ReportDialog from './ReportDialog'
 
-type Props = {
+/**
+ * OrdersToolbarManual:
+ * - Toolbar for the "Orders" page.
+ * - Allows manual order creation only.
+ * - Keeps search input on the right side.
+ */
+const OrdersToolbar = ({
+  searchTerm,
+  setSearchTerm,
+}: {
   searchTerm: string
   setSearchTerm: (value: string) => void
-}
-
-const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
+}) => {
   const [isAddModalOpen, setAddModalOpen] = useState(false)
-  const [isReportDialogOpen, setReportDialogOpen] = useState(false)
-  const [isImportModalOpen, setImportModalOpen] = useState(false)
 
-  const { isAdmin, isCoordinator, isLoading: isPageLoading } = useRole()
-  if (isPageLoading) return <LoaderSpinner />
+  // Role-based gating for administrative actions
+  const { isAdmin, isCoordinator, isLoading } = useRole()
+  if (isLoading) return <LoaderSpinner />
   const canManageOrders = isAdmin || isCoordinator
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-      {/* LEFT ACTIONS */}
+      {/* Left actions: manual add only */}
       {canManageOrders && (
-        <div className="flex flex-wrap gap-2">
-          {/* ADD MANUALLY */}
-          <Button variant="success" onClick={() => setAddModalOpen(true)}>
-            <MdAdd />
-            <span className="hidden lg:inline">Dodaj ręcznie</span>
-          </Button>
-
-          {/* IMPORT EXCEL */}
-          <Button variant="warning" onClick={() => setImportModalOpen(true)}>
-            <MdUploadFile />
-            <span className="hidden lg:inline">Wczytaj z Excela</span>
-          </Button>
-
-          {/* REPORT */}
-          <Button variant="default" onClick={() => setReportDialogOpen(true)}>
-            <MdDownload />
-            <span className="hidden lg:inline">Raport</span>
-          </Button>
-        </div>
+        <Button variant="success" onClick={() => setAddModalOpen(true)}>
+          <MdAdd />
+          <span className="hidden lg:inline">Dodaj ręcznie</span>
+        </Button>
       )}
 
-      {/* SEARCH */}
+      {/* Right side: search input */}
       <div className="w-full sm:w-1/2 lg:w-1/4">
         <SearchInput
           placeholder="Szukaj po nr zlecenia lub adresie"
@@ -58,22 +47,12 @@ const OrdersToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         />
       </div>
 
-      {/* MODALS */}
+      {/* Modal: manual order creation */}
       {canManageOrders && (
-        <>
-          <AddOrderModal
-            open={isAddModalOpen}
-            onCloseAction={() => setAddModalOpen(false)}
-          />
-          <ImportOrdersModal
-            open={isImportModalOpen}
-            onClose={() => setImportModalOpen(false)}
-          />
-          <ReportDialog
-            open={isReportDialogOpen}
-            onClose={() => setReportDialogOpen(false)}
-          />
-        </>
+        <AddOrderModal
+          open={isAddModalOpen}
+          onCloseAction={() => setAddModalOpen(false)}
+        />
       )}
     </div>
   )

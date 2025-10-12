@@ -18,7 +18,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
       <NavigationProgressProvider>
         <GlobalRouteLoader />
         <Header />
-        <div className="flex md:h-screen md:overflow-hidden">
+        <div className="flex md:h-screen md:overflow-y-hidden">
           <Sidebar />
           <MainContainer>{children}</MainContainer>
         </div>

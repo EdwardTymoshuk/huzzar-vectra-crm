@@ -15,17 +15,21 @@ import { Draggable, Droppable } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
 import Highlight from 'react-highlight-words'
 
+/**
+ * OrderTable (left column list)
+ * - Droppable target: "UNASSIGNED_ORDERS".
+ * - Rows are draggable onto technicians.
+ */
 const OrderTable = () => {
   const { data: orders = [] } = trpc.order.getUnassignedOrders.useQuery()
   const { searchTerm } = useSearch()
 
-  const filteredOrders = orders.filter((order) => {
-    const address = `${order.city} ${order.street}`.toLowerCase()
-    return (
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      address.includes(searchTerm.toLowerCase())
-    )
+  const filtered = orders.filter((o) => {
+    const address = `${o.city} ${o.street}`.toLowerCase()
+    const q = searchTerm.toLowerCase()
+    return o.orderNumber.toLowerCase().includes(q) || address.includes(q)
   })
+
   return (
     <Droppable droppableId="UNASSIGNED_ORDERS" type="ORDER">
       {(provided, snapshot) => (
@@ -38,52 +42,51 @@ const OrderTable = () => {
               : 'border-border bg-card text-card-foreground'
           }`}
         >
-          {filteredOrders.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="flex w-full h-52 items-center justify-center">
               <p className="text-center text-muted-foreground">Brak zleceń</p>
             </div>
           ) : (
-            <Table>
+            <Table className="text-sm">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nr zlecenia</TableHead>
-                  <TableHead>Adres</TableHead>
-                  <TableHead>Slot</TableHead>
+                  <TableHead className="py-2">Nr zlecenia</TableHead>
+                  <TableHead className="py-2">Adres</TableHead>
+                  <TableHead className="py-2">Slot</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order, index) => (
+                {filtered.map((order, index) => (
                   <Draggable
                     key={order.id}
                     draggableId={order.id}
                     index={index}
                   >
-                    {(provided) => (
+                    {(providedRow) => (
                       <TableRow
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className="cursor-grab hover:bg-muted transition"
+                        ref={providedRow.innerRef}
+                        {...providedRow.draggableProps}
+                        {...providedRow.dragHandleProps}
+                        className="cursor-grab hover:bg-muted/60 transition"
                       >
-                        <TableCell>
-                          {' '}
+                        <TableCell className="py-2">
                           <Highlight
                             highlightClassName="bg-yellow-200"
                             searchWords={[searchTerm]}
-                            autoEscape={true}
+                            autoEscape
                             textToHighlight={order.orderNumber}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-2">
                           <Highlight
                             highlightClassName="bg-yellow-200"
                             searchWords={[searchTerm]}
-                            autoEscape={true}
+                            autoEscape
                             textToHighlight={`${order.city}, ${order.street}`}
                           />
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col items-center jsutify-center">
+                        <TableCell className="py-2">
+                          <div className="flex flex-col items-center justify-center leading-tight">
                             <p>{format(order.date, 'dd.MM.yyyy')}</p>
                             {timeSlotMap[order.timeSlot] || order.timeSlot}
                           </div>

@@ -2,65 +2,61 @@
 
 import DatePicker from '@/app/components/shared/DatePicker'
 import SearchInput from '@/app/components/shared/SearchInput'
+import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { getErrMessage } from '@/utils/errorHandler'
 import { trpc } from '@/utils/trpc'
-import { Droppable } from '@hello-pangea/dnd'
+import { addDays, subDays } from 'date-fns'
 import { useMemo, useState } from 'react'
+import { MdChevronLeft, MdChevronRight } from 'react-icons/md'
 import { toast } from 'sonner'
-import TechnicianTable from './TechnicianTable'
+import TechniciansTimeline from './TechniciansTimeline'
 
 type Props = { setProcessing: (v: boolean) => void }
 
-/** Single technician card skeleton used while assignments are loading. */
-const TechnicianCardSkeleton: React.FC = () => (
-  <div className="rounded-lg border bg-card">
-    <div className="px-4 py-3 border-b">
-      <Skeleton className="h-5 w-48" />
-    </div>
-    <div className="px-4 py-3 space-y-3">
-      {/* table header mimic */}
-      {/* table header mimic */}
-      <div className="grid grid-cols-[1fr_2fr] gap-4 max-w-full overflow-hidden">
-        <Skeleton className="h-4 w-24 max-w-full" />
-        <Skeleton className="h-4 w-24 max-w-full" />
-      </div>
-
-      {/* a few rows mimic */}
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div
+/**
+ * TechniciansListSkeleton
+ * Displays placeholder timeline structure during data loading.
+ */
+const TechniciansListSkeleton: React.FC = () => (
+  <div className="w-full overflow-x-auto border rounded-md bg-background shadow-inner">
+    <div
+      className="grid border-b bg-muted font-medium text-sm sticky top-0 z-10"
+      style={{ gridTemplateColumns: `200px repeat(15, 100px)` }}
+    >
+      {Array.from({ length: 15 }).map((_, i) => (
+        <Skeleton
           key={i}
-          className="grid grid-cols-[1fr_2fr] gap-4 py-2 max-w-full overflow-hidden"
-        >
-          <Skeleton className="h-4 w-28 max-w-full" />
-          <div className="space-y-2 max-w-full overflow-hidden">
-            <Skeleton className="h-4 w-56 max-w-full" />
-            <Skeleton className="h-4 w-40 max-w-full" />
-          </div>
-        </div>
+          className="h-10 w-[100px] border-r rounded-none border-gray-300"
+        />
       ))}
     </div>
-  </div>
-)
 
-/** Skeleton list container. */
-const TechniciansListSkeleton: React.FC<{ count?: number }> = ({
-  count = 4,
-}) => (
-  <div className="w-full max-w-5xl mx-auto px-2 md:px-4 space-y-4">
-    {Array.from({ length: count }).map((_, i) => (
-      <TechnicianCardSkeleton key={i} />
+    {Array.from({ length: 10 }).map((_, i) => (
+      <div
+        key={i}
+        className="grid border-b text-sm"
+        style={{ gridTemplateColumns: `200px repeat(14, 100px)` }}
+      >
+        <Skeleton className="h-10 w-full border-r rounded-none" />
+        <div className="col-span-13 flex items-center">
+          <Skeleton className="h-8 w-full mx-2" />
+        </div>
+      </div>
     ))}
   </div>
 )
 
+/**
+ * TechniciansList
+ * Wrapper that manages filters, date navigation, and data fetching for timeline.
+ */
 const TechniciansList = ({ setProcessing }: Props) => {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [searchTerm, setSearchTerm] = useState('')
 
   const trpcUtils = trpc.useUtils()
 
-  // NOTE: Keep the payload date as YYYY-MM-DD for server-side filtering.
   const { data: assignments = [], isLoading } =
     trpc.order.getAssignedOrders.useQuery({
       date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : undefined,
@@ -70,7 +66,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
     onError: (err) => toast.error(getErrMessage(err)),
   })
 
-  /** Unassigns an order from a technician and refreshes relevant caches. */
+  /** Unassigns order from technician and refreshes data caches. */
   const unassignOrder = async (orderId: string) => {
     setProcessing(true)
     try {
@@ -86,7 +82,11 @@ const TechniciansList = ({ setProcessing }: Props) => {
     }
   }
 
-  // Filter technicians (only those with defined id & name and matching search)
+  /** Day navigation controls. */
+  const handlePrevDay = () => setSelectedDate((prev) => subDays(prev, 1))
+  const handleNextDay = () => setSelectedDate((prev) => addDays(prev, 1))
+
+  /** Filters technicians by name. */
   const filteredTechnicians = useMemo(() => {
     const existing = assignments.filter(
       (t) => t.technicianId && t.technicianName
@@ -97,73 +97,61 @@ const TechniciansList = ({ setProcessing }: Props) => {
   }, [assignments, searchTerm])
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header (unchanged structure) */}
-      <div className="flex flex-col w-full items-center gap-4">
-        <h2 className="text-lg font-semibold">Technicy</h2>
+    <div className="space-y-6 max-w-full min-w-0">
+      {/* Header: date navigation + search */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-8 mt-2">
+        <div className="flex items-center justify-center gap-4 md:gap-6">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handlePrevDay}
+            aria-label="Previous day"
+          >
+            <MdChevronLeft className="w-5 h-5" />
+          </Button>
 
-        {/* DatePicker in its own row (to match original layout) */}
-        <div className="w-full">
-          <DatePicker
-            range="day"
-            selected={selectedDate}
-            onChange={(date) => setSelectedDate(date ?? undefined)}
-            allowFuture
-          />
+          <div className="scale-105">
+            <DatePicker
+              selected={selectedDate}
+              onChange={(date) => date && setSelectedDate(date)}
+              range="day"
+              allowFuture
+            />
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleNextDay}
+            aria-label="Next day"
+          >
+            <MdChevronRight className="w-5 h-5" />
+          </Button>
         </div>
 
-        {/* Search input in its own row (to match original layout) */}
-        <div className="w-full">
+        <div className="w-full md:w-72">
           <SearchInput
-            placeholder="Szukaj technika"
+            placeholder="Szukaj technika..."
             value={searchTerm}
             onChange={setSearchTerm}
           />
         </div>
       </div>
 
-      {/* Content (no counters, no extra status line) */}
+      {/* Content */}
       {isLoading ? (
         <TechniciansListSkeleton />
       ) : filteredTechnicians.length === 0 ? (
         <div className="flex w-full h-52 items-center justify-center">
-          <p className="text-center text-muted-foreground">Brak techników</p>
+          <p className="text-center text-muted-foreground">
+            Brak techników lub przypisanych zleceń.
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredTechnicians.map((tech) => {
-            const technicianId = tech.technicianId as string
-            return (
-              <div key={technicianId} className="rounded-lg border bg-card">
-                {/* Simple header with only the technician name (no counters) */}
-                <div className="px-4 py-3 border-b font-semibold">
-                  {tech.technicianName}
-                </div>
-
-                {/* Always visible droppable area (accordion removed) */}
-                <Droppable droppableId={technicianId} type="ORDER">
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={[
-                        'p-3 transition',
-                        snapshot.isDraggingOver ? 'bg-muted/60' : 'bg-card',
-                      ].join(' ')}
-                    >
-                      <TechnicianTable
-                        technicianId={technicianId}
-                        slots={tech.slots}
-                        onUnassign={unassignOrder}
-                      />
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            )
-          })}
-        </div>
+        <TechniciansTimeline
+          assignments={filteredTechnicians}
+          onUnassign={unassignOrder}
+        />
       )}
     </div>
   )
