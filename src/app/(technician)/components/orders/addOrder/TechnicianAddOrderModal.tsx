@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { OrderStatus } from '@prisma/client'
+import { OrderCreatedSource, OrderStatus } from '@prisma/client'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -66,6 +66,7 @@ export const TechnicianAddOrderModal = ({
         postalCode: '00-000',
         assignedToId: session?.user.id,
         status: OrderStatus.ASSIGNED,
+        createdSource: OrderCreatedSource.MANUAL,
       })
 
       toast.success('Zlecenie zostało dodane!')

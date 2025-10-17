@@ -177,6 +177,7 @@ export type ActivatedService = {
   id: string
   type: ServiceType
   deviceType?: DeviceCategory
+  deviceType2?: DeviceCategory
   deviceId?: string
   serialNumber?: string
   deviceId2?: string

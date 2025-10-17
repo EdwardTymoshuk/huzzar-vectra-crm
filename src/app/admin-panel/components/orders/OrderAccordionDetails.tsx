@@ -1,6 +1,6 @@
 'use client'
 
-import CompleteOrderModal from '@/app/(technician)/components/orders/completeOrder/CompleteOrderModal'
+import CompleteOrderWizard from '@/app/(technician)/components/orders/completeOrder/CompleteOrderWizard'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import OrderDetailsContent from '@/app/components/shared/orders/OrderDetailsContent'
 import { Button } from '@/app/components/ui/button'
@@ -17,89 +17,145 @@ import { toast } from 'sonner'
 type Props = { order: { id: string } }
 
 /**
- * Accordion details for OrdersTable rows:
- * - Displays read-only details.
- * - Allows "amend" modal for completed/not-completed orders, except warehouse role.
+ * OrderAccordionDetails (Admin/Coordinator view)
+ *
+ * Displays full order details inside accordion row.
+ * - Admin/coordinator can:
+ *   • approve completed SERVICE/OUTAGE orders,
+ *   • re-edit finished orders (no time limit),
+ * - Uses CompleteOrderWizard with mode="adminEdit" for full data editing.
  */
 const OrderAccordionDetails = ({ order }: Props) => {
   const utils = trpc.useUtils()
-  const [openAmend, setOpenAmend] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
   const { isWarehouseman, isAdmin, isCoordinator } = useRole()
   const session = useSession()
-
   const editOrder = trpc.order.editOrder.useMutation()
 
-  // Fetch details for the row
+  /* ---------------- Fetch order details ---------------- */
   const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
     id: order.id,
   })
 
-  if (isLoading)
+  const { data: materialDefs } = trpc.materialDefinition.getAll.useQuery()
+  const { data: rawMaterials } = trpc.warehouse.getTechnicianStock.useQuery({
+    technicianId: data?.assignedToId ?? 'self',
+    itemType: 'MATERIAL',
+  })
+  const { data: rawDevices } = trpc.warehouse.getTechnicianStock.useQuery({
+    technicianId: data?.assignedToId ?? 'self',
+    itemType: 'DEVICE',
+  })
+
+  const { data: workCodeDefs } = trpc.rateDefinition.getAllRates.useQuery()
+
+  if (isLoading || !data)
     return (
       <div className="p-4">
         <LoaderSpinner />
       </div>
     )
 
-  if (isError || !data)
+  if (isError)
     return (
-      <div className="p-4 text-danger">
+      <div className="p-4 text-destructive">
         Nie udało się załadować szczegółów zlecenia.
       </div>
     )
 
+  if (!materialDefs || !rawMaterials)
+    return (
+      <div className="p-4 text-destructive">
+        Nie udało się pobrać danych magazynowych.
+      </div>
+    )
+
+  /* ---------------- Data prep ---------------- */
   const isConfirmed = data.notes?.toLowerCase().includes('zatwierdzone przez')
 
-  const canAmend =
-    data.status === OrderStatus.COMPLETED ||
-    data.status === OrderStatus.NOT_COMPLETED
+  const techMaterials = rawMaterials.map((m) => ({
+    id: m.id,
+    name: m.name,
+    materialDefinitionId: m.materialDefinitionId ?? '',
+    quantity: m.quantity ?? 0,
+    type: 'MATERIAL' as const,
+  }))
 
+  const devices = (rawDevices ?? [])
+    .filter((d) => !!d.serialNumber)
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber ?? '',
+      category: d.category ?? 'OTHER',
+      type: 'DEVICE' as const,
+    }))
+
+  /* ---------------- Logic flags ---------------- */
   const canApprove =
     (isAdmin || isCoordinator) &&
     (data.type === 'SERVICE' || data.type === 'OUTAGE') &&
     data.status === OrderStatus.COMPLETED &&
     !isConfirmed
 
+  const canAdminEdit =
+    isAdmin &&
+    (data.status === OrderStatus.COMPLETED ||
+      data.status === OrderStatus.NOT_COMPLETED)
+
+  /* ---------------- Render ---------------- */
   return (
     <div className="space-y-4">
       <OrderDetailsContent order={data} isConfirmed={isConfirmed} />
 
-      {(canAmend || canApprove) && (
-        <div className="flex gap-2 pt-2">
-          {canAmend && !isWarehouseman && (
-            <Button variant="warning" onClick={() => setOpenAmend(true)}>
+      {(canAdminEdit || canApprove) && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {/* --- Admin edit completed orders --- */}
+          {canAdminEdit && !isWarehouseman && (
+            <Button
+              variant="warning"
+              onClick={() => {
+                utils.order.getOrderById.invalidate({ id: order.id })
+                setOpenEdit(true)
+              }}
+            >
               <MdEdit className="mr-1" />
-              Edytuj odpis
+              Edytuj zakończone zlecenie
             </Button>
           )}
 
+          {/* --- Approve completed SERVICE / OUTAGE --- */}
           {canApprove && (
             <Button
               variant="success"
               onClick={async () => {
-                const now = new Date()
-                const dateFormatted = formatDateTime(now)
-                const updatedNotes = `${
-                  data.notes ? data.notes + '\n' : ''
-                }Zatwierdzone przez ${
-                  session.data?.user?.name
-                } (${dateFormatted})`
+                try {
+                  const now = new Date()
+                  const dateFormatted = formatDateTime(now)
+                  const updatedNotes = `${
+                    data.notes ? data.notes + '\n' : ''
+                  }Zatwierdzone przez ${
+                    session.data?.user?.name
+                  } (${dateFormatted})`
 
-                await editOrder.mutateAsync({
-                  id: data.id,
-                  notes: updatedNotes,
-                  orderNumber: data.orderNumber,
-                  date: data.date.toISOString().split('T')[0],
-                  timeSlot: data.timeSlot,
-                  status: data.status,
-                  city: data.city,
-                  street: data.street,
-                  assignedToId: data.assignedTo?.id,
-                })
+                  await editOrder.mutateAsync({
+                    id: data.id,
+                    notes: updatedNotes,
+                    orderNumber: data.orderNumber,
+                    date: data.date.toISOString().split('T')[0],
+                    timeSlot: data.timeSlot,
+                    status: data.status,
+                    city: data.city,
+                    street: data.street,
+                    assignedToId: data.assignedTo?.id,
+                  })
 
-                toast.success('Zlecenie zostało zatwierdzone.')
-                await utils.order.getOrderById.invalidate({ id: data.id })
-                await utils.order.getOrders.invalidate()
+                  toast.success('Zlecenie zostało zatwierdzone.')
+                  await utils.order.getOrderById.invalidate({ id: data.id })
+                  await utils.order.getOrders.invalidate()
+                } catch {
+                  toast.error('Nie udało się zatwierdzić zlecenia.')
+                }
               }}
             >
               <IoCheckmarkDone className="mr-1" />
@@ -109,16 +165,22 @@ const OrderAccordionDetails = ({ order }: Props) => {
         </div>
       )}
 
-      <CompleteOrderModal
-        open={openAmend}
+      {/* --- Admin edit modal (CompleteOrderWizard) --- */}
+      <CompleteOrderWizard
+        key={order.id}
+        open={openEdit}
         onCloseAction={async () => {
-          setOpenAmend(false)
-          await utils.order.getOrderById.invalidate({ id: order.id })
+          setOpenEdit(false)
           await utils.order.getOrders.invalidate()
+          await utils.order.getOrderById.invalidate({ id: order.id })
         }}
         order={data}
         orderType={data.type}
-        mode="amend"
+        materialDefs={materialDefs}
+        techMaterials={techMaterials}
+        devices={devices}
+        mode="adminEdit"
+        workCodeDefs={workCodeDefs}
       />
     </div>
   )

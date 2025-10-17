@@ -111,6 +111,8 @@ model OrderService {
   deviceId2     String?
   serialNumber2 String?
   speedTest     String?
+  deviceType    DeviceCategory?
+  deviceType2   DeviceCategory?
   usDbmDown     Float?
   usDbmUp       Float?
   createdAt     DateTime    @default(now())

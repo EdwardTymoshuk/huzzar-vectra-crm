@@ -1,0 +1,318 @@
+'use client'
+
+import { Button } from '@/app/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/app/components/ui/dialog'
+import { Progress } from '@/app/components/ui/progress'
+import { useRole } from '@/utils/hooks/useRole'
+import { trpc } from '@/utils/trpc'
+import {
+  DeviceCategory,
+  MaterialDefinition,
+  MaterialUnit,
+  OrderStatus,
+  OrderType,
+  Prisma,
+  RateDefinition,
+} from '@prisma/client'
+import { ArrowLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+
+import { ActivatedService, IssuedItemDevice, IssuedItemMaterial } from '@/types'
+import StepCollectedAndNotes from './steps/StepCollectedAndNotes'
+import StepInstallationAndMaterials from './steps/StepInstallationAndMaterials'
+import StepServices from './steps/StepServices'
+import StepStatus from './steps/StepStatus'
+import StepSummary from './steps/StepSummary'
+
+const STEPS = [
+  'Status',
+  'Usługi',
+  'Instalacja i materiały',
+  'Odbiór i uwagi',
+  'Podsumowanie',
+]
+
+/** Prisma type including all required relations for full order details */
+type FullOrder = Prisma.OrderGetPayload<{
+  include: {
+    assignedTo: { select: { id: true; name: true } }
+    history: {
+      include: { changedBy: { select: { id: true; name: true } } }
+    }
+    settlementEntries: true
+    usedMaterials: { include: { material: true } }
+    assignedEquipment: { include: { warehouse: true } }
+    services: true
+  }
+}>
+
+interface Props {
+  open: boolean
+  order: FullOrder
+  orderType: OrderType
+  onCloseAction: () => void
+  materialDefs: MaterialDefinition[]
+  techMaterials: {
+    id: string
+    name: string
+    materialDefinitionId: string
+    quantity: number
+  }[]
+  devices?: IssuedItemDevice[]
+  mode?: 'complete' | 'amend' | 'adminEdit'
+  workCodeDefs: RateDefinition[] | undefined
+}
+
+/**
+ * Multi-step order completion and editing wizard.
+ * Handles technician and admin flows.
+ */
+const CompleteOrderWizard = ({
+  open,
+  order,
+  orderType,
+  onCloseAction,
+  materialDefs,
+  techMaterials,
+  devices = [],
+  mode = 'complete',
+  workCodeDefs,
+}: Props) => {
+  const { isAdmin, isCoordinator } = useRole()
+  const utils = trpc.useUtils()
+
+  /** Step state */
+  const [step, setStep] = useState(0)
+
+  /** Core form states */
+  const [status, setStatus] = useState<OrderStatus>('COMPLETED')
+  const [services, setServices] = useState<ActivatedService[]>([])
+  const [install, setInstall] = useState({ pion: 0, listwa: 0 })
+  const [materials, setMaterials] = useState<
+    { id: string; quantity: number }[]
+  >([])
+  const [collected, setCollected] = useState<
+    {
+      id: string
+      name: string
+      category: DeviceCategory
+      serialNumber: string
+    }[]
+  >([])
+  const [notes, setNotes] = useState('')
+
+  /**
+   * Prefill data for "amend" or "adminEdit" mode.
+   * Includes installation details, used materials and collected devices.
+   */
+  useEffect(() => {
+    if (mode === 'complete') return
+
+    const normalizedServices: ActivatedService[] =
+      order.services?.map((s) => ({
+        id: s.id,
+        type: s.type,
+        deviceId: s.deviceId ?? undefined,
+        serialNumber: s.serialNumber ?? undefined,
+        deviceId2: s.deviceId2 ?? undefined,
+        serialNumber2: s.serialNumber2 ?? undefined,
+        usDbmDown: s.usDbmDown ?? undefined,
+        usDbmUp: s.usDbmUp ?? undefined,
+        speedTest: s.speedTest ?? undefined,
+        notes: s.notes ?? undefined,
+        deviceType: s.deviceType ?? undefined,
+      })) ?? []
+
+    const normalizedMaterials =
+      order.usedMaterials?.map((m) => ({
+        id: m.material?.id ?? '',
+        quantity: m.quantity ?? 0,
+      })) ?? []
+
+    const collectedFromAssigned =
+      order.assignedEquipment
+        ?.filter(
+          (e) =>
+            e.warehouse?.status === 'COLLECTED_FROM_CLIENT' &&
+            e.warehouse?.serialNumber &&
+            e.warehouse?.name
+        )
+        .map((e) => ({
+          id: e.warehouse!.id,
+          name: e.warehouse!.name,
+          category: e.warehouse!.category ?? DeviceCategory.OTHER,
+          serialNumber: e.warehouse!.serialNumber ?? '',
+        })) ?? []
+
+    const findQty = (keyword: string): number =>
+      order.settlementEntries?.find((e) =>
+        e.code.toLowerCase().includes(keyword.toLowerCase())
+      )?.quantity ?? 0
+
+    setStatus(order.status ?? 'COMPLETED')
+    setNotes(order.notes ?? '')
+    setServices(normalizedServices)
+    setMaterials(normalizedMaterials)
+    setCollected(collectedFromAssigned)
+    setInstall({ pion: findQty('pion'), listwa: findQty('listw') })
+  }, [mode, order])
+
+  /** Technician stock typing */
+  const techMaterialsTyped: IssuedItemMaterial[] = techMaterials.map((m) => ({
+    ...m,
+    type: 'MATERIAL',
+  }))
+  const materialDefsTyped = materialDefs.map((m) => ({
+    ...m,
+    unit: m.unit as MaterialUnit,
+  }))
+
+  /** Mutations */
+  const completeMutation = trpc.order.completeOrder.useMutation()
+  const amendMutation = trpc.order.amendCompletion.useMutation()
+  const adminEditMutation = trpc.order.adminEditCompletion.useMutation()
+
+  const resolveMutation = () => {
+    if (mode === 'adminEdit') return adminEditMutation
+    if (mode === 'amend')
+      return isAdmin || isCoordinator ? adminEditMutation : amendMutation
+    return completeMutation
+  }
+
+  /**
+   * Handles final submission.
+   * Selects appropriate mutation based on role and mode.
+   */
+  const handleSubmit = async (payload: {
+    status: OrderStatus
+    notes?: string | null
+    failureReason?: string
+    workCodes?: { code: string; quantity: number }[]
+    equipmentIds: string[]
+    usedMaterials: { id: string; quantity: number }[]
+    collectedDevices: {
+      name: string
+      category: DeviceCategory
+      serialNumber?: string
+    }[]
+    services: ActivatedService[]
+  }) => {
+    try {
+      const mutation = resolveMutation()
+      await mutation.mutateAsync({ orderId: order.id, ...payload })
+
+      toast.success(
+        mode === 'complete'
+          ? 'Zlecenie zostało zakończone.'
+          : 'Zlecenie zostało zaktualizowane.'
+      )
+
+      await utils.order.getOrders.invalidate()
+      await utils.order.getOrderById.invalidate({ id: order.id })
+      onCloseAction()
+    } catch {
+      toast.error('Błąd podczas zapisu zlecenia.')
+    }
+  }
+
+  /** Step navigation helpers */
+  const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1))
+  const back = () => (step === 0 ? onCloseAction() : setStep((s) => s - 1))
+
+  /** Render */
+  return (
+    <Dialog open={open} onOpenChange={onCloseAction}>
+      <DialogContent className="h-screen max-h-screen w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col">
+        <DialogHeader className="border-b p-4 flex flex-row items-center justify-between">
+          <Button variant="ghost" onClick={back} size="icon">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <DialogTitle className="text-lg font-semibold text-center flex-1">
+            {STEPS[step]}
+          </DialogTitle>
+          <div className="w-10" />
+        </DialogHeader>
+
+        <Progress
+          value={((step + 1) / STEPS.length) * 100}
+          className="mb-2 h-2 rounded-full md:mx-auto"
+        />
+
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {step === 0 && (
+            <StepStatus
+              status={status}
+              setStatus={setStatus}
+              onNext={(data) => {
+                setStatus(data.status)
+                setNotes(data.notes || '')
+                if (data.finishImmediately) setStep(STEPS.length - 1)
+                else next()
+              }}
+            />
+          )}
+
+          {step === 1 && (
+            <StepServices
+              services={services}
+              setServices={setServices}
+              onNext={next}
+              onBack={back}
+              operator={order.operator}
+              devices={devices}
+            />
+          )}
+
+          {step === 2 && (
+            <StepInstallationAndMaterials
+              activatedServices={services}
+              installValue={install}
+              onInstallChange={setInstall}
+              materials={materials}
+              setMaterials={setMaterials}
+              materialDefs={materialDefsTyped}
+              techMaterials={techMaterialsTyped}
+              onNext={next}
+              onBack={back}
+            />
+          )}
+
+          {step === 3 && (
+            <StepCollectedAndNotes
+              collected={collected}
+              setCollected={setCollected}
+              notes={notes}
+              setNotes={setNotes}
+              onNext={next}
+              onBack={back}
+            />
+          )}
+
+          {step === 4 && (
+            <StepSummary
+              orderType={orderType}
+              status={status}
+              services={services}
+              install={install}
+              materials={materials}
+              collected={collected}
+              notes={notes}
+              onBack={back}
+              onSubmit={handleSubmit}
+              materialDefs={materialDefsTyped}
+              workCodeDefs={workCodeDefs ?? []}
+            />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export default CompleteOrderWizard

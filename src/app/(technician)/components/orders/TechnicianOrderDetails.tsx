@@ -4,20 +4,18 @@ import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import OrderDetailsContent from '@/app/components/shared/orders/OrderDetailsContent'
 import { Alert, AlertDescription } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
+import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus } from '@prisma/client'
+import { DeviceCategory, OrderStatus } from '@prisma/client'
 import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { BsSendCheck } from 'react-icons/bs'
 import { CgArrowsExchange } from 'react-icons/cg'
 import { MdEdit } from 'react-icons/md'
 import TransferOrderModal from './TransferOrderModal'
-import CompleteOrderModal from './completeOrder/CompleteOrderModal'
+import CompleteOrderWizard from './completeOrder/CompleteOrderWizard'
 
-/* -------------------------------------------------- */
-/* Props                                               */
-/* -------------------------------------------------- */
 interface Props {
   orderId: string
   autoOpen?: boolean
@@ -30,9 +28,12 @@ interface Props {
   onReject?: () => void
 }
 
-/* -------------------------------------------------- */
-/* Component                                          */
-/* -------------------------------------------------- */
+/**
+ * TechnicianOrderDetails
+ * - Displays technician order details and actions.
+ * - Handles "transfer" and "complete order" flows.
+ * - Opens CompleteOrderWizard as a Dialog (mobile fullscreen, desktop modal).
+ */
 const TechnicianOrderDetails = ({
   orderId,
   autoOpen,
@@ -44,33 +45,36 @@ const TechnicianOrderDetails = ({
   onAccept,
   onReject,
 }: Props) => {
-  /* Fetch full order payload for contextual decisions (completedAt, etc.). */
-  const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
-    id: orderId,
-  })
-
-  /* Read role flags on client for UX-only gating (server enforces final auth). */
-  const { isAdmin, isCoordinator, isWarehouseman, isTechnician } = useRole()
-
-  /* Local modal flags. */
   const [showTransfer, setShowTransfer] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
 
-  /* Prefer trpc utils for safe cache invalidation keys. */
   const utils = trpc.useUtils()
+  const { isAdmin, isCoordinator, isWarehouseman, isTechnician } = useRole()
 
-  /* Auto-open Complete modal when requested by parent (e.g., deep-link). */
+  /* ---------------- Fetch data ---------------- */
+  const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
+    id: orderId,
+  })
+  const { data: materialDefs } = trpc.materialDefinition.getAll.useQuery()
+  const { data: rawMaterials } = trpc.warehouse.getTechnicianStock.useQuery({
+    technicianId: 'self',
+    itemType: 'MATERIAL',
+  })
+  const { data: rawDevices } = trpc.warehouse.getTechnicianStock.useQuery({
+    technicianId: 'self',
+    itemType: 'DEVICE',
+  })
+  const { data: workCodeDefs } = trpc.rateDefinition.getAllRates.useQuery()
+
+  /* ---------------- Auto open (deep-link) ---------------- */
   useEffect(() => {
     if (autoOpen) {
       setShowCompleteModal(true)
       onAutoOpenHandled?.()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOpen])
+  }, [autoOpen, onAutoOpenHandled])
 
-  /* Determine whether we can show the "Amend" button.
-   * - For admins/coordinators: always when order is COMPLETED/NOT_COMPLETED.
-   * - For technicians: same status + within 15 minutes from completedAt. */
+  /* ---------------- Permissions ---------------- */
   const canShowAmendButton = useMemo(() => {
     const isEnded =
       orderStatus === OrderStatus.COMPLETED ||
@@ -78,7 +82,6 @@ const TechnicianOrderDetails = ({
     if (!isEnded) return false
     if (isAdmin || isCoordinator) return true
 
-    // For technician: check 15 min window
     if (isTechnician && data?.completedAt) {
       const diff = differenceInMinutes(new Date(), new Date(data.completedAt))
       return diff <= 15
@@ -86,30 +89,59 @@ const TechnicianOrderDetails = ({
     return false
   }, [orderStatus, isAdmin, isCoordinator, isTechnician, data?.completedAt])
 
-  /* Async states */
+  /* ---------------- Loading states ---------------- */
   if (isLoading)
     return (
-      <div className="w-full flex justify-center">
+      <div className="w-full flex justify-center py-10">
         <LoaderSpinner />
       </div>
     )
+
   if (isError || !data)
     return <p className="text-destructive">Błąd ładowania danych.</p>
 
-  /* Render */
+  if (!materialDefs || !rawMaterials)
+    return (
+      <p className="text-destructive">
+        Nie udało się pobrać danych magazynowych.
+      </p>
+    )
+
+  /* ---------------- Prepare technician stock ---------------- */
+  const techMaterials: IssuedItemMaterial[] = rawMaterials
+    .filter((m) => !!m.materialDefinitionId)
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      materialDefinitionId: m.materialDefinitionId!,
+      quantity: m.quantity ?? 0,
+      type: 'MATERIAL',
+    }))
+
+  const devices: IssuedItemDevice[] = (rawDevices ?? [])
+    .filter((d) => !!d.serialNumber)
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber ?? '',
+      category: (d.category as DeviceCategory) ?? 'OTHER',
+      type: 'DEVICE',
+    }))
+
+  /* ---------------- Render ---------------- */
   return (
     <div className="space-y-6 text-sm bg-card text-card-foreground p-4 rounded-lg">
-      {/* Transfer alert if present */}
+      {/* Transfer alert */}
       {pendingMessage && (
         <Alert variant="destructive" className="!pl-3">
           <AlertDescription>{pendingMessage}</AlertDescription>
         </Alert>
       )}
 
-      {/* Read-only order details content */}
-      <OrderDetailsContent order={data} hideTechnician={true} />
+      {/* Order details */}
+      <OrderDetailsContent order={data} hideTechnician />
 
-      {/* Transfer actions for incoming transfer */}
+      {/* Incoming transfer actions */}
       {incomingTransfer && (
         <div className="flex gap-2 pt-2">
           <Button size="sm" onClick={onAccept}>
@@ -121,7 +153,7 @@ const TechnicianOrderDetails = ({
         </div>
       )}
 
-      {/* Standard actions (tech flow) */}
+      {/* Technician actions */}
       {!disableTransfer && !incomingTransfer && (
         <>
           {orderStatus === OrderStatus.ASSIGNED ? (
@@ -130,16 +162,15 @@ const TechnicianOrderDetails = ({
                 variant="success"
                 onClick={() => setShowCompleteModal(true)}
               >
-                <BsSendCheck />
+                <BsSendCheck className="mr-1" />
                 Odpisz
               </Button>
               <Button variant="default" onClick={() => setShowTransfer(true)}>
-                <CgArrowsExchange />
+                <CgArrowsExchange className="mr-1" />
                 Przekaż
               </Button>
             </div>
           ) : (
-            /* Amend button (visible based on role/time); warehouseman never edits. */
             canShowAmendButton &&
             !isWarehouseman && (
               <div className="flex gap-2">
@@ -147,7 +178,7 @@ const TechnicianOrderDetails = ({
                   variant="success"
                   onClick={() => setShowCompleteModal(true)}
                 >
-                  <MdEdit />
+                  <MdEdit className="mr-1" />
                   Edytuj / uzupełnij odpis
                 </Button>
               </div>
@@ -163,20 +194,22 @@ const TechnicianOrderDetails = ({
         onClose={() => setShowTransfer(false)}
       />
 
-      {/* Complete/Amend modal (single UI for both flows) */}
-      <CompleteOrderModal
+      {/* Complete wizard modal */}
+      <CompleteOrderWizard
+        key={data.id}
         open={showCompleteModal}
         order={data}
+        orderType={data.type}
         onCloseAction={async () => {
           setShowCompleteModal(false)
-          // Invalidate both list and details for fresh view.
           await utils.order.getOrders.invalidate()
           await utils.order.getOrderById.invalidate({ id: orderId })
         }}
-        orderType={data.type}
-        mode={
-          orderStatus === OrderStatus.ASSIGNED ? 'complete' : ('amend' as const)
-        }
+        materialDefs={materialDefs}
+        techMaterials={techMaterials}
+        devices={devices}
+        workCodeDefs={workCodeDefs}
+        mode={canShowAmendButton ? 'amend' : 'complete'}
       />
     </div>
   )

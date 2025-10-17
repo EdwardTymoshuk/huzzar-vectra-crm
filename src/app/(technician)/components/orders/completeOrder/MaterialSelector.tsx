@@ -77,10 +77,6 @@ const MaterialSelector = ({
     setQuantity(1)
   }
 
-  /**
-   * Remove a material from the list by its ID.
-   * @param id - The material ID to remove.
-   */
   const handleRemove = (id: string) => {
     setSelected(selected.filter((m) => m.id !== id))
   }
@@ -98,26 +94,36 @@ const MaterialSelector = ({
 
       {/* Quantity input and add button for the currently selected material */}
       {selectedMaterialId && selectedMaterial && (
-        <div className="flex gap-4 items-end w-full min-w-0">
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
-            {/* Material name wraps to multiple lines */}
-            <span className="text-sm font-semibold text-foreground min-w-0 whitespace-normal break-words">
-              {selectedMaterial.name}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Dostępne: {availableQty} {materialUnitMap[selectedMaterial.unit]}
-            </span>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:gap-4 w-full min-w-0">
+          <div className="flex flex-col sm:flex-1 sm:min-w-0 w-full">
+            <div className="flex flex-row justify-between items-center gap-1 sm:flex-col sm:items-start">
+              <span className="text-sm font-semibold text-foreground min-w-0 whitespace-normal break-words">
+                {selectedMaterial.name}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Dostępne: {availableQty}{' '}
+                {materialUnitMap[selectedMaterial.unit]}
+              </span>
+            </div>
           </div>
-          <Input
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            className="w-24 flex-shrink-0"
-          />
-          <Button size="sm" onClick={handleAdd} className="flex-shrink-0">
-            Dodaj
-          </Button>
+
+          {/* Input and button */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 sm:mt-0 w-full sm:w-auto">
+            <Input
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              className="w-full sm:w-24 flex-shrink-0"
+            />
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              className="w-full sm:w-auto flex-shrink-0"
+            >
+              Dodaj
+            </Button>
+          </div>
         </div>
       )}
 

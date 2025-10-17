@@ -12,7 +12,7 @@ import { orderSchema } from '@/lib/schema'
 import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { OrderStatus } from '@prisma/client'
+import { OrderCreatedSource, OrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -82,6 +82,7 @@ export function AddOrderModal({
         status: finalStatus,
         assignedToId:
           data.assignedToId === 'none' ? undefined : data.assignedToId,
+        createdSource: OrderCreatedSource.MANUAL,
       })
 
       toast.success('Zlecenie zostało dodane!')

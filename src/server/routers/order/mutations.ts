@@ -5,6 +5,7 @@ import { prisma } from '@/utils/prisma'
 import {
   DeviceCategory,
   MaterialUnit,
+  OrderCreatedSource,
   OrderStatus,
   OrderType,
   Prisma,
@@ -87,6 +88,62 @@ async function getOrCreateCollectedWarehouseItem(opts: {
   return created.id
 }
 
+/**
+ * Maps input services to include deviceType and deviceType2 based on Warehouse category.
+ * Used in completeOrder, amendCompletion, and adminEditCompletion.
+ */
+async function mapServicesWithDeviceTypes(
+  tx: DbTx,
+  services: {
+    id: string
+    type: ServiceType
+    deviceId?: string
+    serialNumber?: string
+    deviceId2?: string
+    serialNumber2?: string
+    speedTest?: string
+    usDbmDown?: number
+    usDbmUp?: number
+    notes?: string
+  }[],
+  orderId: string
+) {
+  return Promise.all(
+    services.map(async (s) => {
+      const [device1, device2] = await Promise.all([
+        s.deviceId
+          ? tx.warehouse.findUnique({
+              where: { id: s.deviceId },
+              select: { category: true },
+            })
+          : null,
+        s.deviceId2
+          ? tx.warehouse.findUnique({
+              where: { id: s.deviceId2 },
+              select: { category: true },
+            })
+          : null,
+      ])
+
+      return {
+        id: s.id,
+        orderId,
+        type: s.type,
+        deviceId: s.deviceId ?? null,
+        serialNumber: s.serialNumber ?? null,
+        deviceId2: s.deviceId2 ?? null,
+        serialNumber2: s.serialNumber2 ?? null,
+        deviceType: device1?.category ?? null,
+        deviceType2: device2?.category ?? null,
+        speedTest: s.speedTest ?? null,
+        usDbmDown: s.usDbmDown ?? null,
+        usDbmUp: s.usDbmUp ?? null,
+        notes: s.notes ?? null,
+      }
+    })
+  )
+}
+
 const parsedOrderSchema = z.object({
   operator: z.string(),
   orderNumber: z.string(),
@@ -125,6 +182,7 @@ export const mutationsRouter = router({
         street: z.string(),
         postalCode: z.string(),
         assignedToId: z.string().optional(),
+        createdSource: z.nativeEnum(OrderCreatedSource).default('PLANNER'),
       })
     )
     .mutation(async ({ input }) => {
@@ -155,6 +213,7 @@ export const mutationsRouter = router({
           street: input.street,
           postalCode: input.postalCode,
           assignedToId: input.assignedToId ?? null,
+          createdSource: input.createdSource,
         },
       })
     }),
@@ -558,21 +617,13 @@ export const mutationsRouter = router({
             where: { orderId: input.orderId },
           })
           if (input.services.length) {
-            await tx.orderService.createMany({
-              data: input.services.map((s) => ({
-                id: s.id,
-                orderId: input.orderId,
-                type: s.type,
-                deviceId: s.deviceId ?? null,
-                serialNumber: s.serialNumber ?? null,
-                deviceId2: s.deviceId2 ?? null,
-                serialNumber2: s.serialNumber2 ?? null,
-                speedTest: s.speedTest ?? null,
-                usDbmDown: s.usDbmDown ?? null,
-                usDbmUp: s.usDbmUp ?? null,
-                notes: s.notes ?? null,
-              })),
-            })
+            const servicesData = await mapServicesWithDeviceTypes(
+              tx,
+              input.services,
+              input.orderId
+            )
+
+            await tx.orderService.createMany({ data: servicesData })
           }
         }
       })
@@ -713,21 +764,12 @@ export const mutationsRouter = router({
 
         // Services/measurements snapshot
         if (input.status === OrderStatus.COMPLETED && input.services.length) {
-          await tx.orderService.createMany({
-            data: input.services.map((s) => ({
-              id: s.id,
-              orderId: input.orderId,
-              type: s.type,
-              deviceId: s.deviceId ?? null,
-              serialNumber: s.serialNumber ?? null,
-              deviceId2: s.deviceId2 ?? null,
-              serialNumber2: s.serialNumber2 ?? null,
-              speedTest: s.speedTest ?? null,
-              usDbmDown: s.usDbmDown ?? null,
-              usDbmUp: s.usDbmUp ?? null,
-              notes: s.notes ?? null,
-            })),
-          })
+          const servicesData = await mapServicesWithDeviceTypes(
+            tx,
+            input.services,
+            input.orderId
+          )
+          await tx.orderService.createMany({ data: servicesData })
         }
 
         // History entry
@@ -878,21 +920,12 @@ export const mutationsRouter = router({
 
         // Services/measurements snapshot
         if (input.status === OrderStatus.COMPLETED && input.services.length) {
-          await tx.orderService.createMany({
-            data: input.services.map((s) => ({
-              id: s.id,
-              orderId: input.orderId,
-              type: s.type,
-              deviceId: s.deviceId ?? null,
-              serialNumber: s.serialNumber ?? null,
-              deviceId2: s.deviceId2 ?? null,
-              serialNumber2: s.serialNumber2 ?? null,
-              speedTest: s.speedTest ?? null,
-              usDbmDown: s.usDbmDown ?? null,
-              usDbmUp: s.usDbmUp ?? null,
-              notes: s.notes ?? null,
-            })),
-          })
+          const servicesData = await mapServicesWithDeviceTypes(
+            tx,
+            input.services,
+            input.orderId
+          )
+          await tx.orderService.createMany({ data: servicesData })
         }
 
         // History entry
