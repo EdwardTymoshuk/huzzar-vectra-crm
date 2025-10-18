@@ -48,7 +48,7 @@ export const TechnicianAddOrderModal = ({
     defaultValues: {
       type: 'INSTALATION',
       orderNumber: '',
-      date: '',
+      date: new Date().toISOString().split('T')[0],
       timeSlot: 'EIGHT_TEN',
       city: '',
       street: '',

@@ -99,7 +99,7 @@ const StepServices = ({
       </div>
 
       {/* Bottom buttons */}
-      <div className="sticky bottom-0 bg-background border-t p-3 flex gap-3">
+      <div className="sticky bottom-0 bg-background flex gap-3">
         <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
           Wstecz
         </Button>

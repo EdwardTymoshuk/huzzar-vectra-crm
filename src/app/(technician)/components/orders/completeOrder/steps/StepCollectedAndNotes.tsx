@@ -96,7 +96,7 @@ const StepCollectedAndNotes = ({
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 pb-8">
         <h3 className="text-xl font-semibold text-center mt-3 mb-4">
-          Odbiór urządzeń i uwagi
+          Dodaj odebrane urządzenia i uwagi
         </h3>
 
         {/* --- Switch: enable/disable collection --- */}
@@ -209,7 +209,7 @@ const StepCollectedAndNotes = ({
       </div>
 
       {/* Bottom nav */}
-      <div className="sticky bottom-0 bg-background border-t p-3 flex gap-3">
+      <div className="sticky bottom-0 bg-background flex gap-3">
         <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
           Wstecz
         </Button>

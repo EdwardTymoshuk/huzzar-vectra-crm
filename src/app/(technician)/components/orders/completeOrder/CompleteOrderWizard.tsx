@@ -24,19 +24,22 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ActivatedService, IssuedItemDevice, IssuedItemMaterial } from '@/types'
+import { MdClose } from 'react-icons/md'
 import StepCollectedAndNotes from './steps/StepCollectedAndNotes'
 import StepInstallationAndMaterials from './steps/StepInstallationAndMaterials'
 import StepServices from './steps/StepServices'
 import StepStatus from './steps/StepStatus'
 import StepSummary from './steps/StepSummary'
 
-const STEPS = [
+const STEPS_INSTALLATION = [
   'Status',
   'Usługi',
   'Instalacja i materiały',
   'Odbiór i uwagi',
   'Podsumowanie',
 ]
+
+const STEPS_SERVICE = ['Status', 'Odbiór i uwagi', 'Podsumowanie']
 
 /** Prisma type including all required relations for full order details */
 type FullOrder = Prisma.OrderGetPayload<{
@@ -84,12 +87,8 @@ const CompleteOrderWizard = ({
   mode = 'complete',
   workCodeDefs,
 }: Props) => {
-  const { isAdmin, isCoordinator } = useRole()
-  const utils = trpc.useUtils()
-
   /** Step state */
   const [step, setStep] = useState(0)
-
   /** Core form states */
   const [status, setStatus] = useState<OrderStatus>('COMPLETED')
   const [services, setServices] = useState<ActivatedService[]>([])
@@ -106,6 +105,12 @@ const CompleteOrderWizard = ({
     }[]
   >([])
   const [notes, setNotes] = useState('')
+
+  const { isAdmin, isCoordinator } = useRole()
+  const utils = trpc.useUtils()
+
+  const STEPS =
+    order.type === 'INSTALATION' ? STEPS_INSTALLATION : STEPS_SERVICE
 
   /**
    * Prefill data for "amend" or "adminEdit" mode.
@@ -228,15 +233,34 @@ const CompleteOrderWizard = ({
   /** Render */
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="h-screen max-h-screen w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col">
-        <DialogHeader className="border-b p-4 flex flex-row items-center justify-between">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col [&>button.absolute.right-4.top-4]:hidden">
+        <DialogHeader className="border-b p-4 flex flex-row items-center justify-between sticky top-0 bg-background z-10">
           <Button variant="ghost" onClick={back} size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <DialogTitle className="text-lg font-semibold text-center flex-1">
-            {STEPS[step]}
+
+          <DialogTitle className="text-center flex-1">
+            <div className="flex flex-col items-center">
+              {/* Order number */}
+              <span className="text-base font-semibold">
+                {order.orderNumber}
+              </span>
+
+              {/* Address (smaller, muted color) */}
+              <span className="text-sm text-muted-foreground text-center leading-tight">
+                {`${order.city} ${order.street}` || 'Brak adresu'}
+              </span>
+            </div>
           </DialogTitle>
-          <div className="w-10" />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCloseAction}
+            aria-label="Close"
+          >
+            <MdClose className="w-5 h-5" />
+          </Button>
         </DialogHeader>
 
         <Progress
@@ -258,56 +282,93 @@ const CompleteOrderWizard = ({
             />
           )}
 
-          {step === 1 && (
-            <StepServices
-              services={services}
-              setServices={setServices}
-              onNext={next}
-              onBack={back}
-              operator={order.operator}
-              devices={devices}
-            />
+          {/* Installation flow */}
+          {orderType === 'INSTALATION' && (
+            <>
+              {step === 1 && (
+                <StepServices
+                  services={services}
+                  setServices={setServices}
+                  onNext={next}
+                  onBack={back}
+                  operator={order.operator}
+                  devices={devices}
+                />
+              )}
+
+              {step === 2 && (
+                <StepInstallationAndMaterials
+                  activatedServices={services}
+                  installValue={install}
+                  onInstallChange={setInstall}
+                  materials={materials}
+                  setMaterials={setMaterials}
+                  materialDefs={materialDefsTyped}
+                  techMaterials={techMaterialsTyped}
+                  onNext={next}
+                  onBack={back}
+                />
+              )}
+
+              {step === 3 && (
+                <StepCollectedAndNotes
+                  collected={collected}
+                  setCollected={setCollected}
+                  notes={notes}
+                  setNotes={setNotes}
+                  onNext={next}
+                  onBack={back}
+                />
+              )}
+
+              {step === 4 && (
+                <StepSummary
+                  orderType={orderType}
+                  status={status}
+                  services={services}
+                  install={install}
+                  materials={materials}
+                  collected={collected}
+                  notes={notes}
+                  onBack={back}
+                  onSubmit={handleSubmit}
+                  materialDefs={materialDefsTyped}
+                  workCodeDefs={workCodeDefs ?? []}
+                />
+              )}
+            </>
           )}
 
-          {step === 2 && (
-            <StepInstallationAndMaterials
-              activatedServices={services}
-              installValue={install}
-              onInstallChange={setInstall}
-              materials={materials}
-              setMaterials={setMaterials}
-              materialDefs={materialDefsTyped}
-              techMaterials={techMaterialsTyped}
-              onNext={next}
-              onBack={back}
-            />
-          )}
+          {/* Service / Outage flow */}
+          {orderType !== 'INSTALATION' && (
+            <>
+              {step === 1 && (
+                <StepCollectedAndNotes
+                  collected={collected}
+                  setCollected={setCollected}
+                  notes={notes}
+                  setNotes={setNotes}
+                  onNext={next}
+                  onBack={back}
+                />
+              )}
 
-          {step === 3 && (
-            <StepCollectedAndNotes
-              collected={collected}
-              setCollected={setCollected}
-              notes={notes}
-              setNotes={setNotes}
-              onNext={next}
-              onBack={back}
-            />
-          )}
-
-          {step === 4 && (
-            <StepSummary
-              orderType={orderType}
-              status={status}
-              services={services}
-              install={install}
-              materials={materials}
-              collected={collected}
-              notes={notes}
-              onBack={back}
-              onSubmit={handleSubmit}
-              materialDefs={materialDefsTyped}
-              workCodeDefs={workCodeDefs ?? []}
-            />
+              {step === 2 && (
+                <StepSummary
+                  orderType={orderType}
+                  status={status}
+                  services={[]}
+                  install={{ pion: 0, listwa: 0 }}
+                  materials={materials}
+                  collected={collected}
+                  notes={notes}
+                  onBack={back}
+                  onSubmit={handleSubmit}
+                  materialDefs={materialDefsTyped}
+                  workCodeDefs={workCodeDefs ?? []}
+                />
+              )}
+            </>
           )}
         </div>
       </DialogContent>

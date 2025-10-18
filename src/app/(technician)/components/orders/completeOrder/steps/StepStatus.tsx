@@ -102,10 +102,10 @@ const StepStatus = ({ status, setStatus, onNext }: StepStatusProps) => {
       </div>
 
       {/* Bottom navigation */}
-      <div className="sticky bottom-0 bg-background border-t p-3">
+      <div className="sticky bottom-0 bg-background">
         <Button
           onClick={handleSubmit}
-          className="w-full h-11 text-base"
+          className="w-full h-11 text-base "
           disabled={!status}
         >
           {status === 'NOT_COMPLETED' ? 'Zakończ zlecenie' : 'Dalej'}

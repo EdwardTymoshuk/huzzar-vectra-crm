@@ -12,6 +12,7 @@ import {
   OrderStatus,
   OrderType,
   RateDefinition,
+  ServiceType,
 } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -20,7 +21,10 @@ interface StepSummaryProps {
   orderType: OrderType
   status: OrderStatus
   services: ActivatedService[]
-  install: { pion: number; listwa: number }
+  install: {
+    pion: number
+    listwa: number
+  }
   materials: { id: string; quantity: number }[]
   collected: {
     id: string
@@ -49,8 +53,11 @@ interface StepSummaryProps {
 }
 
 /**
- * StepSummary – final step of CompleteOrderWizard
- * Displays the order summary including devices, routers, measurements and materials.
+ * StepSummary
+ * -------------------------------------------------------
+ * Final step of the CompleteOrderWizard.
+ * Displays order summary with status, installation/service
+ * blocks, used materials, collected devices, and total earnings.
  */
 const StepSummary = ({
   orderType,
@@ -67,10 +74,11 @@ const StepSummary = ({
 }: StepSummaryProps) => {
   const [isSaving, setIsSaving] = useState(false)
 
-  /** Handles final submission */
+  /** Handles final confirmation and order submission */
   const handleFinish = async () => {
     try {
       setIsSaving(true)
+
       const isInstallation = orderType === 'INSTALATION'
       const workCodes = isInstallation
         ? getSettlementWorkCodes(services, workCodeDefs, install)
@@ -100,40 +108,119 @@ const StepSummary = ({
     }
   }
 
+  /** Helpers */
   const materialById = (id: string) =>
     materialDefs.find((m) => m.id === id)?.name ?? '—'
   const unitById = (id: string) =>
     materialDefs.find((m) => m.id === id)?.unit ?? '—'
+  const countType = (type: ServiceType) =>
+    services.filter((s) => s.type === type).length
 
   return (
     <div className="flex flex-col h-full justify-between">
-      {/* Scrollable summary content */}
+      {/* ============ SCROLLABLE CONTENT ============ */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4">
+        {/* Title */}
         <h3 className="text-xl font-semibold text-center mt-2">
           Podsumowanie zlecenia
         </h3>
 
-        {/* Status */}
+        {/* --- Order status --- */}
         <Card>
           <CardContent className="p-4 space-y-1">
             <p className="font-medium">
-              Status: {status === 'COMPLETED' ? 'Wykonane' : 'Niewykonane'}
+              Status:{' '}
+              {status === 'COMPLETED' ? (
+                <span className="text-success">Wykonane</span>
+              ) : (
+                <span className="text-danger">Niewykonane</span>
+              )}
             </p>
           </CardContent>
         </Card>
 
-        {/* Services */}
+        {/* --- Installation blocks --- */}
+        {orderType === 'INSTALATION' && (
+          <>
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    PRZYŁĄCZA ×1
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    GNIAZDA ×
+                    {
+                      services.filter((s) =>
+                        ['DTV', 'NET', 'TEL', 'ATV'].includes(s.type)
+                      ).length
+                    }
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    PION ×{install.pion || 0}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    LISTWY ×{install.listwa || 0}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    ATV ×{countType('ATV')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    DTV ×{countType('DTV')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    NET ×{countType('NET')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                  >
+                    TEL ×{countType('TEL')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* --- Devices installed --- */}
         {services.length > 0 && (
           <Card>
             <CardContent className="p-4 space-y-2">
-              <p className="font-semibold">Uruchomione usługi</p>
-
+              <p className="font-semibold">Zainstalowane urządzenia</p>
               {services.map((s) => (
                 <div
                   key={s.id}
                   className="text-sm border-b last:border-none py-2 space-y-1"
                 >
-                  {/* --- Service type and main device --- */}
                   <div>
                     <span className="font-medium">{s.type}</span>
                     {s.deviceType && (
@@ -148,7 +235,6 @@ const StepSummary = ({
                     )}
                   </div>
 
-                  {/* --- Router if present --- */}
                   {(s.deviceType2 || s.deviceId2) && s.serialNumber2 && (
                     <div className="text-xs text-muted-foreground ml-4">
                       Router:{' '}
@@ -158,7 +244,6 @@ const StepSummary = ({
                     </div>
                   )}
 
-                  {/* --- Measurements --- */}
                   {(s.usDbmDown !== undefined ||
                     s.usDbmUp !== undefined ||
                     s.speedTest) && (
@@ -169,7 +254,6 @@ const StepSummary = ({
                     </div>
                   )}
 
-                  {/* --- Notes for ATV --- */}
                   {s.type === 'ATV' && s.notes && (
                     <div className="mt-1 text-muted-foreground text-xs whitespace-pre-line ml-2">
                       {s.notes}
@@ -181,25 +265,30 @@ const StepSummary = ({
           </Card>
         )}
 
-        {/* Installation */}
-        {(install.pion > 0 || install.listwa > 0) && (
+        {/* --- Devices removed --- */}
+        {collected.length > 0 && (
           <Card>
-            <CardContent className="p-4">
-              <p className="font-semibold">Elementy instalacji</p>
-              <p className="text-sm text-muted-foreground">
-                Piony: {install.pion} | Listwy: {install.listwa}
-              </p>
+            <CardContent className="p-4 space-y-2">
+              <p className="font-semibold">Zdemontowane urządzenia</p>
+              {collected.map((d) => (
+                <div key={d.id} className="text-sm">
+                  {devicesTypeMap[d.category]} {d.name} (SN: {d.serialNumber})
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
 
-        {/* Materials */}
+        {/* --- Materials used --- */}
         {materials.length > 0 && (
           <Card>
             <CardContent className="p-4 space-y-2">
               <p className="font-semibold">Zużyte materiały</p>
               {materials.map((m) => (
-                <div key={m.id} className="text-sm flex justify-between">
+                <div
+                  key={m.id}
+                  className="text-sm flex justify-between border-b last:border-none py-1"
+                >
                   <span>{materialById(m.id)}</span>
                   <span>
                     {m.quantity}{' '}
@@ -211,21 +300,7 @@ const StepSummary = ({
           </Card>
         )}
 
-        {/* Collected devices */}
-        {collected.length > 0 && (
-          <Card>
-            <CardContent className="p-4 space-y-2">
-              <p className="font-semibold">Odebrane urządzenia</p>
-              {collected.map((d) => (
-                <div key={d.id} className="text-sm">
-                  {devicesTypeMap[d.category]} {d.name} (SN: {d.serialNumber})
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Notes */}
+        {/* --- Notes --- */}
         {notes && (
           <Card>
             <CardContent className="p-4 space-y-1">
@@ -234,10 +309,35 @@ const StepSummary = ({
             </CardContent>
           </Card>
         )}
+
+        {/* --- Billing summary --- */}
+        {orderType === 'INSTALATION' && (
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="font-semibold mb-1">Rozliczenie</p>
+              {(() => {
+                const workCodes = getSettlementWorkCodes(
+                  services,
+                  workCodeDefs,
+                  install
+                )
+                const total = workCodes.reduce((sum, wc) => {
+                  const rate = workCodeDefs.find((r) => r.code === wc.code)
+                  return sum + (rate?.amount ?? 0) * wc.quantity
+                }, 0)
+                return (
+                  <p className="text-success text-lg font-bold">
+                    {total.toFixed(2)} zł
+                  </p>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Sticky bottom nav */}
-      <div className="sticky bottom-0 bg-background border-t p-3 flex gap-3">
+      {/* ============ Bottom navigation ============ */}
+      <div className="sticky bottom-0 bg-background flex gap-3 pt-2">
         <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
           Wstecz
         </Button>
