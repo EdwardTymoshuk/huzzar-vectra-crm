@@ -144,16 +144,16 @@ const StepSummary = ({
           <>
             <Card>
               <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-[0.65rem]"
                   >
                     PRZYŁĄCZA ×1
                   </Button>
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     GNIAZDA ×
                     {
@@ -164,13 +164,13 @@ const StepSummary = ({
                   </Button>
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     PION ×{install.pion || 0}
                   </Button>
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     LISTWY ×{install.listwa || 0}
                   </Button>
@@ -183,25 +183,25 @@ const StepSummary = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     ATV ×{countType('ATV')}
                   </Button>
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     DTV ×{countType('DTV')}
                   </Button>
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     NET ×{countType('NET')}
                   </Button>
                   <Button
                     variant="secondary"
-                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary"
+                    className="w-full justify-center font-semibold cursor-default hover:bg-secondary text-sm"
                   >
                     TEL ×{countType('TEL')}
                   </Button>
