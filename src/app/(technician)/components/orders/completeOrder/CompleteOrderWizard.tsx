@@ -234,7 +234,7 @@ const CompleteOrderWizard = ({
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
       <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col [&>button.absolute.right-4.top-4]:hidden">
-        <DialogHeader className="border-b p-4 flex flex-row items-center justify-between sticky top-0 bg-background z-10">
+        <DialogHeader className="border-bflex flex-row items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
           <Button variant="ghost" onClick={back} size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -268,7 +268,7 @@ const CompleteOrderWizard = ({
           className="mb-2 h-2 rounded-full md:mx-auto"
         />
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto">
           {step === 0 && (
             <StepStatus
               status={status}
