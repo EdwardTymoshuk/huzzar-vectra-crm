@@ -57,18 +57,23 @@ const HistoryTable = ({ entries }: Props) => {
     return acc
   }, {})
 
+  const GRID =
+    'grid grid-cols-[100px_150px_120px_minmax(160px,2fr)_minmax(160px,2fr)_130px_minmax(160px,1fr)_0px]'
+
   return (
     <div className="w-full overflow-x-auto">
       <div className="min-w-[1100px]">
         {/* Table header row */}
-        <div className="grid grid-cols-8 gap-2 px-4 py-2 text-sm border-b font-medium text-muted-foreground whitespace-nowrap">
+        <div
+          className={`${GRID} gap-2 px-4 py-2 text-sm border-b font-medium text-muted-foreground whitespace-nowrap`}
+        >
           <span>Data</span>
           <span>Typ</span>
           <span>Od</span>
           <span>Do</span>
           <span>Użytkownik</span>
-          <span className="text-center">Pozycje</span>
-          <span className="text-right">Uwagi</span>
+          <span>Pozycje</span>
+          <span>Uwagi</span>
           <span />
         </div>
 
@@ -107,7 +112,9 @@ const HistoryTable = ({ entries }: Props) => {
             return (
               <AccordionItem key={groupKey} value={`item-${index}`}>
                 <AccordionTrigger className="py-4 px-2 hover:bg-muted text-left">
-                  <div className="grid grid-cols-8 gap-2 items-center whitespace-nowrap text-sm w-full">
+                  <div
+                    className={`${GRID} gap-2 py-2 text-sm text-muted-foreground whitespace-nowrap`}
+                  >
                     {/* Date + time */}
                     <div>
                       <div>{format(actionDate, 'dd.MM.yyyy')}</div>
@@ -125,11 +132,11 @@ const HistoryTable = ({ entries }: Props) => {
 
                     <span>{first.performedBy?.name ?? '—'}</span>
 
-                    <span className="text-xs text-muted-foreground text-center">
+                    <span className="text-xs text-muted-foreground">
                       {group.length}
                     </span>
 
-                    <span className="text-xs text-muted-foreground text-right truncate">
+                    <span className="text-xs text-muted-foreground truncate">
                       {first.notes ? first.notes.slice(0, 60) : '—'}
                     </span>
 
