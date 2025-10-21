@@ -16,39 +16,58 @@ interface StepStatusProps {
     notes?: string | null
     finishImmediately?: boolean
   }) => void
+  initialFailureReason?: string
+  initialNotes?: string
 }
 
 /**
  * StepStatus – Step 1 of CompleteOrderWizard
- *
- * Provides a simple and professional interface for selecting order status.
- * - If "NOT_COMPLETED" is selected, user provides failure reason and notes,
- *   and the wizard finishes immediately (without proceeding to next steps).
- * - If "COMPLETED" is selected, proceeds to the next step.
+ * ---------------------------------------------------------
+ * Provides a clear interface for selecting order status.
+ * - If COMPLETED → proceeds to next step.
+ * - If NOT_COMPLETED → requires failure reason and notes,
+ *   then immediately completes the wizard (skipping further steps).
  */
-const StepStatus = ({ status, setStatus, onNext }: StepStatusProps) => {
-  const [failureReason, setFailureReason] = useState<string>('')
-  const [notes, setNotes] = useState<string>('')
+const StepStatus = ({
+  status,
+  setStatus,
+  onNext,
+  initialNotes,
+  initialFailureReason,
+}: StepStatusProps) => {
+  const [failureReason, setFailureReason] = useState<string>(
+    initialFailureReason || ''
+  )
+  const [notes, setNotes] = useState<string>(initialNotes || '')
 
-  /** Handle status selection */
+  /** Handles status selection change */
   const handleSelect = (s: OrderStatus) => {
     setStatus(s)
   }
 
-  /** Validate and proceed based on selected status */
+  /** Validates and proceeds depending on selected status */
   const handleSubmit = () => {
     if (status === 'NOT_COMPLETED') {
       if (!failureReason.trim()) {
         toast.error('Wybierz powód niewykonania.')
         return
       }
+      if (!notes.trim()) {
+        toast.error('Pole Uwagi jest obowiązkowe.')
+        return
+      }
+
       onNext({
         status,
         failureReason,
-        notes: notes || null,
-        finishImmediately: true, // Finish wizard immediately for NOT_COMPLETED
+        notes,
+        finishImmediately: true,
       })
-    } else {
+      return
+    }
+
+    // Case: COMPLETED — proceed to next step normally
+    if (status === 'COMPLETED') {
       onNext({
         status,
         notes: notes || null,
@@ -59,13 +78,13 @@ const StepStatus = ({ status, setStatus, onNext }: StepStatusProps) => {
 
   return (
     <div className="flex flex-col h-full justify-between">
-      {/* Main content area */}
+      {/* ============ Main content area ============ */}
       <div className="flex-1 px-4">
         <h3 className="text-lg font-semibold text-center mb-6">
           Wybierz status zlecenia
         </h3>
 
-        {/* Compact status buttons */}
+        {/* Status selection buttons */}
         <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
           <Button
             variant={status === 'COMPLETED' ? 'success' : 'outline'}
@@ -84,31 +103,39 @@ const StepStatus = ({ status, setStatus, onNext }: StepStatusProps) => {
           </Button>
         </div>
 
-        {/* Failure reason and notes visible only if NOT_COMPLETED */}
+        {/* Additional fields visible only when NOT_COMPLETED */}
         {status === 'NOT_COMPLETED' && (
           <div className="mt-6 space-y-4 max-w-md mx-auto">
+            {/* Required: failure reason selection */}
             <FailureReasonSelect
               value={failureReason}
               onChange={setFailureReason}
             />
-            <Textarea
-              placeholder="Uwagi (opcjonalnie)"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[80px]"
-            />
+
+            {/* Required: notes textarea */}
+            <div>
+              <h3 className="mb-1">
+                Uwagi: <span className="text-danger">*</span>
+              </h3>
+              <Textarea
+                placeholder="Dodaj uwagi do zlecenia"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
           </div>
         )}
       </div>
 
-      {/* Bottom navigation */}
+      {/* ============ Bottom navigation ============ */}
       <div className="sticky bottom-0 bg-background">
         <Button
           onClick={handleSubmit}
-          className="w-full h-11 text-base "
+          className="w-full h-11 text-base"
           disabled={!status}
         >
-          {status === 'NOT_COMPLETED' ? 'Zakończ zlecenie' : 'Dalej'}
+          Dalej
         </Button>
       </div>
     </div>

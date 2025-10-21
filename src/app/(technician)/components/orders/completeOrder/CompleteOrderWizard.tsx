@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ActivatedService, IssuedItemDevice, IssuedItemMaterial } from '@/types'
+import { useRouter } from 'next/navigation'
 import { MdClose } from 'react-icons/md'
 import StepCollectedAndNotes from './steps/StepCollectedAndNotes'
 import StepInstallationAndMaterials from './steps/StepInstallationAndMaterials'
@@ -105,9 +106,11 @@ const CompleteOrderWizard = ({
     }[]
   >([])
   const [notes, setNotes] = useState('')
+  const [failureReason, setFailureReason] = useState<string>('')
 
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
+  const router = useRouter()
 
   const STEPS =
     order.type === 'INSTALATION' ? STEPS_INSTALLATION : STEPS_SERVICE
@@ -228,7 +231,23 @@ const CompleteOrderWizard = ({
 
   /** Step navigation helpers */
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1))
-  const back = () => (step === 0 ? onCloseAction() : setStep((s) => s - 1))
+  /** Handles back navigation inside the wizard or closes dialog on first step */
+  const back = () => {
+    // If it's the first step, close the dialog
+    if (step === 0) {
+      onCloseAction()
+      return
+    }
+
+    // If order was NOT_COMPLETED, always go back to status step
+    if (status === 'NOT_COMPLETED') {
+      setStep(0)
+      return
+    }
+
+    // Normal flow – go back one step
+    setStep((s) => Math.max(s - 1, 0))
+  }
 
   /** Render */
   return (
@@ -276,9 +295,12 @@ const CompleteOrderWizard = ({
               onNext={(data) => {
                 setStatus(data.status)
                 setNotes(data.notes || '')
+                setFailureReason(data.failureReason ?? '')
                 if (data.finishImmediately) setStep(STEPS.length - 1)
                 else next()
               }}
+              initialFailureReason={failureReason}
+              initialNotes={notes}
             />
           )}
 
@@ -334,6 +356,7 @@ const CompleteOrderWizard = ({
                   onSubmit={handleSubmit}
                   materialDefs={materialDefsTyped}
                   workCodeDefs={workCodeDefs ?? []}
+                  failureReason={failureReason}
                 />
               )}
             </>
@@ -366,6 +389,7 @@ const CompleteOrderWizard = ({
                   onSubmit={handleSubmit}
                   materialDefs={materialDefsTyped}
                   workCodeDefs={workCodeDefs ?? []}
+                  failureReason={failureReason}
                 />
               )}
             </>
