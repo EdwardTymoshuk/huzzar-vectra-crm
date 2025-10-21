@@ -176,7 +176,10 @@ const StepSummary = ({
             <Card>
               <CardContent className="p-4 space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  <Button variant="secondary" className="cursor-default w-full">
+                  <Button
+                    variant="secondary"
+                    className="cursor-default w-full text-[0.65rem]"
+                  >
                     PRZYŁĄCZA ×1
                   </Button>
                   <Button variant="secondary" className="cursor-default w-full">

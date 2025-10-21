@@ -7,6 +7,7 @@ import {
   adminOnly,
   adminOrCoord,
   loggedInEveryone,
+  technicianOnly,
 } from '@/server/roleHelpers'
 import type { TechnicianAssignment } from '@/types'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
@@ -137,6 +138,27 @@ export const queriesRouter = router({
         },
       })
     ),
+  /** Light order details for planer */
+  getPlanerOrderById: technicianOnly
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.order.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          orderNumber: true,
+          type: true,
+          city: true,
+          street: true,
+          operator: true,
+          date: true,
+          timeSlot: true,
+          status: true,
+          notes: true,
+          completedAt: true,
+        },
+      })
+    }),
 
   /** Orders grouped by technician and time-slot for planning board */
   getAssignedOrders: adminCoordOrWarehouse
@@ -482,4 +504,42 @@ export const queriesRouter = router({
   getNextOutageOrderNumber: loggedInEveryone.query(async () => {
     return await getNextLineOrderNumber()
   }),
+  /** Returns active (unrealized) orders assigned to the logged-in technician for a given day. */
+  getTechnicianActiveOrders: technicianOnly
+    .input(
+      z.object({
+        /** Date filter in yyyy-MM-dd format */
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const technicianId = ctx.user?.id
+      const day = new Date(`${input.date}T00:00:00`)
+
+      const filters: Prisma.OrderWhereInput = {
+        assignedToId: technicianId,
+        date: { gte: startOfDay(day), lte: endOfDay(day) },
+        status: { in: ['PENDING', 'ASSIGNED'] },
+      }
+
+      const orders = await ctx.prisma.order.findMany({
+        where: filters,
+        orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
+        select: {
+          id: true,
+          orderNumber: true,
+          type: true,
+          city: true,
+          street: true,
+          date: true,
+          timeSlot: true,
+          operator: true,
+          status: true,
+          assignedTo: { select: { id: true, name: true } },
+          notes: true,
+        },
+      })
+
+      return orders
+    }),
 })

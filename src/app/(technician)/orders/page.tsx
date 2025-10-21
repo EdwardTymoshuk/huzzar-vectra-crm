@@ -2,9 +2,9 @@
 
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import PageHeader from '@/app/components/shared/PageHeader'
+import SearchInput from '@/app/components/shared/SearchInput'
 import { useCallback, useState } from 'react'
 import TechnicianOrdersTable from '../components/orders/TechnicianOrdersTable'
-import TechnicianOrdersToolbar from '../components/orders/TechnicianOrdersToolbar'
 
 const TechnicianOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -16,14 +16,16 @@ const TechnicianOrdersPage = () => {
 
   return (
     <MaxWidthWrapper>
-      <PageHeader title="Moje zlecenia" />
+      <PageHeader title="Zrealizowane zlecenia" />
 
       <div className="space-y-6">
-        <TechnicianOrdersToolbar
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          onCreated={(id) => setAutoOpenOrderId(id)}
-        />
+        <div className="w-full sm:w-1/2 lg:w-1/4">
+          <SearchInput
+            placeholder="Szukaj po nr zlecenia lub adresie"
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
+        </div>
 
         <TechnicianOrdersTable
           searchTerm={searchTerm}

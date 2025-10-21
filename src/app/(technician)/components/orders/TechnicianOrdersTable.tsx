@@ -22,8 +22,7 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
-import { toast } from 'sonner'
-import TechnicianOrderDetails from './TechnicianOrderDetails'
+import TechnicianCompletedOrderDetails from './TechnicianCompletedOrderDetails'
 import { TechnicianOrdersFilter } from './TechnicianOrdersFilter'
 
 type OrderRow = Prisma.OrderGetPayload<{
@@ -76,51 +75,24 @@ const TechnicianOrdersTable = ({
     data: list,
     isLoading,
     isError,
-  } = trpc.order.getOrders.useQuery({
+  } = trpc.order.getRealizedOrders.useQuery({
     page,
     limit: perPage,
     sortField: sortField ?? undefined,
     sortOrder: sortOrder ?? undefined,
     status: statusF ?? undefined,
     type: typeF ?? undefined,
-  })
-
-  const {
-    data: incoming = [],
-    isLoading: incLoading,
-    isError: incError,
-  } = trpc.order.getIncomingTransfers.useQuery(undefined, { staleTime: 30_000 })
-
-  const utils = trpc.useUtils()
-  const accept = trpc.order.confirmTransfer.useMutation({
-    onSuccess: () => {
-      utils.order.getOrders.invalidate()
-      utils.order.getIncomingTransfers.invalidate()
-      toast.success('Zlecenie zostało przyjęte.')
-    },
-  })
-  const reject = trpc.order.rejectTransfer.useMutation({
-    onSuccess: () => {
-      utils.order.getOrders.invalidate()
-      utils.order.getIncomingTransfers.invalidate()
-      toast.info('Zlecenie zostało odrzucone.')
-    },
+    searchTerm: searchTerm || undefined,
   })
 
   const orders: OrderRow[] = useMemo(() => {
-    const base = (list?.orders ?? []) as OrderRow[]
-    const incRows = incoming.map(
-      (t): OrderRow => ({
-        ...t,
-        type: t.type ?? 'SERVICE',
-        status: 'ASSIGNED',
-        transferPending: true,
-        transferToId: myId ?? null,
-        transferTo: null,
-      })
-    )
-    return [...incRows, ...base]
-  }, [list?.orders, incoming, myId])
+    return (list?.orders ?? []).map((o) => ({
+      ...o,
+      transferPending: false,
+      transferTo: null,
+      transferToId: null,
+    }))
+  }, [list?.orders])
 
   const totalPages = Math.ceil((list?.totalOrders || 1) / perPage)
   useEffect(() => {
@@ -178,13 +150,13 @@ const TechnicianOrdersTable = ({
     }
   }, [autoOpenOrderId, openIds])
 
-  if (isLoading || incLoading)
+  if (isLoading)
     return (
       <div className="w-full flex justify-center">
         <LoaderSpinner />
       </div>
     )
-  if (isError || incError)
+  if (isError)
     return (
       <p className="w-full py-6 text-center text-destructive">
         Błąd ładowania danych.
@@ -323,26 +295,11 @@ const TechnicianOrdersTable = ({
                     </AccordionTrigger>
 
                     <AccordionContent className="bg-muted/30 px-4 py-3">
-                      <TechnicianOrderDetails
+                      <TechnicianCompletedOrderDetails
                         orderId={o.id}
                         autoOpen={autoOpenOrderId === o.id}
                         onAutoOpenHandled={onAutoOpenHandled}
                         orderStatus={o.status}
-                        disableTransfer={incomingRow || outgoingPending}
-                        incomingTransfer={incomingRow}
-                        onAccept={() => accept.mutate({ orderId: o.id })}
-                        onReject={() => reject.mutate({ orderId: o.id })}
-                        pendingMessage={
-                          incomingRow
-                            ? `Technik ${
-                                o.assignedTo?.name ?? ''
-                              } przekazał Ci to zlecenie. Zaakceptuj lub odrzuć je, jeśli to pomyłka.`
-                            : outgoingPending
-                            ? `Przekazałeś zlecenie do technika ${
-                                o.transferTo?.name ?? ''
-                              }. Poczekaj, aż je zaakceptuje.`
-                            : undefined
-                        }
                       />
                     </AccordionContent>
                   </AccordionItem>

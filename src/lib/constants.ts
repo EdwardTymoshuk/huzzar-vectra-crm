@@ -25,13 +25,13 @@ export const adminsMenuItems: MenuItem[] = [
   {
     key: 'planning',
     name: 'Planer',
-    icon: MdOutlineListAlt,
+    icon: MdAssignment,
     href: '/admin-panel/planning',
   },
   {
     key: 'orders',
     name: 'Zlecenia',
-    icon: MdAssignment,
+    icon: MdOutlineListAlt,
     href: '/admin-panel/orders',
   },
   {
@@ -65,7 +65,8 @@ export const adminsMenuItems: MenuItem[] = [
  */
 export const techniciansMenuItems: MenuItem[] = [
   { key: 'dashboard', name: 'Dashboard', icon: MdSpaceDashboard, href: '/' },
-  { key: 'orders', name: 'Zlecenia', icon: MdAssignment, href: '/orders' },
+  { key: 'planer', name: 'Planer', icon: MdAssignment, href: '/planer' },
+  { key: 'orders', name: 'Zlecenia', icon: MdOutlineListAlt, href: '/orders' },
   { key: 'warehouse', name: 'Magazyn', icon: MdWarehouse, href: '/warehouse' },
   {
     key: 'billing',

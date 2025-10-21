@@ -24,7 +24,6 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ActivatedService, IssuedItemDevice, IssuedItemMaterial } from '@/types'
-import { useRouter } from 'next/navigation'
 import { MdClose } from 'react-icons/md'
 import StepCollectedAndNotes from './steps/StepCollectedAndNotes'
 import StepInstallationAndMaterials from './steps/StepInstallationAndMaterials'
@@ -110,7 +109,6 @@ const CompleteOrderWizard = ({
 
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
-  const router = useRouter()
 
   const STEPS =
     order.type === 'INSTALATION' ? STEPS_INSTALLATION : STEPS_SERVICE

@@ -2,7 +2,6 @@
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import OrderDetailsContent from '@/app/components/shared/orders/OrderDetailsContent'
-import { Alert, AlertDescription } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { useRole } from '@/utils/hooks/useRole'
@@ -10,10 +9,7 @@ import { trpc } from '@/utils/trpc'
 import { DeviceCategory, OrderStatus } from '@prisma/client'
 import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
-import { BsSendCheck } from 'react-icons/bs'
-import { CgArrowsExchange } from 'react-icons/cg'
 import { MdEdit } from 'react-icons/md'
-import TransferOrderModal from './TransferOrderModal'
 import CompleteOrderWizard from './completeOrder/CompleteOrderWizard'
 
 interface Props {
@@ -21,35 +17,24 @@ interface Props {
   autoOpen?: boolean
   onAutoOpenHandled?: () => void
   orderStatus: OrderStatus
-  disableTransfer?: boolean
-  incomingTransfer?: boolean
-  pendingMessage?: string
-  onAccept?: () => void
-  onReject?: () => void
 }
 
 /**
- * TechnicianOrderDetails
+ * TechnicianCompletedOrderDetails
  * - Displays technician order details and actions.
  * - Handles "transfer" and "complete order" flows.
  * - Opens CompleteOrderWizard as a Dialog (mobile fullscreen, desktop modal).
  */
-const TechnicianOrderDetails = ({
+const TechnicianCompletedOrderDetails = ({
   orderId,
   autoOpen,
   onAutoOpenHandled,
   orderStatus,
-  disableTransfer = false,
-  incomingTransfer,
-  pendingMessage,
-  onAccept,
-  onReject,
 }: Props) => {
-  const [showTransfer, setShowTransfer] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
 
   const utils = trpc.useUtils()
-  const { isAdmin, isCoordinator, isWarehouseman, isTechnician } = useRole()
+  const { isAdmin, isCoordinator, isTechnician } = useRole()
 
   /* ---------------- Fetch data ---------------- */
   const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
@@ -131,69 +116,17 @@ const TechnicianOrderDetails = ({
   /* ---------------- Render ---------------- */
   return (
     <div className="space-y-6 text-sm bg-card text-card-foreground p-4 rounded-lg">
-      {/* Transfer alert */}
-      {pendingMessage && (
-        <Alert variant="destructive" className="!pl-3">
-          <AlertDescription>{pendingMessage}</AlertDescription>
-        </Alert>
-      )}
-
       {/* Order details */}
       <OrderDetailsContent order={data} hideTechnician />
 
-      {/* Incoming transfer actions */}
-      {incomingTransfer && (
-        <div className="flex gap-2 pt-2">
-          <Button size="sm" onClick={onAccept}>
-            Akceptuj
-          </Button>
-          <Button size="sm" variant="secondary" onClick={onReject}>
-            Odrzuć
+      {canShowAmendButton && (
+        <div className="flex gap-2">
+          <Button variant="success" onClick={() => setShowCompleteModal(true)}>
+            <MdEdit className="mr-1" />
+            Edytuj / uzupełnij odpis
           </Button>
         </div>
       )}
-
-      {/* Technician actions */}
-      {!disableTransfer && !incomingTransfer && (
-        <>
-          {orderStatus === OrderStatus.ASSIGNED ? (
-            <div className="flex gap-2">
-              <Button
-                variant="success"
-                onClick={() => setShowCompleteModal(true)}
-              >
-                <BsSendCheck className="mr-1" />
-                Odpisz
-              </Button>
-              <Button variant="default" onClick={() => setShowTransfer(true)}>
-                <CgArrowsExchange className="mr-1" />
-                Przekaż
-              </Button>
-            </div>
-          ) : (
-            canShowAmendButton &&
-            !isWarehouseman && (
-              <div className="flex gap-2">
-                <Button
-                  variant="success"
-                  onClick={() => setShowCompleteModal(true)}
-                >
-                  <MdEdit className="mr-1" />
-                  Edytuj / uzupełnij odpis
-                </Button>
-              </div>
-            )
-          )}
-        </>
-      )}
-
-      {/* Transfer modal */}
-      <TransferOrderModal
-        open={showTransfer}
-        orderId={orderId}
-        onClose={() => setShowTransfer(false)}
-      />
-
       {/* Complete wizard modal */}
       <CompleteOrderWizard
         key={data.id}
@@ -215,4 +148,4 @@ const TechnicianOrderDetails = ({
   )
 }
 
-export default TechnicianOrderDetails
+export default TechnicianCompletedOrderDetails

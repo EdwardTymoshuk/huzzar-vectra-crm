@@ -9,6 +9,7 @@ import LoaderSpinner from './shared/LoaderSpinner'
 // Technician pages
 const pages: Record<string, React.ComponentType> = {
   dashboard: dynamic(() => import('@/app/(technician)/dashboard/page')),
+  planer: dynamic(() => import('@/app/(technician)/planer/page')),
   orders: dynamic(() => import('@/app/(technician)/orders/page')),
   warehouse: dynamic(() => import('@/app/(technician)/warehouse/page')),
   billing: dynamic(() => import('@/app/(technician)/billing/page')),
@@ -37,6 +38,7 @@ const ClientRoutingHandlerTechnician = ({
 
   const getActiveKeyFromPathname = (pathname: string): string => {
     if (pathname.includes('/warehouse')) return 'warehouse'
+    if (pathname.includes('/planer')) return 'planer'
     if (pathname.includes('/orders')) return 'orders'
     if (pathname.includes('/billing')) return 'billing'
     if (pathname.includes('/settings')) return 'settings'

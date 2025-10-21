@@ -121,25 +121,24 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </div>
               )}
 
-              <div>
-                <h3 className="text-xs text-muted-foreground font-medium">
-                  Status
-                </h3>
-                <Badge
-                  variant={
-                    order.status === 'COMPLETED'
-                      ? 'success'
-                      : order.status === 'NOT_COMPLETED'
-                      ? 'danger'
-                      : order.status === 'ASSIGNED'
-                      ? 'secondary'
-                      : 'outline'
-                  }
-                >
-                  {statusMap[order.status] ?? order.status}
-                </Badge>
-              </div>
-
+              {order.status !== 'ASSIGNED' && (
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
+                    Status
+                  </h3>
+                  <Badge
+                    variant={
+                      order.status === 'COMPLETED'
+                        ? 'success'
+                        : order.status === 'NOT_COMPLETED'
+                        ? 'danger'
+                        : 'outline'
+                    }
+                  >
+                    {statusMap[order.status] ?? order.status}
+                  </Badge>
+                </div>
+              )}
               <div>
                 <h3 className="text-xs text-muted-foreground font-medium">
                   Operator

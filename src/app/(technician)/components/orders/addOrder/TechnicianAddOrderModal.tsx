@@ -74,8 +74,23 @@ export const TechnicianAddOrderModal = ({
       utils.order.getOrders.invalidate()
       onCloseAction()
       onCreated?.(createdOrder.id)
-    } catch {
-      toast.error('Wystąpił błąd przy dodawaniu zlecenia.')
+    } catch (error) {
+      /**
+       * Display detailed backend error in toast
+       * - TRPC errors contain `message`
+       * - Prisma duplicate key errors can be parsed from message
+       */
+      let errorMessage = 'Wystąpił błąd przy dodawaniu zlecenia.'
+
+      if (error instanceof Error) {
+        if (error.message.includes('Unique constraint failed')) {
+          errorMessage = 'Numer zlecenia już istnieje. Wprowadź inny numer.'
+        } else if ('message' in error) {
+          errorMessage = error.message
+        }
+      }
+
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }

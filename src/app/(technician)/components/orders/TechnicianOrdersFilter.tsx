@@ -59,7 +59,6 @@ export const TechnicianOrdersFilter = ({
               <SelectItem value="all">Wszystkie</SelectItem>
               <SelectItem value="COMPLETED">Wykonane</SelectItem>
               <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
-              <SelectItem value="ASSIGNED">Przypisane</SelectItem>
             </SelectContent>
           </Select>
         </div>
