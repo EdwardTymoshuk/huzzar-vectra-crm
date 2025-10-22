@@ -26,6 +26,7 @@ import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { DeviceCategory } from '@prisma/client'
+import { useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -49,6 +50,7 @@ const AddItemForm = ({
   })
 
   const locationId = useActiveLocation()
+  const serialInputRef = useRef<HTMLInputElement>(null)
 
   const { data: devices = [] } =
     trpc.deviceDefinition.getAllDefinitions.useQuery()
@@ -95,6 +97,7 @@ const AddItemForm = ({
 
     if (data.type === 'DEVICE') {
       form.reset({ ...data, serialNumber: '' })
+      setTimeout(() => serialInputRef.current?.focus(), 50)
     } else {
       form.reset({ type: 'MATERIAL', name: '', quantity: 1 })
     }
@@ -175,6 +178,7 @@ const AddItemForm = ({
                   <FormControl>
                     <Input
                       {...field}
+                      ref={serialInputRef}
                       placeholder="Wpisz numer seryjny"
                       onChange={(e) =>
                         field.onChange(e.target.value.toUpperCase())

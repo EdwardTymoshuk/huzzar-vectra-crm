@@ -12,6 +12,7 @@ import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
+import { toast } from 'sonner'
 
 type Props = {
   technicianId: string
@@ -26,12 +27,11 @@ const MaterialIssueTable = ({
 }: Props) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [materialQuantities, setMaterialQuantities] = useState<
-    Record<string, number>
+    Record<string, number | undefined>
   >({})
   const [expandedRows, setExpandedRows] = useState<string[]>([])
 
   const activeLocationId = useActiveLocation()
-
   const { data: warehouseItems, isLoading } = trpc.warehouse.getAll.useQuery(
     activeLocationId ? { locationId: activeLocationId } : undefined
   )
@@ -81,8 +81,20 @@ const MaterialIssueTable = ({
       issuedMaterials.find((m) => m.id === item.id)?.quantity ?? 0
     const remaining = item.quantity - alreadyIssued
 
-    const quantityToIssue = materialQuantities[id] ?? 1
-    if (quantityToIssue > remaining || quantityToIssue <= 0) return
+    const quantityToIssue = materialQuantities[id]
+    if (
+      quantityToIssue == null ||
+      quantityToIssue <= 0 ||
+      isNaN(quantityToIssue)
+    ) {
+      toast.warning('Podaj poprawną ilość.')
+      return
+    }
+
+    if (quantityToIssue > remaining) {
+      toast.warning('Nie można wydać więcej niż dostępne w magazynie.')
+      return
+    }
 
     if (!item.materialDefinitionId) {
       console.error('Material without materialDefinitionId in warehouse!', item)
@@ -158,13 +170,14 @@ const MaterialIssueTable = ({
                   min={1}
                   max={remaining}
                   className="w-20 h-8 text-sm"
-                  value={materialQuantities[item.id] ?? 1}
-                  onChange={(e) =>
+                  value={materialQuantities[item.id] ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value
                     setMaterialQuantities((prev) => ({
                       ...prev,
-                      [item.id]: parseInt(e.target.value) || 1,
+                      [item.id]: val === '' ? undefined : Number(val),
                     }))
-                  }
+                  }}
                 />
                 <Button
                   size="sm"

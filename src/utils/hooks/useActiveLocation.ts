@@ -16,13 +16,11 @@ export const useActiveLocation = () => {
   const { isAdmin, isCoordinator, isWarehouseman } = useRole()
   const searchParams = useSearchParams()
 
-  // Admin/Coordinator → wybór z query param
   if (isAdmin || isCoordinator) {
     const loc = searchParams.get('loc')
     return loc ?? null
   }
 
-  // Warehouseman → pierwszy przypisany magazyn
   if (isWarehouseman) {
     return session?.user?.locations?.[0]?.id ?? null
   }

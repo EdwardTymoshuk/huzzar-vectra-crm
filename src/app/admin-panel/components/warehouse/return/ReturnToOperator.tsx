@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -32,8 +33,9 @@ const ReturnToOperator = ({ onClose }: Props) => {
   const [search, setSearch] = useState('')
   const [expandedRows, setExpandedRows] = useState<string[]>([])
   const [materialQuantities, setMaterialQuantities] = useState<
-    Record<string, number>
+    Record<string, number | undefined>
   >({})
+
   const [loading, setLoading] = useState(false)
 
   const [issuedDevices, setIssuedDevices] = useState<IssuedItemDevice[]>([])
@@ -42,7 +44,10 @@ const ReturnToOperator = ({ onClose }: Props) => {
   )
   const [notes, setNotes] = useState('')
 
-  const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery()
+  const activeLocationId = useActiveLocation()
+  const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery(
+    activeLocationId ? { locationId: activeLocationId } : undefined
+  )
   const returnMutation = trpc.warehouse.returnToOperator.useMutation()
 
   const availableMaterials = useMemo(() => {
@@ -95,8 +100,15 @@ const ReturnToOperator = ({ onClose }: Props) => {
     const item = availableMaterials.find((m) => m.id === id)
     if (!item) return
 
-    const qty = materialQuantities[id] ?? 1
-    if (qty > item.quantity) return
+    const qty = materialQuantities[id]
+    if (!qty || qty <= 0 || isNaN(qty)) {
+      toast.warning('Podaj poprawną ilość.')
+      return
+    }
+    if (qty > item.quantity) {
+      toast.warning('Nie można zwrócić więcej niż dostępne w magazynie.')
+      return
+    }
 
     const existing = issuedMaterials.find((m) => m.id === id)
     if (existing) {
@@ -253,16 +265,19 @@ const ReturnToOperator = ({ onClose }: Props) => {
                         min={1}
                         max={remainingQty}
                         className="w-20 h-8 text-sm"
-                        value={materialQuantities[item.id] ?? 1}
+                        value={materialQuantities[item.id] ?? ''}
                         onChange={(e) => {
-                          const val = parseInt(e.target.value) || 1
-                          const clamped = Math.min(val, remainingQty)
+                          const val = e.target.value
                           setMaterialQuantities((prev) => ({
                             ...prev,
-                            [item.id]: clamped,
+                            [item.id]:
+                              val === ''
+                                ? undefined
+                                : Math.min(Number(val), remainingQty),
                           }))
                         }}
                       />
+
                       <Button
                         size="sm"
                         variant="secondary"

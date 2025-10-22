@@ -143,9 +143,12 @@ const TechnicianPlanerTable = ({
     },
   })
 
-  /* ---------------------- Auto open handling ---------------------- */
+  /** Automatically open CompleteOrderWizard after new order is created */
   useEffect(() => {
-    if (autoOpenOrderId) onAutoOpenHandled?.()
+    if (autoOpenOrderId) {
+      setShowComplete(autoOpenOrderId)
+      onAutoOpenHandled?.()
+    }
   }, [autoOpenOrderId, onAutoOpenHandled])
 
   /* ---------------------- Merge active + incoming ---------------------- */
