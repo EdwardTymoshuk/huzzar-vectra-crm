@@ -75,7 +75,7 @@ const TechnicianOrdersTable = ({
     data: list,
     isLoading,
     isError,
-  } = trpc.order.getRealizedOrders.useQuery({
+  } = trpc.order.getTechnicianRealizedOrders.useQuery({
     page,
     limit: perPage,
     sortField: sortField ?? undefined,

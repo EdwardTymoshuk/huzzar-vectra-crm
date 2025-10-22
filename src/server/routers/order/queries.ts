@@ -288,6 +288,56 @@ export const queriesRouter = router({
       return { orders, totalOrders }
     }),
 
+  /** Returns realized (completed or not completed) orders assigned to the logged-in technician. */
+  getTechnicianRealizedOrders: technicianOnly
+    .input(
+      z.object({
+        page: z.number().default(1),
+        limit: z.number().default(30),
+        sortField: z.enum(['date', 'status']).optional(),
+        sortOrder: z.enum(['asc', 'desc']).optional(),
+        type: z.nativeEnum(OrderType).optional(),
+        status: z.nativeEnum(OrderStatus).optional(),
+        searchTerm: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const technicianId = ctx.user?.id
+
+      const filters: Prisma.OrderWhereInput = {
+        assignedToId: technicianId,
+        status: { in: [OrderStatus.COMPLETED, OrderStatus.NOT_COMPLETED] },
+      }
+
+      if (input.type) filters.type = input.type
+      if (input.status) filters.status = input.status
+
+      // 🔍 Search by number, city or street
+      if (input.searchTerm && input.searchTerm.trim() !== '') {
+        const q = input.searchTerm.trim()
+        filters.OR = [
+          { orderNumber: { contains: q, mode: 'insensitive' } },
+          { city: { contains: q, mode: 'insensitive' } },
+          { street: { contains: q, mode: 'insensitive' } },
+        ]
+      }
+
+      const orders = await ctx.prisma.order.findMany({
+        where: filters,
+        orderBy: input.sortField
+          ? { [input.sortField]: input.sortOrder ?? 'asc' }
+          : { date: 'desc' },
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+        },
+      })
+
+      const totalOrders = await ctx.prisma.order.count({ where: filters })
+      return { orders, totalOrders }
+    }),
+
   /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */
   getUnassignedOrders: adminOrCoord.query(async ({ ctx }) => {
     const rows = await ctx.prisma.order.findMany({
