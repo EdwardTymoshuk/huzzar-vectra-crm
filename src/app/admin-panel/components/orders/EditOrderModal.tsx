@@ -56,8 +56,7 @@ const EditOrderModal = ({
   const updateOrderMutation = trpc.order.editOrder.useMutation({
     onSuccess: () => {
       toast.success('Zlecenie zostało zaktualizowane!')
-      utils.order.getAssignedOrders.invalidate()
-      utils.order.getUnassignedOrders.invalidate()
+      utils.order.getOrders.invalidate()
       onCloseAction()
     },
     onError: () => toast.error('Błąd podczas aktualizacji zlecenia.'),

@@ -17,7 +17,6 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderHistory } from '@prisma/client'
 import { useState } from 'react'
-import { MdDelete, MdEdit } from 'react-icons/md'
 import { toast } from 'sonner'
 
 type Props = {
@@ -51,19 +50,18 @@ const formatHistoryEntry = (entry: OrderHistoryWithUser) => {
 /**
  * OrderDetailsSheet
  * -------------------------------------------------------------
- * Displays full order information with role-based UI.
- * - Technician: sees only completed / not completed orders.
- * - Admin / Coordinator: sees all + edit & delete buttons for open orders.
+ * Role-based order details view:
+ * - Technician: can view all orders but without edit/delete and
+ *   without status for "ASSIGNED" or "PENDING" ones.
+ * - Admin/Coordinator: full details with actions.
  */
 const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
   const { isTechnician, isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
 
-  /* ---------------- State ---------------- */
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  /* ---------------- Queries & Mutations ---------------- */
   const {
     data: order,
     isLoading,
@@ -76,6 +74,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
   const deleteMutation = trpc.order.deleteOrder.useMutation({
     onSuccess: () => {
       toast.success('Zlecenie usunięte.')
+      utils.order.getTechnicianActiveOrders.invalidate()
       utils.order.getAssignedOrders.invalidate()
       utils.order.getUnassignedOrders.invalidate()
       setShowDeleteDialog(false)
@@ -87,15 +86,6 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
   const handleDelete = () => {
     if (!order) return
     deleteMutation.mutate({ id: order.id })
-  }
-
-  /* --- Hide for technician if order not completed/not completed --- */
-  if (
-    isTechnician &&
-    order &&
-    !['COMPLETED', 'NOT_COMPLETED'].includes(order.status)
-  ) {
-    return null
   }
 
   return (
@@ -110,17 +100,16 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
               <h2>Szczegóły zlecenia</h2>
             </SheetTitle>
 
-            {/* Only Admin/Coordinator can see edit/delete for open orders */}
+            {/* --- Only Admin/Coordinator see action buttons --- */}
             {!isTechnician &&
               order &&
               (order.status === 'ASSIGNED' || order.status === 'PENDING') && (
                 <div className="flex gap-2">
                   <Button
-                    variant="success"
+                    variant="secondary"
                     size="sm"
                     onClick={() => setShowEditModal(true)}
                   >
-                    <MdEdit className="mr-1" />
                     Edytuj
                   </Button>
                   <Button
@@ -128,14 +117,13 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     size="sm"
                     onClick={() => setShowDeleteDialog(true)}
                   >
-                    <MdDelete className="mr-1" />
                     Usuń
                   </Button>
                 </div>
               )}
           </SheetHeader>
 
-          {/* Loading / error states */}
+          {/* --- Loading / error states --- */}
           {isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-6 w-2/3" />
@@ -147,7 +135,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
             <p className="text-danger">Błąd ładowania danych.</p>
           ) : (
             <div className="space-y-5 text-sm divide-y divide-border">
-              {/* Basic info */}
+              {/* --- Basic info --- */}
               <section className="space-y-3">
                 <div className="flex justify-between">
                   <div>
@@ -189,22 +177,28 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </div>
                 )}
 
-                <div>
-                  <h3 className="text-xs text-muted-foreground font-medium">
-                    Status
-                  </h3>
-                  <Badge
-                    variant={
-                      order.status === 'COMPLETED'
-                        ? 'success'
-                        : order.status === 'NOT_COMPLETED'
-                        ? 'danger'
-                        : 'outline'
-                    }
-                  >
-                    {statusMap[order.status] ?? order.status}
-                  </Badge>
-                </div>
+                {/* --- Status (hidden for technician if assigned/pending) --- */}
+                {!(
+                  isTechnician &&
+                  (order.status === 'ASSIGNED' || order.status === 'PENDING')
+                ) && (
+                  <div>
+                    <h3 className="text-xs text-muted-foreground font-medium">
+                      Status
+                    </h3>
+                    <Badge
+                      variant={
+                        order.status === 'COMPLETED'
+                          ? 'success'
+                          : order.status === 'NOT_COMPLETED'
+                          ? 'danger'
+                          : 'outline'
+                      }
+                    >
+                      {statusMap[order.status] ?? order.status}
+                    </Badge>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">
@@ -242,7 +236,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </div>
               </section>
 
-              {/* Completed order – work codes, equipment, materials */}
+              {/* --- Completed order (work codes, equipment, materials) --- */}
               {order.status === 'COMPLETED' && (
                 <section className="space-y-3 pt-3">
                   <div>
@@ -314,7 +308,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </section>
               )}
 
-              {/* Not completed order */}
+              {/* --- Not completed --- */}
               {order.status === 'NOT_COMPLETED' && (
                 <section className="pt-3">
                   <h3 className="text-xs text-muted-foreground font-medium">
@@ -324,7 +318,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </section>
               )}
 
-              {/* History – only for admin/coordinator */}
+              {/* --- History (only admin/coord) --- */}
               {(isAdmin || isCoordinator) && (
                 <section className="pt-3">
                   <h3 className="text-xs text-muted-foreground font-medium">
@@ -346,7 +340,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
         </SheetContent>
       </Sheet>
 
-      {/* 🧾 Edit Order Modal */}
+      {/* --- Modals --- */}
       {order && (
         <EditOrderModal
           open={showEditModal}
@@ -355,7 +349,6 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
         />
       )}
 
-      {/* 🗑️ Confirm Delete Dialog */}
       <ConfirmDeleteDialog
         open={showDeleteDialog}
         onClose={() => setShowDeleteDialog(false)}
