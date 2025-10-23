@@ -105,7 +105,7 @@ const PlanningBoard = () => {
       {/* Map at the bottom */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-center mb-2">Mapa</h2>
-        <div className="rounded-xl border overflow-hidden">
+        <div className="relative z-0 rounded-lg border overflow-hidden">
           <MapView
             mapKey={`planning-map-${markers.length}`}
             markers={markers}

@@ -29,7 +29,7 @@ const TransferOrderModal = ({ open, orderId, onClose }: Props) => {
   const { data: technicians = [] } = trpc.user.getOtherTechnicians.useQuery({})
   const requestTransfer = trpc.order.requestTransfer.useMutation({
     onSuccess: () => {
-      trpcUtils.order.getOrders.invalidate()
+      trpcUtils.order.getAssignedOrders.invalidate()
       onClose()
     },
   })

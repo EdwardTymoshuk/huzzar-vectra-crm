@@ -1,5 +1,6 @@
 'use client'
 
+import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
 import {
   Tooltip,
@@ -11,6 +12,7 @@ import { operatorColorsMap } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { TechnicianAssignment } from '@/types'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
@@ -99,6 +101,9 @@ const TechniciansTimeline = ({
   onUnassign,
   searchTerm = '',
 }: Props) => {
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+
   const LANE_HEIGHT = 48
   const LANE_GAP = 8
   const HOUR_WIDTH = 100
@@ -235,6 +240,10 @@ const TechniciansTimeline = ({
                                           backgroundColor: color,
                                           ...drag.draggableProps.style,
                                         }}
+                                        onDoubleClick={() => {
+                                          setSelectedOrderId(order.id)
+                                          setIsSheetOpen(true)
+                                        }}
                                       >
                                         {/* Header + delete */}
                                         <div className="flex justify-between items-start">
@@ -294,6 +303,16 @@ const TechniciansTimeline = ({
           </div>
         </div>
       </div>
+
+      {/* 🧾 Order Details Sheet */}
+      <OrderDetailsSheet
+        orderId={selectedOrderId}
+        open={isSheetOpen}
+        onClose={() => {
+          setIsSheetOpen(false)
+          setSelectedOrderId(null)
+        }}
+      />
     </TooltipProvider>
   )
 }

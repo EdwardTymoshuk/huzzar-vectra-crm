@@ -219,7 +219,7 @@ const CompleteOrderWizard = ({
           : 'Zlecenie zostało zaktualizowane.'
       )
 
-      await utils.order.getOrders.invalidate()
+      await utils.order.getTechnicianRealizedOrders.invalidate()
       await utils.order.getOrderById.invalidate({ id: order.id })
       onCloseAction()
     } catch {

@@ -135,7 +135,7 @@ const TechnicianCompletedOrderDetails = ({
         orderType={data.type}
         onCloseAction={async () => {
           setShowCompleteModal(false)
-          await utils.order.getOrders.invalidate()
+          await utils.order.getRealizedOrders.invalidate()
           await utils.order.getOrderById.invalidate({ id: orderId })
         }}
         materialDefs={materialDefs}
