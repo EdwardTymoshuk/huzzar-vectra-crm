@@ -176,17 +176,31 @@ export type ServiceType = 'DTV' | 'NET' | 'TEL' | 'ATV'
 export type ActivatedService = {
   id: string
   type: ServiceType
-  deviceType?: DeviceCategory
-  deviceType2?: DeviceCategory
+
+  // Primary device (decoder/modem)
+  deviceSource?: DeviceSource
   deviceId?: string
   serialNumber?: string
+  /** Optional label when using client's device */
+  deviceName?: string
+  deviceType?: DeviceCategory
+
+  // Secondary device (router for HFC / special cases)
+  device2Source?: DeviceSource
   deviceId2?: string
   serialNumber2?: string
+  deviceName2?: string
+  deviceType2?: DeviceCategory
+
+  // NET-only: extra modems/routers that should count as sockets
+  extraDevices?: ActivatedServiceExtraDevice[]
+
+  // Measurements
+  speedTest?: string
   usDbmDown?: number
   usDbmUp?: number
-  usDbmConfirmed?: boolean
-  speedTest?: string
-  speedTestConfirmed?: boolean
+
+  // Free-form notes
   notes?: string
 }
 
@@ -214,3 +228,14 @@ export type UserWithLocations = Prisma.UserGetPayload<{
     locations: { select: { id: true; name: true } }
   }
 }>
+
+export type DeviceSource = 'WAREHOUSE' | 'CLIENT'
+
+export type ActivatedServiceExtraDevice = {
+  id: string
+  source: DeviceSource
+  deviceId?: string
+  category: DeviceCategory
+  name?: string
+  serialNumber: string
+}

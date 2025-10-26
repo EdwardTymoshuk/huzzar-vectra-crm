@@ -56,7 +56,9 @@ const EditOrderModal = ({
   const updateOrderMutation = trpc.order.editOrder.useMutation({
     onSuccess: () => {
       toast.success('Zlecenie zostało zaktualizowane!')
-      utils.order.getOrders.invalidate()
+      utils.order.getUnassignedOrders.invalidate()
+      utils.order.getAssignedOrders.invalidate()
+      utils.order.getOrderById.invalidate({ id: order.id })
       onCloseAction()
     },
     onError: () => toast.error('Błąd podczas aktualizacji zlecenia.'),
@@ -137,7 +139,7 @@ const EditOrderModal = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Reusable form fields */}
-            <OrderFormFields form={form} />
+            <OrderFormFields form={form} isAdmin />
 
             {/* Action buttons */}
             <div className="flex justify-end gap-2 pt-2">

@@ -333,6 +333,8 @@ export const warehouseActionMap: Record<
   RETURNED_TO_OPERATOR: { label: 'Zwrot do operatora', variant: 'danger' },
   TRANSFER: { label: 'Przekazanie', variant: 'secondary' },
   COLLECTED_FROM_CLIENT: { label: 'Odbiór od klienta', variant: 'default' },
+  ISSUED_TO_CLIENT: { label: 'Wydanie klientowi', variant: 'warning' },
+  ASSIGNED_TO_ORDER: { label: 'Przypisanie do zlecenia', variant: 'success' },
 }
 
 //polish monthes
@@ -357,7 +359,7 @@ export const orderFailureReasons = [
   'Uszkodzony kabel sygnałowy',
   'Brak sygnału na budynku',
   'Instalator nie dotarł do AB',
-  'Linia',
+  'Awaria',
   'Błędne dane na umowie',
   'Niezgodność umowy z zamówieniem',
   'Błędny termin realizacji zlecenia',

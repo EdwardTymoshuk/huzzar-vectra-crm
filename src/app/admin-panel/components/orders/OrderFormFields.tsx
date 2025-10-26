@@ -16,65 +16,80 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
+import { Textarea } from '@/app/components/ui/textarea'
 import { timeSlotOptions } from '@/lib/constants'
-import { OrderFormData } from '@/types'
+import { OrderFormData, TechnicianOrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { Control, UseFormReturn } from 'react-hook-form'
 
 /**
- * Admin-facing order form fields
- * Includes all necessary data required to define a full order
+ * OrderFormFields – unified form fields component for both Admin and Technician views.
+ *
+ * - Supports all common fields: type, operator, number, date, city, address, time slot, notes
+ * - Auto-generates outage order numbers (`OUTAGE`)
+ * - Shows technician select only for admin users
+ * - Adjusts status automatically for admin (ASSIGNED / PENDING)
  */
-export function OrderFormFields({
-  form,
-}: {
-  form: UseFormReturn<OrderFormData>
-}) {
+type Props = {
+  /** react-hook-form object (useFormReturn) */
+  form:
+    | UseFormReturn<OrderFormData>
+    | { control: Control<TechnicianOrderFormData> }
+
+  /** If true, enables technician assignment and status handling */
+  isAdmin?: boolean
+}
+
+export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
+  // Cast to allow uniform access (control always exists)
+  const { control, setValue, getValues, watch } =
+    form as UseFormReturn<OrderFormData>
+
   const [operatorList, setOperatorList] = useState<string[]>([])
-  const { setValue, getValues, watch, control } = form
 
-  const type = watch('type')
+  const type = watch?.('type') ?? undefined
 
-  // Fetch operator list from database
+  // Fetch operator definitions
   const { data: operatorsData, isLoading: isOperatorsLoading } =
     trpc.operatorDefinition.getAllDefinitions.useQuery()
 
-  // TRPC query for next outage order number
+  // Fetch next outage order number (only if type === OUTAGE)
   const { data: nextOutageOrderNumber } =
     trpc.order.getNextOutageOrderNumber.useQuery(undefined, {
       enabled: type === 'OUTAGE',
     })
 
-  useEffect(() => {
-    if (type === 'OUTAGE' && nextOutageOrderNumber) {
-      setValue('orderNumber', nextOutageOrderNumber)
-    }
-  }, [type, nextOutageOrderNumber, setValue])
+  // Fetch technician list (only if admin)
+  const { data: technicians, isLoading: isTechLoading } = isAdmin
+    ? trpc.user.getTechnicians.useQuery({ status: 'ACTIVE' })
+    : { data: [], isLoading: false }
 
+  /** Populate operator list */
   useEffect(() => {
     if (operatorsData) {
       setOperatorList(operatorsData.map((op) => op.operator))
     }
   }, [operatorsData])
 
-  // Fetch technician list
-  const { data: technicians, isLoading: isTechLoading } =
-    trpc.user.getTechnicians.useQuery({
-      status: 'ACTIVE',
-    }) || { data: [] }
+  /** Auto-generate outage order number */
+  useEffect(() => {
+    if (type === 'OUTAGE' && nextOutageOrderNumber) {
+      setValue?.('orderNumber', nextOutageOrderNumber)
+    }
+  }, [type, nextOutageOrderNumber, setValue])
 
   return (
     <>
-      {/* Order type (INSTALLATION or SERVICE) */}
+      {/* Order type */}
       <FormField
         control={control}
         name="type"
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              Typ zlecenia <span className="text-danger">*</span>
+              Typ zlecenia <span className="text-destructive">*</span>
             </FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
@@ -91,7 +106,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* Operator (dynamic, from DB) */}
+      {/* Operator */}
       <FormField
         control={control}
         name="operator"
@@ -142,7 +157,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* Order date */}
+      {/* Date */}
       <FormField
         control={control}
         name="date"
@@ -159,7 +174,7 @@ export function OrderFormFields({
         )}
       />
 
-      {/* Time slot (static options) */}
+      {/* Time slot */}
       <FormField
         control={control}
         name="timeSlot"
@@ -220,55 +235,59 @@ export function OrderFormFields({
         )}
       />
 
-      {/* Assigned technician (optional) */}
-      <FormField
-        control={control}
-        name="assignedToId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              Przypisany technik <span className="text-destructive">*</span>
-            </FormLabel>
-            <Select
-              onValueChange={(value) => {
-                const selected = value === 'none' ? null : value
-                field.onChange(selected)
+      {/* Technician assignment (admin only) */}
+      {isAdmin && (
+        <FormField
+          control={control}
+          name="assignedToId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Przypisany technik <span className="text-destructive">*</span>
+              </FormLabel>
+              <Select
+                onValueChange={(value) => {
+                  const selected = value === 'none' ? null : value
+                  field.onChange(selected)
 
-                // Automatically adjust status based on assignment
-                const currentStatus = getValues('status')
-                if (selected && currentStatus === OrderStatus.PENDING) {
-                  setValue('status', OrderStatus.ASSIGNED)
-                } else if (
-                  !selected &&
-                  currentStatus === OrderStatus.ASSIGNED
-                ) {
-                  setValue('status', OrderStatus.PENDING)
-                }
-              }}
-              value={field.value ?? 'none'}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz technika" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">NIEPRZYPISANY</SelectItem>
-                {isTechLoading ? (
-                  <div className="px-4 py-2 text-sm text-muted-foreground">
-                    <LoaderSpinner />
-                  </div>
-                ) : (
-                  technicians?.map((tech) => (
-                    <SelectItem key={tech.id} value={tech.id}>
-                      {tech.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+                  // Automatically adjust status for admin
+                  const currentStatus = getValues?.('status')
+                  if (!currentStatus) return
+                  if (selected && currentStatus === OrderStatus.PENDING) {
+                    setValue?.('status', OrderStatus.ASSIGNED)
+                  } else if (
+                    !selected &&
+                    currentStatus === OrderStatus.ASSIGNED
+                  ) {
+                    setValue?.('status', OrderStatus.PENDING)
+                  }
+                }}
+                value={field.value ?? 'none'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz technika" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">NIEPRZYPISANY</SelectItem>
+                  {isTechLoading ? (
+                    <div className="px-4 py-2 text-sm text-muted-foreground">
+                      <LoaderSpinner />
+                    </div>
+                  ) : (
+                    technicians?.map((tech) => (
+                      <SelectItem key={tech.id} value={tech.id}>
+                        {tech.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
       {/* Notes (optional) */}
       <FormField
         control={control}
@@ -277,7 +296,7 @@ export function OrderFormFields({
           <FormItem>
             <FormLabel>Uwagi (opcjonalnie)</FormLabel>
             <FormControl>
-              <Input {...field} placeholder="np. dzwonić przed wizytą" />
+              <Textarea {...field} placeholder="Dodatkowe informacje" />
             </FormControl>
             <FormMessage />
           </FormItem>

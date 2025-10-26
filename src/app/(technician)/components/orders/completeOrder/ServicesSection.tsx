@@ -1,6 +1,9 @@
 'use client'
 
+import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
+import { Label } from '@/app/components/ui/label'
+import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap } from '@/lib/constants'
 import { ActivatedService, IssuedItemDevice } from '@/types'
@@ -16,38 +19,41 @@ interface Props {
   devices: IssuedItemDevice[]
   value: ActivatedService[]
   onChangeAction: (services: ActivatedService[]) => void
-  mode?: 'complete' | 'amend'
 }
 
 /**
  * ServicesSection
- * - DTV/NET → open modal for configuration
- * - TEL/ATV → added instantly (ATV adds notes)
- * - DTV supports multiple entries with live count
+ * ------------------------------------------------------
+ * - Buttons with 'secondary' bg + counts.
+ * - TEL via SerialScanInput (KARTA SIM). Multiple TEL allowed.
+ * - DTV/NET open modal; cards show router, extras, and measurements.
  */
-const ServicesSection: React.FC<Props> = ({
+const ServicesSection = ({
   operator,
   devices,
   value,
   onChangeAction,
-}) => {
+}: Props) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState<ServiceType>('DTV')
 
-  /** opens dialog for DTV/NET */
   const openDialog = (type: ServiceType) => {
     setDialogType(type)
     setDialogOpen(true)
   }
 
-  /** adds TEL instantly */
   const addTel = () => {
-    if (value.some((v) => v.type === 'TEL')) return
-    onChangeAction([...value, { id: crypto.randomUUID(), type: 'TEL' }])
+    const tel: ActivatedService = {
+      id: crypto.randomUUID(),
+      type: 'TEL',
+      serialNumber: '',
+      deviceType: DeviceCategory.OTHER,
+      deviceName: 'KARTA SIM',
+    }
+    onChangeAction([...value, tel])
     toast.success('Dodano usługę TEL')
   }
 
-  /** adds ATV instantly (with notes) */
   const addAtv = () => {
     if (value.some((v) => v.type === 'ATV')) return
     onChangeAction([
@@ -57,13 +63,11 @@ const ServicesSection: React.FC<Props> = ({
     toast.success('Dodano usługę ATV')
   }
 
-  /** removes service by id */
   const removeService = (id: string) => {
     onChangeAction(value.filter((v) => v.id !== id))
     toast.info('Usunięto usługę')
   }
 
-  /** resets all */
   const resetAll = () => {
     onChangeAction([])
     toast.info('Zresetowano wszystkie usługi')
@@ -82,29 +86,31 @@ const ServicesSection: React.FC<Props> = ({
         >
           DTV{count('DTV') > 0 && <span className="ml-1">×{count('DTV')}</span>}
         </Button>
+
         <Button
           variant={count('NET') > 0 ? 'secondary' : 'outline'}
           className="w-full"
-          disabled={count('NET') > 0}
           onClick={() => openDialog('NET')}
+          disabled={count('NET') > 0}
         >
-          NET
+          NET{count('NET') > 0 && <span className="ml-1">×{count('NET')}</span>}
         </Button>
+
         <Button
           variant={count('TEL') > 0 ? 'secondary' : 'outline'}
           className="w-full"
-          disabled={count('TEL') > 0}
           onClick={addTel}
         >
-          TEL
+          TEL{count('TEL') > 0 && <span className="ml-1">×{count('TEL')}</span>}
         </Button>
+
         <Button
           variant={count('ATV') > 0 ? 'secondary' : 'outline'}
           className="w-full"
-          disabled={count('ATV') > 0}
           onClick={addAtv}
+          disabled={count('ATV') > 0}
         >
-          ATV
+          ATV{count('ATV') > 0 && <span className="ml-1">×{count('ATV')}</span>}
         </Button>
 
         {value.length > 0 && (
@@ -118,49 +124,48 @@ const ServicesSection: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Services list */}
+      {/* Cards */}
       <div className="space-y-4">
         {value.map((svc) => {
-          const device = svc.serialNumber
-            ? {
-                name: devices.find((d) => d.id === svc.deviceId)?.name ?? '',
-                serial: svc.serialNumber,
-                category:
-                  devices.find((d) => d.id === svc.deviceId)?.category ??
-                  svc.deviceType ??
-                  DeviceCategory.OTHER,
-              }
-            : undefined
+          const device =
+            svc.serialNumber || svc.deviceName
+              ? {
+                  name: svc.deviceName ?? '',
+                  serial: svc.serialNumber ?? '',
+                  category: svc.deviceType ?? DeviceCategory.OTHER,
+                }
+              : undefined
 
           return (
-            <RowCard
+            <div
               key={svc.id}
-              label={svc.type}
-              onRemove={() => removeService(svc.id)}
-              device={device}
-              extra={
-                <>
-                  {/* --- Router info --- */}
-                  {svc.deviceId2 && svc.serialNumber2 && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      ROUTER{' '}
-                      {devices.find((d) => d.id === svc.deviceId2)?.name ?? ''}{' '}
-                      (SN: {svc.serialNumber2})
-                    </div>
-                  )}
-
-                  {/* --- DS/US/speedtest --- */}
-                  {(svc.type === 'NET' || svc.type === 'DTV') && (
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {svc.usDbmDown !== undefined &&
-                        `DS: ${svc.usDbmDown} dBm | `}
-                      {svc.usDbmUp !== undefined && `US: ${svc.usDbmUp} dBm`}
-                      {svc.speedTest && ` | Speedtest: ${svc.speedTest} Mb/s`}
-                    </div>
-                  )}
-                </>
-              }
+              className="rounded-md border p-3 bg-muted/30 space-y-3"
             >
+              <div className="flex items-center justify-between">
+                <div className="font-semibold">{svc.type}</div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => removeService(svc.id)}
+                >
+                  <MdDelete /> Usuń
+                </Button>
+              </div>
+
+              {/* TEL: pick SIM via SerialScanInput; after pick show SN */}
+              {svc.type === 'TEL' && (
+                <TelRow
+                  service={svc}
+                  devices={devices}
+                  onChange={(updated) =>
+                    onChangeAction(
+                      value.map((v) => (v.id === svc.id ? updated : v))
+                    )
+                  }
+                />
+              )}
+
+              {/* ATV: notes */}
               {svc.type === 'ATV' && (
                 <Textarea
                   placeholder="Uwagi (opcjonalnie)"
@@ -174,23 +179,105 @@ const ServicesSection: React.FC<Props> = ({
                   }
                 />
               )}
-            </RowCard>
+
+              {/* DTV / NET: main, router, extras, measurements */}
+              {(svc.type === 'DTV' || svc.type === 'NET') && (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  {/* Main */}
+                  {device && (
+                    <div>
+                      {svc.deviceSource === 'CLIENT'
+                        ? `Urządzenie klienta: ${device.name} (SN: ${device.serial})`
+                        : `${devicesTypeMap[device.category]} ${device.name}${
+                            device.serial ? ` (SN: ${device.serial})` : ''
+                          }`}
+                    </div>
+                  )}
+
+                  {/* Router (deviceId2) */}
+                  {svc.deviceId2 && (
+                    <div>
+                      {(() => {
+                        if (svc.deviceType2 === 'MODEM_HFC') {
+                          return `ROUTER: MODEM HFC (SN: ${
+                            svc.serialNumber2 ?? ''
+                          })`
+                        }
+                        if (svc.deviceType2 === 'MODEM_GPON') {
+                          return `ROUTER: MODEM GPON (SN: ${
+                            svc.serialNumber2 ?? ''
+                          })`
+                        }
+                        // other categories → just name
+                        return `ROUTER: ${svc.deviceName2 ?? ''}${
+                          svc.serialNumber2 ? ` (SN: ${svc.serialNumber2})` : ''
+                        }`
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Extras list */}
+                  {svc.extraDevices && svc.extraDevices.length > 0 && (
+                    <div>
+                      {svc.extraDevices.map((ex, idx) => {
+                        const label =
+                          ex.category === 'MODEM_HFC'
+                            ? 'MODEM HFC'
+                            : ex.category === 'MODEM_GPON'
+                            ? 'MODEM GPON'
+                            : ex.name || 'URZĄDZENIE'
+                        const sn = ex.serialNumber
+                          ? ` (SN: ${ex.serialNumber})`
+                          : ''
+                        return (
+                          <span key={ex.id}>
+                            {idx > 0 ? ' | ' : ''}
+                            {label}
+                            {sn}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Measurements */}
+                  {(svc.usDbmDown !== undefined ||
+                    svc.usDbmUp !== undefined ||
+                    (svc.speedTest && svc.speedTest.length > 0)) && (
+                    <div>
+                      {svc.usDbmDown !== undefined
+                        ? `DS: ${svc.usDbmDown} dBm`
+                        : ''}
+                      {svc.usDbmDown !== undefined && svc.usDbmUp !== undefined
+                        ? ' | '
+                        : ''}
+                      {svc.usDbmUp !== undefined
+                        ? `US: ${svc.usDbmUp} dBm`
+                        : ''}
+                      {(svc.usDbmDown !== undefined ||
+                        svc.usDbmUp !== undefined) &&
+                      svc.speedTest
+                        ? ' | '
+                        : ''}
+                      {svc.speedTest ? `Speedtest: ${svc.speedTest} Mb/s` : ''}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
 
-      {/* Dialog for DTV / NET */}
+      {/* Dialog */}
       <ServiceConfigDialog
         open={dialogOpen}
         type={dialogType}
         operator={operator}
         devices={devices}
-        usedDeviceIds={
-          value
-            .map((v) => [v.deviceId, v.deviceId2])
-            .flat()
-            .filter(Boolean) as string[]
-        }
+        usedDeviceIds={value
+          .flatMap((v) => [v.deviceId, v.deviceId2])
+          .filter((id): id is string => !!id)}
         onConfirmAction={(svc) => {
           onChangeAction([...value, svc])
           toast.success(`Dodano usługę ${svc.type}`)
@@ -203,39 +290,61 @@ const ServicesSection: React.FC<Props> = ({
 
 export default ServicesSection
 
-/* ------------------- RowCard ------------------- */
+/* ------------------- TEL Row ------------------- */
 
-type RowCardProps = {
-  label: string
-  onRemove: () => void
-  children?: React.ReactNode
-  device?: { name: string; serial: string; category: DeviceCategory }
-  extra?: React.ReactNode
+type TelRowProps = {
+  service: ActivatedService
+  devices: IssuedItemDevice[]
+  onChange: (s: ActivatedService) => void
 }
 
-const RowCard: React.FC<RowCardProps> = ({
-  label,
-  onRemove,
-  children,
-  device,
-  extra,
-}) => (
-  <div className="rounded-md border p-3 bg-muted/30 space-y-3">
-    <div className="flex items-center justify-between">
-      <div className="font-semibold">{label}</div>
-      <Button size="sm" variant="destructive" onClick={onRemove}>
-        <MdDelete /> Usuń
-      </Button>
-    </div>
+/**
+ * TelRow
+ * ------------------------------------------------------
+ * Handles TEL service SIM card serial number assignment.
+ * - Toggle (Switch) controls showing SerialScanInput.
+ * - Once SIM selected, displays SN and locks input.
+ */
+const TelRow = ({ service, devices, onChange }: TelRowProps) => {
+  const [addSerial, setAddSerial] = useState(!!service.serialNumber)
 
-    {device && (
-      <div className="text-sm">
-        {devicesTypeMap[device.category]} {device.name}
-        {device.serial ? ` (SN: ${device.serial})` : ''}
+  const handleSelectSim = (device: IssuedItemDevice) => {
+    onChange({
+      ...service,
+      deviceId: device.id,
+      serialNumber: device.serialNumber,
+      deviceName: 'KARTA SIM',
+      deviceType: DeviceCategory.OTHER,
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label
+          className={`text-sm ${
+            addSerial ? 'text-normal' : 'text-muted-foreground'
+          }`}
+        >
+          Numer seryjny
+        </Label>
+        <Switch checked={addSerial} onCheckedChange={setAddSerial} />
       </div>
-    )}
 
-    {children}
-    {extra}
-  </div>
-)
+      {addSerial && !service.serialNumber && (
+        <SerialScanInput
+          devices={devices.filter((d) => d.category === DeviceCategory.OTHER)}
+          onAddDevice={handleSelectSim}
+          variant="block"
+        />
+      )}
+
+      {service.serialNumber && (
+        <div className="text-sm text-muted-foreground">
+          KARTA SIM (SN:{' '}
+          <span className="font-medium">{service.serialNumber}</span>)
+        </div>
+      )}
+    </div>
+  )
+}

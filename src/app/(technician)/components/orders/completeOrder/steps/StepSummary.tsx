@@ -3,7 +3,7 @@
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent } from '@/app/components/ui/card'
 import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
-import { ActivatedService } from '@/types'
+import { ActivatedService, IssuedItemDevice } from '@/types'
 import { getErrMessage } from '@/utils/errorHandler'
 import { getSettlementWorkCodes } from '@/utils/getSettlementWorkCodes'
 import {
@@ -12,7 +12,6 @@ import {
   OrderStatus,
   OrderType,
   RateDefinition,
-  ServiceType,
 } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -45,17 +44,19 @@ interface StepSummaryProps {
       serialNumber?: string
     }[]
     services: ActivatedService[]
+    issuedDevices?: string[]
   }) => Promise<void>
   materialDefs: MaterialDefinition[]
   workCodeDefs: RateDefinition[]
+  issued?: IssuedItemDevice[]
 }
 
 /**
  * StepSummary
  * -------------------------------------------------------
- * Displays final order summary before submission.
- * - For COMPLETED orders: full technical and financial overview.
- * - For NOT_COMPLETED orders: only failure reason and notes.
+ * Readable, structured final step summary:
+ * - NET, DTV, TEL, ATV sections are visually separated
+ * - Each has name header + devices/SN/pomiary in next lines
  */
 const StepSummary = ({
   orderType,
@@ -70,15 +71,17 @@ const StepSummary = ({
   onSubmit,
   materialDefs,
   workCodeDefs,
+  issued,
 }: StepSummaryProps) => {
   const [isSaving, setIsSaving] = useState(false)
 
-  /** Handles final confirmation and submission */
+  const isCompleted = status === 'COMPLETED'
+  const isInstallation = orderType === 'INSTALATION'
+
+  /** Submit handler */
   const handleFinish = async () => {
     try {
       setIsSaving(true)
-
-      const isInstallation = orderType === 'INSTALATION'
       const workCodes =
         status === 'COMPLETED' && isInstallation
           ? getSettlementWorkCodes(services, workCodeDefs, install)
@@ -96,12 +99,11 @@ const StepSummary = ({
         status,
         notes,
         failureReason:
-          status === 'NOT_COMPLETED' && failureReason
-            ? failureReason
-            : undefined,
+          status === 'NOT_COMPLETED' ? failureReason ?? undefined : undefined,
         equipmentIds,
         usedMaterials: materials,
         collectedDevices: collected,
+        issuedDevices: issued?.map((i) => i.id) ?? [],
         services,
         workCodes,
       })
@@ -117,51 +119,50 @@ const StepSummary = ({
     materialDefs.find((m) => m.id === id)?.name ?? '—'
   const unitById = (id: string) =>
     materialDefs.find((m) => m.id === id)?.unit ?? '—'
-  const countType = (type: ServiceType) =>
-    services.filter((s) => s.type === type).length
 
-  const isCompleted = status === 'COMPLETED'
+  /** Split services by type for display */
+  const netServices = services.filter((s) => s.type === 'NET')
+  const dtvServices = services.filter((s) => s.type === 'DTV')
+  const telServices = services.filter((s) => s.type === 'TEL')
+  const atvServices = services.filter((s) => s.type === 'ATV')
 
   return (
     <div className="flex flex-col h-full justify-between">
-      {/* ============ SCROLLABLE CONTENT ============ */}
+      {/* ===== Content ===== */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4">
-        <h3 className="text-xl font-semibold text-center mt-2">
+        <h2 className="text-xl font-semibold text-center mt-2">
           Podsumowanie zlecenia
-        </h3>
+        </h2>
 
-        {/* --- Order status --- */}
+        {/* Status */}
         <Card>
           <CardContent className="p-4 space-y-1">
-            <p className="font-medium">
+            <h3>
               Status:{' '}
               {isCompleted ? (
                 <span className="text-success">Wykonane</span>
               ) : (
                 <span className="text-danger">Niewykonane</span>
               )}
-            </p>
+            </h3>
           </CardContent>
         </Card>
 
-        {/* --- NOT_COMPLETED: show failure reason + notes only --- */}
+        {/* If NOT_COMPLETED show only failure + notes */}
         {!isCompleted && (
           <>
-            {/* Failure Reason (from selector) */}
             {failureReason && (
               <Card>
-                <CardContent className="p-4 space-y-1">
-                  <p className="font-semibold">Powód niewykonania</p>
+                <CardContent className="p-4">
+                  <p className="font-semibold mb-1">Powód niewykonania</p>
                   <p className="text-sm whitespace-pre-line">{failureReason}</p>
                 </CardContent>
               </Card>
             )}
-
-            {/* Notes (obowiązkowe w StepStatus) */}
             {notes && (
               <Card>
-                <CardContent className="p-4 space-y-1">
-                  <p className="font-semibold">Uwagi</p>
+                <CardContent className="p-4">
+                  <p className="font-semibold mb-1">Uwagi</p>
                   <p className="text-sm whitespace-pre-line">{notes}</p>
                 </CardContent>
               </Card>
@@ -169,13 +170,13 @@ const StepSummary = ({
           </>
         )}
 
-        {/* --- Show installation/service summary only for completed orders --- */}
-        {isCompleted && orderType === 'INSTALATION' && (
+        {/* Completed */}
+        {isCompleted && (
           <>
-            {/* Installation elements summary */}
-            <Card>
-              <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            {/* Installation counts */}
+            {isInstallation && (
+              <Card>
+                <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <Button
                     variant="secondary"
                     className="cursor-default w-full text-[0.65rem]"
@@ -184,11 +185,14 @@ const StepSummary = ({
                   </Button>
                   <Button variant="secondary" className="cursor-default w-full">
                     GNIAZDA ×
-                    {
-                      services.filter((s) =>
-                        ['DTV', 'NET', 'TEL', 'ATV'].includes(s.type)
-                      ).length
-                    }
+                    {services.reduce((acc, s) => {
+                      if (s.type === 'DTV') return acc + 1
+                      if (s.type === 'TEL') return acc + 1
+                      if (s.type === 'NET')
+                        return acc + 1 + (s.extraDevices?.length ?? 0)
+                      if (s.type === 'ATV') return acc + 1
+                      return acc
+                    }, 0)}
                   </Button>
                   <Button variant="secondary" className="cursor-default w-full">
                     PION ×{install.pion || 0}
@@ -196,62 +200,210 @@ const StepSummary = ({
                   <Button variant="secondary" className="cursor-default w-full">
                     LISTWY ×{install.listwa || 0}
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Service type breakdown */}
-            <Card>
-              <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <Button variant="secondary" className="cursor-default w-full">
-                    ATV ×{countType('ATV')}
-                  </Button>
-                  <Button variant="secondary" className="cursor-default w-full">
-                    DTV ×{countType('DTV')}
-                  </Button>
-                  <Button variant="secondary" className="cursor-default w-full">
-                    NET ×{countType('NET')}
-                  </Button>
-                  <Button variant="secondary" className="cursor-default w-full">
-                    TEL ×{countType('TEL')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Services breakdown */}
+            {(netServices.length > 0 ||
+              dtvServices.length > 0 ||
+              telServices.length > 0 ||
+              atvServices.length > 0) && (
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <p className="font-semibold text-base">
+                    Zainstalowane usługi i urządzenia
+                  </p>
+
+                  {/* --- NET --- */}
+                  {netServices.map((s, i) => (
+                    <div
+                      key={`net-${i}`}
+                      className="border-b pb-2 last:border-none"
+                    >
+                      <h3 className="font-semibold">NET</h3>
+                      <div className="text-sm text-muted-foreground ml-2 mt-1 space-y-1">
+                        {/* --- Main device (MODEM) --- */}
+                        <div className="leading-tight">
+                          {(() => {
+                            const category = s.deviceType?.toUpperCase?.() ?? ''
+                            const name =
+                              s.deviceName?.toUpperCase?.() ??
+                              devicesTypeMap[
+                                s.deviceType ?? ''
+                              ]?.toUpperCase?.() ??
+                              '—'
+                            const sn = s.serialNumber
+                              ? s.serialNumber.toUpperCase()
+                              : '—'
+                            return `${
+                              devicesTypeMap[category]
+                            } ${name} SN: ${sn} ${
+                              s.deviceSource === 'CLIENT'
+                                ? ' [SPRZĘT KLIENTA]'
+                                : ''
+                            }`
+                          })()}
+                        </div>
+
+                        {/* --- Router (deviceId2) --- */}
+                        {s.deviceId2 && (
+                          <div className="leading-tight">
+                            {(() => {
+                              const category =
+                                s.deviceType2?.toUpperCase?.() ?? ''
+                              const name =
+                                s.deviceName?.toUpperCase?.() ??
+                                devicesTypeMap[
+                                  s.deviceType ?? ''
+                                ]?.toUpperCase?.() ??
+                                '—'
+                              const sn = s.serialNumber2
+                                ? s.serialNumber2.toUpperCase()
+                                : '—'
+                              return `${
+                                devicesTypeMap[category]
+                              } ${name} SN: ${sn} ${
+                                s.deviceSource === 'CLIENT'
+                                  ? ' [SPRZĘT KLIENTA]'
+                                  : ''
+                              }`
+                            })()}
+                          </div>
+                        )}
+
+                        {/* --- Extra devices --- */}
+                        {s.extraDevices && s.extraDevices.length > 0 && (
+                          <div className="leading-tight">
+                            {s.extraDevices.map((ex) => {
+                              const name = ex.name?.toUpperCase() ?? ''
+                              const sn = ex.serialNumber
+                                ? ex.serialNumber.toUpperCase()
+                                : '—'
+                              const cat =
+                                ex.category !== 'OTHER'
+                                  ? ex.category?.toUpperCase?.()
+                                  : ''
+                              const src =
+                                ex.source === 'CLIENT'
+                                  ? ' [SPRZĘT KLIENTA]'
+                                  : ''
+                              return (
+                                <div key={ex.id}>
+                                  {cat} {name} SN: {sn}
+                                  {src}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* --- Measurements --- */}
+                        {(s.usDbmDown !== undefined ||
+                          s.usDbmUp !== undefined ||
+                          s.speedTest) && (
+                          <div className="mt-1">
+                            {s.usDbmDown !== undefined &&
+                              `DS: ${s.usDbmDown} dBm `}
+                            {s.usDbmUp !== undefined &&
+                              `| US: ${s.usDbmUp} dBm | `}
+                            {s.speedTest && `Speedtest: ${s.speedTest} Mb/s`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* --- DTV --- */}
+                  {dtvServices.map((s, i) => (
+                    <div
+                      key={`dtv-${i}`}
+                      className="border-b pb-2 last:border-none"
+                    >
+                      <h3 className="font-semibold">DTV</h3>
+                      <div className="text-sm text-muted-foreground ml-2 mt-1 space-y-1">
+                        <div className="leading-tight">
+                          {(() => {
+                            const category = s.deviceType?.toUpperCase?.() ?? ''
+                            const name =
+                              s.deviceName?.toUpperCase?.() ??
+                              devicesTypeMap[
+                                s.deviceType ?? ''
+                              ]?.toUpperCase?.() ??
+                              ''
+                            const sn = s.serialNumber
+                              ? s.serialNumber.toUpperCase()
+                              : '—'
+                            return `${
+                              devicesTypeMap[category]
+                            } ${name} SN: ${sn} ${
+                              s.deviceSource === 'CLIENT'
+                                ? ' [SPRZĘT KLIENTA]'
+                                : ''
+                            }`
+                          })()}
+                        </div>
+
+                        {(s.usDbmDown !== undefined ||
+                          s.usDbmUp !== undefined) && (
+                          <div>
+                            {s.usDbmDown !== undefined &&
+                              `DS: ${s.usDbmDown} dBm `}
+                            {s.usDbmUp !== undefined &&
+                              `| US: ${s.usDbmUp} dBm`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* --- TEL --- */}
+                  {telServices.map((s, i) => (
+                    <div
+                      key={`tel-${i}`}
+                      className="border-b pb-2 last:border-none"
+                    >
+                      <h3>TEL</h3>
+                      <div className="text-sm text-muted-foreground ml-2 mt-1">
+                        {s.serialNumber
+                          ? `KARTA SIM SN: ${s.serialNumber}`
+                          : ''}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* --- ATV --- */}
+                  {atvServices.map((s, i) => (
+                    <div
+                      key={`atv-${i}`}
+                      className="border-b pb-2 last:border-none"
+                    >
+                      <h3>ATV</h3>
+                      <div className="text-sm text-muted-foreground ml-2 mt-1">
+                        {s.notes && s.notes.length > 0 ? s.notes : ''}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
 
-        {/* --- Installed devices --- */}
-        {isCompleted && services.length > 0 && (
+        {!isInstallation && issued && issued.length > 0 && (
           <Card>
             <CardContent className="p-4 space-y-2">
-              <p className="font-semibold">Zainstalowane urządzenia</p>
-              {services.map((s) => (
-                <div
-                  key={s.id}
-                  className="text-sm border-b last:border-none py-2 space-y-1"
-                >
-                  <div>
-                    <span className="font-medium">{s.type}</span>
-                    {s.deviceType && (
-                      <span className="ml-1 text-muted-foreground">
-                        {devicesTypeMap[s.deviceType]}
-                      </span>
-                    )}
-                    {s.serialNumber && (
-                      <span className="ml-1 text-muted-foreground">
-                        SN: {s.serialNumber}
-                      </span>
-                    )}
-                  </div>
+              <p className="font-semibold">Zamontowane urządzenia</p>
+              {issued.map((d) => (
+                <div key={d.id} className="text-sm">
+                  {devicesTypeMap[d.category]} {d.name} (SN: {d.serialNumber})
                 </div>
               ))}
             </CardContent>
           </Card>
         )}
 
-        {/* --- Collected devices --- */}
+        {/* Collected devices */}
         {collected.length > 0 && (
           <Card>
             <CardContent className="p-4 space-y-2">
@@ -265,7 +417,7 @@ const StepSummary = ({
           </Card>
         )}
 
-        {/* --- Materials --- */}
+        {/* Materials */}
         {isCompleted && materials.length > 0 && (
           <Card>
             <CardContent className="p-4 space-y-2">
@@ -286,7 +438,7 @@ const StepSummary = ({
           </Card>
         )}
 
-        {/* --- Notes --- */}
+        {/* Notes */}
         {isCompleted && notes && (
           <Card>
             <CardContent className="p-4 space-y-1">
@@ -296,8 +448,8 @@ const StepSummary = ({
           </Card>
         )}
 
-        {/* --- Billing (only for completed installations) --- */}
-        {isCompleted && orderType === 'INSTALATION' && (
+        {/* Billing */}
+        {isCompleted && isInstallation && (
           <Card>
             <CardContent className="p-4 text-center">
               <p className="font-semibold mb-1">Rozliczenie</p>
@@ -322,7 +474,7 @@ const StepSummary = ({
         )}
       </div>
 
-      {/* ============ Bottom navigation ============ */}
+      {/* ===== Footer ===== */}
       <div className="sticky bottom-0 bg-background flex gap-3 pt-2">
         <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
           Wstecz

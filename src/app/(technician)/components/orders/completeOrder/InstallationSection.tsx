@@ -26,9 +26,11 @@ const InstallationSection = ({
   value,
   onChangeAction,
 }: Props) => {
-  const socketCount = activatedServices.filter((s) =>
-    ['DTV', 'NET', 'TEL', 'ATV'].includes(s.type)
-  ).length
+  const socketCount = activatedServices.reduce((count, svc) => {
+    if (svc.type === 'NET') return count + 1 + (svc.extraDevices?.length ?? 0)
+    if (['DTV', 'TEL', 'ATV'].includes(svc.type)) return count + 1
+    return count
+  }, 0)
 
   const resetCounters = () => onChangeAction({ pion: 0, listwa: 0 })
 

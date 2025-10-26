@@ -58,19 +58,34 @@ const SerialScanInput = ({
     setIsAdding(true)
     try {
       const res = await fetchDevice(s)
-      if (!res) return toast.error('Nie znaleziono urządzenia o tym numerze.')
-      if (!res.serialNumber)
-        return toast.error('Brakuje numeru seryjnego dla tego urządzenia.')
-      if (res.serialNumber.toLowerCase() !== s.toLowerCase())
-        return toast.error('Numer seryjny nie pasuje dokładnie do urządzenia.')
+      if (!res) {
+        toast.error('Brak wyniku — nie znaleziono urządzenia o tym numerze.')
+        setShowDD(false)
+        return
+      }
 
-      // Technicians can only add their own devices
+      if (!res.serialNumber) {
+        toast.error('Brakuje numeru seryjnego dla tego urządzenia.')
+        setShowDD(false)
+        return
+      }
+
+      if (!res.category) {
+        toast.error('Urządzenie nie ma przypisanej kategorii.')
+        setShowDD(false)
+        return
+      }
+
+      if (res.serialNumber.toLowerCase() !== s.toLowerCase()) {
+        toast.error('Numer seryjny nie pasuje dokładnie do urządzenia.')
+        return
+      }
+
       if (res.assignedToId && res.assignedToId !== myId) {
         toast.error('To urządzenie jest przypisane do innego technika.')
         return
       }
 
-      // Only allowed statuses are accepted
       if (
         !res.assignedToId &&
         validStatuses &&
@@ -84,6 +99,7 @@ const SerialScanInput = ({
         toast.error('To urządzenie jest już w trakcie przekazania.')
         return
       }
+
       if (isDeviceUsed?.(res.id)) {
         toast.error('To urządzenie zostało już dodane do tego zlecenia.')
         return
@@ -100,7 +116,8 @@ const SerialScanInput = ({
       setValue('')
       setShowDD(false)
     } catch {
-      toast.error('Wystąpił błąd podczas wyszukiwania urządzenia.')
+      toast.error('Brak wyniku — nie znaleziono urządzenia o tym numerze.')
+      setShowDD(false)
     } finally {
       setIsAdding(false)
     }

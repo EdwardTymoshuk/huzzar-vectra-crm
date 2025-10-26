@@ -129,15 +129,16 @@ export const queriesRouter = router({
           },
           settlementEntries: { include: { rate: true } },
           usedMaterials: { include: { material: true } },
-          assignedEquipment: {
+          assignedEquipment: { include: { warehouse: true } },
+          services: {
             include: {
-              warehouse: true,
+              extraDevices: true,
             },
           },
-          services: true,
         },
       })
     ),
+
   /** Light order details for planer */
   getPlanerOrderById: technicianOnly
     .input(z.object({ id: z.string() }))

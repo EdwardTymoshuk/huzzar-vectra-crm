@@ -10,6 +10,7 @@ import { technicianOrderSchema } from '@/lib/schema'
 import { TechnicianOrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 
+import { OrderFormFields } from '@/app/admin-panel/components/orders/OrderFormFields'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
 } from '@/app/components/ui/dialog'
 import { Form } from '@/app/components/ui/form'
 import { useSession } from 'next-auth/react'
-import { OrderFormFieldsTechnician } from './OrderFormFieldsTechnician'
 
 /**
  * TechnicianAddOrderModal:
@@ -71,7 +71,7 @@ export const TechnicianAddOrderModal = ({
 
       toast.success('Zlecenie zostało dodane!')
       form.reset()
-      utils.order.getOrders.invalidate()
+      utils.order.getTechnicianActiveOrders.invalidate()
       onCloseAction()
       onCreated?.(createdOrder.id)
     } catch (error) {
@@ -106,7 +106,7 @@ export const TechnicianAddOrderModal = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Form fields specific to technician */}
-            <OrderFormFieldsTechnician control={form.control} />
+            <OrderFormFields form={form} />
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={onCloseAction}>

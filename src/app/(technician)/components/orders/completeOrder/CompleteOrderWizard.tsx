@@ -106,6 +106,7 @@ const CompleteOrderWizard = ({
   >([])
   const [notes, setNotes] = useState('')
   const [failureReason, setFailureReason] = useState<string>('')
+  const [issued, setIssued] = useState<IssuedItemDevice[]>([])
 
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
@@ -207,6 +208,7 @@ const CompleteOrderWizard = ({
       category: DeviceCategory
       serialNumber?: string
     }[]
+    issuedDevices?: string[]
     services: ActivatedService[]
   }) => {
     try {
@@ -332,8 +334,12 @@ const CompleteOrderWizard = ({
 
               {step === 3 && (
                 <StepCollectedAndNotes
+                  orderType={orderType}
+                  devices={devices}
                   collected={collected}
                   setCollected={setCollected}
+                  issued={issued}
+                  setIssued={setIssued}
                   notes={notes}
                   setNotes={setNotes}
                   onNext={next}
@@ -365,11 +371,20 @@ const CompleteOrderWizard = ({
             <>
               {step === 1 && (
                 <StepCollectedAndNotes
+                  orderType={orderType}
+                  devices={devices}
                   collected={collected}
                   setCollected={setCollected}
+                  issued={issued}
+                  setIssued={setIssued}
                   notes={notes}
                   setNotes={setNotes}
-                  onNext={next}
+                  onNext={({ collected, issued, notes }) => {
+                    setCollected(collected)
+                    setIssued(issued)
+                    setNotes(notes)
+                    next()
+                  }}
                   onBack={back}
                 />
               )}
@@ -388,6 +403,7 @@ const CompleteOrderWizard = ({
                   materialDefs={materialDefsTyped}
                   workCodeDefs={workCodeDefs ?? []}
                   failureReason={failureReason}
+                  issued={issued}
                 />
               )}
             </>

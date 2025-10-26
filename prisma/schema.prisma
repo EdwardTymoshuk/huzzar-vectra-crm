@@ -106,17 +106,32 @@ model OrderService {
   id            String      @id @default(uuid())
   orderId       String
   type          ServiceType
+
+  // Primary device
   deviceId      String?
   serialNumber  String?
+  deviceType    DeviceCategory?
+  deviceSource  DeviceSource? 
+  deviceName    String?        
+
+  // Secondary device (router)
   deviceId2     String?
   serialNumber2 String?
-  speedTest     String?
-  deviceType    DeviceCategory?
   deviceType2   DeviceCategory?
+  device2Source DeviceSource?
+  deviceName2   String?
+
+    // NET-only: number of extra modems/routers (counted as sockets)
+  extraDevicesCount Int? @default(0)
+    extraDevices  OrderExtraDevice[]
+
+  speedTest     String?
   usDbmDown     Float?
   usDbmUp       Float?
+
   createdAt     DateTime    @default(now())
   notes         String?
+  
   order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
@@ -323,6 +338,16 @@ model TechnicianSettings {
   user            User     @relation(fields: [userId], references: [id])
 }
 
+model OrderExtraDevice {
+  id           String          @id @default(uuid())
+  serviceId    String
+  source       DeviceSource
+  name         String
+  serialNumber String?
+  category     DeviceCategory?
+  service      OrderService    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
+
 /// -------------------------------
 /// ENUMS
 /// -------------------------------
@@ -415,6 +440,8 @@ enum WarehouseAction {
   RETURNED_TO_OPERATOR
   TRANSFER
   COLLECTED_FROM_CLIENT
+  ASSIGNED_TO_ORDER
+  ISSUED_TO_CLIENT
 }
 
 enum ServiceType {
@@ -430,4 +457,9 @@ enum LocationTransferStatus {
   RECEIVED
   REJECTED
   CANCELED
+}
+
+enum DeviceSource {
+  WAREHOUSE
+  CLIENT
 }

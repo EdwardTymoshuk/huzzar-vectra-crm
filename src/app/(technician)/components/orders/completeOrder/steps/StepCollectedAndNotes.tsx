@@ -1,7 +1,7 @@
 'use client'
 
+import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
-import { Card, CardContent } from '@/app/components/ui/card'
 import { Input } from '@/app/components/ui/input'
 import {
   Select,
@@ -13,9 +13,11 @@ import {
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap } from '@/lib/constants'
-import { DeviceCategory } from '@prisma/client'
+import { IssuedItemDevice } from '@/types'
+import { DeviceCategory, OrderType } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import DeviceCard from '../DeviceCard'
 
 type CollectedDevice = {
   id: string
@@ -24,36 +26,64 @@ type CollectedDevice = {
   serialNumber: string
 }
 
+type Setter<T> = React.Dispatch<React.SetStateAction<T>>
+
 interface Props {
+  /** All devices available in technician's stock */
+  devices: IssuedItemDevice[]
+
+  /** Already collected (from client) devices */
   collected: CollectedDevice[]
   setCollected: (v: CollectedDevice[]) => void
+
+  /** Issued devices (to client) – only for SERVICE/OUTAGE */
+  issued: IssuedItemDevice[]
+  setIssued: Setter<IssuedItemDevice[]>
+
+  /** Order metadata */
+  orderType: OrderType
+
+  /** Technician notes */
   notes: string
   setNotes: (v: string) => void
+
+  /** Navigation handlers */
   onBack: () => void
-  onNext: (data: { collected: CollectedDevice[]; notes: string }) => void
+  onNext: (data: {
+    collected: CollectedDevice[]
+    issued: IssuedItemDevice[]
+    notes: string
+  }) => void
 }
 
 /**
  * StepCollectedAndNotes
- * - Handles collected devices and technician notes.
- * - Validates input before proceeding.
- * - Displays devices as individual cards.
+ * ------------------------------------------------------
+ * Handles:
+ *  - (SERVICE/OUTAGE) Issuing new devices to client
+ *  - Collecting devices from client
+ *  - Technician notes
  */
 const StepCollectedAndNotes = ({
+  devices,
   collected,
   setCollected,
+  issued,
+  setIssued,
+  orderType,
   notes,
   setNotes,
   onBack,
   onNext,
 }: Props) => {
   const [collectEnabled, setCollectEnabled] = useState(false)
+  const [issueEnabled, setIssueEnabled] = useState(false)
   const [category, setCategory] = useState<DeviceCategory>('OTHER')
   const [name, setName] = useState('')
   const [sn, setSn] = useState('')
   const [touched, setTouched] = useState(false)
 
-  /** Adds new collected device */
+  /** Adds manually collected device */
   const addCollected = () => {
     if (name.trim().length < 2) {
       toast.error('Podaj nazwę urządzenia.')
@@ -63,43 +93,113 @@ const StepCollectedAndNotes = ({
       toast.error('Podaj numer seryjny.')
       return
     }
-    setCollected([
-      ...collected,
-      {
-        id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
-        name: name.trim(),
-        category: category,
-        serialNumber: sn.trim().toUpperCase(),
-      },
-    ])
+    const newDevice: CollectedDevice = {
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+      name: name.trim(),
+      category,
+      serialNumber: sn.trim().toUpperCase(),
+    }
+    setCollected([...collected, newDevice])
     setName('')
     setSn('')
   }
 
-  /** Removes device from list */
-  const removeCollected = (id: string) =>
+  /** Removes collected device */
+  const removeCollected = (id: string) => {
     setCollected(collected.filter((d) => d.id !== id))
+  }
 
-  /** Handles next step validation */
+  /** Removes issued device */
+  const removeIssued = (id: string) => {
+    setIssued(issued.filter((d) => d.id !== id))
+  }
+
+  /** Handles step validation + next */
   const handleNext = () => {
     setTouched(true)
+
     if (collectEnabled && collected.length === 0) {
-      toast.error('Dodaj przynajmniej jedno urządzenie lub wyłącz odbiór.')
+      toast.error(
+        'Dodaj przynajmniej jedno odebrane urządzenie lub wyłącz odbiór.'
+      )
       return
     }
 
-    onNext({ collected: collectEnabled ? collected : [], notes })
+    if (orderType !== 'INSTALATION' && issueEnabled && issued.length === 0) {
+      toast.error(
+        'Dodaj przynajmniej jedno wydane urządzenie lub wyłącz wydanie.'
+      )
+      return
+    }
+
+    onNext({
+      collected: collectEnabled ? collected : [],
+      issued: issueEnabled ? issued : [],
+      notes,
+    })
   }
+
+  /** Determines if issue section should be visible (SERVICE / OUTAGE only) */
+  const canIssue = orderType !== 'INSTALATION'
 
   return (
     <div className="flex flex-col h-full justify-between">
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 pb-8">
         <h3 className="text-xl font-semibold text-center mt-3 mb-4">
-          Dodaj odebrane urządzenia i uwagi
+          Sprzęt klienta i uwagi
         </h3>
 
-        {/* --- Switch: enable/disable collection --- */}
+        {/* === Issued section (only for SERVICE / OUTAGE) === */}
+        {canIssue && (
+          <>
+            <div className="flex items-center gap-3 mb-3">
+              <Switch
+                id="issue-switch"
+                checked={issueEnabled}
+                onCheckedChange={(checked) => {
+                  setIssueEnabled(checked)
+                  if (!checked) setIssued([])
+                }}
+              />
+              <label htmlFor="issue-switch" className="font-semibold">
+                Wydanie sprzętu klientowi
+              </label>
+            </div>
+
+            {issueEnabled && (
+              <div className="space-y-4 mb-6">
+                <SerialScanInput
+                  devices={devices.filter(
+                    (d) =>
+                      !issued.some((ex) => ex.id === d.id) &&
+                      d.serialNumber &&
+                      d.serialNumber.length > 0
+                  )}
+                  onAddDevice={(dev) => {
+                    setIssued((prev) => [...prev, dev])
+                  }}
+                  variant="block"
+                />
+
+                {issued.length > 0 && (
+                  <div className="grid gap-3 mt-2">
+                    {issued.map((d) => (
+                      <DeviceCard
+                        key={d.id}
+                        label={devicesTypeMap[d.category]}
+                        device={d}
+                        onRemove={() => removeIssued(d.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* === Collected section (always visible) === */}
         <div className="flex items-center gap-3 mb-3">
           <Switch
             id="collect-switch"
@@ -114,7 +214,6 @@ const StepCollectedAndNotes = ({
           </label>
         </div>
 
-        {/* --- Collected devices section --- */}
         {collectEnabled && (
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row gap-2">
@@ -151,34 +250,22 @@ const StepCollectedAndNotes = ({
               </Button>
             </div>
 
-            {/* List of collected devices as cards */}
             <h4 className="font-semibold mt-3">Odebrane urządzenia</h4>
             {collected.length > 0 ? (
               <div className="grid gap-3 mt-2">
                 {collected.map((d) => (
-                  <Card
+                  <DeviceCard
                     key={d.id}
-                    className="border bg-muted/30 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div className="text-sm">
-                        <p className="font-medium">
-                          {devicesTypeMap[d.category]} {d.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          SN: {d.serialNumber}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => removeCollected(d.id)}
-                        className="self-start w-full sm:self-auto"
-                      >
-                        Usuń
-                      </Button>
-                    </CardContent>
-                  </Card>
+                    label={devicesTypeMap[d.category]}
+                    device={{
+                      id: d.id,
+                      type: 'DEVICE',
+                      name: d.name,
+                      serialNumber: d.serialNumber,
+                      category: d.category,
+                    }}
+                    onRemove={() => removeCollected(d.id)}
+                  />
                 ))}
               </div>
             ) : (
@@ -189,7 +276,7 @@ const StepCollectedAndNotes = ({
           </div>
         )}
 
-        {/* --- Notes section --- */}
+        {/* === Notes === */}
         <div className="mt-8">
           <h4 className="font-semibold mb-2">Uwagi technika</h4>
           <Textarea
@@ -200,15 +287,24 @@ const StepCollectedAndNotes = ({
           />
         </div>
 
-        {/* --- Validation message --- */}
-        {touched && collectEnabled && collected.length === 0 && (
-          <p className="text-danger text-sm text-center mt-3">
-            Dodaj przynajmniej jedno urządzenie lub wyłącz odbiór.
-          </p>
+        {/* Validation */}
+        {touched && (
+          <>
+            {collectEnabled && collected.length === 0 && (
+              <p className="text-danger text-sm text-center mt-3">
+                Dodaj przynajmniej jedno odebrane urządzenie lub wyłącz odbiór.
+              </p>
+            )}
+            {canIssue && issueEnabled && issued.length === 0 && (
+              <p className="text-danger text-sm text-center mt-3">
+                Dodaj przynajmniej jedno wydane urządzenie lub wyłącz wydanie.
+              </p>
+            )}
+          </>
         )}
       </div>
 
-      {/* Bottom nav */}
+      {/* Bottom navigation */}
       <div className="sticky bottom-0 bg-background flex gap-3">
         <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
           Wstecz

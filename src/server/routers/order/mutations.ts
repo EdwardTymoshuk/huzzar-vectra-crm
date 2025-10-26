@@ -98,6 +98,9 @@ async function mapServicesWithDeviceTypes(
     id: string
     type: ServiceType
     deviceId?: string
+    deviceSource?: 'WAREHOUSE' | 'CLIENT'
+    deviceName?: string
+    deviceType?: DeviceCategory | null
     serialNumber?: string
     deviceId2?: string
     serialNumber2?: string
@@ -105,13 +108,21 @@ async function mapServicesWithDeviceTypes(
     usDbmDown?: number
     usDbmUp?: number
     notes?: string
+    extraDevices?: {
+      id: string
+      source: 'WAREHOUSE' | 'CLIENT'
+      category: DeviceCategory
+      name?: string
+      serialNumber?: string
+    }[]
   }[],
   orderId: string
 ) {
   return Promise.all(
     services.map(async (s) => {
+      // If deviceSource = CLIENT, we use category/name directly from payload
       const [device1, device2] = await Promise.all([
-        s.deviceId
+        s.deviceSource === 'WAREHOUSE' && s.deviceId
           ? tx.warehouse.findUnique({
               where: { id: s.deviceId },
               select: { category: true },
@@ -129,16 +140,29 @@ async function mapServicesWithDeviceTypes(
         id: s.id,
         orderId,
         type: s.type,
+        // 🔹 save both warehouse or client device reference
         deviceId: s.deviceId ?? null,
         serialNumber: s.serialNumber ?? null,
+        deviceSource: s.deviceSource ?? null,
+        deviceName: s.deviceName ?? null,
+        deviceType:
+          s.deviceSource === 'CLIENT'
+            ? s.deviceType ?? null
+            : device1?.category ?? null,
         deviceId2: s.deviceId2 ?? null,
         serialNumber2: s.serialNumber2 ?? null,
-        deviceType: device1?.category ?? null,
         deviceType2: device2?.category ?? null,
         speedTest: s.speedTest ?? null,
         usDbmDown: s.usDbmDown ?? null,
         usDbmUp: s.usDbmUp ?? null,
         notes: s.notes ?? null,
+        extraDevices:
+          s.extraDevices?.map((ex) => ({
+            source: ex.source,
+            category: ex.category,
+            name: ex.name ?? null,
+            serialNumber: ex.serialNumber ?? null,
+          })) ?? [],
       }
     })
   )
@@ -336,7 +360,7 @@ export const mutationsRouter = router({
       })
     }),
 
-  /** ✅ Technician completes or fails an order */
+  /** ✅ Technician completes or fails an order (with extra devices support) */
   completeOrder: loggedInEveryone
     .input(
       z.object({
@@ -344,21 +368,14 @@ export const mutationsRouter = router({
         status: z.nativeEnum(OrderStatus),
         notes: z.string().nullable().optional(),
         failureReason: z.string().nullable().optional(),
-
-        // Settlement work codes (for completed orders)
         workCodes: z
           .array(z.object({ code: z.string(), quantity: z.number().min(1) }))
           .optional(),
-
-        // IDs of equipment assigned to this order (devices used)
         equipmentIds: z.array(z.string()).optional(),
-
-        // Used materials (by material definition id and quantity)
         usedMaterials: z
           .array(z.object({ id: z.string(), quantity: z.number().min(1) }))
           .optional(),
-
-        // Devices collected from client during this order
+        issuedDevices: z.array(z.string()).optional(),
         collectedDevices: z
           .array(
             z.object({
@@ -369,12 +386,15 @@ export const mutationsRouter = router({
           )
           .optional(),
 
-        // NEW: Services (measurements) performed during the order
         services: z
           .array(
             z.object({
               id: z.string(),
               type: z.nativeEnum(ServiceType),
+              deviceSource: z.enum(['WAREHOUSE', 'CLIENT']).optional(),
+              deviceName: z.string().optional(),
+              deviceType: z.nativeEnum(DeviceCategory).optional(),
+
               deviceId: z.string().optional(),
               serialNumber: z.string().optional(),
               deviceId2: z.string().optional(),
@@ -383,6 +403,17 @@ export const mutationsRouter = router({
               usDbmDown: z.coerce.number().optional(),
               usDbmUp: z.coerce.number().optional(),
               notes: z.string().optional(),
+              extraDevices: z
+                .array(
+                  z.object({
+                    id: z.string(),
+                    source: z.enum(['WAREHOUSE', 'CLIENT']),
+                    category: z.nativeEnum(DeviceCategory),
+                    name: z.string().optional(),
+                    serialNumber: z.string().optional(),
+                  })
+                )
+                .optional(),
             })
           )
           .default([]),
@@ -391,6 +422,7 @@ export const mutationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
       const warnings: string[] = []
 
       // ----------- Validate order and technician permissions -----------
@@ -398,18 +430,16 @@ export const mutationsRouter = router({
         where: { id: input.orderId },
         select: { id: true, assignedToId: true, type: true },
       })
-      if (!order) {
+      if (!order)
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Zlecenie nie istnieje',
         })
-      }
-      if (order.assignedToId !== userId) {
+      if (order.assignedToId !== userId)
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'Nie masz dostępu do tego zlecenia',
         })
-      }
       if (
         input.status === OrderStatus.COMPLETED &&
         order.type === OrderType.INSTALATION &&
@@ -423,7 +453,7 @@ export const mutationsRouter = router({
 
       await prisma.$transaction(async (tx) => {
         /* -------------------------------------------------------------------
-         * 1️⃣  Update order main info (status, notes, failure reason, date)
+         * 1️⃣  Update order main info
          * ------------------------------------------------------------------- */
         await tx.order.update({
           where: { id: input.orderId },
@@ -459,28 +489,22 @@ export const mutationsRouter = router({
          * 3️⃣  Save used materials and update technician warehouse stock
          * ------------------------------------------------------------------- */
         if (input.usedMaterials?.length) {
-          // Map material definition id to unit (for correct unit storage)
-          const materialUnitsMap = new Map<string, string>()
           const materialDefs = await tx.materialDefinition.findMany({
             where: { id: { in: input.usedMaterials.map((m) => m.id) } },
             select: { id: true, name: true, unit: true },
           })
-          materialDefs.forEach((def) => {
-            materialUnitsMap.set(def.id, def.unit)
-          })
+          const nameMap = new Map(materialDefs.map((d) => [d.id, d.name]))
+          const unitMap = new Map(materialDefs.map((d) => [d.id, d.unit]))
 
-          // Save usage per order
           await tx.orderMaterial.createMany({
             data: input.usedMaterials.map((item) => ({
               orderId: input.orderId,
               materialId: item.id,
               quantity: item.quantity,
-              unit: (materialUnitsMap.get(item.id) as MaterialUnit) ?? 'PIECE',
+              unit: (unitMap.get(item.id) as MaterialUnit) ?? 'PIECE',
             })),
           })
-          const nameMap = new Map(materialDefs.map((d) => [d.id, d.name]))
 
-          // Decrement technician material stock and add warehouse history
           for (const item of input.usedMaterials) {
             const technicianMaterial = await tx.warehouse.findFirst({
               where: {
@@ -493,17 +517,16 @@ export const mutationsRouter = router({
             const materialName = nameMap.get(item.id) ?? `ID: ${item.id}`
 
             if (!technicianMaterial) {
-              warnings.push(
-                `Brak materiału ${materialName} na Twoim stanie. Uzupełnij magazyn.`
-              )
+              warnings.push(`Brak materiału ${materialName} na Twoim stanie.`)
               continue
             }
+
             const available = technicianMaterial.quantity
             const remaining = Math.max(available - item.quantity, 0)
 
             if (item.quantity > available) {
               warnings.push(
-                `Zużyto ${item.quantity} szt. materiału „${materialName}”, ale na stanie było tylko ${available}. Zaktualizuj stan magazynu.`
+                `Zużyto ${item.quantity} szt. materiału „${materialName}”, ale na stanie było tylko ${available}.`
               )
             }
 
@@ -528,22 +551,19 @@ export const mutationsRouter = router({
          * 4️⃣  Assign used devices from technician warehouse
          * ------------------------------------------------------------------- */
         if (input.equipmentIds?.length) {
-          // Prevent assignment of already-used devices
           const conflictingDevices = await tx.orderEquipment.findMany({
             where: {
               warehouseId: { in: input.equipmentIds },
               orderId: { not: input.orderId },
             },
           })
-          if (conflictingDevices.length > 0) {
+          if (conflictingDevices.length > 0)
             throw new TRPCError({
               code: 'CONFLICT',
               message:
                 'Niektóre urządzenia są już przypisane do innych zleceń i nie mogą być użyte.',
             })
-          }
 
-          // Check that technician actually owns these devices
           const technicianDevices = await tx.warehouse.findMany({
             where: {
               id: { in: input.equipmentIds },
@@ -551,26 +571,64 @@ export const mutationsRouter = router({
               status: { in: ['AVAILABLE', 'ASSIGNED'] },
             },
           })
-          if (technicianDevices.length !== input.equipmentIds.length) {
+          if (technicianDevices.length !== input.equipmentIds.length)
             throw new TRPCError({
               code: 'CONFLICT',
-              message:
-                'Niektóre urządzenia nie są przypisane do Ciebie lub nie są dostępne.',
+              message: 'Niektóre urządzenia nie są przypisane do Ciebie.',
             })
-          }
 
-          // Assign devices to order
           await tx.orderEquipment.createMany({
             data: input.equipmentIds.map((id) => ({
               orderId: input.orderId,
               warehouseId: id,
             })),
           })
-
-          // Update warehouse status
           await tx.warehouse.updateMany({
             where: { id: { in: input.equipmentIds } },
             data: { status: 'ASSIGNED_TO_ORDER' },
+          })
+        }
+
+        /* -------------------------------------------------------------------
+         * 4a  Issue devices to client (SERVICE / OUTAGE)
+         * ------------------------------------------------------------------- */
+        if (input.issuedDevices?.length) {
+          const toIssue = await tx.warehouse.findMany({
+            where: {
+              id: { in: input.issuedDevices },
+              assignedToId: userId,
+              itemType: 'DEVICE',
+              status: { in: ['AVAILABLE', 'ASSIGNED', 'ASSIGNED_TO_ORDER'] },
+            },
+            select: { id: true },
+          })
+          if (toIssue.length !== input.issuedDevices.length) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'Niektóre wydawane urządzenia nie są na Twoim stanie.',
+            })
+          }
+
+          await tx.orderEquipment.createMany({
+            data: input.issuedDevices.map((id) => ({
+              orderId: input.orderId,
+              warehouseId: id,
+            })),
+          })
+
+          await tx.warehouse.updateMany({
+            where: { id: { in: input.issuedDevices } },
+            data: { status: 'ASSIGNED_TO_ORDER', assignedToId: null },
+          })
+
+          await tx.warehouseHistory.createMany({
+            data: input.issuedDevices.map((id) => ({
+              warehouseItemId: id,
+              action: 'ASSIGNED_TO_ORDER',
+              performedById: userId,
+              assignedOrderId: input.orderId,
+              actionDate: new Date(),
+            })),
           })
         }
 
@@ -605,17 +663,14 @@ export const mutationsRouter = router({
             })
           }
         }
-
         /* -------------------------------------------------------------------
-         * 6️⃣  Save measurement and service info (speedtest/DS/US)
-         *     - Remove previous orderService records for this order (if any)
-         *     - Add all new service records from the form
+         * 6️⃣  Save measurement/services + extra devices
          * ------------------------------------------------------------------- */
         if (input.status === OrderStatus.COMPLETED) {
-          // Remove old services, then insert all provided
           await tx.orderService.deleteMany({
             where: { orderId: input.orderId },
           })
+
           if (input.services.length) {
             const servicesData = await mapServicesWithDeviceTypes(
               tx,
@@ -623,7 +678,74 @@ export const mutationsRouter = router({
               input.orderId
             )
 
-            await tx.orderService.createMany({ data: servicesData })
+            for (const s of servicesData) {
+              // 🔹 Create service (with deviceSource & deviceName support)
+              const createdService = await tx.orderService.create({
+                data: {
+                  orderId: s.orderId,
+                  type: s.type,
+                  deviceId: s.deviceId,
+                  serialNumber: s.serialNumber,
+                  deviceId2: s.deviceId2,
+                  serialNumber2: s.serialNumber2,
+                  deviceType: s.deviceType,
+                  deviceType2: s.deviceType2,
+                  deviceSource: s.deviceSource ?? null,
+                  deviceName: s.deviceName ?? null,
+                  speedTest: s.speedTest,
+                  usDbmDown: s.usDbmDown,
+                  usDbmUp: s.usDbmUp,
+                  notes: s.notes,
+                },
+              })
+
+              // 🔹 Create extra devices if present
+              if (s.extraDevices?.length) {
+                await tx.orderExtraDevice.createMany({
+                  data: s.extraDevices.map((ex) => ({
+                    serviceId: createdService.id,
+                    source: ex.source,
+                    name: ex.name ?? '',
+                    serialNumber: ex.serialNumber ?? undefined,
+                    category: ex.category ?? undefined,
+                  })),
+                })
+
+                // ✅ Remove used extra devices (from technician warehouse)
+                const usedExtraSerials = s.extraDevices
+                  .filter((ex) => ex.source === 'WAREHOUSE' && ex.serialNumber)
+                  .map((ex) => ex.serialNumber!.trim().toUpperCase())
+
+                if (usedExtraSerials.length > 0) {
+                  const matched = await tx.warehouse.findMany({
+                    where: {
+                      assignedToId: userId,
+                      itemType: 'DEVICE',
+                      serialNumber: { in: usedExtraSerials },
+                      status: { in: ['AVAILABLE', 'ASSIGNED'] },
+                    },
+                    select: { id: true },
+                  })
+
+                  if (matched.length) {
+                    await tx.warehouse.updateMany({
+                      where: { id: { in: matched.map((m) => m.id) } },
+                      data: { status: 'ASSIGNED_TO_ORDER' },
+                    })
+
+                    await tx.warehouseHistory.createMany({
+                      data: matched.map((m) => ({
+                        warehouseItemId: m.id,
+                        action: 'ASSIGNED_TO_ORDER',
+                        performedById: userId,
+                        assignedOrderId: input.orderId,
+                        actionDate: new Date(),
+                      })),
+                    })
+                  }
+                }
+              }
+            }
           }
         }
       })
@@ -659,6 +781,10 @@ export const mutationsRouter = router({
             z.object({
               id: z.string(),
               type: z.nativeEnum(ServiceType),
+              deviceSource: z.enum(['WAREHOUSE', 'CLIENT']).optional(),
+              deviceName: z.string().optional(),
+              deviceType: z.nativeEnum(DeviceCategory).optional(),
+
               deviceId: z.string().optional(),
               serialNumber: z.string().optional(),
               deviceId2: z.string().optional(),
@@ -762,14 +888,46 @@ export const mutationsRouter = router({
           }
         }
 
-        // Services/measurements snapshot
+        // Services/measurements snapshot (with extra devices)
         if (input.status === OrderStatus.COMPLETED && input.services.length) {
           const servicesData = await mapServicesWithDeviceTypes(
             tx,
             input.services,
             input.orderId
           )
-          await tx.orderService.createMany({ data: servicesData })
+
+          for (const s of servicesData) {
+            // Create base service
+            const createdService = await tx.orderService.create({
+              data: {
+                orderId: s.orderId,
+                type: s.type,
+                deviceId: s.deviceId,
+                serialNumber: s.serialNumber,
+                deviceId2: s.deviceId2,
+                serialNumber2: s.serialNumber2,
+                deviceType: s.deviceType,
+                deviceType2: s.deviceType2,
+                speedTest: s.speedTest,
+                usDbmDown: s.usDbmDown,
+                usDbmUp: s.usDbmUp,
+                notes: s.notes,
+              },
+            })
+
+            // Create extra devices if present
+            if (s.extraDevices?.length) {
+              await tx.orderExtraDevice.createMany({
+                data: s.extraDevices.map((ex) => ({
+                  serviceId: createdService.id,
+                  source: ex.source,
+                  name: ex.name ?? '',
+                  serialNumber: ex.serialNumber ?? undefined,
+                  category: ex.category ?? undefined,
+                })),
+              })
+            }
+          }
         }
 
         // History entry
@@ -816,6 +974,10 @@ export const mutationsRouter = router({
             z.object({
               id: z.string(),
               type: z.nativeEnum(ServiceType),
+              deviceSource: z.enum(['WAREHOUSE', 'CLIENT']).optional(),
+              deviceName: z.string().optional(),
+              deviceType: z.nativeEnum(DeviceCategory).optional(),
+
               deviceId: z.string().optional(),
               serialNumber: z.string().optional(),
               deviceId2: z.string().optional(),
@@ -918,16 +1080,47 @@ export const mutationsRouter = router({
           }
         }
 
-        // Services/measurements snapshot
+        // Services/measurements snapshot (with extra devices)
         if (input.status === OrderStatus.COMPLETED && input.services.length) {
           const servicesData = await mapServicesWithDeviceTypes(
             tx,
             input.services,
             input.orderId
           )
-          await tx.orderService.createMany({ data: servicesData })
-        }
 
+          for (const s of servicesData) {
+            // Create service
+            const createdService = await tx.orderService.create({
+              data: {
+                orderId: s.orderId,
+                type: s.type,
+                deviceId: s.deviceId,
+                serialNumber: s.serialNumber,
+                deviceId2: s.deviceId2,
+                serialNumber2: s.serialNumber2,
+                deviceType: s.deviceType,
+                deviceType2: s.deviceType2,
+                speedTest: s.speedTest,
+                usDbmDown: s.usDbmDown,
+                usDbmUp: s.usDbmUp,
+                notes: s.notes,
+              },
+            })
+
+            // Create extra devices
+            if (s.extraDevices?.length) {
+              await tx.orderExtraDevice.createMany({
+                data: s.extraDevices.map((ex) => ({
+                  serviceId: createdService.id,
+                  source: ex.source,
+                  name: ex.name ?? '',
+                  serialNumber: ex.serialNumber ?? undefined,
+                  category: ex.category ?? undefined,
+                })),
+              })
+            }
+          }
+        }
         // History entry
         await tx.orderHistory.create({
           data: {

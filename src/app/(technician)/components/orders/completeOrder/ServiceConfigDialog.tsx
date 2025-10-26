@@ -10,11 +10,23 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { Input } from '@/app/components/ui/input'
-import { ActivatedService, IssuedItemDevice } from '@/types'
+import { Label } from '@/app/components/ui/label'
+import { Switch } from '@/app/components/ui/switch'
+import { ActivatedService, DeviceSource, IssuedItemDevice } from '@/types'
 import { DeviceCategory, ServiceType } from '@prisma/client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import DeviceCard from './DeviceCard'
+import ServiceDeviceSection from './ServiceDeviceSection'
 
+/**
+ * ServiceConfigDialog
+ * ------------------------------------------------------
+ * Configures DTV or NET service before saving into ActivatedService.
+ * - Supports both warehouse and client devices.
+ * - NET supports adding multiple extra devices (routers, extenders).
+ * - Displays measurements and prevents duplicates.
+ */
 interface Props {
   open: boolean
   type: ServiceType
@@ -25,15 +37,6 @@ interface Props {
   onCloseAction: () => void
 }
 
-/**
- * ServiceConfigDialog
- * -------------------
- * Dialog used for configuring DTV and NET services before adding them to the list.
- * - Shows selected devices clearly in small cards.
- * - For T-Mobile + MODEM_HFC → router required.
- * - For T-Mobile + MODEM_GPON → router not required.
- * - Prevents duplicate or reused devices.
- */
 const ServiceConfigDialog = ({
   open,
   type,
@@ -43,145 +46,210 @@ const ServiceConfigDialog = ({
   onConfirmAction,
   onCloseAction,
 }: Props) => {
-  const [primary, setPrimary] = useState<IssuedItemDevice | null>(null)
-  const [secondary, setSecondary] = useState<IssuedItemDevice | null>(null)
-  const [ds, setDs] = useState<number | undefined>()
-  const [us, setUs] = useState<number | undefined>()
+  const [primarySource, setPrimarySource] = useState<DeviceSource>('WAREHOUSE')
+  const [primaryDevice, setPrimaryDevice] = useState<IssuedItemDevice | null>(
+    null
+  )
+  const [clientCategory, setClientCategory] = useState<DeviceCategory | null>(
+    null
+  )
+  const [primaryClientName, setPrimaryClientName] = useState('')
+  const [primaryClientSn, setPrimaryClientSn] = useState('')
+
+  const [secondaryDevice, setSecondaryDevice] =
+    useState<IssuedItemDevice | null>(null)
+
+  const [extras, setExtras] = useState<IssuedItemDevice[]>([])
+  const [addExtras, setAddExtras] = useState(false)
+
+  const [ds, setDs] = useState('')
+  const [us, setUs] = useState('')
   const [speed, setSpeed] = useState('')
 
-  /** Detect if operator is T-Mobile (covers all variations) */
+  /** Reset on open */
+  useEffect(() => {
+    if (!open) return
+    setPrimarySource('WAREHOUSE')
+    setPrimaryDevice(null)
+    setClientCategory(null)
+    setPrimaryClientName('')
+    setPrimaryClientSn('')
+    setSecondaryDevice(null)
+    setExtras([])
+    setAddExtras(false)
+    setDs('')
+    setUs('')
+    setSpeed('')
+  }, [open, type])
+
+  /** Operator detection */
   const isTMobile = useMemo(() => {
     const normalized = operator
       .trim()
       .toUpperCase()
       .replace(/[\s\-]+/g, '')
-    return (
-      normalized.includes('TMOBILE') ||
-      normalized.includes('T-MOBILE') ||
-      normalized.includes('TMPL') ||
-      normalized.includes('TMB')
-    )
+    return normalized.includes('TMOBILE') || normalized.includes('TMPL')
   }, [operator])
 
   /** Derived flags */
-  const isDecoder2Way =
-    type === 'DTV' && primary?.category === DeviceCategory.DECODER_2_WAY
+  const selectedCategory: DeviceCategory | undefined =
+    primarySource === 'WAREHOUSE'
+      ? primaryDevice?.category
+      : clientCategory ?? undefined
 
-  /** Router required only if T-Mobile + NET + modem is HFC */
+  const isDecoder2Way = selectedCategory === DeviceCategory.DECODER_2_WAY
+  const isModemGpon = selectedCategory === DeviceCategory.MODEM_GPON
   const needsRouter =
-    type === 'NET' &&
-    isTMobile &&
-    primary?.category === DeviceCategory.MODEM_HFC
+    type === 'NET' && isTMobile && selectedCategory === DeviceCategory.MODEM_HFC
 
-  /** Filter available devices */
+  /** Filter main device list */
   const primaryOptions = useMemo(() => {
-    if (type === 'DTV') {
-      return devices.filter(
-        (d) =>
-          d.category === DeviceCategory.DECODER_1_WAY ||
-          d.category === DeviceCategory.DECODER_2_WAY
-      )
-    }
-    if (type === 'NET') {
-      return devices.filter(
-        (d) =>
-          d.category === DeviceCategory.MODEM_HFC ||
-          d.category === DeviceCategory.MODEM_GPON
-      )
-    }
-    return devices
-  }, [type, devices])
+    const base = (() => {
+      if (type === 'DTV') {
+        return devices.filter((d) =>
+          (
+            [
+              DeviceCategory.DECODER_1_WAY,
+              DeviceCategory.DECODER_2_WAY,
+            ] as DeviceCategory[]
+          ).includes(d.category)
+        )
+      }
+      if (type === 'NET') {
+        return devices.filter((d) =>
+          (
+            [
+              DeviceCategory.MODEM_HFC,
+              DeviceCategory.MODEM_GPON,
+            ] as DeviceCategory[]
+          ).includes(d.category)
+        )
+      }
+      return []
+    })()
+    return base.filter(
+      (d) =>
+        !usedDeviceIds.includes(d.id) &&
+        !extras.some((ex) => ex.id === d.id) &&
+        (!secondaryDevice || secondaryDevice.id !== d.id)
+    )
+  }, [type, devices, usedDeviceIds, extras, secondaryDevice])
 
-  /** Secondary devices for router */
   const secondaryOptions = useMemo(() => {
     return devices.filter(
       (d) =>
-        d.category === DeviceCategory.MODEM_HFC ||
-        d.category === DeviceCategory.MODEM_GPON
+        d.category === DeviceCategory.NETWORK_DEVICE ||
+        d.category === DeviceCategory.MODEM_HFC
     )
   }, [devices])
 
+  /** Switch between client and warehouse */
+  const handleChangeSource = (src: DeviceSource) => {
+    setPrimarySource(src)
+    if (src === 'WAREHOUSE') {
+      setClientCategory(null)
+      setPrimaryClientName('')
+      setPrimaryClientSn('')
+    } else {
+      setPrimaryDevice(null)
+    }
+  }
+
+  const handleClientCategoryChange = (cat: DeviceCategory | null) => {
+    setClientCategory(cat)
+    if (type === 'NET' && cat === DeviceCategory.MODEM_GPON) {
+      setDs('')
+      setUs('')
+    }
+  }
+
+  /** Add unique extra */
+  const handleAddExtra = (device: IssuedItemDevice) => {
+    const alreadyExists = extras.some((ex) => ex.id === device.id)
+    if (alreadyExists) {
+      toast.warning('To urządzenie zostało już dodane.')
+      return
+    }
+    setExtras((prev) => [...prev, device])
+  }
+
   /** Validation logic */
   const isValid = useMemo(() => {
-    if (!primary) return false
-    if (type === 'DTV' && isDecoder2Way) {
-      if (ds === undefined || us === undefined) return false
+    if (!selectedCategory) return false
+    if (primarySource === 'CLIENT') {
+      if (!primaryClientName.trim() || !primaryClientSn.trim()) return false
+    } else {
+      if (!primaryDevice || usedDeviceIds.includes(primaryDevice.id))
+        return false
     }
+    if (type === 'DTV' && isDecoder2Way && (!ds.trim() || !us.trim()))
+      return false
     if (type === 'NET') {
-      if (ds === undefined || us === undefined || !speed.trim()) return false
-      if (needsRouter && !secondary) return false
+      if (!speed.trim()) return false
+      if (!isModemGpon && (!ds.trim() || !us.trim())) return false
+      if (needsRouter && !secondaryDevice) return false
     }
     return true
-  }, [type, primary, secondary, ds, us, speed, needsRouter, isDecoder2Way])
+  }, [
+    primarySource,
+    primaryDevice,
+    secondaryDevice,
+    primaryClientName,
+    primaryClientSn,
+    selectedCategory,
+    type,
+    isDecoder2Way,
+    isModemGpon,
+    needsRouter,
+    ds,
+    us,
+    speed,
+    usedDeviceIds,
+  ])
 
   /** Confirm handler */
   const handleConfirm = () => {
-    if (!isValid) return
-
-    if (
-      (primary && usedDeviceIds.includes(primary.id)) ||
-      (secondary && usedDeviceIds.includes(secondary.id)) ||
-      (primary && secondary && primary.id === secondary.id)
-    ) {
-      toast.error('To urządzenie jest już przypisane lub użyte jako router.')
+    if (!isValid) {
+      toast.error('Uzupełnij wymagane pola przed zatwierdzeniem.')
       return
     }
 
-    const newService: ActivatedService = {
-      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+    const payload: ActivatedService = {
+      id: crypto.randomUUID(),
       type,
-      deviceId: primary?.id,
-      serialNumber: primary?.serialNumber,
-      deviceId2: secondary?.id,
-      serialNumber2: secondary?.serialNumber,
-      usDbmDown: ds,
-      usDbmUp: us,
-      speedTest: type === 'NET' ? speed.trim() || undefined : undefined,
-      deviceType:
-        type === 'DTV'
-          ? primary?.category === DeviceCategory.DECODER_2_WAY
-            ? DeviceCategory.DECODER_2_WAY
-            : DeviceCategory.DECODER_1_WAY
-          : type === 'NET'
-          ? primary?.category === DeviceCategory.MODEM_GPON
-            ? DeviceCategory.MODEM_GPON
-            : DeviceCategory.MODEM_HFC
-          : undefined,
-      deviceType2: type === 'NET' && secondary ? secondary.category : undefined,
+      deviceSource: primarySource,
+      deviceId: primarySource === 'WAREHOUSE' ? primaryDevice?.id : undefined,
+      deviceName:
+        primarySource === 'CLIENT'
+          ? primaryClientName.trim()
+          : primaryDevice?.name,
+      serialNumber:
+        primarySource === 'CLIENT'
+          ? primaryClientSn.trim().toUpperCase()
+          : primaryDevice?.serialNumber,
+      deviceType: selectedCategory,
+      deviceId2: needsRouter ? secondaryDevice?.id : undefined,
+      serialNumber2: needsRouter ? secondaryDevice?.serialNumber : undefined,
+      deviceType2: needsRouter ? secondaryDevice?.category : undefined,
+      usDbmDown: ds ? Number(ds) : undefined,
+      usDbmUp: us ? Number(us) : undefined,
+      speedTest: type === 'NET' ? speed.trim() : undefined,
+      extraDevices: extras.map((d) => ({
+        id: crypto.randomUUID(),
+        source: 'WAREHOUSE',
+        category: d.category,
+        serialNumber: d.serialNumber ?? '',
+        name: d.name ?? '',
+      })),
     }
 
-    onConfirmAction(newService)
-    setPrimary(null)
-    setSecondary(null)
-    setDs(undefined)
-    setUs(undefined)
-    setSpeed('')
+    onConfirmAction(payload)
     onCloseAction()
   }
 
-  /** Small card component for displaying selected devices */
-  const DeviceCard = ({
-    label,
-    device,
-  }: {
-    label: string
-    device: IssuedItemDevice
-  }) => (
-    <div className="flex items-center justify-between border rounded-md bg-muted/40 px-3 py-2 mt-2">
-      <div className="flex items-center gap-2">
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{label}</span>
-          <span className="text-xs text-muted-foreground">
-            {device.name} (SN: {device.serialNumber})
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="max-w-md w-[95vw] flex flex-col gap-4 space-y-4">
+      <DialogContent className="max-w-md w-[95vw]">
         <DialogHeader>
           <DialogTitle>
             {type === 'NET'
@@ -190,74 +258,127 @@ const ServiceConfigDialog = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* --- Primary device selection --- */}
-        <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {type === 'DTV' ? 'Dekoder' : 'Modem'}
-          </div>
-          <SerialScanInput
-            devices={primaryOptions}
-            onAddDevice={(dev) => setPrimary(dev)}
-            variant="block"
-          />
-          {primary && (
-            <DeviceCard
-              label={`${type === 'DTV' ? 'DEKODER' : 'MODEM'}`}
-              device={primary}
-            />
-          )}
-        </div>
+        <ServiceDeviceSection
+          type={type}
+          primarySource={primarySource}
+          onChangeSource={handleChangeSource}
+          primaryDevice={primaryDevice}
+          setPrimaryDevice={setPrimaryDevice}
+          primaryOptions={primaryOptions}
+          clientCategory={clientCategory}
+          onChangeClientCategory={handleClientCategoryChange}
+          primaryClientName={primaryClientName}
+          setPrimaryClientName={setPrimaryClientName}
+          primaryClientSn={primaryClientSn}
+          setPrimaryClientSn={setPrimaryClientSn}
+        />
 
-        {/* --- Secondary device selection (router for T-Mobile HFC) --- */}
-        {needsRouter && (
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Router</div>
-            <SerialScanInput
-              devices={secondaryOptions}
-              onAddDevice={(dev) => setSecondary(dev)}
-              variant="block"
-            />
-            {secondary && <DeviceCard label="ROUTER" device={secondary} />}
-          </div>
+        {primarySource === 'WAREHOUSE' && primaryDevice && (
+          <DeviceCard
+            label={type === 'DTV' ? 'DEKODER' : 'MODEM'}
+            device={primaryDevice}
+            onRemove={() => setPrimaryDevice(null)}
+          />
         )}
 
-        {/* --- Measurements (DS/US/Speedtest) --- */}
-        {(type === 'NET' || isDecoder2Way) && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Input
-              placeholder="DS [dBm]"
-              type="number"
-              step="0.1"
-              value={ds ?? ''}
-              onChange={(e) =>
-                setDs(
-                  e.target.value === '' ? undefined : Number(e.target.value)
-                )
-              }
+        {needsRouter && (
+          <div className="space-y-2 mb-6">
+            <Label className="font-medium">Router</Label>
+            <SerialScanInput
+              devices={secondaryOptions}
+              onAddDevice={(dev) => setSecondaryDevice(dev)}
+              variant="block"
             />
-            <Input
-              placeholder="US [dBm]"
-              type="number"
-              step="0.1"
-              value={us ?? ''}
-              onChange={(e) =>
-                setUs(
-                  e.target.value === '' ? undefined : Number(e.target.value)
-                )
-              }
-            />
-            {type === 'NET' && (
-              <Input
-                placeholder="Speedtest [Mb/s]"
-                value={speed}
-                onChange={(e) => setSpeed(e.target.value)}
+            {secondaryDevice && (
+              <DeviceCard
+                label="ROUTER"
+                device={secondaryDevice}
+                onRemove={() => setSecondaryDevice(null)}
               />
             )}
           </div>
         )}
 
-        {/* --- Dialog actions --- */}
-        <DialogFooter className="gap-2">
+        {(type === 'NET' || isDecoder2Way) && (
+          <>
+            <Label className="font-semibold block">Pomiary</Label>
+            <div className="w-full flex flex-col md:flex-row gap-4">
+              {!isModemGpon && (
+                <>
+                  <Input
+                    placeholder="DS [dBm]"
+                    type="number"
+                    step="0.1"
+                    value={ds}
+                    onChange={(e) => setDs(e.target.value)}
+                  />
+                  <Input
+                    placeholder="US [dBm]"
+                    type="number"
+                    step="0.1"
+                    value={us}
+                    onChange={(e) => setUs(e.target.value)}
+                  />
+                </>
+              )}
+              {type === 'NET' && (
+                <Input
+                  placeholder="Speedtest [Mb/s]"
+                  type="text"
+                  value={speed}
+                  onChange={(e) => setSpeed(e.target.value)}
+                />
+              )}
+            </div>
+          </>
+        )}
+
+        {type === 'NET' && (
+          <div className="mb-6 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="font-semibold">Dodatkowe urządzenia</Label>
+              <Switch checked={addExtras} onCheckedChange={setAddExtras} />
+            </div>
+
+            {addExtras && (
+              <>
+                <SerialScanInput
+                  devices={devices.filter(
+                    (d) =>
+                      !extras.some((ex) => ex.id === d.id) &&
+                      !usedDeviceIds.includes(d.id) &&
+                      !(
+                        [
+                          DeviceCategory.DECODER_1_WAY,
+                          DeviceCategory.DECODER_2_WAY,
+                          DeviceCategory.NETWORK_DEVICE,
+                        ] as DeviceCategory[]
+                      ).includes(d.category)
+                  )}
+                  onAddDevice={handleAddExtra}
+                  variant="block"
+                />
+
+                {extras.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {extras.map((d) => (
+                      <DeviceCard
+                        key={d.id}
+                        label={d.name}
+                        device={d}
+                        onRemove={() =>
+                          setExtras((prev) => prev.filter((x) => x.id !== d.id))
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        <DialogFooter className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={onCloseAction}>
             Anuluj
           </Button>

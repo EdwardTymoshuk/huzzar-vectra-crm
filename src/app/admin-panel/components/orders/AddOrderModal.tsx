@@ -120,7 +120,7 @@ export function AddOrderModal({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Reusable fields for the order */}
-            <OrderFormFields form={form} />
+            <OrderFormFields form={form} isAdmin />
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={onCloseAction}>
