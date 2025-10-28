@@ -185,6 +185,9 @@ export const queriesRouter = router({
           orderAssignments: { none: {} },
         },
         include: {
+          materialDefinition: {
+            select: { id: true, name: true, index: true, unit: true },
+          },
           assignedTo: true,
           transferTo: true,
           history: {
@@ -193,6 +196,7 @@ export const queriesRouter = router({
           },
           orderAssignments: { include: { order: true } },
         },
+        orderBy: { updatedAt: 'desc' },
       })
     }),
 

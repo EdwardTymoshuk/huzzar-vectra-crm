@@ -49,9 +49,17 @@ const TechnicianStockSheet = ({ open, setOpen }: Props) => {
     }
   }, [open])
 
-  const filteredData = stockData?.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredData = !searchTerm
+    ? stockData
+    : stockData?.filter((item) => {
+        const name = item.name ?? item.materialDefinition?.name ?? ''
+        const sn = item.serialNumber ?? ''
+        const index = item.materialDefinition?.index ?? ''
+        return (
+          name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          sn.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      })
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
