@@ -16,6 +16,8 @@ export default function HomePage() {
   const { role, isLoading } = useRole()
   const router = useRouter()
 
+  if (typeof window === 'undefined') return null
+
   if (isLoading) return <LoaderLogo show />
 
   if (!role) {

@@ -1,0 +1,210 @@
+'use client'
+
+import WarehouseDropdownMenuMobile from '@/app/admin-panel/components/warehouse/warehouseLocalizations/WarehouseDropdownMenuMobile'
+import ThemeToggle from '@/app/components/ThemeToggle'
+import { Avatar, AvatarFallback } from '@/app/components/ui/avatar'
+import { Button } from '@/app/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu'
+import { userRoleMap } from '@/lib/constants'
+import { cn } from '@/lib/utils'
+import { MenuItem } from '@/types'
+import { Menu } from 'lucide-react'
+import { signOut, useSession } from 'next-auth/react'
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import { CiLogout } from 'react-icons/ci'
+
+interface MobileNavProps {
+  /** List of navigation items available for current user role */
+  menuItems: MenuItem[]
+  /** Key of currently active tab for visual highlighting */
+  activeKey: string
+  /** Next.js App Router instance for client-side navigation */
+  router: AppRouterInstance
+  /** Defines navigation path context for technician or admin */
+  isTechnician: boolean
+}
+
+/**
+ * MobileNav
+ *
+ * Fixed bottom navigation bar optimized for mobile screens.
+ * - Displays main modules as bottom buttons.
+ * - “More” dropdown includes user info, theme toggle, and logout.
+ */
+const MobileNav = ({
+  menuItems,
+  activeKey,
+  router,
+  isTechnician,
+}: MobileNavProps) => {
+  const { data: session } = useSession()
+  const user = session?.user
+
+  /** Main visible modules (dashboard, orders, etc.) */
+  const mainModules = ['dashboard', 'orders', 'planer', 'planning', 'warehouse']
+
+  const visibleItems = menuItems.filter((item) =>
+    mainModules.includes(item.key)
+  )
+  const hiddenItems = menuItems.filter(
+    (item) => !mainModules.includes(item.key)
+  )
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-around bg-secondary border-t border-border">
+      {/* ---- Visible main modules ---- */}
+      {visibleItems.map((item) => {
+        if (item.key === 'warehouse') {
+          return (
+            <WarehouseDropdownMenuMobile
+              key="warehouse"
+              isTechnician={isTechnician}
+            />
+          )
+        }
+
+        const isActive = activeKey === item.key
+        return (
+          <Button
+            variant="ghost"
+            key={item.key}
+            onClick={() =>
+              router.push(
+                isTechnician
+                  ? `/?tab=${item.key}`
+                  : `/admin-panel?tab=${item.key}`
+              )
+            }
+            className={cn(
+              'flex flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 w-full h-full py-4 rounded-none',
+              isActive
+                ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
+                : 'text-muted hover:text-accent-foreground'
+            )}
+          >
+            <item.icon className="h-6 w-6 sm:scale-150" />
+            <span>{item.name}</span>
+          </Button>
+        )
+      })}
+
+      {/* ---- "More" dropdown ---- */}
+      {hiddenItems.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                'flex flex-col items-center justify-center text-sm sm:text-base font-medium transition-colors px-2 py-4 w-full focus-visible:outline-none h-auto rounded-none',
+                hiddenItems.some((item) => item.key === activeKey)
+                  ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
+                  : 'text-muted hover:text-accent-foreground'
+              )}
+            >
+              <Menu className="h-6 w-6 sm:scale-150" />
+              <span className="leading-none">Więcej</span>
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            side="top"
+            align="center"
+            className="bg-background border border-border rounded-md shadow-md w-64"
+          >
+            {/* ---- User info ---- */}
+            {user && (
+              <DropdownMenuLabel className="flex flex-col items-center justify-center gap-1 p-3 pb-2 text-center">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                    {user.name
+                      ?.split(' ')
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex flex-col justify-center items-center text-sm mt-1">
+                  <span className="font-semibold truncate max-w-32">
+                    {user.name || 'Nieznany'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {userRoleMap[user.role] || ''}
+                  </span>
+                  <span className="text-[0.65rem] text-muted-foreground">
+                    {user.email || ''}
+                  </span>
+                </div>
+              </DropdownMenuLabel>
+            )}
+
+            <DropdownMenuSeparator />
+
+            {/* ---- Theme toggle ---- */}
+            <DropdownMenuItem asChild>
+              <div className="flex items-center justify-between px-3 py-2 cursor-default">
+                <span className="text-sm font-medium">Motyw</span>
+                <ThemeToggle />
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {/* ---- Hidden menu items ---- */}
+            {hiddenItems.map((item) => {
+              const isActive = activeKey === item.key
+              return (
+                <DropdownMenuItem
+                  key={item.key}
+                  onClick={() =>
+                    router.push(
+                      isTechnician
+                        ? `/?tab=${item.key}`
+                        : `/admin-panel?tab=${item.key}`
+                    )
+                  }
+                  className={cn(
+                    'cursor-pointer text-sm sm:text-base flex items-center gap-2 px-3 py-2 rounded-sm transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <item.icon className="h-6 w-6 sm:scale-125" />
+                  {item.name}
+                </DropdownMenuItem>
+              )
+            })}
+
+            <DropdownMenuSeparator />
+
+            {/* ---- Logout ---- */}
+            {user && (
+              <DropdownMenuItem
+                onClick={() =>
+                  signOut({
+                    callbackUrl: `${window.location.origin}/login`,
+                  })
+                }
+                className="p-2 cursor-pointer text-sm font-medium rounded-md text-danger hover:text-danger focus:text-danger flex items-center justify-center gap-2"
+              >
+                <CiLogout className="h-4 w-4" />
+                Wyloguj
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </nav>
+  )
+}
+
+export default MobileNav
