@@ -64,7 +64,15 @@ const TechnicianStockTable = ({ items, itemType, searchTerm }: Props) => {
                   />
                 </TableCell>
                 {itemType === 'DEVICE' && (
-                  <TableCell>{item.serialNumber ?? '—'}</TableCell>
+                  <TableCell>
+                    {' '}
+                    <Highlight
+                      searchWords={[searchTerm]}
+                      textToHighlight={item.serialNumber ?? ''}
+                      highlightClassName="bg-yellow-200"
+                      autoEscape
+                    />
+                  </TableCell>
                 )}
                 {itemType === 'MATERIAL' && (
                   <TableCell>{item.quantity}</TableCell>
