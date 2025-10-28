@@ -54,7 +54,6 @@ const TechnicianStockSheet = ({ open, setOpen }: Props) => {
     : stockData?.filter((item) => {
         const name = item.name ?? item.materialDefinition?.name ?? ''
         const sn = item.serialNumber ?? ''
-        const index = item.materialDefinition?.index ?? ''
         return (
           name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           sn.toLowerCase().includes(searchTerm.toLowerCase())
