@@ -2,6 +2,7 @@
 
 import Logo from '@/app/components/Logo'
 import { cn } from '@/lib/utils'
+import UserDropdown from './UserDropdown'
 import NotificationDropdown from './shared/NotificationDropdown'
 
 /**
@@ -23,9 +24,10 @@ const MobileHeader = () => {
         <Logo className="w-28 sm:w-36 md:w-44 transition-all duration-200" />
       </div>
 
-      {/* Right: Notifications */}
-      <div className="flex items-center gap-2">
+      {/* Right: Notifications and User menu */}
+      <div className="flex items-center gap-3 shrink-0">
         <NotificationDropdown />
+        <UserDropdown />
       </div>
     </header>
   )

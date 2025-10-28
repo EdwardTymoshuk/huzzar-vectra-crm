@@ -1,24 +1,17 @@
 'use client'
 
 import WarehouseDropdownMenuMobile from '@/app/admin-panel/components/warehouse/warehouseLocalizations/WarehouseDropdownMenuMobile'
-import ThemeToggle from '@/app/components/ThemeToggle'
-import { Avatar, AvatarFallback } from '@/app/components/ui/avatar'
 import { Button } from '@/app/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import { userRoleMap } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { MenuItem } from '@/types'
 import { Menu } from 'lucide-react'
-import { signOut, useSession } from 'next-auth/react'
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
-import { CiLogout } from 'react-icons/ci'
 
 interface MobileNavProps {
   /** List of navigation items available for current user role */
@@ -36,7 +29,7 @@ interface MobileNavProps {
  *
  * Fixed bottom navigation bar optimized for mobile screens.
  * - Displays main modules as bottom buttons.
- * - “More” dropdown includes user info, theme toggle, and logout.
+ * - “More” dropdown includes theme toggle and hidden menu sections.
  */
 const MobileNav = ({
   menuItems,
@@ -44,9 +37,6 @@ const MobileNav = ({
   router,
   isTechnician,
 }: MobileNavProps) => {
-  const { data: session } = useSession()
-  const user = session?.user
-
   /** Main visible modules (dashboard, orders, etc.) */
   const mainModules = ['dashboard', 'orders', 'planer', 'planning', 'warehouse']
 
@@ -58,7 +48,7 @@ const MobileNav = ({
   )
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-around bg-secondary border-t border-border">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-around bg-secondary border-t border-border pb-[env(safe-area-inset-bottom)]">
       {/* ---- Visible main modules ---- */}
       {visibleItems.map((item) => {
         if (item.key === 'warehouse') {
@@ -118,46 +108,6 @@ const MobileNav = ({
             align="center"
             className="bg-background border border-border rounded-md shadow-md w-64"
           >
-            {/* ---- User info ---- */}
-            {user && (
-              <DropdownMenuLabel className="flex flex-col items-center justify-center gap-1 p-3 pb-2 text-center">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                    {user.name
-                      ?.split(' ')
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join('')
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex flex-col justify-center items-center text-sm mt-1">
-                  <span className="font-semibold truncate max-w-32">
-                    {user.name || 'Nieznany'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {userRoleMap[user.role] || ''}
-                  </span>
-                  <span className="text-[0.65rem] text-muted-foreground">
-                    {user.email || ''}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
-            )}
-
-            <DropdownMenuSeparator />
-
-            {/* ---- Theme toggle ---- */}
-            <DropdownMenuItem asChild>
-              <div className="flex items-center justify-between px-3 py-2 cursor-default">
-                <span className="text-sm font-medium">Motyw</span>
-                <ThemeToggle />
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
             {/* ---- Hidden menu items ---- */}
             {hiddenItems.map((item) => {
               const isActive = activeKey === item.key
@@ -183,23 +133,6 @@ const MobileNav = ({
                 </DropdownMenuItem>
               )
             })}
-
-            <DropdownMenuSeparator />
-
-            {/* ---- Logout ---- */}
-            {user && (
-              <DropdownMenuItem
-                onClick={() =>
-                  signOut({
-                    callbackUrl: `${window.location.origin}/login`,
-                  })
-                }
-                className="p-2 cursor-pointer text-sm font-medium rounded-md text-danger hover:text-danger focus:text-danger flex items-center justify-center gap-2"
-              >
-                <CiLogout className="h-4 w-4" />
-                Wyloguj
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}

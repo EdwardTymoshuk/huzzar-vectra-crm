@@ -66,8 +66,8 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
             : 'text-muted hover:text-accent-foreground'
         )}
       >
-        <MdWarehouse className="h-6 w-6 sm;scale-150" />
-        <span className="leading-none">Magazyn</span>
+        <MdWarehouse className="h-6 w-6 sm:scale-150" />
+        <span className="">Magazyn</span>
       </Button>
     )
   }
