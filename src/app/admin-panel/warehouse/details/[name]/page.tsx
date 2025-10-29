@@ -7,6 +7,7 @@ import PageHeader from '@/app/components/shared/PageHeader'
 import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { devicesTypeMap } from '@/lib/constants'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -23,9 +24,10 @@ const WarehouseItemPage = () => {
 
   const router = useRouter()
   const params = useParams<{ name: string }>()
+  const locationId = useActiveLocation()
 
   const { data, isLoading, isError } = trpc.warehouse.getItemsByName.useQuery(
-    { name },
+    { name, locationId: locationId ?? undefined },
     { enabled: !!name }
   )
 

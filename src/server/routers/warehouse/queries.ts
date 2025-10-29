@@ -47,6 +47,7 @@ export const queriesRouter = router({
         name: z.string().min(1),
         scope: z.enum(['all', 'technician']).default('all'),
         mode: z.enum(Modes).optional(),
+        locationId: z.string().optional(),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -79,6 +80,7 @@ export const queriesRouter = router({
             ...baseWhere,
             status: 'ASSIGNED_TO_ORDER',
             orderAssignments: { some: {} },
+            ...(input.locationId ? { locationId: input.locationId } : {}),
           }
           break
         case 'returned':
