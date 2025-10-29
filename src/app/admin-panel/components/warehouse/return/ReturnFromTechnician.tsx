@@ -58,9 +58,12 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   )
 
   const activeLocationId = useActiveLocation()
-  const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery(
-    activeLocationId ? { locationId: activeLocationId } : undefined
-  )
+
+  const { data: warehouse = [] } = trpc.warehouse.getItemsForReturn.useQuery({
+    locationId: activeLocationId ?? undefined,
+    technicianId: technicianId ?? undefined,
+  })
+
   const returnMutation = trpc.warehouse.returnToWarehouse.useMutation()
 
   /* ────────────── refs (autofocus) ───────── */
@@ -149,7 +152,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     const device = warehouse.find(
       (i) =>
         i.itemType === 'DEVICE' &&
-        i.serialNumber?.toLowerCase() === serial.trim().toLowerCase()
+        i.serialNumber?.trim().toUpperCase() === serial.trim().toUpperCase()
     )
 
     if (!device) return toast.error('Nie znaleziono urządzenia o tym numerze.')

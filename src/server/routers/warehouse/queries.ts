@@ -400,4 +400,27 @@ export const queriesRouter = router({
         data: { name: input.name },
       })
     ),
+
+  /** Get technichian stock for return */
+  getItemsForReturn: adminCoordOrWarehouse
+    .input(
+      z.object({
+        locationId: z.string().optional(),
+        technicianId: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const user = getUserOrThrow(ctx)
+      const locId = resolveLocationId(user, input)
+
+      return prisma.warehouse.findMany({
+        where: {
+          OR: [
+            { locationId: locId ?? undefined },
+            { assignedToId: input.technicianId ?? undefined },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+    }),
 })
