@@ -57,7 +57,7 @@ const WarehouseItemPage = () => {
       </Button>
 
       <ItemHeader items={data} />
-      <ItemTabs items={data} />
+      <ItemTabs items={data} activeLocationId={locationId ?? 'all'} />
     </MaxWidthWrapper>
   )
 }

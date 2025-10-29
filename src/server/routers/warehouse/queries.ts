@@ -65,6 +65,7 @@ export const queriesRouter = router({
             assignedToId: null,
             status: 'AVAILABLE',
             orderAssignments: { none: {} },
+            ...(input.locationId ? { locationId: input.locationId } : {}),
           }
           break
         case 'technicians':
@@ -73,6 +74,7 @@ export const queriesRouter = router({
             assignedToId: { not: null },
             status: 'ASSIGNED',
             orderAssignments: { none: {} },
+            ...(input.locationId ? { locationId: input.locationId } : {}),
           }
           break
         case 'orders':
@@ -87,6 +89,7 @@ export const queriesRouter = router({
           whereClause = {
             ...baseWhere,
             status: { in: ['RETURNED', 'RETURNED_TO_OPERATOR'] },
+            ...(input.locationId ? { locationId: input.locationId } : {}),
           }
           break
         default:
@@ -97,6 +100,7 @@ export const queriesRouter = router({
                 { assignedToId: techId },
                 { history: { some: { performedById: techId } } },
               ],
+              ...(input.locationId ? { locationId: input.locationId } : {}),
             }
           }
       }
