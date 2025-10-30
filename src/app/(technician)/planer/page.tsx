@@ -18,7 +18,6 @@ import TechnicianPlanerToolbar from '../components/planer/TechnicianPlanerToolba
 const TechnicianPlanerPage = () => {
   /** Local state for filters and modals */
   const [searchTerm, setSearchTerm] = useState<string>('')
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [autoOpenOrderId, setAutoOpenOrderId] = useState<string | undefined>()
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -33,8 +32,6 @@ const TechnicianPlanerPage = () => {
 
       {/* Toolbar: Add + Date + Search */}
       <TechnicianPlanerToolbar
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         onAddOrder={() => setShowAddModal(true)}
@@ -45,7 +42,6 @@ const TechnicianPlanerPage = () => {
         searchTerm={searchTerm}
         autoOpenOrderId={autoOpenOrderId}
         onAutoOpenHandled={handleAutoOpen}
-        selectedDate={selectedDate}
       />
 
       {/* Add Order modal */}

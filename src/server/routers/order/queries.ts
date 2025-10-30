@@ -555,42 +555,33 @@ export const queriesRouter = router({
   getNextOutageOrderNumber: loggedInEveryone.query(async () => {
     return await getNextLineOrderNumber()
   }),
-  /** Returns active (unrealized) orders assigned to the logged-in technician for a given day. */
-  getTechnicianActiveOrders: technicianOnly
-    .input(
-      z.object({
-        /** Date filter in yyyy-MM-dd format */
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      })
-    )
-    .query(async ({ input, ctx }) => {
-      const technicianId = ctx.user?.id
-      const day = new Date(`${input.date}T00:00:00`)
+  /** Returns all active (unrealized) orders assigned to the logged-in technician. */
+  getTechnicianActiveOrders: technicianOnly.query(async ({ ctx }) => {
+    const technicianId = ctx.user?.id
 
-      const filters: Prisma.OrderWhereInput = {
-        assignedToId: technicianId,
-        date: { gte: startOfDay(day), lte: endOfDay(day) },
-        status: { in: ['PENDING', 'ASSIGNED'] },
-      }
+    const filters: Prisma.OrderWhereInput = {
+      assignedToId: technicianId,
+      status: { in: ['PENDING', 'ASSIGNED'] },
+    }
 
-      const orders = await ctx.prisma.order.findMany({
-        where: filters,
-        orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
-        select: {
-          id: true,
-          orderNumber: true,
-          type: true,
-          city: true,
-          street: true,
-          date: true,
-          timeSlot: true,
-          operator: true,
-          status: true,
-          assignedTo: { select: { id: true, name: true } },
-          notes: true,
-        },
-      })
+    const orders = await ctx.prisma.order.findMany({
+      where: filters,
+      orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
+      select: {
+        id: true,
+        orderNumber: true,
+        type: true,
+        city: true,
+        street: true,
+        date: true,
+        timeSlot: true,
+        operator: true,
+        status: true,
+        assignedTo: { select: { id: true, name: true } },
+        notes: true,
+      },
+    })
 
-      return orders
-    }),
+    return orders
+  }),
 })

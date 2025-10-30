@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/app/components/ui/card'
 import { orderTypeMap } from '@/lib/constants'
+import { formatDate } from '@/utils/dates/formatDateTime'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
@@ -24,7 +25,6 @@ import CompleteOrderWizard from '../orders/completeOrder/CompleteOrderWizard'
 
 interface Props {
   searchTerm: string
-  selectedDate: Date
   autoOpenOrderId?: string
   onAutoOpenHandled?: () => void
 }
@@ -79,7 +79,6 @@ type PlannerRow = {
 
 const TechnicianPlanerTable = ({
   searchTerm,
-  selectedDate,
   autoOpenOrderId,
   onAutoOpenHandled,
 }: Props) => {
@@ -88,16 +87,13 @@ const TechnicianPlanerTable = ({
   const [showTransfer, setShowTransfer] = useState<string | null>(null)
   const [showComplete, setShowComplete] = useState<string | null>(null)
 
-  /** Selected day formatted as yyyy-MM-dd for TRPC input */
-  const date = selectedDate.toLocaleDateString('en-CA')
-
   /* ---------------------- Data fetching ---------------------- */
   // Active (unrealized) orders for selected day
   const {
     data: activeOrders = [],
     isLoading: activeLoading,
     isError: activeError,
-  } = trpc.order.getTechnicianActiveOrders.useQuery({ date })
+  } = trpc.order.getTechnicianActiveOrders.useQuery()
 
   // Incoming transfers to the logged-in technician
   const {
@@ -256,15 +252,24 @@ const TechnicianPlanerTable = ({
         >
           <CardHeader className="pb-2">
             <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-base font-semibold">
-                <Highlight
-                  searchWords={[searchTerm]}
-                  textToHighlight={o.orderNumber}
-                />
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {orderTypeMap[o.type] ?? '—'}
-              </span>
+              <div className="flex flex-col w-full">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-base font-semibold">
+                    <Highlight
+                      searchWords={[searchTerm]}
+                      textToHighlight={o.orderNumber}
+                    />
+                  </span>
+
+                  <span className="text-sm text-muted-foreground">
+                    {formatDate(o.date)}
+                  </span>
+                </div>
+
+                <span className="text-sm text-muted-foreground">
+                  {orderTypeMap[o.type] ?? '—'}
+                </span>
+              </div>
             </CardTitle>
           </CardHeader>
 
