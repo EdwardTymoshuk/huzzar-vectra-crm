@@ -50,6 +50,14 @@ const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
     itemType: 'DEVICE',
   })
 
+  const deviceOptions = myDevices.map((d) => ({
+    id: d.id,
+    name: d.name,
+    serialNumber: d.serialNumber,
+    category: d.category ?? 'OTHER',
+    status: d.status,
+  }))
+
   /* ---------- add / remove helpers (same logic as IssueItemsTabs) ---------- */
   const addDevice = (d: IssuedItemDevice) =>
     setDevices((prev) =>
@@ -104,7 +112,7 @@ const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
         <TabsContent value="devices">
           <SerialScanInput
             onAddDevice={addDevice}
-            devices={myDevices}
+            devices={deviceOptions}
             validStatuses={['ASSIGNED']}
           />
         </TabsContent>

@@ -1,6 +1,8 @@
 'use client'
 
-import SerialScanInput from '@/app/components/shared/SerialScanInput'
+import SerialScanInput, {
+  DeviceBasic,
+} from '@/app/components/shared/SerialScanInput'
 import MaterialTransferTable from '@/app/components/shared/warehouse/MaterialTransferTable'
 import WarehouseSelectedItemsPanel from '@/app/components/shared/warehouse/WarehouseSelectedItemsPanel'
 import {
@@ -54,9 +56,14 @@ const LocationTransferItemsTabs = ({
     itemType: 'DEVICE',
   })
 
-  const availableDevices = warehouseDevices.filter(
-    (d) => d.status === 'AVAILABLE'
-  )
+  const availableDevices: DeviceBasic[] = warehouseDevices
+    .filter((d) => d.status === 'AVAILABLE')
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber,
+      category: d.category ?? 'OTHER',
+    }))
 
   /** Add a new device to the transfer list */
   const addDevice = (d: IssuedItemDevice) =>

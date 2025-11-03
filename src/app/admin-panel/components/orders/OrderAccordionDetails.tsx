@@ -23,20 +23,32 @@ type Props = { order: { id: string } }
  * - Admin/coordinator can:
  *   • approve completed SERVICE/OUTAGE orders,
  *   • re-edit finished orders (no time limit),
- * - Uses CompleteOrderWizard with mode="adminEdit" for full data editing.
+ * - Merges technician stock with devices assigned directly to the order
+ *   to avoid missing serial numbers during admin edit.
  */
 const OrderAccordionDetails = ({ order }: Props) => {
+  /** tRPC utils used for post-mutation invalidation */
   const utils = trpc.useUtils()
-  const [openEdit, setOpenEdit] = useState(false)
+
+  /** Local state for admin edit modal */
+  const [openEdit, setOpenEdit] = useState<boolean>(false)
+
+  /** Role flags (used to control available actions) */
   const { isWarehouseman, isAdmin, isCoordinator } = useRole()
+
+  /** Current session, used to append user name in approval notes */
   const session = useSession()
+
+  /** Mutation used to update order (for "Zatwierdź") */
   const editOrder = trpc.order.editOrder.useMutation()
 
-  /* ---------------- Fetch order details ---------------- */
+  /* ---------------- Fetch order details (base) ---------------- */
   const { data, isLoading, isError } = trpc.order.getOrderById.useQuery({
     id: order.id,
   })
 
+  /* ---------------- Fetch dictionaries / stock ---------------- */
+  // NOTE: these hooks must stay at the top-level to preserve hook order
   const { data: materialDefs } = trpc.materialDefinition.getAll.useQuery()
   const { data: rawMaterials } = trpc.warehouse.getTechnicianStock.useQuery({
     technicianId: data?.assignedToId ?? 'self',
@@ -46,33 +58,40 @@ const OrderAccordionDetails = ({ order }: Props) => {
     technicianId: data?.assignedToId ?? 'self',
     itemType: 'DEVICE',
   })
-
   const { data: workCodeDefs } = trpc.rateDefinition.getAllRates.useQuery()
 
-  if (isLoading || !data)
+  /* ---------------- Loading / error states ---------------- */
+  if (isLoading || !data) {
     return (
       <div className="p-4">
         <LoaderSpinner />
       </div>
     )
+  }
 
-  if (isError)
+  if (isError) {
     return (
       <div className="p-4 text-destructive">
         Nie udało się załadować szczegółów zlecenia.
       </div>
     )
+  }
 
-  if (!materialDefs || !rawMaterials)
+  if (!materialDefs || !rawMaterials) {
     return (
       <div className="p-4 text-destructive">
         Nie udało się pobrać danych magazynowych.
       </div>
     )
+  }
 
-  /* ---------------- Data prep ---------------- */
-  const isConfirmed = data.notes?.toLowerCase().includes('zatwierdzone przez')
+  /* ---------------- Data preparation (no extra hooks) ---------------- */
 
+  // Check if order was already approved by admin
+  const isConfirmed =
+    data.notes?.toLowerCase().includes('zatwierdzone przez') ?? false
+
+  // Technician materials mapped to wizard's structure
   const techMaterials = rawMaterials.map((m) => ({
     id: m.id,
     name: m.name,
@@ -81,7 +100,8 @@ const OrderAccordionDetails = ({ order }: Props) => {
     type: 'MATERIAL' as const,
   }))
 
-  const devices = (rawDevices ?? [])
+  // Devices from technician stock (normal case)
+  const technicianDevices = (rawDevices ?? [])
     .filter((d) => !!d.serialNumber)
     .map((d) => ({
       id: d.id,
@@ -90,6 +110,58 @@ const OrderAccordionDetails = ({ order }: Props) => {
       category: d.category ?? 'OTHER',
       type: 'DEVICE' as const,
     }))
+
+  // Devices already assigned directly to this order (ASSIGNED_TO_ORDER) – we must show them too
+  const devicesFromOrder = (data.assignedEquipment ?? [])
+    .map((ae) => ae.warehouse)
+    .filter(
+      (w): w is NonNullable<typeof w> =>
+        !!w && !!w.serialNumber && w.status === 'ASSIGNED_TO_ORDER'
+    )
+    .map((w) => ({
+      id: w.id,
+      name: w.name,
+      serialNumber: w.serialNumber ?? '',
+      category: w.category ?? 'OTHER',
+      type: 'DEVICE' as const,
+    }))
+
+    // ExtraDevices from each service
+    const extraDevicesFromServices =
+  data.services
+    ?.flatMap((s) => s.extraDevices ?? [])
+    .map((d) => ({
+      id: d.id,
+      name: d.name ?? '',
+      serialNumber: d.serialNumber ?? '',
+      category: d.category ?? 'OTHER',
+      type: 'DEVICE' as const,
+    })) ?? []
+
+  // Merge technician devices with devices assigned to the order
+  // and remove possible duplicates by serial number.
+  const allDevices = (() => {
+    /** Keep all possible sources together */
+    const merged = [...technicianDevices, ...devicesFromOrder, ...extraDevicesFromServices]
+
+    /** Remove duplicates by serialNumber */
+    const unique: typeof merged = []
+    const seen = new Set<string>()
+
+    for (const dev of merged) {
+      const sn = dev.serialNumber
+      if (!sn) {
+        unique.push(dev)
+        continue
+      }
+      if (!seen.has(sn)) {
+        seen.add(sn)
+        unique.push(dev)
+      }
+    }
+
+    return unique
+  })()
 
   /* ---------------- Logic flags ---------------- */
   const canApprove =
@@ -110,11 +182,12 @@ const OrderAccordionDetails = ({ order }: Props) => {
 
       {(canAdminEdit || canApprove) && (
         <div className="flex flex-wrap gap-2 pt-2">
-          {/* --- Admin edit completed orders --- */}
+          {/* Admin edit completed orders */}
           {canAdminEdit && !isWarehouseman && (
             <Button
               variant="warning"
               onClick={() => {
+                // NOTE: invalidate before open to ensure fresh data
                 utils.order.getOrderById.invalidate({ id: order.id })
                 setOpenEdit(true)
               }}
@@ -124,7 +197,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
             </Button>
           )}
 
-          {/* --- Approve completed SERVICE / OUTAGE --- */}
+          {/* Approve completed SERVICE / OUTAGE */}
           {canApprove && (
             <Button
               variant="success"
@@ -165,7 +238,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
         </div>
       )}
 
-      {/* --- Admin edit modal (CompleteOrderWizard) --- */}
+      {/* Admin edit modal (CompleteOrderWizard) */}
       <CompleteOrderWizard
         key={order.id}
         open={openEdit}
@@ -178,7 +251,7 @@ const OrderAccordionDetails = ({ order }: Props) => {
         orderType={data.type}
         materialDefs={materialDefs}
         techMaterials={techMaterials}
-        devices={devices}
+        devices={allDevices}
         mode="adminEdit"
         workCodeDefs={workCodeDefs}
       />

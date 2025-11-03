@@ -20,6 +20,7 @@ import {
   Warehouse,
   WarehouseAction,
   WarehouseHistory,
+  WarehouseStatus,
 } from '@prisma/client'
 import { IconType } from 'react-icons'
 import { z } from 'zod'
@@ -77,6 +78,7 @@ export type IssuedItemDevice = {
   name: string
   serialNumber: string
   category: DeviceCategory
+  status?: WarehouseStatus
 }
 
 export type IssuedItemMaterial = {

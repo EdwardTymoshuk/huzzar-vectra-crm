@@ -335,6 +335,7 @@ export const warehouseActionMap: Record<
   COLLECTED_FROM_CLIENT: { label: 'Odbiór od klienta', variant: 'default' },
   ISSUED_TO_CLIENT: { label: 'Wydanie klientowi', variant: 'warning' },
   ASSIGNED_TO_ORDER: { label: 'Przypisanie do zlecenia', variant: 'success' },
+  RETURNED_TO_TECHNICIAN: { label: 'Zwrot dp technika', variant: 'danger' },
 }
 
 //polish monthes

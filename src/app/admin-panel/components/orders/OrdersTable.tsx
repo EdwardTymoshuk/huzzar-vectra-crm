@@ -279,7 +279,7 @@ const OrdersTableInner = ({
                         <span>{new Date(o.date).toLocaleDateString()}</span>
                         <span>
                           {o.assignedTo ? (
-                            <Badge className="bg-secondary">
+                            <Badge className="bg-secondary hover:bg-secondary">
                               {o.assignedTo.name}
                             </Badge>
                           ) : (

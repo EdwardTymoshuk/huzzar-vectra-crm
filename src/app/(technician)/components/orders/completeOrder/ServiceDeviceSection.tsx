@@ -84,6 +84,11 @@ const ServiceDeviceSection = ({
           devices={primaryOptions}
           onAddDevice={(dev) => setPrimaryDevice(dev)}
           variant="block"
+          allowedCategories={
+            type === 'DTV'
+              ? [DeviceCategory.DECODER_1_WAY, DeviceCategory.DECODER_2_WAY]
+              : [DeviceCategory.MODEM_HFC, DeviceCategory.MODEM_GPON]
+          }
         />
       ) : (
         /* --- Client device manual input --- */

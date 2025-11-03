@@ -3,7 +3,7 @@
 import { Button } from '@/app/components/ui/button'
 import { Textarea } from '@/app/components/ui/textarea'
 import { OrderStatus } from '@prisma/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import FailureReasonSelect from '../FailureReasonSelect'
 
@@ -44,6 +44,11 @@ const StepStatus = ({
   const handleSelect = (s: OrderStatus) => {
     setStatus(s)
   }
+
+  useEffect(() => {
+    setFailureReason(initialFailureReason || '')
+    setNotes(initialNotes || '')
+  }, [initialFailureReason, initialNotes])
 
   /** Validates and proceeds depending on selected status */
   const handleSubmit = () => {

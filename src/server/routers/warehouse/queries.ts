@@ -1,11 +1,12 @@
 import {
   adminCoordOrWarehouse,
   adminOnly,
+  adminOrCoord,
   loggedInEveryone,
 } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
-import { Prisma, WarehouseItemType } from '@prisma/client'
+import { DeviceCategory, Prisma, WarehouseItemType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { getUserOrThrow } from '../_helpers/getUserOrThrow'
@@ -179,13 +180,22 @@ export const queriesRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      const id =
-        input.technicianId === 'self' ? ctx.user?.id : input.technicianId
-      if (!id) throw new TRPCError({ code: 'UNAUTHORIZED' })
+      const user = ctx.user
+      if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const targetId =
+        input.technicianId === 'self' ? user.id : input.technicianId
+
+      if (user.role === 'TECHNICIAN' && targetId !== user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN' })
+      }
+
+      // ✅ Admin / Coordinator / Warehouseman can access any technician
+      // Technician can only access their own stock
 
       return prisma.warehouse.findMany({
         where: {
-          assignedToId: id,
+          assignedToId: targetId,
           status: { in: ['AVAILABLE', 'ASSIGNED'] },
           ...(input.itemType ? { itemType: input.itemType } : {}),
           orderAssignments: { none: {} },
@@ -252,24 +262,48 @@ export const queriesRouter = router({
       }
     }),
 
-  /** 🔎 Autocomplete search by serial number (available devices only) */
-  searchDevices: loggedInEveryone
-    .input(z.object({ q: z.string().min(2) }))
-    .query(({ ctx, input }) =>
-      ctx.prisma.warehouse.findMany({
-        where: {
-          itemType: 'DEVICE',
-          status: 'AVAILABLE',
-          serialNumber: {
-            not: null,
-            startsWith: input.q,
-            mode: 'insensitive',
-          },
+  searchDevices: adminOrCoord
+    .input(
+      z.object({
+        query: z.string().min(2),
+        allowedCategories: z.nativeEnum(DeviceCategory).array().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const user = ctx.user
+      if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const isTech = user.role === 'TECHNICIAN'
+
+      const where: Prisma.WarehouseWhereInput = {
+        itemType: 'DEVICE',
+        serialNumber: { contains: input.query, mode: 'insensitive' },
+        status: { in: ['AVAILABLE', 'ASSIGNED'] },
+        ...(input.allowedCategories?.length
+          ? { category: { in: input.allowedCategories } }
+          : {}),
+        ...(isTech
+          ? { assignedToId: user.id }
+          : {
+              OR: [
+                { assignedToId: null, status: 'AVAILABLE' },
+                { assignedToId: user.id },
+              ],
+            }),
+      }
+
+      return ctx.prisma.warehouse.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          serialNumber: true,
+          category: true,
+          assignedToId: true,
         },
         take: 10,
-        select: { id: true, serialNumber: true, name: true },
       })
-    ),
+    }),
 
   /** 🛠️  Devices/materials collected from clients (technician view) */
   getCollectedWithDetails: loggedInEveryone.query(({ ctx }) => {

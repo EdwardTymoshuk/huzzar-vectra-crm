@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { ChevronDown } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -24,16 +25,21 @@ import { MdWarehouse } from 'react-icons/md'
  * WarehouseDropdownMenu
  *
  * Desktop dropdown for selecting warehouse locations.
- * - Displays warehouse list with active highlighting.
- * - Includes tooltip on small screens (for icon-only view).
- * - Properly wraps trigger button with Tooltip to avoid portal conflicts.
+ * - Technicians: simple button → navigates to technician warehouse.
+ * - Admins/Coordinators: dropdown with available warehouse locations.
  */
 const WarehouseDropdownMenu = () => {
-  const { data: locations = [] } = trpc.warehouse.getUserLocations.useQuery()
-  const searchParams = useSearchParams()
+  const { isTechnician } = useRole()
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
+
+  // Fetch locations only for admin roles
+  const { data: locations = [] } = trpc.warehouse.getUserLocations.useQuery(
+    undefined,
+    { enabled: !isTechnician }
+  )
 
   const currentTab = searchParams.get('tab')
   const currentLoc = searchParams.get('loc')
@@ -42,9 +48,10 @@ const WarehouseDropdownMenu = () => {
     pathname.includes('/admin-panel/warehouse/details') ||
     pathname.includes('/admin-panel/warehouse/history')
 
-  // ---- CASE: single warehouse → regular button ----
-  if (locations.length <= 1) {
-    const loc = locations[0]
+  /** -------------------------------------------
+   * Technician view — simple redirect button
+   * ------------------------------------------- */
+  if (isTechnician) {
     const isActive = isWarehouseSection
     return (
       <TooltipProvider>
@@ -52,13 +59,11 @@ const WarehouseDropdownMenu = () => {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              onClick={() =>
-                router.push(`/admin-panel?tab=warehouse&loc=${loc?.id ?? ''}`)
-              }
+              onClick={() => router.push('/?tab=warehouse')}
               className={cn(
                 'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 rounded-md transition-colors gap-2',
                 isActive
-                  ? 'bg-primary text-primary-foreground hover:bg-primary font-semibold'
+                  ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
                   : 'text-muted hover:text-accent-foreground'
               )}
             >
@@ -77,7 +82,46 @@ const WarehouseDropdownMenu = () => {
     )
   }
 
-  // ---- CASE: multiple warehouses → dropdown with tooltip ----
+  /** -------------------------------------------
+   * Admin / Coordinator — multiple locations
+   * ------------------------------------------- */
+  if (locations.length <= 1) {
+    const loc = locations[0]
+    const isActive = isWarehouseSection
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                router.push(`/admin-panel?tab=warehouse&loc=${loc?.id ?? ''}`)
+              }
+              className={cn(
+                'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 rounded-md transition-colors gap-2',
+                isActive
+                  ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foregroundfont-semibold'
+                  : 'text-muted hover:text-accent-foreground'
+              )}
+            >
+              <MdWarehouse className="h-5 w-5 lg:hidden" />
+              <span className="hidden lg:inline">Magazyn</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="bottom"
+            className="block lg:hidden bg-primary text-white text-xs font-medium rounded-md px-2 py-1"
+          >
+            Magazyn
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  /** -------------------------------------------
+   * Admin / Coordinator — dropdown with locations
+   * ------------------------------------------- */
   return (
     <TooltipProvider>
       <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -89,7 +133,7 @@ const WarehouseDropdownMenu = () => {
                 className={cn(
                   'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 rounded-md transition-colors gap-2',
                   isWarehouseSection
-                    ? 'bg-primary text-primary-foreground hover:bg-primary font-semibold'
+                    ? 'bg-primary text-primary-foreground font-semibold'
                     : 'text-muted hover:text-accent-foreground'
                 )}
               >
@@ -128,7 +172,7 @@ const WarehouseDropdownMenu = () => {
                 className={cn(
                   'cursor-pointer text-sm flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors',
                   isLocActive
-                    ? 'bg-primary text-primary-foreground font-semibold'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >

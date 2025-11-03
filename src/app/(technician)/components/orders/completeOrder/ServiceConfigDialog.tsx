@@ -12,6 +12,12 @@ import {
 import { Input } from '@/app/components/ui/input'
 import { Label } from '@/app/components/ui/label'
 import { Switch } from '@/app/components/ui/switch'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/app/components/ui/tooltip'
 import { ActivatedService, DeviceSource, IssuedItemDevice } from '@/types'
 import { DeviceCategory, ServiceType } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
@@ -25,7 +31,7 @@ import ServiceDeviceSection from './ServiceDeviceSection'
  * Configures DTV or NET service before saving into ActivatedService.
  * - Supports both warehouse and client devices.
  * - NET supports adding multiple extra devices (routers, extenders).
- * - Displays measurements and prevents duplicates.
+ * - Displays measurements and prevents duplicates or identical serials.
  */
 interface Props {
   open: boolean
@@ -80,7 +86,24 @@ const ServiceConfigDialog = ({
     setDs('')
     setUs('')
     setSpeed('')
-  }, [open, type])
+  }, [open, type, devices])
+
+  /**
+   * Restore measurements and speedTest if editing an existing configuration.
+   * (Triggered after selecting modem or reopening an already configured service)
+   */
+  useEffect(() => {
+    if (!primaryDevice) return
+    if (type !== 'NET') return
+
+    // Type-safe check for custom property in case it's extended from backend
+    if (
+      'speedTest' in primaryDevice &&
+      typeof primaryDevice.speedTest === 'string'
+    ) {
+      if (!speed) setSpeed(primaryDevice.speedTest)
+    }
+  }, [primaryDevice, type, speed])
 
   /** Operator detection */
   const isTMobile = useMemo(() => {
@@ -106,27 +129,33 @@ const ServiceConfigDialog = ({
   const primaryOptions = useMemo(() => {
     const base = (() => {
       if (type === 'DTV') {
-        return devices.filter((d) =>
-          (
-            [
-              DeviceCategory.DECODER_1_WAY,
-              DeviceCategory.DECODER_2_WAY,
-            ] as DeviceCategory[]
-          ).includes(d.category)
+        return devices.filter(
+          (d) =>
+            d.category &&
+            (
+              [
+                DeviceCategory.DECODER_1_WAY,
+                DeviceCategory.DECODER_2_WAY,
+              ] as DeviceCategory[]
+            ).includes(d.category)
         )
       }
       if (type === 'NET') {
-        return devices.filter((d) =>
-          (
-            [
-              DeviceCategory.MODEM_HFC,
-              DeviceCategory.MODEM_GPON,
-            ] as DeviceCategory[]
-          ).includes(d.category)
+        return devices.filter(
+          (d) =>
+            d.category &&
+            (
+              [
+                DeviceCategory.MODEM_HFC,
+                DeviceCategory.MODEM_GPON,
+              ] as DeviceCategory[]
+            ).includes(d.category)
         )
       }
+
       return []
     })()
+
     return base.filter(
       (d) =>
         !usedDeviceIds.includes(d.id) &&
@@ -142,6 +171,33 @@ const ServiceConfigDialog = ({
         d.category === DeviceCategory.MODEM_HFC
     )
   }, [devices])
+
+  /**
+   * Validates DS/US signal ranges.
+   * DS should be between -8 and 10 dBm.
+   * US should be between 42 and 52 dBm.
+   */
+  const validateSignalRanges = (dsValue: string, usValue: string): boolean => {
+    const dsNum = Number(dsValue)
+    const usNum = Number(usValue)
+
+    // Skip check if values are empty (they are validated elsewhere)
+    if (!dsValue || !usValue) return true
+
+    // DS validation
+    if (isNaN(dsNum) || dsNum < -6 || dsNum > 10) {
+      toast.error('Wartość DS musi być w zakresie od -6 do 10 dBm.')
+      return false
+    }
+
+    // US validation
+    if (isNaN(usNum) || usNum < 43 || usNum > 49) {
+      toast.error('Wartość US musi być w zakresie od 43 do 49 dBm.')
+      return false
+    }
+
+    return true
+  }
 
   /** Switch between client and warehouse */
   const handleChangeSource = (src: DeviceSource) => {
@@ -165,9 +221,24 @@ const ServiceConfigDialog = ({
 
   /** Add unique extra */
   const handleAddExtra = (device: IssuedItemDevice) => {
-    const alreadyExists = extras.some((ex) => ex.id === device.id)
-    if (alreadyExists) {
-      toast.warning('To urządzenie zostało już dodane.')
+    const duplicate =
+      extras.some((ex) => ex.id === device.id) ||
+      primaryDevice?.id === device.id ||
+      secondaryDevice?.id === device.id ||
+      (primaryDevice?.serialNumber &&
+        device.serialNumber &&
+        primaryDevice.serialNumber.trim().toUpperCase() ===
+          device.serialNumber.trim().toUpperCase())
+    if (duplicate) {
+      toast.warning('To urządzenie jest już przypisane do tej usługi.')
+      return
+    }
+    if (device.status === 'ASSIGNED_TO_ORDER') {
+      toast.error(
+        `Urządzenie ${device.name} (${
+          device.serialNumber ?? 'brak SN'
+        }) jest już przypisane do innego zlecenia.`
+      )
       return
     }
     setExtras((prev) => [...prev, device])
@@ -182,13 +253,29 @@ const ServiceConfigDialog = ({
       if (!primaryDevice || usedDeviceIds.includes(primaryDevice.id))
         return false
     }
+
+    // Prevent same serial between modem and router
+    if (
+      secondaryDevice &&
+      primaryDevice?.serialNumber &&
+      secondaryDevice.serialNumber &&
+      primaryDevice.serialNumber.trim().toUpperCase() ===
+        secondaryDevice.serialNumber.trim().toUpperCase()
+    ) {
+      return false
+    }
+
     if (type === 'DTV' && isDecoder2Way && (!ds.trim() || !us.trim()))
       return false
+
     if (type === 'NET') {
       if (!speed.trim()) return false
       if (!isModemGpon && (!ds.trim() || !us.trim())) return false
       if (needsRouter && !secondaryDevice) return false
     }
+
+    if (!isModemGpon && !validateSignalRanges(ds, us)) return false
+
     return true
   }, [
     primarySource,
@@ -214,6 +301,17 @@ const ServiceConfigDialog = ({
       return
     }
 
+    if (
+      secondaryDevice &&
+      primaryDevice?.serialNumber &&
+      secondaryDevice.serialNumber &&
+      primaryDevice.serialNumber.trim().toUpperCase() ===
+        secondaryDevice.serialNumber.trim().toUpperCase()
+    ) {
+      toast.error('Modem i router nie mogą mieć tego samego numeru seryjnego.')
+      return
+    }
+
     const payload: ActivatedService = {
       id: crypto.randomUUID(),
       type,
@@ -231,6 +329,7 @@ const ServiceConfigDialog = ({
       deviceId2: needsRouter ? secondaryDevice?.id : undefined,
       serialNumber2: needsRouter ? secondaryDevice?.serialNumber : undefined,
       deviceType2: needsRouter ? secondaryDevice?.category : undefined,
+      deviceName2: needsRouter ? secondaryDevice?.name ?? '' : undefined,
       usDbmDown: ds ? Number(ds) : undefined,
       usDbmUp: us ? Number(us) : undefined,
       speedTest: type === 'NET' ? speed.trim() : undefined,
@@ -247,9 +346,16 @@ const ServiceConfigDialog = ({
     onCloseAction()
   }
 
+  const allowedCategoriesMap: Record<ServiceType, DeviceCategory[]> = {
+    DTV: ['DECODER_1_WAY', 'DECODER_2_WAY'],
+    NET: ['MODEM_HFC', 'MODEM_GPON', 'OTHER'],
+    TEL: ['OTHER'],
+    ATV: ['OTHER'],
+  }
+
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="max-w-md w-[95vw]">
+      <DialogContent className="max-w-md w-[95vw] overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {type === 'NET'
@@ -286,7 +392,30 @@ const ServiceConfigDialog = ({
             <Label className="font-medium">Router</Label>
             <SerialScanInput
               devices={secondaryOptions}
-              onAddDevice={(dev) => setSecondaryDevice(dev)}
+              isDeviceUsed={(id) =>
+                usedDeviceIds.includes(id) ||
+                id === secondaryDevice?.id ||
+                id === primaryDevice?.id
+              }
+              onAddDevice={(dev) => {
+                if (
+                  primaryDevice?.serialNumber &&
+                  dev.serialNumber &&
+                  primaryDevice.serialNumber.trim().toUpperCase() ===
+                    dev.serialNumber.trim().toUpperCase()
+                ) {
+                  toast.warning(
+                    'Router nie może mieć tego samego numeru seryjnego co modem.'
+                  )
+                  return
+                }
+                if (primaryDevice?.id === dev.id) {
+                  toast.warning('Nie możesz dodać tego samego urządzenia.')
+                  return
+                }
+                setSecondaryDevice(dev)
+              }}
+              allowedCategories={allowedCategoriesMap[type]}
               variant="block"
             />
             {secondaryDevice && (
@@ -309,6 +438,8 @@ const ServiceConfigDialog = ({
                     placeholder="DS [dBm]"
                     type="number"
                     step="0.1"
+                    min={-6}
+                    max={10}
                     value={ds}
                     onChange={(e) => setDs(e.target.value)}
                   />
@@ -316,6 +447,8 @@ const ServiceConfigDialog = ({
                     placeholder="US [dBm]"
                     type="number"
                     step="0.1"
+                    min={43}
+                    max={49}
                     value={us}
                     onChange={(e) => setUs(e.target.value)}
                   />
@@ -343,20 +476,19 @@ const ServiceConfigDialog = ({
             {addExtras && (
               <>
                 <SerialScanInput
+                  serviceType={type}
                   devices={devices.filter(
                     (d) =>
                       !extras.some((ex) => ex.id === d.id) &&
-                      !usedDeviceIds.includes(d.id) &&
-                      !(
-                        [
-                          DeviceCategory.DECODER_1_WAY,
-                          DeviceCategory.DECODER_2_WAY,
-                          DeviceCategory.NETWORK_DEVICE,
-                        ] as DeviceCategory[]
-                      ).includes(d.category)
+                      !usedDeviceIds.includes(d.id)
                   )}
+                  isDeviceUsed={(id) =>
+                    usedDeviceIds.includes(id) ||
+                    extras.some((x) => x.id === id)
+                  }
                   onAddDevice={handleAddExtra}
                   variant="block"
+                  allowedCategories={allowedCategoriesMap[type]}
                 />
 
                 {extras.length > 0 && (
@@ -382,9 +514,54 @@ const ServiceConfigDialog = ({
           <Button variant="outline" onClick={onCloseAction}>
             Anuluj
           </Button>
-          <Button onClick={handleConfirm} disabled={!isValid}>
-            Zatwierdź
-          </Button>
+
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <Button onClick={handleConfirm} disabled={!isValid}>
+                    Zatwierdź
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!isValid && (
+                <TooltipContent
+                  side="top"
+                  className="max-w-xs text-center overflow-hidden"
+                >
+                  {(() => {
+                    if (!selectedCategory) return 'Wybierz urządzenie.'
+                    if (
+                      primarySource === 'CLIENT' &&
+                      (!primaryClientName || !primaryClientSn)
+                    )
+                      return 'Uzupełnij nazwę i numer seryjny urządzenia klienta.'
+                    if (primarySource === 'WAREHOUSE' && !primaryDevice)
+                      return 'Wybierz urządzenie z magazynu.'
+                    if (needsRouter && !secondaryDevice)
+                      return 'Wybierz router.'
+                    if (
+                      secondaryDevice &&
+                      primaryDevice?.serialNumber &&
+                      secondaryDevice.serialNumber &&
+                      primaryDevice.serialNumber.trim().toUpperCase() ===
+                        secondaryDevice.serialNumber.trim().toUpperCase()
+                    )
+                      return 'Modem i router mają ten sam numer seryjny.'
+                    if (type === 'NET' && !speed.trim())
+                      return 'Podaj wynik Speedtest.'
+                    if (
+                      type === 'NET' &&
+                      !isModemGpon &&
+                      (!ds.trim() || !us.trim())
+                    )
+                      return 'Uzupełnij DS/US.'
+                    return 'Uzupełnij wszystkie wymagane dane.'
+                  })()}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </DialogFooter>
       </DialogContent>
     </Dialog>

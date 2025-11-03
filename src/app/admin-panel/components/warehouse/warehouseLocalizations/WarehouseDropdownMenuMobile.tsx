@@ -29,7 +29,12 @@ interface Props {
  * - Shows a chevron icon to indicate dropdown availability.
  */
 const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
-  const { data: locations = [] } = trpc.warehouse.getUserLocations.useQuery()
+  const { data: locations = [] } = trpc.warehouse.getUserLocations.useQuery(
+    undefined,
+    {
+      enabled: !isTechnician,
+    }
+  )
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -55,7 +60,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
         onClick={() =>
           router.push(
             isTechnician
-              ? `/?tab=warehouse&loc=${loc?.id ?? ''}`
+              ? `/?tab=warehouse`
               : `/admin-panel?tab=warehouse&loc=${loc?.id ?? ''}`
           )
         }

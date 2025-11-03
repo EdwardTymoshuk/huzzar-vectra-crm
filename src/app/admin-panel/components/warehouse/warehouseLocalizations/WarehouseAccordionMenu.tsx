@@ -7,6 +7,7 @@ import {
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
 import { cn } from '@/lib/utils'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { ChevronDown } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -18,7 +19,13 @@ import { MdWarehouse } from 'react-icons/md'
  * - Selected location highlight is based on `loc=<id>`.
  */
 const WarehouseAccordionMenu = () => {
-  const { data: locations = [] } = trpc.warehouse.getUserLocations.useQuery()
+  const { isTechnician } = useRole()
+  const { data: locations = [] } = trpc.warehouse.getUserLocations.useQuery(
+    undefined,
+    {
+      enabled: !isTechnician,
+    }
+  )
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()

@@ -11,7 +11,9 @@ import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import SerialScanInput from '../../../../components/shared/SerialScanInput'
+import SerialScanInput, {
+  DeviceBasic,
+} from '../../../../components/shared/SerialScanInput'
 import WarehouseSelectedItemsPanel from '../../../../components/shared/warehouse/WarehouseSelectedItemsPanel'
 import MaterialIssueTable from './MaterialIssueTable'
 
@@ -56,9 +58,14 @@ const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
     { enabled: !!activeLocationId }
   )
 
-  const availableDevices = warehouseDevices.filter(
-    (d) => d.status === 'AVAILABLE'
-  )
+  const availableDevices: DeviceBasic[] = warehouseDevices
+    .filter((d) => d.status === 'AVAILABLE')
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber,
+      category: d.category ?? 'OTHER',
+    }))
 
   const handleAddDevice = (device: IssuedItemDevice) => {
     if (!devices.find((d) => d.id === device.id)) {

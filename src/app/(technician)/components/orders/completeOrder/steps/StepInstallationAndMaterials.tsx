@@ -3,7 +3,7 @@
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
 import { ActivatedService, IssuedItemMaterial } from '@/types'
-import { MaterialUnit } from '@prisma/client'
+import { MaterialUnit, OrderType } from '@prisma/client'
 import { AlertCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -34,6 +34,7 @@ interface Props {
     install: { pion: number; listwa: number }
     materials: UsedMaterial[]
   }) => void
+  orderType?: OrderType
 }
 
 /**
@@ -69,6 +70,7 @@ const StepInstallationAndMaterials = ({
   techMaterials,
   onBack,
   onNext,
+  orderType,
 }: Props) => {
   const [touched, setTouched] = useState(false)
   const [showListwaWarning, setShowListwaWarning] = useState(false)
@@ -131,19 +133,25 @@ const StepInstallationAndMaterials = ({
       {/* Main scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 pb-8">
         <h3 className="text-xl font-semibold text-center mt-3 mb-4">
-          Wprowadź elementy instalacji i materiał
+          {`Wprowadź ${
+            orderType === 'INSTALATION' ? 'elementy instalacji i' : ''
+          } zużyty materiał`}
         </h3>
 
-        <InstallationSection
-          activatedServices={activatedServices}
-          value={installValue}
-          onChangeAction={onInstallChange}
-        />
+        {orderType === 'INSTALATION' && (
+          <>
+            <InstallationSection
+              activatedServices={activatedServices}
+              value={installValue}
+              onChangeAction={onInstallChange}
+            />
 
-        {touched && (installValue.pion < 0 || installValue.listwa < 0) && (
-          <p className="text-danger text-sm text-center mt-3">
-            Wartości nie mogą być ujemne.
-          </p>
+            {touched && (installValue.pion < 0 || installValue.listwa < 0) && (
+              <p className="text-danger text-sm text-center mt-3">
+                Wartości nie mogą być ujemne.
+              </p>
+            )}
+          </>
         )}
 
         <h3 className="text-xl font-semibold text-center mt-8 mb-4">

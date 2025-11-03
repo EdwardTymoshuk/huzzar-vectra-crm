@@ -15,7 +15,7 @@ import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap } from '@/lib/constants'
 import { IssuedItemDevice } from '@/types'
 import { DeviceCategory, OrderType } from '@prisma/client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import DeviceCard from '../DeviceCard'
 
@@ -114,6 +114,13 @@ const StepCollectedAndNotes = ({
     setIssued(issued.filter((d) => d.id !== id))
   }
 
+  useEffect(() => {
+    console.log('🧩 Collected updated:', collected)
+    if (collected.length > 0) {
+      setCollectEnabled(true)
+    }
+  }, [collected])
+
   /** Handles step validation + next */
   const handleNext = () => {
     setTouched(true)
@@ -133,7 +140,7 @@ const StepCollectedAndNotes = ({
     }
 
     onNext({
-      collected: collectEnabled ? collected : [],
+      collected: collectEnabled || collected.length > 0 ? collected : [],
       issued: issueEnabled ? issued : [],
       notes,
     })
@@ -205,8 +212,14 @@ const StepCollectedAndNotes = ({
             id="collect-switch"
             checked={collectEnabled}
             onCheckedChange={(checked) => {
+              if (!checked && collected.length > 0) {
+                const confirm = window.confirm(
+                  'Masz już odebrane urządzenia. Wyłączenie spowoduje ich usunięcie. Chcesz kontyunować ?'
+                )
+                if (!confirm) return
+                setCollected([])
+              }
               setCollectEnabled(checked)
-              if (!checked) setCollected([])
             }}
           />
           <label htmlFor="collect-switch" className="font-semibold">

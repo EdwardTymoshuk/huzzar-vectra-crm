@@ -39,7 +39,7 @@ const STEPS_INSTALLATION = [
   'Podsumowanie',
 ]
 
-const STEPS_SERVICE = ['Status', 'Odbiór i uwagi', 'Podsumowanie']
+const STEPS_SERVICE = ['Status', 'Odbiór i uwagi', 'Materiały', 'Podsumowanie']
 
 /** Prisma type including all required relations for full order details */
 type FullOrder = Prisma.OrderGetPayload<{
@@ -51,7 +51,7 @@ type FullOrder = Prisma.OrderGetPayload<{
     settlementEntries: true
     usedMaterials: { include: { material: true } }
     assignedEquipment: { include: { warehouse: true } }
-    services: true
+    services: { include: { extraDevices: true } }
   }
 }>
 
@@ -125,15 +125,31 @@ const CompleteOrderWizard = ({
       order.services?.map((s) => ({
         id: s.id,
         type: s.type,
+        deviceSource: s.deviceSource ?? 'WAREHOUSE',
         deviceId: s.deviceId ?? undefined,
+        deviceName: s.deviceName ?? undefined,
         serialNumber: s.serialNumber ?? undefined,
+        deviceType: s.deviceType ?? undefined,
+
+        device2Source: s.device2Source ?? undefined,
         deviceId2: s.deviceId2 ?? undefined,
+        deviceName2: s.deviceName2 ?? undefined,
         serialNumber2: s.serialNumber2 ?? undefined,
+        deviceType2: s.deviceType2 ?? undefined,
+
         usDbmDown: s.usDbmDown ?? undefined,
         usDbmUp: s.usDbmUp ?? undefined,
         speedTest: s.speedTest ?? undefined,
         notes: s.notes ?? undefined,
-        deviceType: s.deviceType ?? undefined,
+
+        extraDevices:
+          s.extraDevices?.map((d) => ({
+            id: d.id,
+            source: d.source ?? 'WAREHOUSE',
+            category: d.category ?? DeviceCategory.OTHER,
+            serialNumber: d.serialNumber ?? '',
+            name: d.name ?? '',
+          })) ?? [],
       })) ?? []
 
     const normalizedMaterials =
@@ -168,6 +184,7 @@ const CompleteOrderWizard = ({
     setMaterials(normalizedMaterials)
     setCollected(collectedFromAssigned)
     setInstall({ pion: findQty('pion'), listwa: findQty('listw') })
+    setFailureReason(order.failureReason ?? '')
   }, [mode, order])
 
   /** Technician stock typing */
@@ -212,6 +229,11 @@ const CompleteOrderWizard = ({
     services: ActivatedService[]
   }) => {
     try {
+      console.log('📦 SUBMIT PAYLOAD:', {
+        collectedDevices: payload.collectedDevices,
+        issuedDevices: payload.issuedDevices,
+        services: payload.services,
+      })
       const mutation = resolveMutation()
       await mutation.mutateAsync({ orderId: order.id, ...payload })
 
@@ -252,7 +274,7 @@ const CompleteOrderWizard = ({
   /** Render */
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col [&>button.absolute.right-4.top-4]:hidden">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col [&>button.absolute.right-4.top-4]:hidden overflow-x-hidden">
         <DialogHeader className="border-bflex flex-row items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
           <Button variant="ghost" onClick={back} size="icon">
             <ArrowLeft className="w-5 h-5" />
@@ -290,6 +312,7 @@ const CompleteOrderWizard = ({
         <div className="flex-1 overflow-y-auto">
           {step === 0 && (
             <StepStatus
+              key={order.id}
               status={status}
               setStatus={setStatus}
               onNext={(data) => {
@@ -320,6 +343,7 @@ const CompleteOrderWizard = ({
 
               {step === 2 && (
                 <StepInstallationAndMaterials
+                  orderType={orderType}
                   activatedServices={services}
                   installValue={install}
                   onInstallChange={setInstall}
@@ -390,6 +414,21 @@ const CompleteOrderWizard = ({
               )}
 
               {step === 2 && (
+                <StepInstallationAndMaterials
+                  activatedServices={services}
+                  installValue={install}
+                  onInstallChange={setInstall}
+                  materials={materials}
+                  setMaterials={setMaterials}
+                  materialDefs={materialDefsTyped}
+                  techMaterials={techMaterialsTyped}
+                  onNext={next}
+                  onBack={back}
+                  orderType={orderType}
+                />
+              )}
+
+              {step === 3 && (
                 <StepSummary
                   orderType={orderType}
                   status={status}

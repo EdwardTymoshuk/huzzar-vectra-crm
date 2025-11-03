@@ -17,10 +17,9 @@ type Props = {
 /**
  * FailureReasonSelect
  * -----------------------------------------------------------------------------
- * Encapsulates the "not completed" reason picker. Keeps options collocated and
- * usage concise in the parent modal.
+ * Controlled dropdown for selecting failure reason.
+ * Keeps options collocated and usage concise in the parent modal.
  */
-
 const FailureReasonSelect: React.FC<Props> = ({ value, onChange }) => {
   return (
     <Select value={value} onValueChange={onChange}>

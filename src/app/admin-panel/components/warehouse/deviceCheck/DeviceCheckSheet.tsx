@@ -9,26 +9,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/app/components/ui/sheet'
+import { devicesStatusMap } from '@/lib/constants'
+import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { trpc } from '@/utils/trpc'
-import dayjs from 'dayjs'
 import { useState } from 'react'
-
-/** Device status → Polish label */
-const devicesStatusMap: Record<string, string> = {
-  AVAILABLE: 'DOSTĘPNY',
-  ASSIGNED: 'PRZYPISANY DO TECHNIKA',
-  RETURNED: 'ZWRÓCONY DO MAGAZYNU',
-  RETURNED_TO_OPERATOR: 'ZWRÓCONY DO OPERATORA',
-  ASSIGNED_TO_ORDER: 'WYDANY DO ZLECENIA',
-}
-
-/** Warehouse action → Polish label */
-const actionMap: Record<string, string> = {
-  RECEIVED: 'Przyjęcie',
-  ISSUED: 'Wydanie',
-  RETURNED: 'Zwrot',
-  RETURNED_TO_OPERATOR: 'Zwrot do operatora',
-}
 
 type Props = { open: boolean; onClose: () => void }
 
@@ -121,12 +105,10 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
                   <div>
                     <dt className="font-medium">Ostatnia operacja</dt>
                     <dd>
-                      {actionMap[query.data.lastAction ?? ''] ??
+                      {devicesStatusMap[query.data.lastAction ?? ''] ??
                         query.data.lastAction}
                       {' — '}
-                      {dayjs(query.data.lastActionDate).format(
-                        'DD.MM.YYYY HH:mm'
-                      )}
+                      {formatDateTime(query.data.lastActionDate)}
                     </dd>
                   </div>
                 )}

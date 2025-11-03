@@ -1,5 +1,6 @@
 'use client'
 
+import ConfirmResetDialog from '@/app/components/shared/ConfirmResetDialog'
 import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
 import { Label } from '@/app/components/ui/label'
@@ -8,34 +9,37 @@ import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap } from '@/lib/constants'
 import { ActivatedService, IssuedItemDevice } from '@/types'
 import { DeviceCategory, ServiceType } from '@prisma/client'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { GrPowerReset } from 'react-icons/gr'
 import { MdDelete } from 'react-icons/md'
 import { toast } from 'sonner'
 import ServiceConfigDialog from './ServiceConfigDialog'
 
-interface Props {
+interface ServicesSectionProps {
   operator: string
+  /** merged list from parent (backend + freed) */
   devices: IssuedItemDevice[]
+  /** current activated services */
   value: ActivatedService[]
+  /** setter from parent wizard */
   onChangeAction: (services: ActivatedService[]) => void
+  /**
+   * Called when user deletes a service that had devices.
+   * Parent must store those devices so they can be reused.
+   */
+  onDevicesFreed?: (devices: IssuedItemDevice[]) => void
 }
 
-/**
- * ServicesSection
- * ------------------------------------------------------
- * - Buttons with 'secondary' bg + counts.
- * - TEL via SerialScanInput (KARTA SIM). Multiple TEL allowed.
- * - DTV/NET open modal; cards show router, extras, and measurements.
- */
 const ServicesSection = ({
   operator,
   devices,
   value,
   onChangeAction,
-}: Props) => {
+  onDevicesFreed,
+}: ServicesSectionProps) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState<ServiceType>('DTV')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const openDialog = (type: ServiceType) => {
     setDialogType(type)
@@ -63,21 +67,116 @@ const ServicesSection = ({
     toast.success('Dodano usługę ATV')
   }
 
+  /**
+   * Remove service AND report all devices that belonged to it
+   * (primary, router, extras)
+   */
   const removeService = (id: string) => {
+    const removed = value.find((v) => v.id === id)
+    const freed: IssuedItemDevice[] = []
+
+    if (removed) {
+      // primary
+      if (removed.deviceId) {
+        freed.push({
+          id: removed.deviceId,
+          name: removed.deviceName ?? '',
+          serialNumber: removed.serialNumber ?? '',
+          category: removed.deviceType ?? DeviceCategory.OTHER,
+          type: 'DEVICE',
+        })
+      }
+
+      // router / deviceId2
+      if (removed.deviceId2) {
+        freed.push({
+          id: removed.deviceId2,
+          name: removed.deviceName2 ?? '',
+          serialNumber: removed.serialNumber2 ?? '',
+          category: removed.deviceType2 ?? DeviceCategory.OTHER,
+          type: 'DEVICE',
+        })
+      }
+
+      // extras
+      if (removed.extraDevices && removed.extraDevices.length > 0) {
+        removed.extraDevices.forEach((ex) => {
+          freed.push({
+            id: ex.id,
+            name: ex.name ?? '',
+            serialNumber: ex.serialNumber ?? '',
+            category: ex.category ?? DeviceCategory.OTHER,
+            type: 'DEVICE',
+          })
+        })
+      }
+    }
+
+    // update services list
     onChangeAction(value.filter((v) => v.id !== id))
+
+    // tell parent which devices can be used again
+    if (freed.length > 0) {
+      onDevicesFreed?.(freed)
+    }
+
     toast.info('Usunięto usługę')
   }
 
   const resetAll = () => {
+    const freed: IssuedItemDevice[] = []
+    value.forEach((svc) => {
+      if (svc.deviceId)
+        freed.push({
+          id: svc.deviceId,
+          name: svc.deviceName ?? '',
+          serialNumber: svc.serialNumber ?? '',
+          category: svc.deviceType ?? DeviceCategory.OTHER,
+          type: 'DEVICE',
+        })
+      if (svc.deviceId2)
+        freed.push({
+          id: svc.deviceId2,
+          name: svc.deviceName2 ?? '',
+          serialNumber: svc.serialNumber2 ?? '',
+          category: svc.deviceType2 ?? DeviceCategory.OTHER,
+          type: 'DEVICE',
+        })
+      if (svc.extraDevices)
+        svc.extraDevices.forEach((ex) =>
+          freed.push({
+            id: ex.id,
+            name: ex.name ?? '',
+            serialNumber: ex.serialNumber ?? '',
+            category: ex.category ?? DeviceCategory.OTHER,
+            type: 'DEVICE',
+          })
+        )
+    })
+
     onChangeAction([])
+    if (freed.length > 0) onDevicesFreed?.(freed)
     toast.info('Zresetowano wszystkie usługi')
   }
 
   const count = (t: ServiceType) => value.filter((v) => v.type === t).length
 
+  /** ids already used in current config */
+  const usedDeviceIds = useMemo(
+    () =>
+      value
+        .flatMap((v) => [
+          v.deviceId,
+          v.deviceId2,
+          ...(v.extraDevices?.map((ex) => ex.id) ?? []),
+        ])
+        .filter((id): id is string => !!id),
+    [value]
+  )
+
   return (
     <div>
-      {/* Selection buttons */}
+      {/* buttons */}
       <div className="grid gap-2 mb-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
         <Button
           variant={count('DTV') > 0 ? 'secondary' : 'outline'}
@@ -117,14 +216,14 @@ const ServicesSection = ({
           <Button
             variant="ghost"
             className="w-full col-span-1 sm:col-span-2 md:col-span-4"
-            onClick={resetAll}
+            onClick={() => setConfirmOpen(true)}
           >
             <GrPowerReset /> Resetuj
           </Button>
         )}
       </div>
 
-      {/* Cards */}
+      {/* service cards */}
       <div className="space-y-4">
         {value.map((svc) => {
           const device =
@@ -152,11 +251,12 @@ const ServicesSection = ({
                 </Button>
               </div>
 
-              {/* TEL: pick SIM via SerialScanInput; after pick show SN */}
+              {/* TEL */}
               {svc.type === 'TEL' && (
                 <TelRow
                   service={svc}
                   devices={devices}
+                  allServices={value}
                   onChange={(updated) =>
                     onChangeAction(
                       value.map((v) => (v.id === svc.id ? updated : v))
@@ -165,7 +265,7 @@ const ServicesSection = ({
                 />
               )}
 
-              {/* ATV: notes */}
+              {/* ATV */}
               {svc.type === 'ATV' && (
                 <Textarea
                   placeholder="Uwagi (opcjonalnie)"
@@ -180,43 +280,30 @@ const ServicesSection = ({
                 />
               )}
 
-              {/* DTV / NET: main, router, extras, measurements */}
+              {/* DTV / NET – show devices + extras + measurements */}
               {(svc.type === 'DTV' || svc.type === 'NET') && (
                 <div className="text-sm text-muted-foreground space-y-1">
-                  {/* Main */}
+                  {/* main */}
                   {device && (
                     <div>
                       {svc.deviceSource === 'CLIENT'
                         ? `Urządzenie klienta: ${device.name} (SN: ${device.serial})`
-                        : `${devicesTypeMap[device.category]} ${device.name}${
+                        : `${devicesTypeMap[device.category]} ${device.name} ${
                             device.serial ? ` (SN: ${device.serial})` : ''
                           }`}
                     </div>
                   )}
 
-                  {/* Router (deviceId2) */}
+                  {/* router */}
                   {svc.deviceId2 && (
                     <div>
-                      {(() => {
-                        if (svc.deviceType2 === 'MODEM_HFC') {
-                          return `ROUTER: MODEM HFC (SN: ${
-                            svc.serialNumber2 ?? ''
-                          })`
-                        }
-                        if (svc.deviceType2 === 'MODEM_GPON') {
-                          return `ROUTER: MODEM GPON (SN: ${
-                            svc.serialNumber2 ?? ''
-                          })`
-                        }
-                        // other categories → just name
-                        return `ROUTER: ${svc.deviceName2 ?? ''}${
-                          svc.serialNumber2 ? ` (SN: ${svc.serialNumber2})` : ''
-                        }`
-                      })()}
+                      {`ROUTER: ${devicesTypeMap[svc.deviceType2 ?? '']} ${
+                        svc.deviceName2 ?? ''
+                      } (SN: ${svc.serialNumber2 ?? ''})`}
                     </div>
                   )}
 
-                  {/* Extras list */}
+                  {/* extras */}
                   {svc.extraDevices && svc.extraDevices.length > 0 && (
                     <div>
                       {svc.extraDevices.map((ex, idx) => {
@@ -226,21 +313,18 @@ const ServicesSection = ({
                             : ex.category === 'MODEM_GPON'
                             ? 'MODEM GPON'
                             : ex.name || 'URZĄDZENIE'
-                        const sn = ex.serialNumber
-                          ? ` (SN: ${ex.serialNumber})`
-                          : ''
                         return (
                           <span key={ex.id}>
                             {idx > 0 ? ' | ' : ''}
                             {label}
-                            {sn}
+                            {ex.serialNumber ? ` (SN: ${ex.serialNumber})` : ''}
                           </span>
                         )
                       })}
                     </div>
                   )}
 
-                  {/* Measurements */}
+                  {/* measurements */}
                   {(svc.usDbmDown !== undefined ||
                     svc.usDbmUp !== undefined ||
                     (svc.speedTest && svc.speedTest.length > 0)) && (
@@ -269,20 +353,29 @@ const ServicesSection = ({
         })}
       </div>
 
-      {/* Dialog */}
+      {/* dialog – dostaje już merged devices z góry */}
       <ServiceConfigDialog
         open={dialogOpen}
         type={dialogType}
         operator={operator}
         devices={devices}
-        usedDeviceIds={value
-          .flatMap((v) => [v.deviceId, v.deviceId2])
-          .filter((id): id is string => !!id)}
+        usedDeviceIds={usedDeviceIds}
         onConfirmAction={(svc) => {
           onChangeAction([...value, svc])
           toast.success(`Dodano usługę ${svc.type}`)
         }}
         onCloseAction={() => setDialogOpen(false)}
+      />
+
+      <ConfirmResetDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          resetAll()
+          setConfirmOpen(false)
+        }}
+        title="Potwierdź reset usług"
+        description="Ta operacja usunie wszystkie aktywne usługi i powiązane urządzenia. Czy na pewno chcesz kontynuować?"
       />
     </div>
   )
@@ -296,17 +389,30 @@ type TelRowProps = {
   service: ActivatedService
   devices: IssuedItemDevice[]
   onChange: (s: ActivatedService) => void
+  /** Cała lista usług, by wykryć kolejność TEL */
+  allServices?: ActivatedService[]
 }
 
 /**
- * TelRow
- * ------------------------------------------------------
- * Handles TEL service SIM card serial number assignment.
- * - Toggle (Switch) controls showing SerialScanInput.
- * - Once SIM selected, displays SN and locks input.
+ * TelRow – SIM card assignment for TEL.
+ * -----------------------------------------------------
+ * - For the first TEL: optional serial, switch toggleable.
+ * - For the second and further TEL: switch forced ON + required serial.
  */
-const TelRow = ({ service, devices, onChange }: TelRowProps) => {
-  const [addSerial, setAddSerial] = useState(!!service.serialNumber)
+const TelRow = ({ service, devices, onChange, allServices }: TelRowProps) => {
+  // Count how many TELs are in total and find index of this one
+  const telServices = allServices?.filter((s) => s.type === 'TEL') ?? []
+  const isAdditionalTel = telServices.findIndex((s) => s.id === service.id) > 0
+
+  // If additional TEL → always ON and cannot be toggled
+  const [addSerial, setAddSerial] = useState<boolean>(
+    isAdditionalTel || Boolean(service.serialNumber)
+  )
+
+  // When this TEL becomes additional (after list updates)
+  useEffect(() => {
+    if (isAdditionalTel) setAddSerial(true)
+  }, [isAdditionalTel])
 
   const handleSelectSim = (device: IssuedItemDevice) => {
     onChange({
@@ -322,17 +428,21 @@ const TelRow = ({ service, devices, onChange }: TelRowProps) => {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label
-          className={`text-sm ${
-            addSerial ? 'text-normal' : 'text-muted-foreground'
-          }`}
+          className={addSerial ? 'text-sm' : 'text-sm text-muted-foreground'}
         >
           Numer seryjny
         </Label>
-        <Switch checked={addSerial} onCheckedChange={setAddSerial} />
+        <Switch
+          checked={addSerial}
+          onCheckedChange={(v) => !isAdditionalTel && setAddSerial(v)}
+          disabled={isAdditionalTel} // 🔒 Cannot disable for 2nd+ TEL
+        />
       </div>
 
+      {/* Serial input required for 2nd+ TEL */}
       {addSerial && !service.serialNumber && (
         <SerialScanInput
+          serviceType="TEL"
           devices={devices.filter((d) => d.category === DeviceCategory.OTHER)}
           onAddDevice={handleSelectSim}
           variant="block"
@@ -344,6 +454,11 @@ const TelRow = ({ service, devices, onChange }: TelRowProps) => {
           KARTA SIM (SN:{' '}
           <span className="font-medium">{service.serialNumber}</span>)
         </div>
+      )}
+
+      {/* 🔹 Validation note for second and further TELs */}
+      {isAdditionalTel && !service.serialNumber && (
+        <p className="text-xs text-danger mt-1">Numer seryjny jest wymagany.</p>
       )}
     </div>
   )
