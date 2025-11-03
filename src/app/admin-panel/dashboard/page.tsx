@@ -43,7 +43,7 @@ const DashboardPage = () => {
 
   return (
     <MaxWidthWrapper>
-      <PageHeader title="Dashboard" />
+      <PageHeader title="Pulpit" />
       <DashboardFilters
         selectedDate={getSelectedDate()}
         onChangeDate={handleChangeDate}

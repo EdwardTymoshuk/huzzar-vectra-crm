@@ -18,7 +18,7 @@ import {
 export const adminsMenuItems: MenuItem[] = [
   {
     key: 'dashboard',
-    name: 'Dashboard',
+    name: 'Pulpit',
     icon: MdSpaceDashboard,
     href: '/admin-panel',
   },
@@ -64,7 +64,7 @@ export const adminsMenuItems: MenuItem[] = [
  * Menu items for technician users.
  */
 export const techniciansMenuItems: MenuItem[] = [
-  { key: 'dashboard', name: 'Dashboard', icon: MdSpaceDashboard, href: '/' },
+  { key: 'dashboard', name: 'Pulpit', icon: MdSpaceDashboard, href: '/' },
   { key: 'planer', name: 'Planer', icon: MdAssignment, href: '/planer' },
   { key: 'orders', name: 'Zlecenia', icon: MdOutlineListAlt, href: '/orders' },
   { key: 'warehouse', name: 'Magazyn', icon: MdWarehouse, href: '/warehouse' },

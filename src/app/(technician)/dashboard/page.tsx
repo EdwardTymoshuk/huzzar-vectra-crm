@@ -9,7 +9,7 @@ import TechEarningsMonthlyChart from '../components/dashboard/TechEarningsMonthl
 import TechOrderStatsSection from '../components/dashboard/TechOrderStatsSection'
 
 /**
- * Technician Dashboard Page
+ * Technician Pulpit Page
  * - Mirrors the admin dashboard structure (range tabs + date picker).
  * - Shows KPIs and charts scoped strictly to the logged-in technician.
  */
@@ -35,7 +35,7 @@ const TechnicianDashboardPage = () => {
 
   return (
     <MaxWidthWrapper>
-      <PageHeader title="Dashboard" />
+      <PageHeader title="Pulpit" />
       <DashboardFilters
         selectedDate={getSelectedDate()}
         onChangeDate={handleChangeDate}
