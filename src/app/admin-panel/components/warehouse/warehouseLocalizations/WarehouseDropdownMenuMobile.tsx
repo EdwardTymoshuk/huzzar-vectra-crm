@@ -9,7 +9,6 @@ import {
 } from '@/app/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { trpc } from '@/utils/trpc'
-import { ChevronUp } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { MdWarehouse } from 'react-icons/md'
@@ -65,7 +64,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
           )
         }
         className={cn(
-          'flex flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 w-full h-full py-4 rounded-none',
+          'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 h-full py-4 rounded-none',
           isActive
             ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
             : 'text-muted hover:text-accent-foreground'
@@ -100,12 +99,6 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
           </div>
           <span className="inline-flex items-center gap-1 justify-center align-middle">
             Magazyn
-            <ChevronUp
-              className={cn(
-                'h-3.5 w-3.5 transition-transform duration-200',
-                open && 'rotate-180'
-              )}
-            />
           </span>
         </Button>
       </DropdownMenuTrigger>
