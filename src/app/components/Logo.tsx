@@ -29,7 +29,7 @@ const Logo = ({ className, widthClass = 'w-48', href = '/' }: LogoProps) => {
     >
       <div className={cn('relative aspect-[3.67/1]', widthClass)}>
         <Image
-          src="/img/huzzar-main-logo.png"
+          src="/img/huzzar-main-logo-white.png"
           alt="Huzzar Logo"
           fill
           priority
