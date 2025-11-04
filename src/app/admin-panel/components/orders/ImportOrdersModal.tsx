@@ -12,7 +12,7 @@ import {
 import {
   parseOrdersFromExcel,
   type ParsedOrderFromExcel,
-} from '@/utils/excelParsers'
+} from '@/utils/excelParsers/excelParsers'
 import { normalizeName } from '@/utils/normalizeName'
 import { trpc } from '@/utils/trpc'
 import { DragEvent, useState } from 'react'
@@ -208,7 +208,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Wczytaj plik ze zleceniami</DialogTitle>
+          <DialogTitle>Import zleceń z Excela</DialogTitle>
           <DialogDescription>
             Przeciągnij plik Excel lub kliknij, aby wybrać.
           </DialogDescription>

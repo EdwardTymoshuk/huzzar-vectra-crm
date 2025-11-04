@@ -463,4 +463,57 @@ export const queriesRouter = router({
         orderBy: { createdAt: 'desc' },
       })
     }),
+
+  /** ⚙️ Check if given serials/MACs already exist in warehouse */
+  checkExistingIdentifiers: adminCoordOrWarehouse
+    .input(
+      z.object({
+        identifiers: z.array(z.string().min(3)),
+        locationId: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const user = getUserOrThrow(ctx)
+      const locId = resolveLocationId(user, input)
+
+      // Find all existing devices by serialNumber (MACs are also stored there)
+      const found = await prisma.warehouse.findMany({
+        where: {
+          serialNumber: {
+            in: input.identifiers,
+            mode: 'insensitive',
+          },
+          ...(locId ? { locationId: locId } : {}),
+        },
+        select: {
+          serialNumber: true,
+          name: true,
+          status: true,
+          assignedTo: { select: { id: true, name: true } },
+        },
+      })
+
+      // Prepare normalized result maps
+      const existing = new Set<string>()
+      const details: Record<
+        string,
+        { name: string; status: string; assignedTo?: string }
+      > = {}
+
+      for (const item of found) {
+        if (!item.serialNumber) continue
+        const normId = item.serialNumber.toUpperCase()
+        existing.add(normId)
+        details[normId] = {
+          name: item.name,
+          status: item.status,
+          assignedTo: item.assignedTo?.name,
+        }
+      }
+
+      return {
+        existing: Array.from(existing),
+        details,
+      }
+    }),
 })

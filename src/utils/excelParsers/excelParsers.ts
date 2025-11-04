@@ -1,7 +1,7 @@
 // utils/excelParsers.ts
 import { OrderStatus, TimeSlot } from '@prisma/client'
 import * as XLSX from 'xlsx'
-import { normalizeName } from './normalizeName'
+import { normalizeName } from '../normalizeName'
 
 /**
  * ParsedOrderFromExcel:

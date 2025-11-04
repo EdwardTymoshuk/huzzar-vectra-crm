@@ -9,6 +9,11 @@ import { addWarehouseHistory } from '../_helpers/addWarehouseHistory'
 import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 import { resolveLocationId } from '../_helpers/resolveLocationId'
 
+const ImportDeviceItemSchema = z.object({
+  name: z.string().min(1), // exact DeviceDefinition.name resolved on client
+  identifier: z.string().min(1), // SN or MAC (normalized)
+})
+
 export const mutationsRouter = router({
   /** 📥 Add new items to warehouse */
   addItems: adminCoordOrWarehouse
@@ -440,4 +445,83 @@ export const mutationsRouter = router({
       orderBy: { updatedAt: 'asc' },
     })
   ),
+  /** 📥 Import devices batch with result report */
+  importDevices: adminCoordOrWarehouse
+    .input(
+      z.object({
+        items: z.array(ImportDeviceItemSchema).min(1),
+        notes: z.string().optional(),
+        locationId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const user = ctx.user
+      const userId = user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      // Resolve active location (reuse your helper if available)
+      const activeLocationId =
+        input.locationId ?? user?.locations?.[0]?.id ?? 'gdansk'
+
+      const skippedList: string[] = []
+      let addedCount = 0
+      let skippedCount = 0
+
+      for (const item of input.items) {
+        // Find DeviceDefinition by exact name
+        const def = await prisma.deviceDefinition.findFirst({
+          where: { name: item.name },
+        })
+        if (!def || def.price === null) {
+          skippedCount += 1
+          skippedList.push(
+            `${item.name} | ${item.identifier} → brak definicji/ceny`
+          )
+          continue
+        }
+
+        // Try create Warehouse entry; handle duplicates by unique serialNumber
+        try {
+          await prisma.$transaction(async (tx) => {
+            const created = await tx.warehouse.create({
+              data: {
+                itemType: 'DEVICE',
+                name: def.name,
+                category: def.category, // use category from definition
+                serialNumber: item.identifier, // SN or MAC
+                quantity: 1,
+                price: def.price ?? 0,
+                warningAlert: def.warningAlert,
+                alarmAlert: def.alarmAlert,
+                status: 'AVAILABLE',
+                locationId: activeLocationId,
+              },
+            })
+
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: created.id,
+                action: 'RECEIVED',
+                performedById: userId,
+                notes: input.notes,
+                toLocationId: activeLocationId,
+              },
+            })
+          })
+          addedCount += 1
+        } catch (e) {
+          // Likely duplicate serialNumber (SN/MAC) or other constraint
+          skippedCount += 1
+          const reason = e instanceof Error ? e.message : 'Błąd zapisu'
+          skippedList.push(`${item.name} | ${item.identifier} → ${reason}`)
+          continue
+        }
+      }
+
+      return {
+        addedCount,
+        skippedCount,
+        skippedList,
+      }
+    }),
 })

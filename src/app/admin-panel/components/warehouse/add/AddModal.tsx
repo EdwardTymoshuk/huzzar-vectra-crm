@@ -76,7 +76,7 @@ const AddModal = ({
             onConfirm={handleSave}
             title="Do przyjęcia"
             confirmLabel="Zapisz w magazynie"
-            showNotes // ✅ Enables textarea for comments
+            showNotes
             notes={notes}
             setNotes={setNotes}
             loading={addMutation.isLoading}

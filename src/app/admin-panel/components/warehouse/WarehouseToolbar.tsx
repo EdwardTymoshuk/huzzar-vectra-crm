@@ -15,11 +15,12 @@ import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
-import { MdAdd } from 'react-icons/md'
+import { MdAdd, MdUploadFile } from 'react-icons/md'
 import { PiDotsThreeOutlineVerticalFill, PiUserListFill } from 'react-icons/pi'
 import { TbHistory, TbListSearch } from 'react-icons/tb'
 import TechnicianStockSheet from './TechnicianStockSheet'
 import AddModal from './add/AddModal'
+import ImportDevicesModal from './add/ImportDevicesModal'
 import DeviceCheckSheet from './deviceCheck/DeviceCheckSheet'
 import IssueModal from './issue/IssueModal'
 import ReturnModal from './return/ReturnModal'
@@ -31,27 +32,52 @@ type Props = {
 }
 
 /**
- * WarehouseToolbar:
- * - Top action panel for warehouse: delivery, issue, return, plus sheets for extra tools.
+ * WarehouseToolbar
+ * ------------------------------------------------------
+ * Top toolbar for warehouse operations.
+ * Provides access to delivery (manual/import), issue, return, stock check,
+ * device verification, and history. Uses sheets and modals for clean UX.
  */
 const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
   const [isAddModalOpen, setAddModalOpen] = useState(false)
+  const [isImportModalOpen, setImportModalOpen] = useState(false)
   const [isIssueModalOpen, setIssueModalOpen] = useState(false)
   const [isReturnModalOpen, setReturnModalOpen] = useState(false)
   const [isTransferModalOpen, setTransferModalOpen] = useState(false)
-
   const [isStockSheetOpen, setStockSheetOpen] = useState(false)
   const [isSerialSheetOpen, setSerialSheetOpen] = useState(false)
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-      {/* Left section: core actions + dropdown */}
+      {/* Left section: main actions + dropdown */}
       <div className="flex flex-wrap gap-2 items-center">
-        <Button onClick={() => setAddModalOpen(true)} variant="success">
-          <MdAdd />
-          <span className="hidden lg:inline">Dostawa</span>
-        </Button>
+        {/* Dropdown for delivery options */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="success">
+              <MdAdd />
+              <span className="hidden lg:inline">Dostawa</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-background text-foreground border border-border shadow-md cursor-pointer">
+            <DropdownMenuItem
+              onClick={() => setAddModalOpen(true)}
+              className="cursor-pointer"
+            >
+              <MdAdd className="mr-2 h-4 w-4" />
+              Dodaj ręcznie
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setImportModalOpen(true)}
+              className="cursor-pointer"
+            >
+              <MdUploadFile className="mr-2 h-4 w-4" />
+              Wczytaj z Excela
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
+        {/* Issue and Return buttons */}
         <Button onClick={() => setIssueModalOpen(true)} variant="warning">
           <HiOutlineArrowUpOnSquare />
           <span className="hidden lg:inline">Wydaj</span>
@@ -62,14 +88,14 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
           <span className="hidden lg:inline">Zwrot</span>
         </Button>
 
-        {/* More options dropdown */}
+        {/* Additional tools dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Więcej">
               <PiDotsThreeOutlineVerticalFill className="w-6 h-6" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-background text-foreground border border-border shadow-md cursor-pointer !bg-opacity-100 !backdrop-blur-none">
+          <DropdownMenuContent className="bg-background text-foreground border border-border shadow-md cursor-pointer">
             <DropdownMenuItem
               onClick={() => setStockSheetOpen(true)}
               className="cursor-pointer"
@@ -108,7 +134,7 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         </DropdownMenu>
       </div>
 
-      {/* Search input */}
+      {/* Right section: search bar */}
       <div className="w-full sm:w-1/2 lg:w-1/4">
         <SearchInput
           placeholder="Szukaj urządzenie lub materiał"
@@ -117,10 +143,14 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
         />
       </div>
 
-      {/* Action modals */}
+      {/* Modals */}
       <AddModal
         open={isAddModalOpen}
         onCloseAction={() => setAddModalOpen(false)}
+      />
+      <ImportDevicesModal
+        open={isImportModalOpen}
+        onClose={() => setImportModalOpen(false)}
       />
       <IssueModal
         open={isIssueModalOpen}
@@ -129,6 +159,10 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       <ReturnModal
         open={isReturnModalOpen}
         onCloseAction={() => setReturnModalOpen(false)}
+      />
+      <LocationTransferModal
+        open={isTransferModalOpen}
+        onCloseAction={() => setTransferModalOpen(false)}
       />
 
       {/* Sheets */}
@@ -139,10 +173,6 @@ const WarehouseToolbar = ({ searchTerm, setSearchTerm }: Props) => {
       <DeviceCheckSheet
         open={isSerialSheetOpen}
         onClose={() => setSerialSheetOpen(false)}
-      />
-      <LocationTransferModal
-        open={isTransferModalOpen}
-        onCloseAction={() => setTransferModalOpen(false)}
       />
     </div>
   )

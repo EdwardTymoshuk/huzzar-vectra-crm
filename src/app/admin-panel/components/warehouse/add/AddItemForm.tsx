@@ -2,6 +2,14 @@
 
 import { Button } from '@/app/components/ui/button'
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/app/components/ui/command'
+import {
   Form,
   FormControl,
   FormField,
@@ -11,11 +19,14 @@ import {
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/app/components/ui/popover'
+import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
@@ -26,7 +37,9 @@ import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { DeviceCategory } from '@prisma/client'
-import { useRef } from 'react'
+import { ChevronsUpDown } from 'lucide-react'
+import { useRef, useState } from 'react'
+import Highlight from 'react-highlight-words'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -44,6 +57,9 @@ const AddItemForm = ({
   existingItems: WarehouseFormData[]
   onAddItem: (item: WarehouseFormData) => void
 }) => {
+  const [open, setOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+
   const form = useForm<WarehouseFormData>({
     resolver: zodResolver(warehouseFormSchema),
     defaultValues,
@@ -134,41 +150,89 @@ const AddItemForm = ({
             <FormField
               control={form.control}
               name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Urządzenie</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value)
-                      const def = devices.find((d) => d.name === value)
-                      if (def) form.setValue('category', def.category)
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz urządzenie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(DeviceCategory).map((cat) => {
-                        const defs = devices.filter((d) => d.category === cat)
-                        if (!defs.length) return null
-                        return (
-                          <SelectGroup key={cat}>
-                            <SelectLabel>{devicesTypeMap[cat]}</SelectLabel>
-                            {defs.map((d) => (
-                              <SelectItem key={d.id} value={d.name}>
-                                {d.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const filteredDevices = devices.filter((d) =>
+                  d.name.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+
+                return (
+                  <FormItem>
+                    <FormLabel>Urządzenie</FormLabel>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {field.value || 'Wybierz urządzenie'}
+                          <ChevronsUpDown className="opacity-50 h-4 w-4 shrink-0 ml-2" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        sideOffset={4}
+                        className="p-0 w-[var(--radix-popover-trigger-width)] max-h-[320px] border bg-background overflow-hidden pointer-events-auto"
+                        onWheelCapture={(e) => e.stopPropagation()}
+                      >
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Szukaj urządzenie..."
+                            value={searchTerm}
+                            onValueChange={setSearchTerm}
+                            className="h-9"
+                          />
+                          <CommandList
+                            className="max-h-[280px] overflow-y-auto overscroll-contain scroll-smooth"
+                            onWheelCapture={(e) => e.stopPropagation()} // działa także przy PWA/Modal
+                            onTouchMoveCapture={(e) => e.stopPropagation()}
+                          >
+                            <CommandEmpty>Brak wyników.</CommandEmpty>
+                            {Object.values(DeviceCategory).map((cat) => {
+                              const defs = filteredDevices.filter(
+                                (d) => d.category === cat
+                              )
+                              if (!defs.length) return null
+
+                              return (
+                                <CommandGroup
+                                  key={cat}
+                                  heading={devicesTypeMap[cat]}
+                                  className="capitalize"
+                                >
+                                  {defs.map((d) => (
+                                    <CommandItem
+                                      key={d.id}
+                                      value={d.name}
+                                      onSelect={() => {
+                                        field.onChange(d.name)
+                                        form.setValue('category', d.category)
+                                        setOpen(false)
+                                      }}
+                                      className="cursor-pointer text-sm"
+                                    >
+                                      <Highlight
+                                        searchWords={[searchTerm]}
+                                        textToHighlight={d.name}
+                                        highlightClassName="bg-yellow-200 dark:bg-yellow-700"
+                                        autoEscape
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              )
+                            })}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
+
             <FormField
               control={form.control}
               name="serialNumber"
