@@ -78,7 +78,7 @@ const MobileNav = ({
               'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 h-full py-4 rounded-none',
               isActive
                 ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-                : 'text-muted hover:text-accent-foreground'
+                : 'text-muted-foreground hover:text-accent-foreground'
             )}
           >
             <item.icon className="h-6 w-6 sm:scale-150" />
@@ -97,7 +97,7 @@ const MobileNav = ({
                 'flex flex-col items-center justify-center text-sm sm:text-base font-medium transition-colors px-2 py-4 focus-visible:outline-none h-auto rounded-none flex-1',
                 hiddenItems.some((item) => item.key === activeKey)
                   ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-                  : 'text-muted hover:text-accent-foreground'
+                  : 'text-muted-foreground hover:text-accent-foreground'
               )}
             >
               <Menu className="h-6 w-6 sm:scale-150" />

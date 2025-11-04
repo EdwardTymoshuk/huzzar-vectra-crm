@@ -67,7 +67,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
           'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 h-full py-4 rounded-none',
           isActive
             ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-            : 'text-muted hover:text-accent-foreground'
+            : 'text-muted-foreground hover:text-accent-foreground'
         )}
       >
         <MdWarehouse className="h-6 w-6 sm:scale-150" />
@@ -90,7 +90,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
              */
             isWarehouseSection
               ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-              : 'text-muted hover:text-accent-foreground'
+              : 'text-muted-foreground hover:text-accent-foreground'
           )}
         >
           <div className="flex items-center justify-center gap-1">
