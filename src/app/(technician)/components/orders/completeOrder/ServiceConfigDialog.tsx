@@ -355,7 +355,7 @@ const ServiceConfigDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="max-w-md w-[95vw] overflow-hidden">
+      <DialogContent className="max-w-md w-[95vw] overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>
             {type === 'NET'
@@ -518,11 +518,9 @@ const ServiceConfigDialog = ({
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div>
-                  <Button onClick={handleConfirm} disabled={!isValid}>
-                    Zatwierdź
-                  </Button>
-                </div>
+                <Button onClick={handleConfirm} disabled={!isValid}>
+                  Zatwierdź
+                </Button>
               </TooltipTrigger>
               {!isValid && (
                 <TooltipContent
