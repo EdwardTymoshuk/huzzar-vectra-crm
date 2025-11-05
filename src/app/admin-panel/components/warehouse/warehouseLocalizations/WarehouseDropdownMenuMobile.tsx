@@ -125,7 +125,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
                 'cursor-pointer text-sm flex items-center gap-2 px-3 py-2 rounded-sm transition-colors',
                 isLocActive
                   ? 'bg-primary text-primary-foreground font-semibold'
-                  : 'text-primary-foreground hover:text-foreground'
+                  : 'text-foreground hover:text-foreground'
               )}
             >
               {loc.name}
