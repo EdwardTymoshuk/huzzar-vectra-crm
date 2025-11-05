@@ -12,7 +12,7 @@ import {
 } from '@/app/components/ui/table'
 import { statusColorMap, statusMap, timeSlotMap } from '@/lib/constants'
 import { TechnicianAssignment } from '@/types'
-import { formatDate } from '@/utils/dates/formatDateTime'
+import { formatDateForInput } from '@/utils/dates/formatDateTime'
 import { trpc } from '@/utils/trpc'
 import {
   DragDropContext,
@@ -44,7 +44,7 @@ const AssignmentsTable = () => {
     isLoading,
     isError,
   } = trpc.order.getAssignedOrders.useQuery({
-    date: formatDate(selectedDate),
+    date: formatDateForInput(selectedDate),
   })
 
   const handlePrevDay = () => setSelectedDate((prev) => subDays(prev, 1))
