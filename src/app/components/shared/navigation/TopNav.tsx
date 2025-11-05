@@ -61,7 +61,7 @@ const TopNav = ({ menuItems, activeKey, router, isTechnician }: NavProps) => {
                       'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 min-w-[44px] rounded-md transition-colors duration-150 gap-0',
                       isActive
                         ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-                        : 'text-muted hover:text-accent-foreground'
+                        : 'text-primary-foreground hover:text-accent-foreground hover:bg-primary'
                     )}
                     onClick={() =>
                       router.push(
@@ -78,7 +78,7 @@ const TopNav = ({ menuItems, activeKey, router, isTechnician }: NavProps) => {
 
                 <TooltipContent
                   side="bottom"
-                  className="block lg:hidden bg-primary text-white text-xs font-medium rounded-md px-2 py-1"
+                  className="block lg:hidden bg-primary text-primary-hoverforeground text-xs font-medium rounded-md px-2 py-1"
                 >
                   {item.name}
                 </TooltipContent>

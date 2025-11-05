@@ -58,7 +58,7 @@ const LoginForm = () => {
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="w-full max-w-sm p-6 bg-card border border-border rounded-lg shadow">
           <div className="flex justify-center mb-4">
-            <Logo />
+            <Logo themeAware />
           </div>
 
           <h2 className="text-xl font-bold text-center mb-4">Logowanie</h2>

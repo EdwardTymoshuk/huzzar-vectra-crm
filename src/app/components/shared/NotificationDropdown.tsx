@@ -34,7 +34,7 @@ const NotificationDropdown = () => {
           aria-label="Powiadomienia"
         >
           {/* Icon */}
-          <Bell className="h-5 w-5 text-accent transition-colors group-hover:text-primary" />
+          <Bell className="h-8 w-8 text-primary-foreground transition-colors group-hover:text-primary" />
           {hasNotifications && (
             <span className="absolute top-1 right-1 h-2 w-2 bg-warning rounded-full" />
           )}

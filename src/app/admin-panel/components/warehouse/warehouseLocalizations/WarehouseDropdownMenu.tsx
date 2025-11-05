@@ -64,7 +64,7 @@ const WarehouseDropdownMenu = () => {
                 'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 rounded-md transition-colors gap-2',
                 isActive
                   ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-                  : 'text-muted hover:text-accent-foreground'
+                  : 'text-primary-foreground hover:bg-primary hover:text-accent-foreground'
               )}
             >
               <MdWarehouse className="h-5 w-5 lg:hidden" />
@@ -101,7 +101,7 @@ const WarehouseDropdownMenu = () => {
                 'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 rounded-md transition-colors gap-2',
                 isActive
                   ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foregroundfont-semibold'
-                  : 'text-muted hover:text-accent-foreground'
+                  : 'text-primary-foreground hover:text-accent-foreground'
               )}
             >
               <MdWarehouse className="h-5 w-5 lg:hidden" />
@@ -133,8 +133,8 @@ const WarehouseDropdownMenu = () => {
                 className={cn(
                   'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 rounded-md transition-colors gap-2',
                   isWarehouseSection
-                    ? 'bg-primary text-primary-foreground font-semibold'
-                    : 'text-muted hover:text-accent-foreground'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary font-semibold'
+                    : 'text-primary-foreground hover:text-accent-foreground hover:bg-primary'
                 )}
               >
                 <MdWarehouse className="h-5 w-5 lg:hidden" />
@@ -150,7 +150,7 @@ const WarehouseDropdownMenu = () => {
           </TooltipTrigger>
           <TooltipContent
             side="bottom"
-            className="block lg:hidden bg-primary text-white text-xs font-medium rounded-md px-2 py-1"
+            className="block lg:hidden bg-primary hover:bg-primary text-primary-foreground text-xs font-medium rounded-md px-2 py-1"
           >
             Magazyn
           </TooltipContent>
@@ -173,7 +173,7 @@ const WarehouseDropdownMenu = () => {
                   'cursor-pointer text-sm flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors',
                   isLocActive
                     ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-foreground hover:text-foreground hover:bg-primary'
                 )}
               >
                 {loc.name}
