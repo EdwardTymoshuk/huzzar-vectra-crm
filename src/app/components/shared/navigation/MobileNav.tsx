@@ -126,8 +126,8 @@ const MobileNav = ({
                   className={cn(
                     'cursor-pointer text-sm sm:text-base flex items-center gap-2 px-3 py-2 rounded-sm transition-colors',
                     isActive
-                      ? 'bg-primary text-primary-foreground font-semibold'
-                      : 'text-primary-foreground hover:text-foreground'
+                      ? 'bg-primary hover:bg-primary text-primary-foreground hover:text-primary-foreground font-semibold'
+                      : 'text-foreground hover:text-foreground'
                   )}
                 >
                   <item.icon className="h-6 w-6 sm:scale-125" />
