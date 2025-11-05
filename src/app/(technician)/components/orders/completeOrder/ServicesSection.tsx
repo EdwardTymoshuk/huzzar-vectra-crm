@@ -268,7 +268,8 @@ const ServicesSection = ({
               {/* ATV */}
               {svc.type === 'ATV' && (
                 <Textarea
-                  placeholder="Uwagi (opcjonalnie)"
+                  placeholder="Dodaj uwagi"
+                  required
                   value={svc.notes ?? ''}
                   onChange={(e) =>
                     onChangeAction(

@@ -109,6 +109,12 @@ const StepServices = ({
         }
       }
 
+      if (s.type === 'ATV') {
+        if (!s.notes || s.notes.trim().length < 3) {
+          return false
+        }
+      }
+
       // --- TEL ---
       if (s.type === 'TEL') {
         const telServices = services.filter((sv) => sv.type === 'TEL')
@@ -175,6 +181,12 @@ const StepServices = ({
           ) {
             return 'Uzupełnij pomiary DS/US oraz wynik Speedtest.'
           }
+        }
+      }
+
+      if (s.type === 'ATV') {
+        if (!s.notes || s.notes.trim().length < 3) {
+          return 'Dodaj uwagi do usługi ATV (pole jest wymagane).'
         }
       }
 
