@@ -1,5 +1,5 @@
 // src/server/routers/user/settings.ts
-import { technicianOnly } from '@/server/roleHelpers'
+import { loggedInEveryone, technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
@@ -10,7 +10,7 @@ import { getUserOrThrow } from '../_helpers/getUserOrThrow'
  */
 export const settingsRouter = router({
   /** 🎯 Get technician's personal goals */
-  getGoals: technicianOnly.query(({ ctx }) => {
+  getGoals: loggedInEveryone.query(({ ctx }) => {
     const user = getUserOrThrow(ctx)
 
     return prisma.technicianSettings.findUnique({

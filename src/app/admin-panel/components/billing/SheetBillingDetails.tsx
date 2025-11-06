@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge } from '@/app/components/ui/badge'
+import OrderStatusBadge from '@/app/components/shared/OrderStatusBadge'
 import {
   Sheet,
   SheetContent,
@@ -71,13 +71,7 @@ const SheetBillingDetails = ({ orderId, onClose }: Props) => {
 
             <div>
               <p className="text-muted-foreground text-xs">Status</p>
-              <Badge
-                variant={
-                  data.status === 'COMPLETED' ? 'success' : 'destructive'
-                }
-              >
-                {data.status === 'COMPLETED' ? 'Wykonane' : 'Niewykonane'}
-              </Badge>
+              <OrderStatusBadge status={data.status} compact />
             </div>
 
             <div>

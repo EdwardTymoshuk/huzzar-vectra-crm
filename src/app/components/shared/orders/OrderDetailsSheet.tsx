@@ -2,7 +2,6 @@
 
 import EditOrderModal from '@/app/admin-panel/components/orders/EditOrderModal'
 import ConfirmDeleteDialog from '@/app/components/shared/ConfirmDeleteDialog'
-import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
   Sheet,
@@ -11,40 +10,19 @@ import {
   SheetTitle,
 } from '@/app/components/ui/sheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { orderTypeMap, statusMap, timeSlotMap } from '@/lib/constants'
+import { devicesTypeMap, orderTypeMap, timeSlotMap } from '@/lib/constants'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { OrderHistory } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import OrderStatusBadge from '../OrderStatusBadge'
+import OrderTimeline from './OrderTimeline'
 
 type Props = {
   orderId: string | null
   onClose: () => void
   open: boolean
-}
-
-/* ---------------- Types ---------------- */
-type OrderHistoryWithUser = OrderHistory & {
-  changedBy: { id: string; name: string }
-}
-
-/* ---------------- Helpers ---------------- */
-const formatHistoryEntry = (entry: OrderHistoryWithUser) => {
-  const who = entry.changedBy?.name || 'Nieznany użytkownik'
-
-  if (entry.notes) {
-    return `${formatDateTime(entry.changeDate)} – ${entry.notes}`
-  }
-
-  if (entry.statusBefore !== entry.statusAfter) {
-    return `${formatDateTime(entry.changeDate)} – Status zmieniony z "${
-      statusMap[entry.statusBefore]
-    }" na "${statusMap[entry.statusAfter]}" przez ${who}`
-  }
-
-  return `${formatDateTime(entry.changeDate)} – Edytowane przez ${who}`
 }
 
 /**
@@ -56,7 +34,7 @@ const formatHistoryEntry = (entry: OrderHistoryWithUser) => {
  * - Admin/Coordinator: full details with actions.
  */
 const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
-  const { isTechnician, isAdmin, isCoordinator } = useRole()
+  const { isTechnician } = useRole()
   const utils = trpc.useUtils()
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -87,6 +65,8 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
     if (!order) return
     deleteMutation.mutate({ id: order.id })
   }
+
+  console.log(order?.attempts)
 
   return (
     <>
@@ -144,6 +124,16 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     </h3>
                     <p className="font-medium">{order.orderNumber}</p>
                   </div>
+                  {order.attemptNumber > 1 && (
+                    <div>
+                      <h3 className="text-xs text-muted-foreground font-medium">
+                        Nr wejście
+                      </h3>
+                      <p className="font-medium text-center">
+                        {order.attemptNumber}
+                      </p>
+                    </div>
+                  )}
                   <div className="text-right">
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Data
@@ -186,17 +176,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Status
                     </h3>
-                    <Badge
-                      variant={
-                        order.status === 'COMPLETED'
-                          ? 'success'
-                          : order.status === 'NOT_COMPLETED'
-                          ? 'danger'
-                          : 'outline'
-                      }
-                    >
-                      {statusMap[order.status] ?? order.status}
-                    </Badge>
+                    <OrderStatusBadge status={order.status} compact />
                   </div>
                 )}
 
@@ -236,9 +216,10 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </div>
               </section>
 
-              {/* --- Completed order (work codes, equipment, materials) --- */}
+              {/* --- Completed order (work codes, services, equipment, materials) --- */}
               {order.status === 'COMPLETED' && (
                 <section className="space-y-3 pt-3">
+                  {/* --- Work codes --- */}
                   <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Kody pracy
@@ -257,18 +238,23 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     )}
                   </div>
 
+                  {/* --- Activated services --- */}
                   <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
-                      Wydany sprzęt
+                      Uruchomione usługi
                     </h3>
-                    {order.assignedEquipment?.length ? (
+                    {order.services?.length ? (
                       <ul className="list-disc pl-4">
-                        {order.assignedEquipment.map((item) => (
-                          <li key={item.id}>
-                            {item.warehouse.name}
-                            {item.warehouse.serialNumber
-                              ? ` (SN: ${item.warehouse.serialNumber})`
-                              : ''}
+                        {order.services.map((s) => (
+                          <li key={s.id} className="mt-1">
+                            <>
+                              {s.type}
+                              {s.notes && (
+                                <div className="text-xs text-muted-foreground ml-4">
+                                  Komentarz: {s.notes}
+                                </div>
+                              )}
+                            </>
                           </li>
                         ))}
                       </ul>
@@ -277,6 +263,121 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     )}
                   </div>
 
+                  {/* --- Issued equipment --- */}
+                  <div>
+                    <h3 className="text-xs text-muted-foreground font-medium">
+                      Sprzęt wydany w ramach zlecenia
+                    </h3>
+
+                    {/* Show issued devices from services (installation) */}
+                    {order.services?.some(
+                      (s) =>
+                        (s.deviceName &&
+                          (s.type !== 'TEL' || s.serialNumber)) ||
+                        s.deviceName ||
+                        s.deviceName2 ||
+                        s.extraDevices?.length
+                    ) ? (
+                      <ul className="list-disc pl-4">
+                        {order.services.map((s) => (
+                          <div key={s.id}>
+                            {/* Primary device */}
+                            {s.deviceName &&
+                              (s.type !== 'TEL' || s.serialNumber) && (
+                                <li>
+                                  {s.deviceType &&
+                                    devicesTypeMap[
+                                      s.deviceType
+                                    ].toUpperCase()}{' '}
+                                  {s.deviceName.toUpperCase()}
+                                  {s.serialNumber &&
+                                    ` (SN: ${s.serialNumber.toUpperCase()})`}
+                                </li>
+                              )}
+
+                            {/* Secondary device */}
+                            {s.deviceName2 && (
+                              <li className="ml-4">
+                                {s.deviceName2.toUpperCase()}
+                                {s.serialNumber2 &&
+                                  ` (SN: ${s.serialNumber2.toUpperCase()})`}
+                              </li>
+                            )}
+
+                            {/* Extra devices */}
+                            {s.extraDevices?.length > 0 &&
+                              s.extraDevices.map((ex) => (
+                                <li key={ex.id} className="ml-4">
+                                  {ex.name?.toUpperCase()}
+                                  {ex.serialNumber &&
+                                    ` (SN: ${ex.serialNumber.toUpperCase()})`}
+                                </li>
+                              ))}
+                          </div>
+                        ))}
+
+                        {/* Include also assigned equipment (SERVICE/OUTAGE) */}
+                        {order.assignedEquipment
+                          ?.filter(
+                            (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
+                          )
+                          .map((item) => (
+                            <li key={item.id}>
+                              {item.warehouse.name.toUpperCase()}
+                              {item.warehouse.serialNumber &&
+                                ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
+                            </li>
+                          ))}
+                      </ul>
+                    ) : order.assignedEquipment?.filter(
+                        (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
+                      ).length ? (
+                      <ul className="list-disc pl-4">
+                        {order.assignedEquipment
+                          .filter(
+                            (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
+                          )
+                          .map((item) => (
+                            <li key={item.id}>
+                              {item.warehouse.name.toUpperCase()}
+                              {item.warehouse.serialNumber &&
+                                ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
+                            </li>
+                          ))}
+                      </ul>
+                    ) : (
+                      <p>Brak</p>
+                    )}
+                  </div>
+
+                  {/* --- Collected from client --- */}
+                  <div>
+                    <h3 className="text-xs text-muted-foreground font-medium">
+                      Sprzęt odebrany od klienta
+                    </h3>
+                    {order.assignedEquipment?.filter(
+                      (e) => e.warehouse.status === 'COLLECTED_FROM_CLIENT'
+                    ).length ? (
+                      <ul className="list-disc pl-4">
+                        {order.assignedEquipment
+                          .filter(
+                            (e) =>
+                              e.warehouse.status === 'COLLECTED_FROM_CLIENT'
+                          )
+                          .map((item) => (
+                            <li key={item.id}>
+                              {item.warehouse.name.toUpperCase()}
+                              {item.warehouse.serialNumber &&
+                                ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
+                            </li>
+                          ))}
+                      </ul>
+                    ) : (
+                      <p>Brak</p>
+                    )}
+                  </div>
+
+                  {/* --- Materials --- */}
                   <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Materiały
@@ -294,6 +395,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     )}
                   </div>
 
+                  {/* --- Total --- */}
                   <div className="font-semibold text-sm">
                     Kwota:{' '}
                     {order.settlementEntries
@@ -318,23 +420,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </section>
               )}
 
-              {/* --- History (only admin/coord) --- */}
-              {(isAdmin || isCoordinator) && (
-                <section className="pt-3">
-                  <h3 className="text-xs text-muted-foreground font-medium">
-                    Historia
-                  </h3>
-                  {order.history?.length ? (
-                    <ul className="list-disc pl-4 space-y-1">
-                      {order.history.map((entry) => (
-                        <li key={entry.id}>{formatHistoryEntry(entry)}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>Brak</p>
-                  )}
-                </section>
-              )}
+              <OrderTimeline order={order} />
             </div>
           )}
         </SheetContent>

@@ -62,6 +62,10 @@ model Order {
   transferPending   Boolean                @default(false)
   transferToId      String?
   completedAt       DateTime?
+  attemptNumber     Int                    @default(1)
+  previousOrderId   String?
+  previousOrder     Order?                 @relation("OrderAttempts", fields: [previousOrderId], references: [id])
+  attempts          Order[]                @relation("OrderAttempts")
   assignedTo        User?                  @relation(fields: [assignedToId], references: [id])
   transferTo        User?                  @relation("OrderTransfer", fields: [transferToId], references: [id])
   assignedEquipment OrderEquipment[]       @relation("OrderToOrderEquipment")
@@ -71,7 +75,7 @@ model Order {
   settlementEntries OrderSettlementEntry[]
   warehouseHistory  WarehouseHistory[]     @relation("OrderToWarehouseHistory")
 
-  @@unique([orderNumber, date])
+  @@unique([orderNumber, city, street, attemptNumber])
 }
 
 /// -------------------------------

@@ -179,10 +179,15 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             'Unique constraint failed'
           )
       ).length
+      const skippedCompletedCount = results.filter(
+        (r) =>
+          r.status === 'rejected' &&
+          (r as PromiseRejectedResult).reason?.message?.includes('już wykonane')
+      ).length
 
       if (addedCount > 0) {
         toast.success(
-          `Dodano ${addedCount}. Pominięto duplikaty: ${duplicateCount}.`
+          `Dodano ${addedCount}. Pominięto wykonane: ${skippedCompletedCount}, duplikaty: ${duplicateCount}.`
         )
       } else {
         toast.warning(

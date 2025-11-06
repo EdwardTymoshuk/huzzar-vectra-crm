@@ -115,11 +115,11 @@ export const queriesRouter = router({
       return { orders, totalOrders }
     }),
 
-  /** Full order details */
+  /** Full order details (with retry chain) */
   getOrderById: loggedInEveryone
     .input(z.object({ id: z.string() }))
-    .query(({ input, ctx }) =>
-      ctx.prisma.order.findUniqueOrThrow({
+    .query(async ({ input, ctx }) => {
+      const order = await ctx.prisma.order.findUniqueOrThrow({
         where: { id: input.id },
         include: {
           assignedTo: { select: { id: true, name: true } },
@@ -130,15 +130,85 @@ export const queriesRouter = router({
           settlementEntries: { include: { rate: true } },
           usedMaterials: { include: { material: true } },
           assignedEquipment: { include: { warehouse: true } },
-          services: {
-            include: {
-              extraDevices: true,
+          services: { include: { extraDevices: true } },
+          previousOrder: {
+            select: {
+              id: true,
+              attemptNumber: true,
+              date: true,
+              status: true,
+              failureReason: true,
+              notes: true,
+              assignedTo: { select: { id: true, name: true } },
             },
+          },
+          attempts: {
+            select: {
+              id: true,
+              attemptNumber: true,
+              date: true,
+              status: true,
+              failureReason: true,
+              notes: true,
+              assignedTo: { select: { id: true, name: true } },
+            },
+            orderBy: { attemptNumber: 'asc' },
           },
         },
       })
-    ),
 
+      // ✅ Manual merge: always build the full chain (previous + current + later)
+      const allAttempts = await ctx.prisma.order.findMany({
+        where: {
+          orderNumber: order.orderNumber,
+          city: order.city,
+          street: order.street,
+        },
+        orderBy: { attemptNumber: 'asc' },
+        select: {
+          id: true,
+          attemptNumber: true,
+          date: true,
+          status: true,
+          failureReason: true,
+          notes: true,
+          assignedTo: { select: { id: true, name: true } },
+        },
+      })
+
+      return { ...order, attempts: allAttempts }
+    }),
+
+  /** Returns all attempts (retry history) for the same order number and address */
+  getOrderAttempts: loggedInEveryone
+    .input(
+      z.object({
+        orderNumber: z.string(),
+        city: z.string(),
+        street: z.string(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      return ctx.prisma.order.findMany({
+        where: {
+          orderNumber: input.orderNumber,
+          city: input.city,
+          street: input.street,
+        },
+        orderBy: { attemptNumber: 'asc' },
+        select: {
+          id: true,
+          attemptNumber: true,
+          date: true,
+          status: true,
+          failureReason: true, // 🔹 reason for NOT_COMPLETED
+          notes: true, // 🔹 technician or coordinator notes
+          assignedTo: { select: { id: true, name: true } },
+          createdAt: true,
+          completedAt: true,
+        },
+      })
+    }),
   /** Light order details for planer */
   getPlanerOrderById: technicianOnly
     .input(z.object({ id: z.string() }))

@@ -197,6 +197,9 @@ export const mutationsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      // -------------------------------------------------------------------------
+      // 1️⃣ Validate assigned technician if provided
+      // -------------------------------------------------------------------------
       if (input.assignedToId) {
         const tech = await prisma.user.findUnique({
           where: { id: input.assignedToId },
@@ -209,6 +212,77 @@ export const mutationsRouter = router({
         }
       }
 
+      // -------------------------------------------------------------------------
+      // 2️⃣ Check if order with same number already exists
+      // -------------------------------------------------------------------------
+      const existing = await prisma.order.findFirst({
+        where: { orderNumber: input.orderNumber },
+        orderBy: { attemptNumber: 'desc' },
+      })
+
+      // -------------------------------------------------------------------------
+      // 3️⃣ Handle all logical cases
+      // -------------------------------------------------------------------------
+      if (existing) {
+        // --- Case A: Same order number but DIFFERENT address → reject
+        if (
+          existing.city.trim().toLowerCase() !==
+            input.city.trim().toLowerCase() ||
+          existing.street.trim().toLowerCase() !==
+            input.street.trim().toLowerCase()
+        ) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message:
+              'Numer zlecenia już istnieje, ale z innym adresem. Sprawdź poprawność danych.',
+          })
+        }
+
+        // --- Case B: Same address but previous order FAILED → allow retry
+        if (existing.status === 'NOT_COMPLETED') {
+          return prisma.order.create({
+            data: {
+              operator: input.operator,
+              type: input.type,
+              orderNumber: input.orderNumber,
+              date: new Date(input.date),
+              timeSlot: input.timeSlot,
+              clientPhoneNumber: input.clientPhoneNumber ?? null,
+              notes: input.notes,
+              status: OrderStatus.PENDING,
+              county: input.county,
+              municipality: input.municipality,
+              city: input.city,
+              street: input.street,
+              postalCode: input.postalCode,
+              assignedToId: input.assignedToId ?? null,
+              createdSource: input.createdSource,
+              attemptNumber: existing.attemptNumber + 1,
+              previousOrderId: existing.id,
+            },
+          })
+        }
+
+        // 🔹 NEW: Case C — skip if existing order is already completed
+        if (existing.status === 'COMPLETED') {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message:
+              'Zlecenie o tym numerze i adresie jest już wykonane — pominięto import.',
+          })
+        }
+
+        // --- Case D: Same address but completed or active → reject
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message:
+            'Zlecenie o tym numerze i adresie już istnieje i nie jest oznaczone jako nieskuteczne.',
+        })
+      }
+
+      // -------------------------------------------------------------------------
+      // 4️⃣ If no previous order with same number exists → create new one
+      // -------------------------------------------------------------------------
       return prisma.order.create({
         data: {
           operator: input.operator,
@@ -216,6 +290,7 @@ export const mutationsRouter = router({
           orderNumber: input.orderNumber,
           date: new Date(input.date),
           timeSlot: input.timeSlot,
+          clientPhoneNumber: input.clientPhoneNumber ?? null,
           notes: input.notes,
           status: input.status,
           county: input.county,
@@ -225,6 +300,8 @@ export const mutationsRouter = router({
           postalCode: input.postalCode,
           assignedToId: input.assignedToId ?? null,
           createdSource: input.createdSource,
+          attemptNumber: 1,
+          previousOrderId: null,
         },
       })
     }),

@@ -11,6 +11,7 @@ import {
 import {
   DeviceCategory,
   Order,
+  OrderStatus,
   Prisma,
   PrismaClient,
   Role,
@@ -240,4 +241,70 @@ export type ActivatedServiceExtraDevice = {
   category: DeviceCategory
   name?: string
   serialNumber: string
+}
+/**
+ * OrderWithAttempts
+ * ------------------------------------------------------------------
+ * Represents an order together with its retry attempts and previous
+ * attempt metadata. Used in order details view and timeline.
+ */
+export type OrderWithAttempts = {
+  id: string
+  orderNumber: string
+  attemptNumber: number
+  status: OrderStatus
+  failureReason?: string | null
+  notes?: string | null
+  date: Date
+  assignedTo?: { id: string; name: string } | null
+  previousOrder?: {
+    id: string
+    attemptNumber: number
+    status: OrderStatus
+    failureReason?: string | null
+    assignedTo?: { id: string; name: string } | null
+  } | null
+  attempts: {
+    id: string
+    attemptNumber: number
+    status: OrderStatus
+    failureReason?: string | null
+    notes?: string | null
+    date: Date
+    assignedTo?: { id: string; name: string } | null
+  }[]
+}
+
+import { ReactNode } from 'react'
+
+export type TimelineSize = 'sm' | 'md' | 'lg'
+export type TimelineStatus = 'completed' | 'in-progress' | 'pending'
+
+export interface TimelineElement {
+  id: string | number
+  date: string
+  title: string | ReactNode
+  description: string | ReactNode
+  icon?: ReactNode | (() => ReactNode)
+  status?: TimelineStatus
+  color?: string
+  size?: TimelineSize
+  loading?: boolean
+  error?: string
+}
+
+export interface TimelineProps {
+  items: TimelineElement[]
+  size?: TimelineSize
+  animate?: boolean
+  iconColor?: string
+  connectorColor?: string
+  className?: string
+}
+
+export const orderTimelineColorMap: Record<OrderStatus, string> = {
+  COMPLETED: 'bg-success',
+  NOT_COMPLETED: 'bg-danger',
+  ASSIGNED: 'bg-warning',
+  PENDING: 'bg-secondary',
 }
