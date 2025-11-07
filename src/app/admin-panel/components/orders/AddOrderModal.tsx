@@ -19,14 +19,10 @@ import { toast } from 'sonner'
 import { OrderFormFields } from './OrderFormFields'
 
 /**
- * AddOrderModal component:
- * - Renders a form for creating a new order
- * - Uses Hook Form and Zod for validation
- * - Clears the form on successful submission
- * - Closes the modal after creation, or reverts to normal state on error
- *
- * @param open - Determines if the modal is open or closed
- * @param onCloseAction - Function to close the modal (renamed to match Next.js client action)
+ * AddOrderModal
+ * ---------------------------------------------------------------------------
+ * Modal for creating a new order (manual creation by admin/coordinator).
+ * Uses React Hook Form + Zod validation and tRPC mutation with detailed feedback.
  */
 export function AddOrderModal({
   open,
@@ -37,8 +33,6 @@ export function AddOrderModal({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const utils = trpc.useUtils()
-
-  // tRPC mutation for creating an order
   const createOrderMutation = trpc.order.createOrder.useMutation()
 
   // React Hook Form setup
@@ -63,36 +57,45 @@ export function AddOrderModal({
 
   /**
    * Handles the form submission:
-   * - Falls back to 'PENDING' if status is not provided
-   * - On success, shows a toast, invalidates the orders list, resets the form, and closes the modal
-   * - On error, shows a toast and reverts the submit button state
+   * - Automatically assigns status ASSIGNED if technician is chosen
+   * - Displays detailed toasts on error (from TRPC)
+   * - Resets and closes form on success
    */
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true)
-
-    // If no status is given, default to 'PENDING'
-    const finalStatus =
-      data.assignedToId && (!data.status || data.status === OrderStatus.PENDING)
-        ? OrderStatus.ASSIGNED
-        : data.status
-
     try {
       await createOrderMutation.mutateAsync({
         ...data,
-        status: finalStatus,
         assignedToId:
           data.assignedToId === 'none' ? undefined : data.assignedToId,
         createdSource: OrderCreatedSource.MANUAL,
       })
 
-      toast.success('Zlecenie zostało dodane!')
+      toast.success('Zlecenie zostało pomyślnie dodane.')
       utils.order.getAssignedOrders.invalidate()
 
-      // Reset the form and close the modal
       form.reset()
       onCloseAction()
-    } catch {
-      toast.error('Błąd podczas dodawania zlecenia.')
+    } catch (err: unknown) {
+      // Extract TRPC error message
+      let errorMessage = 'Nie udało się dodać zlecenia.'
+
+      if (err && typeof err === 'object' && 'data' in err) {
+        const e = err as { message?: string; data?: { code?: string } }
+        if (e.message) {
+          errorMessage = e.message
+        } else if (e.data?.code === 'CONFLICT') {
+          errorMessage = 'Zlecenie o podanym numerze już istnieje.'
+        } else if (e.data?.code === 'BAD_REQUEST') {
+          errorMessage = 'Nieprawidłowe dane formularza.'
+        } else if (e.data?.code === 'NOT_FOUND') {
+          errorMessage = 'Nie znaleziono technika lub zlecenia.'
+        } else if (e.data?.code === 'FORBIDDEN') {
+          errorMessage = 'Brak uprawnień do wykonania tej akcji.'
+        }
+      }
+
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -100,7 +103,6 @@ export function AddOrderModal({
 
   useEffect(() => {
     const currentStatus = form.getValues('status')
-
     if (
       assignedToId &&
       assignedToId !== 'none' &&
@@ -119,7 +121,7 @@ export function AddOrderModal({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Reusable fields for the order */}
+            {/* Form fields */}
             <OrderFormFields form={form} isAdmin />
 
             <div className="flex justify-end gap-2 pt-4">

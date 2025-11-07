@@ -84,15 +84,47 @@ const SerialScanInput = ({
    * - TEL → only devices whose name includes "SIM" or "KARTA SIM"
    * - Otherwise → all devices allowed
    */
+  /**
+   * Validates if device is allowed for given service type.
+   * Includes support for additional devices (e.g. extenders).
+   */
   const isAllowedForService = useCallback(
-    (device: { name: string }): boolean => {
+    (
+      device: { name: string; category?: DeviceCategory },
+      isAdditional?: boolean
+    ): boolean => {
       if (!serviceType) return true
+
+      const category = device.category
       const nameUpper = device.name?.toUpperCase() ?? ''
 
-      if (serviceType === 'NET') return nameUpper.includes('EXTENDER')
-      if (serviceType === 'TEL')
-        return nameUpper.includes('SIM') || nameUpper.includes('KARTA SIM')
-      return true
+      switch (serviceType) {
+        // NET: main -> modems only, additional -> extenders/routers
+        case 'NET':
+          if (isAdditional)
+            return (
+              nameUpper.includes('EXTENDER') || nameUpper.includes('ROUTER')
+            )
+          return (
+            category === DeviceCategory.MODEM_HFC ||
+            category === DeviceCategory.MODEM_GPON
+          )
+
+        // TEL: SIM devices only
+        case 'TEL':
+          return nameUpper.includes('SIM') || nameUpper.includes('KARTA SIM')
+
+        // DTV/ATV: decoders only
+        case 'DTV':
+        case 'ATV':
+          return (
+            category === DeviceCategory.DECODER_1_WAY ||
+            category === DeviceCategory.DECODER_2_WAY
+          )
+
+        default:
+          return true
+      }
     },
     [serviceType]
   )
@@ -124,10 +156,10 @@ const SerialScanInput = ({
     })
 
   /**
-   * Adds a device to the current order
-   * - First tries to resolve locally (technician stock / freed devices)
-   * - If not found, fetches from backend (admin/coordinator mode)
-   * - Includes all validation: duplicates, ownership, status, serviceType
+   * Attempts to add a device by serial number.
+   * - Technicians → only own stock (devices[])
+   * - Admin / Coordinator → can fetch from warehouse
+   * - Validates duplicates, ownership, status, and service compatibility
    */
   const tryAdd = async (serial: string) => {
     const s = serial.trim()
@@ -135,27 +167,60 @@ const SerialScanInput = ({
     setIsAdding(true)
 
     try {
-      /** ✅ Step 1: Check if device exists locally */
+      /** ✅ STEP 1: Try to find device locally (technician stock) */
+      const normalizedSerial = s.toUpperCase()
       const localDevice = devices.find(
-        (d) => d.serialNumber?.trim().toUpperCase() === s.toUpperCase()
+        (d) => d.serialNumber?.trim().toUpperCase() === normalizedSerial
       )
 
       if (localDevice) {
-        // Validate service type rule
-        if (!isAllowedForService(localDevice)) {
-          toast.error('To urządzenie nie jest dozwolone dla tej usługi.')
+        // Router for T-Mobile (GPON required)
+        if (
+          allowedCategories?.length === 1 &&
+          allowedCategories[0] === DeviceCategory.MODEM_GPON &&
+          localDevice.category !== DeviceCategory.MODEM_GPON
+        ) {
+          toast.warning(
+            `Urządzenie ${localDevice.name} (SN: ${
+              localDevice.serialNumber ?? 'brak'
+            }) nie jest dozwolone jako router T-Mobile. Wybierz MODEM GPON.`
+          )
           setIsAdding(false)
           return
         }
 
-        // Prevent duplicates
+        // Service-type compatibility
+        if (!isAllowedForService(localDevice)) {
+          toast.warning(
+            `Urządzenie ${localDevice.name} (SN: ${
+              localDevice.serialNumber ?? 'brak'
+            }) nie jest dozwolone dla tej usługi.`
+          )
+          setIsAdding(false)
+          return
+        }
+
+        // Prevent duplicate
         if (isDeviceUsed?.(localDevice.id)) {
           toast.error('To urządzenie zostało już dodane do tego zlecenia.')
           setIsAdding(false)
           return
         }
 
-        // ✅ Add device directly from local technician stock
+        // Status validation
+        if (!validStatuses.includes(localDevice.status ?? 'AVAILABLE')) {
+          toast.error(
+            `Urządzenie ${localDevice.name} (SN: ${
+              localDevice.serialNumber ?? 'brak'
+            }) nie może być użyte, status: ${
+              devicesStatusMap[localDevice.status ?? 'AVAILABLE']
+            }.`
+          )
+          setIsAdding(false)
+          return
+        }
+
+        // Add from technician stock
         onAddDevice({
           id: localDevice.id,
           type: 'DEVICE',
@@ -163,34 +228,49 @@ const SerialScanInput = ({
           serialNumber: localDevice.serialNumber ?? '',
           category: localDevice.category,
         })
-        toast.success('Dodano urządzenie z lokalnego stanu.')
+
+        toast.success('Dodano urządzenie z lokalnego stanu technika.')
         setValue('')
         setShowDD(false)
         setIsAdding(false)
         return
       }
 
-      /** 🔹 Step 2: Fallback – fetch from backend */
+      /** 🚫 STEP 2: Block lookup for technicians (no local match) */
+      if (!isAdmin && !isCoordinator) {
+        toast.error(
+          'Nie możesz dodać urządzenia spoza swojego stanu. Skontaktuj się z magazynem.'
+        )
+        setIsAdding(false)
+        return
+      }
+
+      /** 🔹 STEP 3: Admin / Coordinator → fetch from warehouse */
       const res = await fetchDevice(s)
 
       if (!res) {
         toast.error('Nie znaleziono urządzenia o tym numerze.')
+        setIsAdding(false)
         return
       }
 
-      // Validate service type rule
-      if (!isAllowedForService(res)) {
+      // Normalize category type (convert null → undefined for TS safety)
+      const category: DeviceCategory | undefined = res.category ?? undefined
+
+      // Service-type validation
+      if (!isAllowedForService({ name: res.name, category })) {
         toast.error('To urządzenie nie jest dozwolone dla tej usługi.')
+        setIsAdding(false)
         return
       }
 
-      // Category and serial validation
+      // Serial and category required
       if (!res.serialNumber)
         return toast.error('Brakuje numeru seryjnego urządzenia.')
-      if (!res.category)
+      if (!category)
         return toast.error('Urządzenie nie ma przypisanej kategorii.')
 
-      // Technician ownership check
+      // Ownership check
       if (
         !isAdmin &&
         !isCoordinator &&
@@ -198,49 +278,56 @@ const SerialScanInput = ({
         res.assignedToId !== myId
       ) {
         toast.error('To urządzenie jest przypisane do innego technika.')
+        setIsAdding(false)
         return
       }
 
-      // Status validation
+      // Status check
       if (!validStatuses.includes(res.status)) {
         toast.error(
           `Urządzenie ${res.name} | ${
             res.serialNumber
           } nie jest dostępne, status: ${devicesStatusMap[res.status]}.`
         )
+        setIsAdding(false)
         return
       }
 
-      // Category validation
-      if (allowedCategories && !allowedCategories.includes(res.category)) {
+      // Category restriction
+      if (allowedCategories && !allowedCategories.includes(category)) {
         toast.error('Ten typ urządzenia nie jest dozwolony dla tej usługi.')
+        setIsAdding(false)
         return
       }
 
-      // Transfer state check
+      // Transfer state
       if (res.transferPending) {
         toast.error('To urządzenie jest w trakcie przekazania.')
+        setIsAdding(false)
         return
       }
 
       // Duplicate prevention
       if (isDeviceUsed?.(res.id)) {
         toast.error('To urządzenie zostało już dodane do tego zlecenia.')
+        setIsAdding(false)
         return
       }
 
-      // ✅ Success
+      /** ✅ STEP 4: Add device from warehouse */
       onAddDevice({
         id: res.id,
         type: 'DEVICE',
         name: res.name,
         serialNumber: res.serialNumber ?? '',
-        category: res.category ?? 'OTHER',
+        category: category,
       })
-      toast.success('Dodano urządzenie.')
+
+      toast.success('Dodano urządzenie z magazynu.')
       setValue('')
       setShowDD(false)
-    } catch {
+    } catch (err) {
+      console.error(err)
       toast.error('Nie znaleziono urządzenia o tym numerze.')
     } finally {
       setIsAdding(false)
@@ -327,11 +414,14 @@ const SerialScanInput = ({
           ))}
 
           {/* Global warehouse (admin/coordinator only, excluding duplicates) */}
+          {/* Global warehouse (admin/coordinator only, excluding duplicates) */}
           {(isAdmin || isCoordinator) &&
             searchDevices.data
-              ?.filter(
-                (gd) =>
-                  isAllowedForService(gd) &&
+              ?.filter((gd) => {
+                const category: DeviceCategory | undefined =
+                  gd.category ?? undefined
+                return (
+                  isAllowedForService({ name: gd.name, category }) &&
                   !suggestions.some(
                     (ld) =>
                       ld.serialNumber &&
@@ -339,7 +429,8 @@ const SerialScanInput = ({
                       ld.serialNumber.toLowerCase() ===
                         gd.serialNumber.toLowerCase()
                   )
-              )
+                )
+              })
               .map((d) => (
                 <div
                   key={d.id}

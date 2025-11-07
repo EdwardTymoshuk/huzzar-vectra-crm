@@ -115,10 +115,11 @@ export const queriesRouter = router({
       return { orders, totalOrders }
     }),
 
-  /** Full order details (with retry chain) */
+  /** Full order details (with retry chain and full history) */
   getOrderById: loggedInEveryone
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
+      // 1️⃣ Fetch the main (current) order
       const order = await ctx.prisma.order.findUniqueOrThrow({
         where: { id: input.id },
         include: {
@@ -136,99 +137,58 @@ export const queriesRouter = router({
               id: true,
               attemptNumber: true,
               date: true,
+              completedAt: true,
+              closedAt: true,
               status: true,
               failureReason: true,
               notes: true,
               assignedTo: { select: { id: true, name: true } },
             },
-          },
-          attempts: {
-            select: {
-              id: true,
-              attemptNumber: true,
-              date: true,
-              status: true,
-              failureReason: true,
-              notes: true,
-              assignedTo: { select: { id: true, name: true } },
-            },
-            orderBy: { attemptNumber: 'asc' },
           },
         },
       })
 
-      // ✅ Manual merge: always build the full chain (previous + current + later)
-      const allAttempts = await ctx.prisma.order.findMany({
+      // 2️⃣ Fetch all related orders (same number + same address)
+      const relatedOrders = await ctx.prisma.order.findMany({
         where: {
           orderNumber: order.orderNumber,
           city: order.city,
           street: order.street,
         },
         orderBy: { attemptNumber: 'asc' },
-        select: {
-          id: true,
-          attemptNumber: true,
-          date: true,
-          status: true,
-          failureReason: true,
-          notes: true,
+        include: {
           assignedTo: { select: { id: true, name: true } },
+          history: {
+            include: { changedBy: { select: { id: true, name: true } } },
+            orderBy: { changeDate: 'desc' },
+          },
         },
       })
 
-      return { ...order, attempts: allAttempts }
-    }),
+      // 3️⃣ Combine attempts (now with completedAt & closedAt)
+      const allAttempts = relatedOrders.map((o) => ({
+        id: o.id,
+        attemptNumber: o.attemptNumber,
+        date: o.date,
+        completedAt: o.completedAt,
+        closedAt: o.closedAt,
+        status: o.status,
+        failureReason: o.failureReason,
+        notes: o.notes,
+        assignedTo: o.assignedTo ? { ...o.assignedTo } : null,
+      }))
 
-  /** Returns all attempts (retry history) for the same order number and address */
-  getOrderAttempts: loggedInEveryone
-    .input(
-      z.object({
-        orderNumber: z.string(),
-        city: z.string(),
-        street: z.string(),
-      })
-    )
-    .query(async ({ input, ctx }) => {
-      return ctx.prisma.order.findMany({
-        where: {
-          orderNumber: input.orderNumber,
-          city: input.city,
-          street: input.street,
-        },
-        orderBy: { attemptNumber: 'asc' },
-        select: {
-          id: true,
-          attemptNumber: true,
-          date: true,
-          status: true,
-          failureReason: true, // 🔹 reason for NOT_COMPLETED
-          notes: true, // 🔹 technician or coordinator notes
-          assignedTo: { select: { id: true, name: true } },
-          createdAt: true,
-          completedAt: true,
-        },
-      })
-    }),
-  /** Light order details for planer */
-  getPlanerOrderById: technicianOnly
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      return ctx.prisma.order.findUnique({
-        where: { id: input.id },
-        select: {
-          id: true,
-          orderNumber: true,
-          type: true,
-          city: true,
-          street: true,
-          operator: true,
-          date: true,
-          timeSlot: true,
-          status: true,
-          notes: true,
-          completedAt: true,
-        },
-      })
+      // 4️⃣ Merge all history entries from all attempts
+      const mergedHistory = relatedOrders
+        .flatMap((o) => o.history)
+        .sort((a, b) => b.changeDate.getTime() - a.changeDate.getTime())
+
+      // 5️⃣ Return combined result
+      return {
+        ...order,
+        attempts: allAttempts,
+        history: mergedHistory,
+      }
     }),
 
   /** Orders grouped by technician and time-slot for planning board */

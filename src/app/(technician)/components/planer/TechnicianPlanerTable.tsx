@@ -242,7 +242,7 @@ const TechnicianPlanerTable = ({
 
   /* ---------------------- Render ---------------------- */
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 uppercase">
       {filtered.map((o) => (
         <Card
           key={o.id}
@@ -343,7 +343,7 @@ const TechnicianPlanerTable = ({
               {/* Always available: details */}
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 className="w-full sm:w-auto"
                 onClick={() => setOpenOrderId(o.id)}
               >

@@ -172,6 +172,21 @@ const CompleteOrderWizard = ({
           category: e.warehouse!.category ?? DeviceCategory.OTHER,
           serialNumber: e.warehouse!.serialNumber ?? '',
         })) ?? []
+    const issuedToClient =
+      order.assignedEquipment
+        ?.filter(
+          (e) =>
+            e.warehouse?.status === 'ASSIGNED_TO_ORDER' &&
+            e.warehouse?.serialNumber &&
+            e.warehouse?.name
+        )
+        .map((e) => ({
+          id: e.warehouse!.id,
+          name: e.warehouse!.name,
+          category: e.warehouse!.category ?? DeviceCategory.OTHER,
+          serialNumber: e.warehouse!.serialNumber ?? '',
+          type: 'DEVICE' as const,
+        })) ?? []
 
     const findQty = (keyword: string): number =>
       order.settlementEntries?.find((e) =>
@@ -183,6 +198,7 @@ const CompleteOrderWizard = ({
     setServices(normalizedServices)
     setMaterials(normalizedMaterials)
     setCollected(collectedFromAssigned)
+    setIssued(issuedToClient)
     setInstall({ pion: findQty('pion'), listwa: findQty('listw') })
     setFailureReason(order.failureReason ?? '')
   }, [mode, order])
@@ -229,11 +245,6 @@ const CompleteOrderWizard = ({
     services: ActivatedService[]
   }) => {
     try {
-      console.log('📦 SUBMIT PAYLOAD:', {
-        collectedDevices: payload.collectedDevices,
-        issuedDevices: payload.issuedDevices,
-        services: payload.services,
-      })
       const mutation = resolveMutation()
       await mutation.mutateAsync({ orderId: order.id, ...payload })
 
@@ -379,6 +390,7 @@ const CompleteOrderWizard = ({
                   install={install}
                   materials={materials}
                   collected={collected}
+                  issued={issued}
                   notes={notes}
                   onBack={back}
                   onSubmit={handleSubmit}

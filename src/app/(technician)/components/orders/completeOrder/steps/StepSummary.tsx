@@ -89,9 +89,14 @@ const StepSummary = ({
 
       const equipmentIds = Array.from(
         new Set(
-          services
-            .flatMap((s) => [s.deviceId, s.deviceId2])
-            .filter((id): id is string => !!id)
+          [
+            ...services.flatMap((s) => [
+              s.deviceId,
+              s.deviceId2,
+              ...(s.extraDevices?.map((e) => e.id) ?? []),
+            ]),
+            ...(issued?.map((i) => i.id) ?? []),
+          ].filter((id): id is string => !!id)
         )
       )
 
@@ -103,7 +108,6 @@ const StepSummary = ({
         equipmentIds,
         usedMaterials: materials,
         collectedDevices: collected,
-        issuedDevices: issued?.map((i) => i.id) ?? [],
         services,
         workCodes,
       })

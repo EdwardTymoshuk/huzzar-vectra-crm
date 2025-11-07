@@ -12,6 +12,7 @@ import {
   DeviceCategory,
   Order,
   OrderStatus,
+  OrderType,
   Prisma,
   PrismaClient,
   Role,
@@ -250,6 +251,7 @@ export type ActivatedServiceExtraDevice = {
  */
 export type OrderWithAttempts = {
   id: string
+  type: OrderType
   orderNumber: string
   attemptNumber: number
   status: OrderStatus
@@ -271,6 +273,8 @@ export type OrderWithAttempts = {
     failureReason?: string | null
     notes?: string | null
     date: Date
+    completedAt?: Date | null
+    closedAt?: Date | null
     assignedTo?: { id: string; name: string } | null
   }[]
 }

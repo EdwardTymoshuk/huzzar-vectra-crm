@@ -18,31 +18,23 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { OrderFormFields } from './OrderFormFields'
 
-/**
- * Define a type for the order with assigned technician info, etc.
- */
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
   include: {
-    assignedTo: {
-      select: {
-        id: true
-        name: true
-      }
-    }
+    assignedTo: { select: { id: true; name: true } }
   }
 }>
 
 /**
- * EditOrderModal:
- * Displays a modal for editing an existing order.
- * Uses the same OrderFormFields but with default values
- * derived from the 'order' prop.
- *
- * Comments in English, UI labels in Polish.
+ * EditOrderModal
+ * ----------------------------------------------------------
+ * Displays a modal form to edit an existing order.
+ * - Uses the same OrderFormFields component.
+ * - Handles toast notifications for success and detailed errors.
+ * - Ensures consistent status updates (ASSIGNED / PENDING).
  */
 const EditOrderModal = ({
   open,
-  onCloseAction, // renamed to match Next.js guidance about server/client actions
+  onCloseAction,
   order,
 }: {
   open: boolean
@@ -52,23 +44,43 @@ const EditOrderModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const utils = trpc.useUtils()
 
-  // tRPC update mutation
+  /**
+   * tRPC mutation — includes detailed error handling for Prisma/TRPC errors.
+   */
   const updateOrderMutation = trpc.order.editOrder.useMutation({
     onSuccess: () => {
-      toast.success('Zlecenie zostało zaktualizowane!')
+      toast.success('Zlecenie zostało pomyślnie zaktualizowane.')
       utils.order.getUnassignedOrders.invalidate()
       utils.order.getAssignedOrders.invalidate()
       utils.order.getOrderById.invalidate({ id: order.id })
       onCloseAction()
     },
-    onError: () => toast.error('Błąd podczas aktualizacji zlecenia.'),
+    onError: (err) => {
+      console.error('Błąd podczas edycji zlecenia:', err)
+
+      const message =
+        (err.data?.code
+          ? `Błąd [${err.data.code}]: ${err.message}`
+          : err.message) || 'Nieznany błąd podczas aktualizacji zlecenia.'
+
+      // Better display for known Prisma / TRPC errors
+      if (message.includes('Unique constraint')) {
+        toast.error('Nie można zapisać — zlecenie z tym numerem już istnieje.')
+      } else if (err.data?.code === 'CONFLICT') {
+        toast.error(
+          'Zlecenie o tym numerze i adresie już istnieje. Sprawdź poprawność danych.'
+        )
+      } else if (err.data?.code === 'BAD_REQUEST') {
+        toast.error('Błąd walidacji — sprawdź wprowadzone dane.')
+      } else if (err.data?.code === 'NOT_FOUND') {
+        toast.error('Zlecenie nie istnieje lub zostało usunięte.')
+      } else {
+        toast.error(message)
+      }
+      setIsSubmitting(false)
+    },
   })
 
-  /**
-   * Prepare default values for the form.
-   * Some fields might be null in DB => fallback to '' or 'none'.
-   * Convert equipmentNeeded (string[]) -> comma-separated string.
-   */
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
@@ -89,37 +101,41 @@ const EditOrderModal = ({
   const assignedToId = form.watch('assignedToId')
 
   /**
-   * Handle form submission to update existing order.
-
-   * fallback status if needed, etc.
+   * Handles submission logic for editing existing orders.
    */
   const onSubmit = async (data: OrderFormData) => {
     setIsSubmitting(true)
 
-    // Fallback to 'PENDING' if there's no status
-    let finalStatus = data.status
+    try {
+      let finalStatus = data.status
 
-    if (data.assignedToId !== order.assignedToId) {
-      // Jeśli status był NIE PRZYPISANE, zmień na PRZYPISANE
-      if (order.status === OrderStatus.PENDING) {
-        finalStatus = OrderStatus.ASSIGNED
+      // Automatically set ASSIGNED if technician changed from none
+      if (data.assignedToId !== order.assignedToId) {
+        if (order.status === OrderStatus.PENDING) {
+          finalStatus = OrderStatus.ASSIGNED
+        }
       }
+
+      await updateOrderMutation.mutateAsync({
+        id: order.id,
+        ...data,
+        status: finalStatus,
+        assignedToId:
+          data.assignedToId === 'none' ? undefined : data.assignedToId,
+      })
+    } catch (error) {
+      console.error('❌ Nieoczekiwany błąd onSubmit:', error)
+      toast.error('❌ Nieoczekiwany błąd podczas aktualizacji zlecenia.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    await updateOrderMutation.mutateAsync({
-      id: order.id,
-      ...data,
-      status: finalStatus,
-      assignedToId:
-        data.assignedToId === 'none' ? undefined : data.assignedToId,
-    })
-
-    setIsSubmitting(false)
   }
 
+  /**
+   * Auto-change status to ASSIGNED if technician is selected.
+   */
   useEffect(() => {
     const currentStatus = form.getValues('status')
-
     if (
       assignedToId &&
       assignedToId !== 'none' &&
@@ -138,10 +154,8 @@ const EditOrderModal = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Reusable form fields */}
             <OrderFormFields form={form} isAdmin />
 
-            {/* Action buttons */}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onCloseAction}>
                 Anuluj

@@ -12,7 +12,7 @@ export interface CleanTimelineItem {
   date?: string
   title: string
   description?: string | React.ReactNode
-  color?: 'success' | 'danger' | 'muted' | 'warning'
+  color?: 'success' | 'danger' | 'secondary' | 'warning'
 }
 
 interface CleanTimelineProps {

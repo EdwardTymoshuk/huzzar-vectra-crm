@@ -160,7 +160,6 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             timeSlot: o.timeSlot,
             clientPhoneNumber: undefined,
             notes: o.notes,
-            status: o.status,
             county: undefined,
             municipality: undefined,
             city: o.city,

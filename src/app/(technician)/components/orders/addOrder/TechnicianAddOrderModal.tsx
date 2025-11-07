@@ -65,7 +65,6 @@ export const TechnicianAddOrderModal = ({
         ...data,
         postalCode: '00-000',
         assignedToId: session?.user.id,
-        status: OrderStatus.ASSIGNED,
         createdSource: OrderCreatedSource.MANUAL,
       })
 

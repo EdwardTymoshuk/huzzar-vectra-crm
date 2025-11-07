@@ -115,11 +115,16 @@ const StepCollectedAndNotes = ({
   }
 
   useEffect(() => {
-    console.log('🧩 Collected updated:', collected)
+    // Enable collecting section if there are any collected devices
     if (collected.length > 0) {
       setCollectEnabled(true)
     }
-  }, [collected])
+
+    // Enable issuing section if there are any issued devices (SERVICE/OUTAGE)
+    if (issued.length > 0 && orderType !== 'INSTALATION') {
+      setIssueEnabled(true)
+    }
+  }, [collected.length, issued.length, orderType])
 
   /** Handles step validation + next */
   const handleNext = () => {
@@ -141,7 +146,7 @@ const StepCollectedAndNotes = ({
 
     onNext({
       collected: collectEnabled || collected.length > 0 ? collected : [],
-      issued: issueEnabled ? issued : [],
+      issued: issueEnabled || issued.length > 0 ? [...issued] : [],
       notes,
     })
   }

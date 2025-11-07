@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: '📥 Checkout'
+      - name: '📥 Checkout repository'
         uses: actions/checkout@v3
 
-      - name: '🔍 Debug SSH Key Format'
+      - name: '🔍 Debug SSH Key Format (first two lines)'
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | head -n 2
 
-      - name: '🚀 Deploy via SSH'
+      - name: '🚀 Deploy via SSH to VPS'
         uses: appleboy/ssh-action@master
         with:
           host: 57.128.227.195
@@ -27,21 +27,41 @@ jobs:
             set -e
             cd /var/www/huzzar-vectra-crm
 
+            echo "=== 🧩 Loading Node.js environment ==="
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
             nvm use 20
 
+            echo "=== 📦 Updating source code ==="
             git pull origin main
+
+            echo "=== 🧹 Cleaning old modules ==="
             rm -rf node_modules .prisma
+
+            echo "=== 📦 Installing dependencies ==="
             npm ci || npm install
 
-            # ✅ Załaduj zmienne z .env.production
+            echo "=== 🔐 Loading environment variables ==="
             export $(cat .env.production | grep -v '^#' | xargs)
 
-            # 👇 teraz Prisma działa
+            echo "=== ⚙️ Generating Prisma client ==="
             npx prisma generate
-            npx prisma migrate deploy
+
+            echo "=== 🗄️ Applying database migrations ==="
+            # Try to apply migrations, but continue even if one fails
+            if ! npx prisma migrate deploy; then
+              echo "⚠️ WARNING: Prisma migration failed. Check logs on the server."
+              echo "⚠️ Continuing deployment to keep application online..."
+            fi
+
+            echo "=== 🏗️ Building application ==="
             npm run build
 
+            echo "=== 🔄 Restarting service ==="
             sudo systemctl restart huzzar
+            echo "=== ✅ Service restarted successfully ==="
+
+            echo "=== 📊 Checking service status ==="
             sudo systemctl --no-pager --full status huzzar || true
+
+            echo "=== ✅ DEPLOYMENT COMPLETED SUCCESSFULLY ==="

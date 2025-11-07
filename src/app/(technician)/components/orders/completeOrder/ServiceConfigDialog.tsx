@@ -25,14 +25,6 @@ import { toast } from 'sonner'
 import DeviceCard from './DeviceCard'
 import ServiceDeviceSection from './ServiceDeviceSection'
 
-/**
- * ServiceConfigDialog
- * ------------------------------------------------------
- * Configures DTV or NET service before saving into ActivatedService.
- * - Supports both warehouse and client devices.
- * - NET supports adding multiple extra devices (routers, extenders).
- * - Displays measurements and prevents duplicates or identical serials.
- */
 interface Props {
   open: boolean
   type: ServiceType
@@ -43,6 +35,14 @@ interface Props {
   onCloseAction: () => void
 }
 
+/**
+ * ServiceConfigDialog
+ * ------------------------------------------------------
+ * Configures DTV or NET service before saving into ActivatedService.
+ * - Supports both warehouse and client devices.
+ * - NET (T-Mobile) has special rules for HFC/GPON + router.
+ * - Displays measurements and prevents duplicates or identical serials.
+ */
 const ServiceConfigDialog = ({
   open,
   type,
@@ -90,13 +90,11 @@ const ServiceConfigDialog = ({
 
   /**
    * Restore measurements and speedTest if editing an existing configuration.
-   * (Triggered after selecting modem or reopening an already configured service)
    */
   useEffect(() => {
     if (!primaryDevice) return
     if (type !== 'NET') return
 
-    // Type-safe check for custom property in case it's extended from backend
     if (
       'speedTest' in primaryDevice &&
       typeof primaryDevice.speedTest === 'string'
@@ -114,42 +112,68 @@ const ServiceConfigDialog = ({
     return normalized.includes('TMOBILE') || normalized.includes('TMPL')
   }, [operator])
 
-  /** Derived flags */
+  /** Selected category from either warehouse or client input */
   const selectedCategory: DeviceCategory | undefined =
     primarySource === 'WAREHOUSE'
       ? primaryDevice?.category
       : clientCategory ?? undefined
 
+  /** T-Mobile specific flags */
+  const isPrimaryHfc = selectedCategory === DeviceCategory.MODEM_HFC
+  const isPrimaryGpon = selectedCategory === DeviceCategory.MODEM_GPON
+
+  /**
+   * For T-Mobile NET:
+   * - if primary is HFC → router is REQUIRED
+   * - if primary is GPON → router is OPTIONAL
+   * For other operators → keep old behavior (only HFC T-Mobile case)
+   */
+  const requiresRouter = type === 'NET' && isTMobile && Boolean(isPrimaryHfc)
+
+  /**
+   * Router section should be visible when:
+   * - NET
+   * - T-Mobile
+   * - and primary is HFC or GPON (HFC → required, GPON → optional)
+   */
+  const canHaveRouter =
+    type === 'NET' && isTMobile && (isPrimaryHfc || isPrimaryGpon)
+
+  /**
+   * Router can be ONLY GPON for T-Mobile cases (your requirement).
+   * We exclude everything else.
+   */
+  const secondaryOptions = useMemo(() => {
+    return devices.filter(
+      (d) =>
+        d.category === DeviceCategory.MODEM_GPON &&
+        !usedDeviceIds.includes(d.id) &&
+        d.id !== primaryDevice?.id
+    )
+  }, [devices, usedDeviceIds, primaryDevice])
+
+  /** Derived flags */
   const isDecoder2Way = selectedCategory === DeviceCategory.DECODER_2_WAY
   const isModemGpon = selectedCategory === DeviceCategory.MODEM_GPON
-  const needsRouter =
-    type === 'NET' && isTMobile && selectedCategory === DeviceCategory.MODEM_HFC
 
   /** Filter main device list */
   const primaryOptions = useMemo(() => {
     const base = (() => {
       if (type === 'DTV') {
+        // filter only 1-way and 2-way decoders
         return devices.filter(
           (d) =>
-            d.category &&
-            (
-              [
-                DeviceCategory.DECODER_1_WAY,
-                DeviceCategory.DECODER_2_WAY,
-              ] as DeviceCategory[]
-            ).includes(d.category)
+            d.category === DeviceCategory.DECODER_1_WAY ||
+            d.category === DeviceCategory.DECODER_2_WAY
         )
       }
+
       if (type === 'NET') {
+        // filter only HFC and GPON modems
         return devices.filter(
           (d) =>
-            d.category &&
-            (
-              [
-                DeviceCategory.MODEM_HFC,
-                DeviceCategory.MODEM_GPON,
-              ] as DeviceCategory[]
-            ).includes(d.category)
+            d.category === DeviceCategory.MODEM_HFC ||
+            d.category === DeviceCategory.MODEM_GPON
         )
       }
 
@@ -164,33 +188,20 @@ const ServiceConfigDialog = ({
     )
   }, [type, devices, usedDeviceIds, extras, secondaryDevice])
 
-  const secondaryOptions = useMemo(() => {
-    return devices.filter(
-      (d) =>
-        d.category === DeviceCategory.NETWORK_DEVICE ||
-        d.category === DeviceCategory.MODEM_HFC
-    )
-  }, [devices])
-
   /**
    * Validates DS/US signal ranges.
-   * DS should be between -8 and 10 dBm.
-   * US should be between 42 and 52 dBm.
    */
   const validateSignalRanges = (dsValue: string, usValue: string): boolean => {
     const dsNum = Number(dsValue)
     const usNum = Number(usValue)
 
-    // Skip check if values are empty (they are validated elsewhere)
     if (!dsValue || !usValue) return true
 
-    // DS validation
     if (isNaN(dsNum) || dsNum < -6 || dsNum > 10) {
       toast.error('Wartość DS musi być w zakresie od -6 do 10 dBm.')
       return false
     }
 
-    // US validation
     if (isNaN(usNum) || usNum < 43 || usNum > 49) {
       toast.error('Wartość US musi być w zakresie od 43 do 49 dBm.')
       return false
@@ -247,6 +258,8 @@ const ServiceConfigDialog = ({
   /** Validation logic */
   const isValid = useMemo(() => {
     if (!selectedCategory) return false
+
+    // client device validation
     if (primarySource === 'CLIENT') {
       if (!primaryClientName.trim() || !primaryClientSn.trim()) return false
     } else {
@@ -254,40 +267,42 @@ const ServiceConfigDialog = ({
         return false
     }
 
-    // Prevent same serial between modem and router
+    // T-Mobile router rules
+    if (requiresRouter && !secondaryDevice) return false
     if (
+      canHaveRouter &&
       secondaryDevice &&
-      primaryDevice?.serialNumber &&
-      secondaryDevice.serialNumber &&
-      primaryDevice.serialNumber.trim().toUpperCase() ===
-        secondaryDevice.serialNumber.trim().toUpperCase()
+      secondaryDevice.category !== DeviceCategory.MODEM_GPON
     ) {
       return false
     }
 
-    if (type === 'DTV' && isDecoder2Way && (!ds.trim() || !us.trim()))
-      return false
-
+    // NET rules
     if (type === 'NET') {
       if (!speed.trim()) return false
       if (!isModemGpon && (!ds.trim() || !us.trim())) return false
-      if (needsRouter && !secondaryDevice) return false
     }
 
+    // DTV decoder 2-way requires DS/US
+    if (type === 'DTV' && isDecoder2Way && (!ds.trim() || !us.trim()))
+      return false
+
+    // signal range (only for non-GPON)
     if (!isModemGpon && !validateSignalRanges(ds, us)) return false
 
     return true
   }, [
     primarySource,
     primaryDevice,
-    secondaryDevice,
     primaryClientName,
     primaryClientSn,
     selectedCategory,
     type,
     isDecoder2Way,
     isModemGpon,
-    needsRouter,
+    requiresRouter,
+    canHaveRouter,
+    secondaryDevice,
     ds,
     us,
     speed,
@@ -301,14 +316,13 @@ const ServiceConfigDialog = ({
       return
     }
 
+    // extra safety for router type
     if (
+      canHaveRouter &&
       secondaryDevice &&
-      primaryDevice?.serialNumber &&
-      secondaryDevice.serialNumber &&
-      primaryDevice.serialNumber.trim().toUpperCase() ===
-        secondaryDevice.serialNumber.trim().toUpperCase()
+      secondaryDevice.category !== DeviceCategory.MODEM_GPON
     ) {
-      toast.error('Modem i router nie mogą mieć tego samego numeru seryjnego.')
+      toast.error('Router dla T-Mobile musi być urządzeniem typu MODEM GPON.')
       return
     }
 
@@ -326,10 +340,19 @@ const ServiceConfigDialog = ({
           ? primaryClientSn.trim().toUpperCase()
           : primaryDevice?.serialNumber,
       deviceType: selectedCategory,
-      deviceId2: needsRouter ? secondaryDevice?.id : undefined,
-      serialNumber2: needsRouter ? secondaryDevice?.serialNumber : undefined,
-      deviceType2: needsRouter ? secondaryDevice?.category : undefined,
-      deviceName2: needsRouter ? secondaryDevice?.name ?? '' : undefined,
+      // router / second device
+      deviceId2:
+        canHaveRouter && secondaryDevice ? secondaryDevice.id : undefined,
+      serialNumber2:
+        canHaveRouter && secondaryDevice
+          ? secondaryDevice.serialNumber
+          : undefined,
+      deviceType2:
+        canHaveRouter && secondaryDevice ? secondaryDevice.category : undefined,
+      deviceName2:
+        canHaveRouter && secondaryDevice
+          ? secondaryDevice.name ?? ''
+          : undefined,
       usDbmDown: ds ? Number(ds) : undefined,
       usDbmUp: us ? Number(us) : undefined,
       speedTest: type === 'NET' ? speed.trim() : undefined,
@@ -387,10 +410,14 @@ const ServiceConfigDialog = ({
           />
         )}
 
-        {needsRouter && (
+        {/* T-Mobile router section (HFC → required, GPON → optional) */}
+        {canHaveRouter && (
           <div className="space-y-2 mb-6">
-            <Label className="font-medium">Router</Label>
+            <Label className="font-medium">
+              {requiresRouter ? 'Router (wymagany)' : 'Router (opcjonalny)'}
+            </Label>
             <SerialScanInput
+              serviceType="NET"
               devices={secondaryOptions}
               isDeviceUsed={(id) =>
                 usedDeviceIds.includes(id) ||
@@ -398,29 +425,22 @@ const ServiceConfigDialog = ({
                 id === primaryDevice?.id
               }
               onAddDevice={(dev) => {
-                if (
-                  primaryDevice?.serialNumber &&
-                  dev.serialNumber &&
-                  primaryDevice.serialNumber.trim().toUpperCase() ===
-                    dev.serialNumber.trim().toUpperCase()
-                ) {
+                // safety: only GPON is allowed here
+                if (dev.category !== DeviceCategory.MODEM_GPON) {
                   toast.warning(
-                    'Router nie może mieć tego samego numeru seryjnego co modem.'
+                    'Dla T-Mobile jako router możesz dodać tylko MODEM GPON.'
                   )
-                  return
-                }
-                if (primaryDevice?.id === dev.id) {
-                  toast.warning('Nie możesz dodać tego samego urządzenia.')
                   return
                 }
                 setSecondaryDevice(dev)
               }}
-              allowedCategories={allowedCategoriesMap[type]}
+              // here we limit selection explicitly to GPON
+              allowedCategories={[DeviceCategory.MODEM_GPON]}
               variant="block"
             />
             {secondaryDevice && (
               <DeviceCard
-                label="ROUTER"
+                label="ROUTER (GPON)"
                 device={secondaryDevice}
                 onRemove={() => setSecondaryDevice(null)}
               />
@@ -430,37 +450,94 @@ const ServiceConfigDialog = ({
 
         {(type === 'NET' || isDecoder2Way) && (
           <>
-            <Label className="font-semibold block">Pomiary</Label>
+            <Label className="font-semibold block mb-1">Pomiary</Label>
+
             <div className="w-full flex flex-col md:flex-row gap-4">
               {!isModemGpon && (
                 <>
-                  <Input
-                    placeholder="DS [dBm]"
-                    type="number"
-                    step="0.1"
-                    min={-6}
-                    max={10}
-                    value={ds}
-                    onChange={(e) => setDs(e.target.value)}
-                  />
-                  <Input
-                    placeholder="US [dBm]"
-                    type="number"
-                    step="0.1"
-                    min={43}
-                    max={49}
-                    value={us}
-                    onChange={(e) => setUs(e.target.value)}
-                  />
+                  <div className="flex flex-col w-full">
+                    <Input
+                      placeholder="DS [dBm]"
+                      type="number"
+                      step="0.1"
+                      min={-6}
+                      max={10}
+                      value={ds}
+                      onChange={(e) => setDs(e.target.value)}
+                      onBlur={(e) => {
+                        const v = parseFloat(e.target.value)
+                        if (isNaN(v)) return setDs('')
+                        if (v < -6 || v > 10) setDs('')
+                      }}
+                      className={`
+                ${
+                  ds !== '' && (Number(ds) < -6 || Number(ds) > 10)
+                    ? 'border-danger focus-visible:ring-danger'
+                    : ''
+                }
+              `}
+                    />
+                    {ds !== '' && (Number(ds) < -6 || Number(ds) > 10) && (
+                      <span className="text-xs text-danger mt-1">
+                        Zakres DS: -6 do 10 dBm
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col w-full">
+                    <Input
+                      placeholder="US [dBm]"
+                      type="number"
+                      step="0.1"
+                      min={43}
+                      max={49}
+                      value={us}
+                      onChange={(e) => setUs(e.target.value)}
+                      onBlur={(e) => {
+                        const v = parseFloat(e.target.value)
+                        if (isNaN(v)) return setUs('')
+                        if (v < 43 || v > 49) setUs('')
+                      }}
+                      className={`
+                ${
+                  us !== '' && (Number(us) < 43 || Number(us) > 49)
+                    ? 'border-danger focus-visible:ring-danger'
+                    : ''
+                }
+              `}
+                    />
+                    {us !== '' && (Number(us) < 43 || Number(us) > 49) && (
+                      <span className="text-xs text-danger mt-1">
+                        Zakres US: 43 – 49 dBm
+                      </span>
+                    )}
+                  </div>
                 </>
               )}
+
               {type === 'NET' && (
-                <Input
-                  placeholder="Speedtest [Mb/s]"
-                  type="text"
-                  value={speed}
-                  onChange={(e) => setSpeed(e.target.value)}
-                />
+                <div className="flex flex-col w-full">
+                  <Input
+                    placeholder="Speedtest [Mb/s]"
+                    type="number"
+                    step="0.1"
+                    min={1}
+                    value={speed}
+                    onChange={(e) => setSpeed(e.target.value)}
+                    className={`
+              ${
+                speed !== '' && Number(speed) <= 0
+                  ? 'border-danger focus-visible:ring-danger'
+                  : ''
+              }
+            `}
+                  />
+                  {speed !== '' && Number(speed) <= 0 && (
+                    <span className="text-xs text-danger mt-1">
+                      Wartość Speedtest musi być dodatnia.
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </>
@@ -536,16 +613,13 @@ const ServiceConfigDialog = ({
                       return 'Uzupełnij nazwę i numer seryjny urządzenia klienta.'
                     if (primarySource === 'WAREHOUSE' && !primaryDevice)
                       return 'Wybierz urządzenie z magazynu.'
-                    if (needsRouter && !secondaryDevice)
-                      return 'Wybierz router.'
+                    if (requiresRouter && !secondaryDevice)
+                      return 'Dla T-Mobile z modemem HFC wymagany jest router GPON.'
                     if (
                       secondaryDevice &&
-                      primaryDevice?.serialNumber &&
-                      secondaryDevice.serialNumber &&
-                      primaryDevice.serialNumber.trim().toUpperCase() ===
-                        secondaryDevice.serialNumber.trim().toUpperCase()
+                      secondaryDevice.category !== DeviceCategory.MODEM_GPON
                     )
-                      return 'Modem i router mają ten sam numer seryjny.'
+                      return 'Router dla T-Mobile musi być urządzeniem typu MODEM GPON.'
                     if (type === 'NET' && !speed.trim())
                       return 'Podaj wynik Speedtest.'
                     if (
