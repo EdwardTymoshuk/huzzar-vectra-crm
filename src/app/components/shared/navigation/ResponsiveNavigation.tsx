@@ -39,6 +39,10 @@ const ResponsiveNavigation = () => {
   const activeKey = useMemo(() => {
     const tabParam = searchParams.get('tab')
     if (tabParam) return tabParam
+
+    // Recognize "settings" page manually since it's not in menuItems
+    if (pathname.includes('/settings')) return 'settings'
+
     const match = menuItems.find((item) => pathname.includes(item.key))
     return match ? match.key : 'dashboard'
   }, [pathname, searchParams, menuItems])

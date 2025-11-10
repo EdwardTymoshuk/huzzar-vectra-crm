@@ -5,7 +5,6 @@ import { RateDefinition, TimeSlot, WarehouseAction } from '@prisma/client'
 import {
   MdAssignment,
   MdOutlineListAlt,
-  MdOutlineSettings,
   MdPeopleAlt,
   MdReceiptLong,
   MdSpaceDashboard,
@@ -52,12 +51,6 @@ export const adminsMenuItems: MenuItem[] = [
     icon: MdPeopleAlt,
     href: '/admin-panel/employees',
   },
-  {
-    key: 'settings',
-    name: 'Ustawienia',
-    icon: MdOutlineSettings,
-    href: '/admin-panel/settings',
-  },
 ]
 
 /**
@@ -73,12 +66,6 @@ export const techniciansMenuItems: MenuItem[] = [
     name: 'Rozliczenia',
     icon: MdReceiptLong,
     href: '/billing',
-  },
-  {
-    key: 'settings',
-    name: 'Ustawienia',
-    icon: MdOutlineSettings,
-    href: '/settings',
   },
 ]
 
