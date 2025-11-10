@@ -73,6 +73,7 @@ export function AddOrderModal({
 
       toast.success('Zlecenie zostało pomyślnie dodane.')
       utils.order.getAssignedOrders.invalidate()
+      utils.order.getUnassignedOrders.invalidate()
 
       form.reset()
       onCloseAction()

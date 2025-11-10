@@ -15,7 +15,7 @@ import { getNextLineOrderNumber } from '@/utils/nextLineOrderNumber'
 import { isTechnician } from '@/utils/roleHelpers/roleCheck'
 import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
-import { endOfDay, startOfDay } from 'date-fns'
+import { endOfDay, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
 import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 
@@ -198,7 +198,6 @@ export const queriesRouter = router({
       const target = input?.date
         ? new Date(`${input.date}T00:00:00`)
         : new Date()
-      const range = { gte: startOfDay(target), lte: endOfDay(target) }
 
       const techs = await ctx.prisma.user.findMany({
         where: { role: 'TECHNICIAN' },
@@ -212,12 +211,17 @@ export const queriesRouter = router({
       })
 
       const assigned = await ctx.prisma.order.findMany({
-        where: { assignedToId: { not: null }, date: range },
+        where: {
+          assignedToId: { not: null },
+          date: { gte: startOfDay(target), lte: endOfDay(target) },
+        },
         select: {
           id: true,
           orderNumber: true,
           city: true,
           street: true,
+          lat: true,
+          lng: true,
           timeSlot: true,
           status: true,
           assignedTo: { select: { id: true } },
@@ -234,6 +238,8 @@ export const queriesRouter = router({
           orderNumber: string
           city: string
           street: string
+          lat: number | null
+          lng: number | null
           timeSlot: TimeSlot
           status: OrderStatus
           operator: string
@@ -261,6 +267,8 @@ export const queriesRouter = router({
           id: data.id,
           orderNumber: data.orderNumber,
           address: `${data.city}, ${data.street}`,
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
           status: data.status,
           assignedToId: key === 'unassigned' ? undefined : key,
           operator: data.operator,
@@ -370,103 +378,113 @@ export const queriesRouter = router({
     }),
 
   /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */
-  getUnassignedOrders: adminOrCoord.query(async ({ ctx }) => {
-    const rows = await ctx.prisma.order.findMany({
-      where: { assignedToId: null },
-      select: {
-        id: true,
-        orderNumber: true,
-        city: true,
-        street: true,
-        operator: true,
-        timeSlot: true,
-        status: true,
-        postalCode: true,
-        date: true,
-      },
-      orderBy: { timeSlot: 'asc' },
-      take: 300, // cap payload
-    })
-
-    // Nothing to do if no rows
-    if (rows.length === 0) return []
-
-    /* ---------------- helpers ---------------- */
-
-    /** Accept only valid PL postal codes and ignore placeholders like "00-000". */
-    const isUsablePostalCode = (pc?: string | null): boolean => {
-      if (!pc) return false
-      const trimmed = pc.trim()
-      // Strict PL format NN-NNN
-      if (!/^\d{2}-\d{3}$/.test(trimmed)) return false
-      // Treat "00-000" as a placeholder (do not use for geocoding)
-      if (trimmed === '00-000') return false
-      return true
-    }
-
-    /** Build address variants for robust geocoding when postal code is missing/placeholder. */
-    const buildAddressVariants = (r: (typeof rows)[number]): string[] => {
-      const street = cleanStreetName(r.street)
-      const city = (r.city ?? '').trim()
-      const pc = isUsablePostalCode(r.postalCode) ? r.postalCode!.trim() : null
-
-      const variants: string[] = []
-      if (street && city && pc)
-        variants.push(`${street}, ${pc}, ${city}, Polska`)
-      if (street && city) variants.push(`${street}, ${city}, Polska`)
-      if (city) variants.push(`${city}, Polska`)
-      return variants
-    }
-
-    /** Try multiple address variants until one returns coordinates. */
-    const geocodeWithFallback = async (variants: string[]) => {
-      for (const v of variants) {
-        const coords = await getCoordinatesFromAddress(v)
-        if (coords) return coords
+  getUnassignedOrders: adminOrCoord
+    .input(z.object({ date: z.string().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const target = input?.date ? parseISO(input.date) : null
+      const where: Prisma.OrderWhereInput = { assignedToId: null }
+      if (target) {
+        where.date = { gte: startOfDay(target), lte: endOfDay(target) }
       }
-      return null
-    }
 
-    /* --------------- main --------------- */
+      const rows = await ctx.prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          orderNumber: true,
+          city: true,
+          street: true,
+          operator: true,
+          timeSlot: true,
+          status: true,
+          postalCode: true,
+          date: true,
+        },
+        orderBy: { timeSlot: 'asc' },
+        take: 300,
+      })
 
-    const MAX_GEOCODES = 20
-    const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
+      // Nothing to do if no rows
+      if (rows.length === 0) return []
 
-    const head = rows.slice(0, MAX_GEOCODES)
-    const tail = rows.slice(MAX_GEOCODES)
+      /* ---------------- helpers ---------------- */
 
-    const enrich = async (r: (typeof rows)[number]) => {
-      const variants = buildAddressVariants(r)
-      const coords = await geocodeWithFallback(variants)
-      return { ...r, lat: coords?.lat ?? null, lng: coords?.lng ?? null }
-    }
+      /** Accept only valid PL postal codes and ignore placeholders like "00-000". */
+      const isUsablePostalCode = (pc?: string | null): boolean => {
+        if (!pc) return false
+        const trimmed = pc.trim()
+        // Strict PL format NN-NNN
+        if (!/^\d{2}-\d{3}$/.test(trimmed)) return false
+        // Treat "00-000" as a placeholder (do not use for geocoding)
+        if (trimmed === '00-000') return false
+        return true
+      }
 
-    try {
-      // Run initial chunk with limited concurrency; never throw the whole route on single failure
-      const headResults = await mapWithConcurrency(
-        head,
-        CONCURRENCY,
-        async (row) => {
-          try {
-            return await enrich(row)
-          } catch {
-            // Be fail-safe: fallback without coords
-            return { ...row, lat: null, lng: null }
-          }
+      /** Build address variants for robust geocoding when postal code is missing/placeholder. */
+      const buildAddressVariants = (r: (typeof rows)[number]): string[] => {
+        const street = cleanStreetName(r.street)
+        const city = (r.city ?? '').trim()
+        const pc = isUsablePostalCode(r.postalCode)
+          ? r.postalCode!.trim()
+          : null
+
+        const variants: string[] = []
+        if (street && city && pc)
+          variants.push(`${street}, ${pc}, ${city}, Polska`)
+        if (street && city) variants.push(`${street}, ${city}, Polska`)
+        if (city) variants.push(`${city}, Polska`)
+        return variants
+      }
+
+      /** Try multiple address variants until one returns coordinates. */
+      const geocodeWithFallback = async (variants: string[]) => {
+        for (const v of variants) {
+          const coords = await getCoordinatesFromAddress(v)
+          if (coords) return coords
         }
-      )
+        return null
+      }
 
-      const normalizedTail = tail.map((r) => ({ ...r, lat: null, lng: null }))
-      return [...headResults, ...normalizedTail]
-    } catch (e) {
-      // HARD FALLBACK: if geocoding infra is down, still return orders without coordinates
-      console.error(
-        'Geocoding batch failed — returning rows without coordinates',
-        e
-      )
-      return rows.map((r) => ({ ...r, lat: null, lng: null }))
-    }
-  }),
+      /* --------------- main --------------- */
+
+      const MAX_GEOCODES = 20
+      const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
+
+      const head = rows.slice(0, MAX_GEOCODES)
+      const tail = rows.slice(MAX_GEOCODES)
+
+      const enrich = async (r: (typeof rows)[number]) => {
+        const variants = buildAddressVariants(r)
+        const coords = await geocodeWithFallback(variants)
+        return { ...r, lat: coords?.lat ?? null, lng: coords?.lng ?? null }
+      }
+
+      try {
+        // Run initial chunk with limited concurrency; never throw the whole route on single failure
+        const headResults = await mapWithConcurrency(
+          head,
+          CONCURRENCY,
+          async (row) => {
+            try {
+              return await enrich(row)
+            } catch {
+              // Be fail-safe: fallback without coords
+              return { ...row, lat: null, lng: null }
+            }
+          }
+        )
+
+        const normalizedTail = tail.map((r) => ({ ...r, lat: null, lng: null }))
+        return [...headResults, ...normalizedTail]
+      } catch (e) {
+        // HARD FALLBACK: if geocoding infra is down, still return orders without coordinates
+        console.error(
+          'Geocoding batch failed — returning rows without coordinates',
+          e
+        )
+        return rows.map((r) => ({ ...r, lat: null, lng: null }))
+      }
+    }),
 
   /** Accounting-level order breakdown */
   getOrderDetails: adminOrCoord

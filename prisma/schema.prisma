@@ -51,6 +51,8 @@ model Order {
   city              String
   street            String
   postalCode        String?
+  lat               Float?    
+  lng               Float?     
   assignedToId      String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt

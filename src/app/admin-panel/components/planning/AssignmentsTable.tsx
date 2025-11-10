@@ -1,7 +1,6 @@
 'use client'
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
-import { Button } from '@/app/components/ui/button'
 import {
   Table,
   TableBody,
@@ -12,7 +11,7 @@ import {
 } from '@/app/components/ui/table'
 import { statusColorMap, statusMap, timeSlotMap } from '@/lib/constants'
 import { TechnicianAssignment } from '@/types'
-import { formatDateForInput } from '@/utils/dates/formatDateTime'
+import { matchSearch } from '@/utils/searchUtils'
 import { trpc } from '@/utils/trpc'
 import {
   DragDropContext,
@@ -20,19 +19,19 @@ import {
   DropResult,
   Droppable,
 } from '@hello-pangea/dnd'
-import { addDays, subDays } from 'date-fns'
-import { useState } from 'react'
-import { MdChevronLeft, MdChevronRight } from 'react-icons/md'
-import DatePicker from '../../../components/shared/DatePicker'
+import { useMemo, useState } from 'react'
+import Highlight from 'react-highlight-words'
 import OrderDetailsSheet from '../../../components/shared/orders/OrderDetailsSheet'
+import { usePlanningContext } from './PlanningContext'
 
 /**
  * AssignmentsTable
- * Displays daily technician assignments in Excel-like tables
- * with clear headers and technician sections.
+ * --------------------------------------------------
+ * Displays all technician assignments for selected day.
+ * - Supports search by technician name, address, and order number.
  */
 const AssignmentsTable = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const { selectedDate, searchTerm } = usePlanningContext()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
 
@@ -44,12 +43,10 @@ const AssignmentsTable = () => {
     isLoading,
     isError,
   } = trpc.order.getAssignedOrders.useQuery({
-    date: formatDateForInput(selectedDate),
+    date: selectedDate.toLocaleDateString('en-CA'),
   })
 
-  const handlePrevDay = () => setSelectedDate((prev) => subDays(prev, 1))
-  const handleNextDay = () => setSelectedDate((prev) => addDays(prev, 1))
-
+  /** 🔹 Handle drag-drop assignment */
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return
     const { source, destination, draggableId } = result
@@ -71,42 +68,40 @@ const AssignmentsTable = () => {
     }
   }
 
-  const filteredAssignments = assignments.filter((t) => t.technicianId !== null)
+  /** 🔍 Filter by technician name, address, or order number */
+  const filteredAssignments = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return assignments.filter((t) => t.technicianId !== null)
+    }
+
+    return assignments
+      .map((tech) => {
+        const matchesTechnician = matchSearch(searchTerm, tech.technicianName)
+
+        const filteredSlots = tech.slots
+          .map((slot) => ({
+            ...slot,
+            orders: slot.orders.filter((o) =>
+              matchSearch(searchTerm, o.orderNumber, o.address)
+            ),
+          }))
+          .filter((slot) => slot.orders.length > 0)
+
+        if (matchesTechnician || filteredSlots.length > 0) {
+          return {
+            ...tech,
+            slots: filteredSlots.length > 0 ? filteredSlots : tech.slots,
+          }
+        }
+
+        return null
+      })
+      .filter(Boolean) as TechnicianAssignment[]
+  }, [assignments, searchTerm])
 
   return (
-    <div className="space-y-8">
-      {/* --- Date navigation --- */}
-      <div className="flex items-center justify-center gap-8 mt-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handlePrevDay}
-          aria-label="Previous day"
-        >
-          <MdChevronLeft className="w-5 h-5" />
-        </Button>
-
-        <div className="scale-110">
-          <DatePicker
-            selected={selectedDate}
-            onChange={(date) => date && setSelectedDate(date)}
-            range="day"
-            allowFuture
-          />
-        </div>
-
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleNextDay}
-          aria-label="Next day"
-        >
-          <MdChevronRight className="w-5 h-5" />
-        </Button>
-      </div>
-
-      {/* --- Technician sections --- */}
-      <DragDropContext onDragEnd={onDragEnd}>
+    <div className="space-y-6">
+      <DragDropContext onDragEnd={onDragEnd} enableDefaultSensors>
         {isLoading ? (
           <div className="w-full flex justify-center py-10">
             <LoaderSpinner />
@@ -114,18 +109,21 @@ const AssignmentsTable = () => {
         ) : isError ? (
           <p className="text-center text-danger">Błąd ładowania danych.</p>
         ) : filteredAssignments.length > 0 ? (
-          filteredAssignments.map((technician: TechnicianAssignment) => (
+          filteredAssignments.map((technician) => (
             <div key={technician.technicianId}>
-              {/* Technician name header */}
               <div className="bg-background py-2 border-b text-center font-bold text-lg">
-                {technician.technicianName}
+                <Highlight
+                  highlightClassName="bg-yellow-200"
+                  searchWords={[searchTerm]}
+                  autoEscape
+                  textToHighlight={technician.technicianName}
+                />
               </div>
 
-              {/* Table section */}
               <Droppable droppableId={technician.technicianId!} type="ORDER">
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.droppableProps}>
-                    <Table className="">
+                    <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="bg-secondary text-white text-center border text-sm font-semibold">
@@ -154,66 +152,82 @@ const AssignmentsTable = () => {
 
                       <TableBody>
                         {technician.slots.flatMap((slot) =>
-                          slot.orders.length > 0
-                            ? slot.orders.map((order, index) => (
-                                <Draggable
-                                  key={order.id}
-                                  draggableId={order.id}
-                                  index={index}
-                                >
-                                  {(provided) => (
-                                    <TableRow
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      className="hover:bg-muted cursor-pointer text-sm"
-                                      onClick={() => {
-                                        setSelectedOrderId(order.id)
-                                        setIsPanelOpen(true)
-                                      }}
-                                    >
-                                      <TableCell className="text-center border">
-                                        {selectedDate.toLocaleDateString(
-                                          'pl-PL'
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="text-center border">
-                                        {timeSlotMap[slot.timeSlot] ??
-                                          slot.timeSlot}
-                                      </TableCell>
-                                      <TableCell className="text-center border font-medium">
-                                        {order.orderNumber}
-                                      </TableCell>
-                                      <TableCell className="text-center border">
-                                        {order.address}
-                                      </TableCell>
-                                      <TableCell className="text-center border">
-                                        {order.operator ?? '-'}
-                                      </TableCell>
-                                      <TableCell
-                                        className={`text-center border font-medium ${
-                                          statusColorMap[order.status]
-                                        }`}
-                                      >
-                                        {statusMap[order.status]}
-                                      </TableCell>
-                                      <TableCell className="text-center border text-muted-foreground">
-                                        {/* Placeholder for comments */}
-                                      </TableCell>
-                                    </TableRow>
-                                  )}
-                                </Draggable>
-                              ))
-                            : [
-                                <TableRow key={slot.timeSlot}>
-                                  <TableCell
-                                    colSpan={7}
-                                    className="text-center text-gray-400 border"
+                          slot.orders.length > 0 ? (
+                            slot.orders.map((order, index) => (
+                              <Draggable
+                                key={order.id}
+                                draggableId={order.id}
+                                index={index}
+                              >
+                                {(drag) => (
+                                  <TableRow
+                                    ref={drag.innerRef}
+                                    {...drag.draggableProps}
+                                    {...drag.dragHandleProps}
+                                    className="hover:bg-muted cursor-pointer text-sm"
+                                    onClick={() => {
+                                      setSelectedOrderId(order.id)
+                                      setIsPanelOpen(true)
+                                    }}
                                   >
-                                    Brak zleceń
-                                  </TableCell>
-                                </TableRow>,
-                              ]
+                                    <TableCell className="text-center border">
+                                      {selectedDate.toLocaleDateString('pl-PL')}
+                                    </TableCell>
+
+                                    <TableCell className="text-center border">
+                                      {timeSlotMap[slot.timeSlot] ??
+                                        slot.timeSlot}
+                                    </TableCell>
+
+                                    {/* 🔹 Order number with highlight */}
+                                    <TableCell className="text-center border font-medium">
+                                      <Highlight
+                                        highlightClassName="bg-yellow-200"
+                                        searchWords={[searchTerm]}
+                                        autoEscape
+                                        textToHighlight={order.orderNumber}
+                                      />
+                                    </TableCell>
+
+                                    {/* 🔹 Address with highlight */}
+                                    <TableCell className="text-center border">
+                                      <Highlight
+                                        highlightClassName="bg-yellow-200"
+                                        searchWords={[searchTerm]}
+                                        autoEscape
+                                        textToHighlight={`${order.address}`}
+                                      />
+                                    </TableCell>
+
+                                    <TableCell className="text-center border">
+                                      {order.operator ?? '-'}
+                                    </TableCell>
+
+                                    <TableCell
+                                      className={`text-center border font-medium ${
+                                        statusColorMap[order.status]
+                                      }`}
+                                    >
+                                      {statusMap[order.status]}
+                                    </TableCell>
+
+                                    <TableCell className="text-center border text-muted-foreground">
+                                      {/* Optional notes */}
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </Draggable>
+                            ))
+                          ) : (
+                            <TableRow key={slot.timeSlot}>
+                              <TableCell
+                                colSpan={7}
+                                className="text-center text-gray-400 border"
+                              >
+                                Brak zleceń
+                              </TableCell>
+                            </TableRow>
+                          )
                         )}
                       </TableBody>
                     </Table>
@@ -225,12 +239,11 @@ const AssignmentsTable = () => {
           ))
         ) : (
           <p className="text-center text-muted-foreground py-10">
-            Brak techników lub przypisanych zleceń na ten dzień.
+            Brak wyników wyszukiwania.
           </p>
         )}
       </DragDropContext>
 
-      {/* Order detail side sheet */}
       <OrderDetailsSheet
         orderId={selectedOrderId}
         open={isPanelOpen}

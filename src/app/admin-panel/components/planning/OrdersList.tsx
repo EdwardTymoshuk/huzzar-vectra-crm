@@ -1,33 +1,26 @@
 'use client'
 
-import SearchInput from '@/app/components/shared/SearchInput'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
-import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { useSearch } from '@/app/context/SearchContext'
 import { timeSlotMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
 import { useState } from 'react'
 import Highlight from 'react-highlight-words'
-
-type Props = {
-  compact?: boolean
-}
+import { usePlanningContext } from './PlanningContext'
 
 /**
  * OrdersList
- * -------------------------------------------------------------
- * Displays a searchable list of unassigned orders.
- * - Supports drag & drop for assignment.
- * - Opens OrderDetailsSheet on double-click.
+ * --------------------------------------------------
+ * Displays unassigned orders (drag-and-drop).
+ * Each order row: Date | Slot | Operator | Address | Order number
  */
-const OrdersList = ({ compact = false }: Props) => {
+const OrdersList = () => {
+  const { searchTerm } = usePlanningContext()
   const { data: orders = [], isLoading } =
-    trpc.order.getUnassignedOrders.useQuery(undefined, { staleTime: 60_000 })
+    trpc.order.getUnassignedOrders.useQuery(undefined)
 
-  const { searchTerm, setSearchTerm } = useSearch()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
@@ -37,8 +30,6 @@ const OrdersList = ({ compact = false }: Props) => {
     return o.orderNumber.toLowerCase().includes(q) || address.includes(q)
   })
 
-  const containerPadding = compact ? 'p-3' : 'p-4'
-
   const handleOpenDetails = (orderId: string) => {
     setSelectedOrderId(orderId)
     setIsSheetOpen(true)
@@ -46,65 +37,96 @@ const OrdersList = ({ compact = false }: Props) => {
 
   return (
     <>
+      {/* Root container acts as a semantic "table" for assistive technologies */}
       <div
-        className={[
-          'w-full rounded-lg border bg-card space-y-3',
-          containerPadding,
-        ].join(' ')}
+        role="table"
+        aria-label="Lista nieprzypisanych zleceń do planowania"
+        className="w-full h-full overflow-y-auto rounded-lg border bg-card"
       >
-        {/* --- Header: Search input or skeleton placeholder --- */}
         {isLoading ? (
-          <Skeleton className="h-9 w-full rounded-md" />
-        ) : (
-          <div className="w-full">
-            <SearchInput
-              placeholder="Szukaj zlecenia"
-              value={searchTerm}
-              onChange={setSearchTerm}
-            />
-          </div>
-        )}
-
-        {/* --- Orders list --- */}
-        {isLoading ? (
-          <div className="space-y-2">
+          <div className="p-4 space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-md" />
+              <Skeleton key={i} className="h-10 w-full rounded-md" />
             ))}
           </div>
         ) : (
-          <Droppable droppableId="UNASSIGNED_ORDERS" type="ORDER">
-            {(provided, snapshot) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={`
-                  min-h-52 grid gap-3 transition
-                  ${
+          <div className="overflow-x-auto">
+            {' '}
+            {/* ✅ horizontal scroll wrapper */}
+            <Droppable droppableId="UNASSIGNED_ORDERS" type="ORDER">
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  role="rowgroup"
+                  className={`min-h-52 transition-colors w-[900px] sm:w-full ${
+                    // ✅ fixed min width to enable scroll
                     snapshot.isDraggingOver
                       ? 'bg-muted/60 border border-secondary rounded-lg'
                       : 'bg-card text-card-foreground'
-                  }
-                `}
-              >
-                {filtered.map((order, index) => (
-                  <Draggable
-                    key={order.id}
-                    draggableId={order.id}
-                    index={index}
+                  }`}
+                >
+                  {/* Header row */}
+                  <div
+                    role="row"
+                    className="grid grid-cols-5 px-3 py-2 border-b bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 z-10"
                   >
-                    {(drag) => (
-                      <Card
-                        ref={drag.innerRef}
-                        {...drag.draggableProps}
-                        {...drag.dragHandleProps}
-                        onDoubleClick={() => handleOpenDetails(order.id)}
-                        className="p-2 cursor-grab active:cursor-grabbing border hover:bg-muted transition bg-background select-none"
-                      >
-                        {/* Top row: date / order number */}
-                        <div className="grid grid-cols-2 text-xs font-medium text-muted-foreground">
-                          <span>{format(order.date, 'dd.MM.yyyy')}</span>
-                          <span className="text-right text-foreground">
+                    <span role="columnheader">Data</span>
+                    <span role="columnheader" className="text-center">
+                      Slot
+                    </span>
+                    <span role="columnheader" className="text-center">
+                      Operator
+                    </span>
+                    <span role="columnheader" className="truncate text-center">
+                      Adres
+                    </span>
+                    <span role="columnheader" className="text-right">
+                      Nr zlecenia
+                    </span>
+                  </div>
+
+                  {/* Orders */}
+                  {filtered.map((order, index) => (
+                    <Draggable
+                      key={order.id}
+                      draggableId={order.id}
+                      index={index}
+                    >
+                      {(drag) => (
+                        <div
+                          ref={drag.innerRef}
+                          {...drag.draggableProps}
+                          {...drag.dragHandleProps}
+                          role="row"
+                          tabIndex={0}
+                          onDoubleClick={() => handleOpenDetails(order.id)}
+                          className="grid grid-cols-5 items-center px-3 py-2 text-sm border-b cursor-grab active:cursor-grabbing hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary select-none transition"
+                        >
+                          <span role="cell" className="text-muted-foreground">
+                            {format(order.date, 'dd.MM.yyyy')}
+                          </span>
+                          <span role="cell" className="text-center font-medium">
+                            {timeSlotMap[order.timeSlot] ?? order.timeSlot}
+                          </span>
+                          <span
+                            role="cell"
+                            className="text-center text-muted-foreground"
+                          >
+                            {order.operator ?? '—'}
+                          </span>
+                          <span role="cell" className="truncate text-center">
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={`${order.city}, ${order.street}`}
+                              autoEscape
+                              highlightClassName="bg-yellow-200"
+                            />
+                          </span>
+                          <span
+                            role="cell"
+                            className="text-right font-semibold text-foreground"
+                          >
                             <Highlight
                               searchWords={[searchTerm]}
                               textToHighlight={order.orderNumber}
@@ -113,33 +135,29 @@ const OrdersList = ({ compact = false }: Props) => {
                             />
                           </span>
                         </div>
+                      )}
+                    </Draggable>
+                  ))}
 
-                        {/* Bottom row: slot / address */}
-                        <div className="grid grid-cols-2 mt-1 text-xs">
-                          <span className="font-semibold">
-                            {timeSlotMap[order.timeSlot]}
-                          </span>
-                          <span className="text-right truncate">
-                            <Highlight
-                              searchWords={[searchTerm]}
-                              textToHighlight={`${order.city}, ${order.street}`}
-                              autoEscape
-                              highlightClassName="bg-yellow-200"
-                            />
-                          </span>
-                        </div>
-                      </Card>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
+                  {/* Empty state */}
+                  {filtered.length === 0 && (
+                    <div
+                      role="row"
+                      className="flex justify-center items-center h-24 text-muted-foreground text-sm"
+                    >
+                      <span role="cell">Brak nieprzypisanych zleceń.</span>
+                    </div>
+                  )}
+
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </div>
         )}
       </div>
 
-      {/* 🧾 Order details sheet */}
+      {/* Order details sheet */}
       <OrderDetailsSheet
         orderId={selectedOrderId}
         open={isSheetOpen}

@@ -1,5 +1,6 @@
 import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
+import { getCoordinatesFromAddress } from '@/utils/geocode'
 import { prisma } from '@/utils/prisma'
 import {
   DeviceCategory,
@@ -301,6 +302,33 @@ export const mutationsRouter = router({
         ? OrderStatus.ASSIGNED
         : OrderStatus.PENDING
 
+      // 5️⃣ Prepare geocoded coordinates
+      let lat: number | null = null
+      let lng: number | null = null
+
+      try {
+        const addressVariants = [
+          `${input.street}, ${input.postalCode ?? ''} ${input.city}, Polska`,
+          `${input.street}, ${input.city}, Polska`,
+          `${input.city}, Polska`,
+        ]
+
+        for (const addr of addressVariants) {
+          const coords = await getCoordinatesFromAddress(addr)
+          if (coords) {
+            lat = coords.lat
+            lng = coords.lng
+            break
+          }
+        }
+      } catch {
+        console.warn(
+          '⚠️ Geocoding failed for address:',
+          input.street,
+          input.city
+        )
+      }
+
       const created = await prisma.order.create({
         data: {
           operator: input.operator,
@@ -315,6 +343,8 @@ export const mutationsRouter = router({
           city: input.city,
           street: input.street,
           postalCode: input.postalCode,
+          lat,
+          lng,
           assignedToId: input.assignedToId ?? null,
           createdSource: input.createdSource,
           status: firstStatus,
@@ -543,6 +573,7 @@ export const mutationsRouter = router({
         })
       }
 
+      // ✅ Validate technician existence when assigning
       if (input.assignedToId) {
         const tech = await prisma.user.findUnique({
           where: { id: input.assignedToId },
@@ -555,15 +586,48 @@ export const mutationsRouter = router({
         }
       }
 
+      // ✅ Try to geocode if coordinates are missing
+      let coords: { lat: number; lng: number } | null = null
+
+      if (order.lat === null && order.lng === null) {
+        const variants = [
+          `${order.street}, ${order.city}, Polska`,
+          `${order.city}, Polska`,
+        ]
+
+        for (const v of variants) {
+          try {
+            const result = await getCoordinatesFromAddress(v)
+            if (result) {
+              coords = result
+              break
+            }
+          } catch {
+            // Fail-safe: ignore geocoding errors
+            coords = null
+          }
+        }
+      }
+
       const newStatus = input.assignedToId
         ? OrderStatus.ASSIGNED
         : OrderStatus.PENDING
 
+      console.info('[assignTechnician]', {
+        orderNumber: order.orderNumber,
+        city: order.city,
+        street: order.street,
+        coords,
+        existing: { lat: order.lat, lng: order.lng },
+      })
+
+      // ✅ Update assignment and store coordinates if newly available
       return prisma.order.update({
         where: { id: input.id },
         data: {
           assignedToId: input.assignedToId ?? null,
           status: newStatus,
+          ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
         },
       })
     }),
@@ -1831,5 +1895,58 @@ export const mutationsRouter = router({
       })
 
       return { success: true }
+    }),
+  /** 🗺️ Admin-only: fills missing coordinates (lat/lng) for existing orders */
+  fillMissingCoordinates: adminOnly
+    .input(z.object({ limit: z.number().default(50) }).optional())
+    .mutation(async ({ input, ctx }) => {
+      const limit = input?.limit ?? 50
+      const prisma = ctx.prisma
+
+      // 1️⃣ Pobierz zamówienia bez współrzędnych
+      const orders = await prisma.order.findMany({
+        where: { lat: null, city: { not: '' }, street: { not: '' } },
+        take: limit,
+      })
+
+      if (orders.length === 0) {
+        return { updated: 0, message: 'Brak zamówień do uzupełnienia.' }
+      }
+
+      let updated = 0
+      const failed: string[] = []
+
+      for (const o of orders) {
+        const addressVariants = [
+          `${o.street}, ${o.postalCode ?? ''} ${o.city}, Polska`,
+          `${o.street}, ${o.city}, Polska`,
+          `${o.city}, Polska`,
+        ]
+
+        let coords: { lat: number; lng: number } | null = null
+        for (const addr of addressVariants) {
+          const res = await getCoordinatesFromAddress(addr)
+          if (res) {
+            coords = res
+            break
+          }
+        }
+
+        if (coords) {
+          await prisma.order.update({
+            where: { id: o.id },
+            data: { lat: coords.lat, lng: coords.lng },
+          })
+          updated++
+        } else {
+          failed.push(o.id)
+        }
+      }
+
+      return {
+        updated,
+        failedCount: failed.length,
+        message: `Zaktualizowano ${updated} zleceń. Nie udało się: ${failed.length}.`,
+      }
     }),
 })

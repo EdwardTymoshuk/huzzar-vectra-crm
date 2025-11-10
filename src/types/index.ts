@@ -51,6 +51,8 @@ export interface TechnicianAssignment {
       id: string
       orderNumber: string
       address: string
+      lat?: number | null
+      lng?: number | null
       date: Date
       operator: string
       status: string

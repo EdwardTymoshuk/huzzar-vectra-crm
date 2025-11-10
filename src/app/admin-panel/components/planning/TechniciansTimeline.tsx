@@ -11,8 +11,9 @@ import {
 import { operatorColorsMap } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { TechnicianAssignment } from '@/types'
+import { matchSearch } from '@/utils/searchUtils'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
@@ -51,7 +52,7 @@ function parseSlot(slot: string) {
   return { start: 8, end: 9 }
 }
 
-function layoutOrders(tech: TechnicianAssignment) {
+function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
   const flat: {
     id: string
     label: string
@@ -75,9 +76,15 @@ function layoutOrders(tech: TechnicianAssignment) {
     )
   })
 
-  flat.sort((a, b) => a.start - b.start)
+  // 🔍 optional search filtering inside timeline items
+  const visible = searchTerm?.trim()
+    ? flat.filter((o) => matchSearch(searchTerm, o.label, o.address))
+    : flat
+
+  visible.sort((a, b) => a.start - b.start)
+
   const lanes: number[] = []
-  const placed = flat.map((order) => {
+  const placed = visible.map((order) => {
     let lane = 0
     for (; lane < lanes.length; lane++) {
       if (lanes[lane] <= order.start) break
@@ -108,11 +115,39 @@ const TechniciansTimeline = ({
   const LANE_GAP = 8
   const HOUR_WIDTH = 100
 
+  const filteredAssignments = useMemo(() => {
+    if (!searchTerm.trim()) return assignments
+
+    return assignments
+      .map((tech) => {
+        const matchesTechnician = matchSearch(searchTerm, tech.technicianName)
+
+        const filteredSlots = tech.slots
+          .map((slot) => ({
+            ...slot,
+            orders: slot.orders.filter((o) =>
+              matchSearch(searchTerm, o.orderNumber, o.address)
+            ),
+          }))
+          .filter((slot) => slot.orders.length > 0)
+
+        if (matchesTechnician || filteredSlots.length > 0) {
+          return {
+            ...tech,
+            slots: filteredSlots.length > 0 ? filteredSlots : tech.slots,
+          }
+        }
+
+        return null
+      })
+      .filter(Boolean) as typeof assignments
+  }, [assignments, searchTerm])
+
   return (
     <TooltipProvider>
-      <div className="w-full min-w-0">
+      <div className="w-full min-w-0 max-h-full">
         <div
-          className="overflow-x-auto overflow-y-hidden border rounded-md bg-background shadow-inner relative"
+          className="overflow-x-auto overflow-y-hidden border rounded-md bg-background shadow-inner inline-flex"
           style={{
             WebkitOverflowScrolling: 'touch',
             overscrollBehaviorX: 'contain',
@@ -144,8 +179,8 @@ const TechniciansTimeline = ({
             </div>
 
             {/* Rows */}
-            {assignments.map((tech, rowIdx) => {
-              const { items, laneCount } = layoutOrders(tech)
+            {filteredAssignments.map((tech, rowIdx) => {
+              const { items, laneCount } = layoutOrders(tech, searchTerm)
               const rowHeight = laneCount * (LANE_HEIGHT + LANE_GAP)
 
               return (
@@ -172,12 +207,16 @@ const TechniciansTimeline = ({
                     >
                       {/* Technician name */}
                       <div className="border-r p-2 first: bg-muted font-semibold flex items-start justify-start whitespace-nowrap">
-                        <Highlight
-                          searchWords={[searchTerm]}
-                          textToHighlight={tech.technicianName}
-                          autoEscape
-                          highlightClassName="bg-yellow-200"
-                        />
+                        {matchSearch(searchTerm, tech.technicianName) ? (
+                          <Highlight
+                            searchWords={[searchTerm]}
+                            textToHighlight={tech.technicianName}
+                            autoEscape
+                            highlightClassName="bg-yellow-200"
+                          />
+                        ) : (
+                          tech.technicianName
+                        )}
                       </div>
 
                       {/* Hour grid + orders */}
@@ -248,7 +287,12 @@ const TechniciansTimeline = ({
                                         {/* Header + delete */}
                                         <div className="flex justify-between items-start">
                                           <div className="truncate font-semibold pr-2">
-                                            {order.label}
+                                            <Highlight
+                                              highlightClassName="bg-yellow-200"
+                                              searchWords={[searchTerm]}
+                                              autoEscape
+                                              textToHighlight={order.label}
+                                            />
                                           </div>
                                           <Button
                                             type="button"

@@ -1,65 +1,103 @@
 'use client'
 
 import LoadingOverlay from '@/app/components/shared/LoadingOverlay'
-import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
 import { trpc } from '@/utils/trpc'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
 import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import OrdersList from './OrdersList'
+import { usePlanningContext } from './PlanningContext'
 import TechniciansList from './TechniciansList'
 
 /**
- * PlanningBoard:
- * - Left: compact 2x2 card list of unassigned orders
- * - Right: technician timeline grid (hour slots)
- * - Bottom: shared map with markers
+ * PlanningBoard
+ * --------------------------------------------------
+ * - Displays ALL orders for selected day on map:
+ * - Handles drag-and-drop assignment.
  */
-const MapView = dynamic(() => import('../../components/planning/MapView'), {
-  ssr: false,
-})
+const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
 const PlanningBoard = () => {
+  const { selectedDate } = usePlanningContext()
   const utils = trpc.useUtils()
   const [isProcessing, setProcessing] = useState(false)
 
-  const {
-    data: unassigned = [],
-    isLoading: isUnassignedLoading,
-    error: unassignedError,
-  } = trpc.order.getUnassignedOrders.useQuery(undefined, { staleTime: 60_000 })
+  /** 🔹 Fetch data for both assigned & unassigned orders */
+  const { data: assigned = [], isLoading: isAssignedLoading } =
+    trpc.order.getAssignedOrders.useQuery(
+      { date: selectedDate.toISOString().split('T')[0] },
+      { keepPreviousData: true }
+    )
 
-  const markers = useMemo(
-    () =>
-      unassigned
-        .filter(
-          (r) =>
-            typeof r.lat === 'number' &&
-            typeof r.lng === 'number' &&
-            !Number.isNaN(r.lat) &&
-            !Number.isNaN(r.lng)
+  const { data: unassigned = [], isLoading: isUnassignedLoading } =
+    trpc.order.getUnassignedOrders.useQuery({
+      date: selectedDate.toISOString().split('T')[0],
+    })
+
+  const isLoading = isAssignedLoading || isUnassignedLoading
+
+  /** Combine assigned & unassigned into single marker list */
+  const markers = useMemo(() => {
+    const assignedMarkers =
+      assigned.flatMap((tech) =>
+        tech.slots.flatMap((slot) =>
+          slot.orders
+            .filter(
+              (o) =>
+                typeof o.lat === 'number' &&
+                typeof o.lng === 'number' &&
+                !Number.isNaN(o.lat) &&
+                !Number.isNaN(o.lng)
+            )
+            .map((o) => ({
+              id: o.id,
+              lat: o.lat!,
+              lng: o.lng!,
+              label: `${o.orderNumber} • ${o.address}${
+                tech.technicianName
+                  ? `<br />
+                Technik: ${tech.technicianName}`
+                  : ''
+              }`,
+              date: o.date
+                ? new Date(o.date).toLocaleDateString('pl-PL')
+                : undefined,
+              operator: o.operator ?? '—',
+              color: 'var(--primary)',
+            }))
         )
-        .map((r) => ({
-          id: r.id,
-          lat: r.lat!,
-          lng: r.lng!,
-          label: `${r.orderNumber} • ${r.city}, ${r.street}`,
-        })),
-    [unassigned]
-  )
+      ) ?? []
 
+    const unassignedMarkers = unassigned
+      .filter((o) => o.lat && o.lng)
+      .map((o) => ({
+        id: o.id,
+        lat: o.lat!,
+        lng: o.lng!,
+        label: `${o.orderNumber} • ${o.city}, ${o.street}<br />
+        Status: nieprzypisane`,
+        date: o.date ? new Date(o.date).toLocaleDateString('pl-PL') : undefined,
+        operator: o.operator ?? '—',
+        color: 'var(--secondary)',
+      }))
+
+    return [...assignedMarkers, ...unassignedMarkers]
+  }, [assigned, unassigned])
+
+  /** Mutation for assignment */
   const assignMutation = trpc.order.assignTechnician.useMutation({
     onError: (err) => toast.error(err.message || 'Nie udało się przypisać.'),
     onSettled: async () => {
       await Promise.all([
-        utils.order.getUnassignedOrders.invalidate(),
         utils.order.getAssignedOrders.invalidate(),
+        utils.order.getUnassignedOrders.invalidate(),
       ])
       setProcessing(false)
     },
   })
 
+  /** Handle drag-drop assignment */
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return
     setProcessing(true)
@@ -77,49 +115,41 @@ const PlanningBoard = () => {
       setProcessing(false)
     }
   }
-
   return (
-    <MaxWidthWrapper>
-      <LoadingOverlay show={isProcessing} />
+    <div className="flex flex-col w-full h-full gap-4 overflow-hidden p-2">
+      <LoadingOverlay show={isProcessing || isLoading} />
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(340px,0.9fr)_2.1fr] gap-6 mt-4">
-          {/* Left: compact unassigned orders */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold text-center">
-              Zlecenia do realizacji (nieprzypisane)
-            </h2>
-            <OrdersList compact />
+      <DragDropContext onDragEnd={handleDragEnd} enableDefaultSensors>
+        {/* 🔹 Top section: schedule + map */}
+        <div className="flex flex-col md:flex-row flex-[7] h-[70%] min-h-[70%] overflow-hidden gap-4">
+          {/* Schedule */}
+          <section className="flex flex-col max-h-full md:w-[70%] overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-2">
+              <TechniciansList setProcessing={setProcessing} />
+            </div>
           </section>
 
-          {/* Right: technicians timeline */}
-          <section className="space-y-3 min-w-0">
-            <h2 className="text-lg font-semibold text-center">
-              Harmonogram techników
-            </h2>
-            <TechniciansList setProcessing={setProcessing} />
+          {/* Map */}
+          <section className="flex flex-col md:w-[30%] overflow-hidden">
+            <div className="flex-1 relative overflow-hidden rounded-lg border">
+              <MapView
+                mapKey={`planning-map-${selectedDate.toISOString()}-${
+                  markers.length
+                }`}
+                markers={markers}
+              />
+            </div>
           </section>
         </div>
+
+        {/* 🔹 Bottom section: unassigned orders */}
+        <section className="flex flex-col flex-[3] h-[30%] min-h-[30%] overflow-hidden">
+          <div className="flex-1 max-h-full overflow-y-auto pb-2">
+            <OrdersList />
+          </div>
+        </section>
       </DragDropContext>
-
-      {/* Map at the bottom */}
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold text-center mb-2">Mapa</h2>
-        <div className="relative z-0 rounded-lg border overflow-hidden">
-          <MapView
-            mapKey={`planning-map-${markers.length}`}
-            markers={markers}
-          />
-        </div>
-        <p className="text-center text-xs text-muted-foreground mt-2">
-          {isUnassignedLoading
-            ? 'Ładowanie adresów…'
-            : unassignedError
-            ? 'Błąd ładowania adresów'
-            : `Zlecenia: ${unassigned.length} • Z geolokacją: ${markers.length}`}
-        </p>
-      </section>
-    </MaxWidthWrapper>
+    </div>
   )
 }
 

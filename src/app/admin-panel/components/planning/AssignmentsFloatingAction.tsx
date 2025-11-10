@@ -1,0 +1,35 @@
+'use client'
+
+import FloatingActionMenu from '@/app/components/shared/FloatingActionMenu'
+import { useRole } from '@/utils/hooks/useRole'
+import { useState } from 'react'
+import { MdDownload } from 'react-icons/md'
+import ReportDialog from '../orders/ReportDialog'
+
+const AssignmentsFloatingAction = () => {
+  const [isReportOpen, setReportOpen] = useState(false)
+  const { isAdmin, isCoordinator, isLoading } = useRole()
+  if (isLoading) return null
+  if (!isAdmin && !isCoordinator) return null
+
+  return (
+    <>
+      <FloatingActionMenu
+        actions={[
+          {
+            label: 'Generuj raport',
+            icon: <MdDownload className="text-lg" />,
+            colorClass: 'bg-warning hover:bg-warning/90',
+            onClick: () => setReportOpen(true),
+          },
+        ]}
+        mainIcon={<MdDownload className="text-3xl" />}
+        mainTooltip="Generuj raport"
+        disableRotate
+      />
+      <ReportDialog open={isReportOpen} onClose={() => setReportOpen(false)} />
+    </>
+  )
+}
+
+export default AssignmentsFloatingAction

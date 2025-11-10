@@ -31,7 +31,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         {/* ✅ ResponsiveNavigation (bottom on mobile, top on desktop) */}
         <ResponsiveNavigation />
         {/* ✅ Main content area with top padding for header space */}
-        <div className="flex flex-col h-full md:pt-20 pb-20 md:pb-0">
+        <div className="flex flex-col h-full md:pt-[72px] pb-[72px] md:pb-0">
           <MainContainer>{children}</MainContainer>
         </div>
       </NavigationProgressProvider>

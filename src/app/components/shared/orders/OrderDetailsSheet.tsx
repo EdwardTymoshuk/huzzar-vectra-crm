@@ -66,8 +66,6 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
     deleteMutation.mutate({ id: order.id })
   }
 
-  console.log(order?.attempts)
-
   return (
     <>
       <Sheet open={open} onOpenChange={onClose}>

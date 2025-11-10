@@ -1,45 +1,41 @@
 'use client'
 
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/app/components/ui/tabs'
+import { Tabs, TabsContent } from '@/app/components/ui/tabs'
+import AssignmentsFloatingAction from './AssignmentsFloatingAction'
 import AssignmentsTable from './AssignmentsTable'
-import AssignmentsToolbar from './AssignmentsToolbar'
 import PlanningBoard from './PlanningBoard'
-import PlanningToolbar from './PlanningToolbar'
+import { usePlanningContext } from './PlanningContext'
+import PlanningFloatingAction from './PlanningFloatingAction'
 
 /**
  * PlanningTabs:
- * - Tab "Planowanie": planning toolbar (import + manual add) + board.
- * - Tab "Zbiórówka": assignments toolbar (report only) + table.
+ * - Controlled by PlanningContext (activeTab)
+ * - Fills available height with independent scrolls.
  */
 const PlanningTabs = () => {
-  return (
-    <Tabs defaultValue="planning" className="w-full">
-      <div className="w-full flex justify-center">
-        <TabsList className="w-full md:w-1/2 lg:w-1/4 justify-center">
-          <TabsTrigger value="planning" className="w-full">
-            Planowanie
-          </TabsTrigger>
-          <TabsTrigger value="assignments" className="w-full">
-            Zbiórówka
-          </TabsTrigger>
-        </TabsList>
-      </div>
+  const { activeTab } = usePlanningContext()
 
-      {/* Planning tab: toolbar + board */}
-      <TabsContent value="planning">
-        <PlanningToolbar />
-        <PlanningBoard />
+  return (
+    <Tabs value={activeTab} className="flex flex-col w-full h-full">
+      <TabsContent
+        value="planning"
+        className="flex flex-col flex-1 h-full overflow-hidden data-[state=inactive]:hidden"
+      >
+        <div className="flex-1 overflow-hidden">
+          <PlanningBoard />
+          <PlanningFloatingAction />
+        </div>
       </TabsContent>
 
-      {/* Assignments tab: toolbar + table */}
-      <TabsContent value="assignments">
-        <AssignmentsToolbar />
-        <AssignmentsTable />
+      <TabsContent
+        value="assignments"
+        className="flex flex-col flex-1 h-full overflow-hidden data-[state=inactive]:hidden"
+      >
+        <div className="flex-1 overflow-auto">
+          <AssignmentsTable />
+          {/* ✅ Floating Action Button */}
+          <AssignmentsFloatingAction />
+        </div>
       </TabsContent>
     </Tabs>
   )
