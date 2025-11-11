@@ -30,7 +30,9 @@ type Props = {
 const MaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedMaterialIds, setExpandedMaterialIds] = useState<string[]>([])
-  const [quantityById, setQuantityById] = useState<Record<string, number>>({})
+  const [quantityById, setQuantityById] = useState<
+    Record<string, number | undefined>
+  >({})
   const [addingId, setAddingId] = useState<string | null>(null)
 
   /** Backend fetch:
@@ -74,7 +76,11 @@ const MaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
 
     const alreadyPicked = picked.find((m) => m.id === id)?.quantity ?? 0
     const remaining = material.quantity - alreadyPicked
-    const qty = quantityById[id] ?? 1
+    const qty = quantityById[id]
+    if (qty == null || qty <= 0 || isNaN(qty) || qty > remaining) {
+      toast.error('Nieprawidłowa ilość.')
+      return
+    }
 
     if (qty <= 0 || qty > remaining) {
       toast.error('Nieprawidłowa ilość.')
@@ -82,7 +88,10 @@ const MaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
     }
 
     if (!material.materialDefinitionId) {
-      console.error('Material without materialDefinitionId in warehouse!', material)
+      console.error(
+        'Material without materialDefinitionId in warehouse!',
+        material
+      )
       return
     }
 
@@ -92,7 +101,7 @@ const MaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
       id: material.id,
       type: 'MATERIAL',
       name: material.name,
-      materialDefinitionId: material.materialDefinitionId, 
+      materialDefinitionId: material.materialDefinitionId,
       quantity: qty,
     })
     setQuantityById((prev) => ({ ...prev, [id]: 1 }))
@@ -143,13 +152,14 @@ const MaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
                   min={1}
                   max={remaining}
                   className="w-20 h-8 text-sm"
-                  value={quantityById[material.id] ?? 1}
-                  onChange={(e) =>
+                  value={quantityById[material.id] ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value
                     setQuantityById((prev) => ({
                       ...prev,
-                      [material.id]: parseInt(e.target.value) || 1,
+                      [material.id]: val === '' ? undefined : Number(val),
                     }))
-                  }
+                  }}
                 />
                 <Button
                   size="sm"
