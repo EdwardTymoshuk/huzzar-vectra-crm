@@ -65,7 +65,7 @@ const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
 
   return (
     <Tabs defaultValue="warehouse" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-4 mb-2">
         <TabsTrigger value="warehouse">Magazyn</TabsTrigger>
         <TabsTrigger value="technicians">Technicy</TabsTrigger>
         <TabsTrigger value="orders">Wydane</TabsTrigger>

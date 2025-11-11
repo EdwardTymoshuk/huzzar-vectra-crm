@@ -4,10 +4,10 @@ import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 
 import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
-import PageHeader from '@/app/components/shared/PageHeader'
 import { trpc } from '@/utils/trpc'
 import { toast } from 'sonner'
 
+import PageControlBar from '@/app/components/shared/PageControlBar'
 import ChangePasswordDialog from '../components/settings/ChangePasswordDialog'
 import GoalsCard from '../components/settings/GoalsCard'
 import ProfileCard from '../components/settings/ProfileCard'
@@ -41,7 +41,7 @@ const SettingsPage = () => {
 
   return (
     <MaxWidthWrapper>
-      <PageHeader title="Ustawienia" />
+      <PageControlBar title="Ustawienia"></PageControlBar>
 
       <div className="flex flex-col space-y-6">
         <ProfileCard

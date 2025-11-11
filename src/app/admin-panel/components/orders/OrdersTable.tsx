@@ -50,51 +50,76 @@ import OrderDetailsSheet from '../../../components/shared/orders/OrderDetailsShe
 import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
-import OrdersFilter from './OrdersFilter'
 
-/* ============================================================
- * Types
- * ============================================================ */
+/**
+ * OrdersTable
+ * --------------------------------------------------
+ * Displays realized orders (COMPLETED / NOT_COMPLETED).
+ * Supports sorting, pagination, and inline accordion details.
+ * Filters (status, type, technician) are handled externally in OrdersPage.
+ */
+
+/* =============================== TYPES =============================== */
+
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
   include: { assignedTo: { select: { id: true; name: true } } }
 }>
 
 type SortField = null | 'date' | 'status'
 type SortOrder = null | 'asc' | 'desc'
-type Props = { searchTerm: string }
 
-/* ============================================================
- * Guard shell
- * ============================================================ */
-const OrdersTable = ({ searchTerm }: Props) => {
+interface OrdersTableProps {
+  searchTerm: string
+  statusFilter: OrderStatus | null
+  technicianFilter: string | null
+  orderTypeFilter: OrderType | null
+}
+
+/* =============================== MAIN COMPONENT =============================== */
+
+const OrdersTable = ({
+  searchTerm,
+  statusFilter,
+  technicianFilter,
+  orderTypeFilter,
+}: OrdersTableProps) => {
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
   if (isPageLoading) return <LoaderSpinner />
-  return <OrdersTableInner searchTerm={searchTerm} readOnly={isWarehouseman} />
+  return (
+    <OrdersTableInner
+      searchTerm={searchTerm}
+      readOnly={isWarehouseman}
+      statusFilter={statusFilter}
+      technicianFilter={technicianFilter}
+      orderTypeFilter={orderTypeFilter}
+    />
+  )
 }
 
 export default OrdersTable
 
-/* ============================================================
- * OrdersTableInner — realized orders only (COMPLETED / NOT_COMPLETED)
- * ============================================================ */
+/* ============================ INNER TABLE ============================ */
+
 const OrdersTableInner = ({
   searchTerm,
   readOnly,
+  statusFilter,
+  technicianFilter,
+  orderTypeFilter,
 }: {
   searchTerm: string
   readOnly: boolean
+  statusFilter: OrderStatus | null
+  technicianFilter: string | null
+  orderTypeFilter: OrderType | null
 }) => {
   /* -------------------------- Local state ------------------------- */
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(30)
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
-  const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
-  const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | null>(null)
   const [openRowId, setOpenRowId] = useState<string | null>(null)
 
-  // Side panels / dialogs
+  // Dialogs / panels
   const [orderId, setOrderId] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
@@ -106,8 +131,8 @@ const OrdersTableInner = ({
 
   /* ---------------------------- Data ------------------------------ */
   const debouncedSearch = useDebounce(searchTerm, 300)
+  const itemsPerPage = 100 // ✅ fixed per page
 
-  // ✅ Fetch only realized orders (COMPLETED or NOT_COMPLETED)
   const { data, isLoading, isError } = trpc.order.getRealizedOrders.useQuery({
     page: currentPage,
     limit: itemsPerPage,
@@ -153,35 +178,13 @@ const OrdersTableInner = ({
   const GRID =
     'grid grid-cols-[110px_120px_160px_140px_minmax(260px,2fr)_120px_130px_40px_40px_20px]'
 
-  /* ============================================================
-   * Render
-   * ============================================================ */
+  /* ---------------------------- Render ---------------------------- */
   return (
     <div>
-      {/* Filters & page size */}
-      <div className="flex items-center justify-between py-4">
-        <OrdersFilter
-          setStatusFilter={setStatusFilter}
-          setTechnicianFilter={setTechnicianFilter}
-          setOrderTypeFilter={setOrderTypeFilter}
-        />
-        <div className="flex gap-2">
-          {[30, 50, 100].map((n) => (
-            <Button
-              key={n}
-              variant={itemsPerPage === n ? 'default' : 'outline'}
-              onClick={() => setItemsPerPage(n)}
-            >
-              {n}
-            </Button>
-          ))}
-        </div>
-      </div>
-
       {/* Scroll wrapper */}
       <div className="w-full overflow-x-auto">
         <div className="w-full min-w-fit md:min-w-[1100px]">
-          {/* Header */}
+          {/* Header row */}
           <div
             className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-sm text-start font-normal text-muted-foreground select-none`}
           >
@@ -220,7 +223,6 @@ const OrdersTableInner = ({
                 <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
-            {/* 🧠 P/R header with tooltip explanation */}
             <TooltipProvider delayDuration={150}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -233,22 +235,21 @@ const OrdersTableInner = ({
                   className="max-w-[220px] text-center bg-background"
                 >
                   <p>
-                    <span className="text-success font-semibold">P</span> –
-                    dodane przez planer
+                    <span className="text-success font-semibold">P</span> – z
+                    planera
                   </p>
                   <p>
                     <span className="text-warning font-semibold">R</span> –
-                    dodane ręcznie
+                    ręcznie
                   </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
             <span>Akcje</span>
             <span />
           </div>
 
-          {/* Data / Loading / Empty states */}
+          {/* Data states */}
           {isLoading ? (
             <div className="w-full py-10 flex items-center justify-center">
               <LoaderSpinner />
@@ -327,7 +328,8 @@ const OrdersTableInner = ({
                             </span>
                           )}
                         </span>
-                        {/* 🔹 Actions */}
+
+                        {/* 🔹 Row actions */}
                         <span className="text-right">
                           {!readOnly && (
                             <DropdownMenu>
@@ -376,7 +378,6 @@ const OrdersTableInner = ({
                       </div>
                     </AccordionTrigger>
 
-                    {/* Accordion details */}
                     <AccordionContent className="bg-muted/40 px-4 py-3">
                       <OrderAccordionDetails order={{ id: o.id }} />
                     </AccordionContent>
@@ -397,7 +398,7 @@ const OrdersTableInner = ({
         />
       )}
 
-      {/* Side panel */}
+      {/* Side sheet: details */}
       <OrderDetailsSheet
         orderId={orderId}
         open={!!orderId}

@@ -1,67 +1,75 @@
-// app/(dashboard)/billings/page.tsx
 'use client'
 
+import FloatingActionMenu from '@/app/components/shared/FloatingActionMenu'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
-import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
-import MonthPicker from '@/app/components/shared/MonthPicker'
-import PageHeader from '@/app/components/shared/PageHeader'
 import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
-import { Button } from '@/app/components/ui/button'
 import { useRole } from '@/utils/hooks/useRole'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { useState } from 'react'
 import { MdFileDownload } from 'react-icons/md'
+import BillingHeaderBar from '../components/billing/BillingHeaderBar'
 import BillingMonthlySummaryTable from '../components/billing/BillingMonthlySummaryTable'
 import GenerateBillingReportDialog from '../components/billing/GenerateBillingReportDialog'
 
+/**
+ * BillingsPage (Admin)
+ * ------------------------------------------------------------
+ * Main billing summary view for admins.
+ * - Unified layout: header + scrollable content
+ * - Header: title, report button, month picker
+ * - Content: monthly summary table
+ */
 const BillingsPage = () => {
-  // Open/close the report dialog
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
-  // Month filter for the on-page table
   const [month, setMonth] = useState<Date>(startOfMonth(new Date()))
-  // Global page-level loading overlay (used when dialog generates files)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const { isWarehouseman, isLoading: isRoleLoading } = useRole()
+
+  if (isRoleLoading) return <LoaderSpinner />
+  if (isWarehouseman) return <UnauthorizedPage />
 
   const from = format(startOfMonth(month), 'yyyy-MM-dd')
   const to = format(endOfMonth(month), 'yyyy-MM-dd')
 
-  const { isWarehouseman, isLoading: isPageLoading } = useRole()
-
-  if (isPageLoading) return <LoaderSpinner />
-  if (isWarehouseman) return <UnauthorizedPage />
-
   return (
-    <MaxWidthWrapper>
-      {/* Page title */}
-      <PageHeader title="Rozliczenia techników" />
+    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
+      {/* ✅ Header bar */}
+      <BillingHeaderBar
+        title="Rozliczenia techników"
+        selectedMonth={month}
+        onChangeMonth={setMonth}
+      />
 
-      {/* Actions row */}
-      <div className="flex flex-wrap gap-4 items-center mb-4">
-        <Button onClick={() => setReportDialogOpen(true)}>
-          <MdFileDownload />
-          Raport
-        </Button>
-
-        <div className="ml-auto">
-          <MonthPicker
-            selected={month}
-            onChange={(date) => setMonth(startOfMonth(date))}
-          />
-        </div>
+      {/* ✅ Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <BillingMonthlySummaryTable from={from} to={to} />
       </div>
 
-      {/* Main table filtered by month */}
-      <BillingMonthlySummaryTable from={from} to={to} />
+      {/* ✅ Floating Action Menu (Raport) */}
+      <FloatingActionMenu
+        mainTooltip="Raport"
+        mainIcon={<MdFileDownload className="text-2xl" />}
+        actions={[
+          {
+            label: 'Generuj raport',
+            icon: <MdFileDownload className="text-lg" />,
+            colorClass: 'bg-primary hover:bg-primary/90',
+            onClick: () => setReportDialogOpen(true),
+          },
+        ]}
+        disableRotate
+      />
 
-      {/* Report dialog — it will notify this page about loading state */}
+      {/* ✅ Report dialog */}
       <GenerateBillingReportDialog
         open={reportDialogOpen}
         onClose={() => setReportDialogOpen(false)}
-        onLoadingChange={setIsLoading}
+        onLoadingChange={setIsGenerating}
       />
 
-      {/* Fullscreen loading overlay (centered spinner) */}
-      {isLoading && (
+      {/* ✅ Overlay loader while generating */}
+      {isGenerating && (
         <div className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <LoaderSpinner />
@@ -71,7 +79,7 @@ const BillingsPage = () => {
           </div>
         </div>
       )}
-    </MaxWidthWrapper>
+    </div>
   )
 }
 

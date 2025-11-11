@@ -38,7 +38,10 @@ const MobileNav = ({
   isTechnician,
 }: MobileNavProps) => {
   /** Main visible modules (dashboard, orders, etc.) */
-  const mainModules = ['dashboard', 'orders', 'planer', 'planning', 'warehouse']
+  /** Main visible modules (dashboard, orders, etc.) */
+  const mainModules = isTechnician
+    ? ['dashboard', 'orders', 'planer', 'planning', 'warehouse', 'billing']
+    : ['dashboard', 'orders', 'planer', 'planning', 'warehouse']
 
   const visibleItems = menuItems.filter((item) =>
     mainModules.includes(item.key)

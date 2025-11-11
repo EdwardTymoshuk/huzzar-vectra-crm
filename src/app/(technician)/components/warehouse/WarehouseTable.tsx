@@ -35,12 +35,13 @@ import {
 type Props = {
   itemType: WarehouseItemType
   searchTerm: string
+  categoryFilter: string | null
 }
 
 type SortField = null | 'name' | 'category'
 type SortOrder = null | 'asc' | 'desc'
 
-const WarehouseTable = ({ itemType, searchTerm }: Props) => {
+const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
 
@@ -53,9 +54,12 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
   const filtered = useMemo(() => {
     if (!data) return []
     return data.filter(
-      (item) => item.itemType === itemType && !item.transferPending
+      (item) =>
+        item.itemType === itemType &&
+        !item.transferPending &&
+        (!categoryFilter || item.category === categoryFilter)
     )
-  }, [data, itemType])
+  }, [data, itemType, categoryFilter])
 
   /* ---------------------------- grouping ----------------------------- */
   const grouped = useMemo(() => {

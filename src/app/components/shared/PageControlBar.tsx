@@ -4,20 +4,17 @@ import { cn } from '@/lib/utils'
 import { ReactNode } from 'react'
 
 interface PageControlBarProps {
-  /** Main title displayed on the left */
   title: string
-  /** Optional children: search, datepicker, buttons, etc. */
   children?: ReactNode
-  /** Optional class overrides */
   className?: string
 }
 
 /**
  * PageControlBar
  * --------------------------------------------------
- * Reusable top bar for all pages (Planer, Magazyn, Rozliczenia, etc.)
- * - Keeps consistent spacing and alignment.
- * - Each page provides its own children (filters, buttons, etc.).
+ * Shared top header for all pages.
+ * - Edge-to-edge layout on mobile
+ * - Left/right layout on larger screens
  */
 const PageControlBar = ({
   title,
@@ -27,13 +24,18 @@ const PageControlBar = ({
   return (
     <header
       className={cn(
-        'flex flex-col items-center justify-center md:flex-row md:items-center md:justify-between gap-2 border-b bg-background px-3 py-2 z-20 w-full',
+        'flex flex-col sm:flex-row items-center sm:items-center justify-center sm:justify-between',
+        'gap-2 sm:gap-3 w-full border-b bg-background py-2 mb-3 z-20',
+        'px-1',
         className
       )}
     >
-      <h1 className="text-lg font-semibold text-primary">{title}</h1>
+      <h1 className="text-lg font-semibold text-primary w-full sm:w-fit text-center sm:text-left">
+        {title}
+      </h1>
+
       {children && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 items-center justify-center sm:justify-end">
           {children}
         </div>
       )}

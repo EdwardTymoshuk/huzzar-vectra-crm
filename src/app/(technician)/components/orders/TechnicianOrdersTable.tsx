@@ -9,7 +9,6 @@ import {
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
 import { Badge } from '@/app/components/ui/badge'
-import { Button } from '@/app/components/ui/button'
 import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
@@ -23,7 +22,6 @@ import {
   TiArrowUnsorted,
 } from 'react-icons/ti'
 import TechnicianCompletedOrderDetails from './TechnicianCompletedOrderDetails'
-import { TechnicianOrdersFilter } from './TechnicianOrdersFilter'
 
 type OrderRow = Prisma.OrderGetPayload<{
   select: {
@@ -49,27 +47,29 @@ type Props = {
   searchTerm: string
   autoOpenOrderId?: string
   onAutoOpenHandled?: () => void
+  statusFilter: OrderStatus | null
+  typeFilter: OrderType | null
 }
 
 const TechnicianOrdersTable = ({
   searchTerm,
   autoOpenOrderId,
   onAutoOpenHandled,
+  statusFilter,
+  typeFilter,
 }: Props) => {
   const { data: session } = useSession()
   const myId = session?.user.id
 
   const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(30)
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
-  const [statusF, setStatusF] = useState<OrderStatus | null>(null)
-  const [typeF, setTypeF] = useState<OrderType | null>(null)
+  const perPage = 100
 
   useEffect(() => {
     setPage(1)
-  }, [statusF, typeF])
+  }, [statusFilter, typeFilter])
 
   const {
     data: list,
@@ -80,8 +80,8 @@ const TechnicianOrdersTable = ({
     limit: perPage,
     sortField: sortField ?? undefined,
     sortOrder: sortOrder ?? undefined,
-    status: statusF ?? undefined,
-    type: typeF ?? undefined,
+    status: statusFilter ?? undefined,
+    type: typeFilter ?? undefined,
     searchTerm: searchTerm || undefined,
   })
 
@@ -165,31 +165,6 @@ const TechnicianOrdersTable = ({
 
   return (
     <div>
-      <div className="flex flex-col md:flex-row md:justify-between gap-2 py-4">
-        <TechnicianOrdersFilter
-          statusValue={statusF}
-          typeValue={typeF}
-          setStatusFilterAction={setStatusF}
-          setOrderTypeFilterAction={setTypeF}
-          onClearAction={() => {
-            setStatusF(null)
-            setTypeF(null)
-            setPage(1)
-          }}
-        />
-        <div className="flex gap-2">
-          {[30, 50, 100].map((n) => (
-            <Button
-              key={n}
-              variant={perPage === n ? 'default' : 'outline'}
-              onClick={() => setPerPage(n)}
-            >
-              {n}
-            </Button>
-          ))}
-        </div>
-      </div>
-
       <div className="w-full md:overflow-x-auto">
         <div className="w-full min-w-fit md:min-w-[1050px]">
           <div className="hidden md:grid grid-cols-[150px_minmax(180px,1fr)_minmax(280px,2fr)_140px_120px_120px] gap-2 px-4 py-2 border-b text-sm text-muted-foreground select-none">

@@ -111,7 +111,7 @@ const ItemTabs = ({ items }: Props) => {
       </TabsList>
 
       {tabs.map(({ key }) => (
-        <TabsContent key={key} value={key}>
+        <TabsContent key={key} value={key} className="mt-2">
           {renderTab(key)}
         </TabsContent>
       ))}

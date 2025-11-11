@@ -120,7 +120,7 @@ const FloatingActionMenu = ({
                         )}
                       >
                         {action.icon}
-                        <span className="hidden sm:inline">{action.label}</span>
+                        <span>{action.label}</span>
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="left">{action.label}</TooltipContent>

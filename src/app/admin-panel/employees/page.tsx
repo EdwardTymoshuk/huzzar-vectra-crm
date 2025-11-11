@@ -1,11 +1,8 @@
 'use client'
 
-import MaxWidthWrapper from '@/app/components/shared/MaxWidthWrapper'
-import PageHeader from '@/app/components/shared/PageHeader'
-import SearchInput from '@/app/components/shared/SearchInput'
+import FloatingActionMenu from '@/app/components/shared/FloatingActionMenu'
 import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
 import AddUserDialog from '@/app/components/shared/users/AddUserDialog'
-import { Button } from '@/app/components/ui/button'
 import {
   Tabs,
   TabsContent,
@@ -15,53 +12,67 @@ import {
 import { useRole } from '@/utils/hooks/useRole'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
+import EmployeesHeaderBar from '../components/employees/EmployeesHeaderBar'
 import EmployeesTable from '../components/employees/EmployeesTable'
 
+/**
+ * EmployeesPage (Admin)
+ * --------------------------------------------------
+ * - Full viewport layout (like PlanningPage)
+ * - Unified header bar + floating add button
+ * - Tabbed table view (active / archived)
+ */
 const EmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-  const { isWarehouseman, isLoading: isPageLoading } = useRole()
-  if (isPageLoading) return null
+  const { isWarehouseman, isLoading } = useRole()
+  if (isLoading) return null
   if (isWarehouseman) return <UnauthorizedPage />
 
   return (
-    <MaxWidthWrapper>
-      <PageHeader title="Pracownicy" />
+    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
+      {/* ✅ Header bar */}
+      <EmployeesHeaderBar searchTerm={searchTerm} onSearch={setSearchTerm} />
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 my-4">
-        <Button variant="success" onClick={() => setIsAddDialogOpen(true)}>
-          <MdAdd className="mr-2" />
-          Dodaj pracownika
-        </Button>
-        <SearchInput
-          className="w-full sm:w-1/2 lg:w-1/3"
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Szukaj pracownika"
-        />
+      {/* ✅ Main content */}
+      <div className="flex-1 overflow-y-auto px-2 md:px-4">
+        <Tabs defaultValue="active" className="w-full mt-2">
+          <div className="w-full flex justify-center mb-2">
+            <TabsList className="w-full md:w-1/2 lg:w-1/4 justify-center">
+              <TabsTrigger value="active" className="w-full">
+                Aktywni
+              </TabsTrigger>
+              <TabsTrigger value="archived" className="w-full">
+                Zarchiwizowani
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="active" className="space-y-2">
+            <EmployeesTable searchTerm={searchTerm} status="ACTIVE" />
+          </TabsContent>
+          <TabsContent value="archived" className="space-y-2">
+            <EmployeesTable searchTerm={searchTerm} status="INACTIVE" />
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <Tabs defaultValue="active" className="w-full">
-        <div className="w-full flex justify-center">
-          <TabsList className="w-full md:w-1/2 lg:w-1/4 justify-center">
-            <TabsTrigger value="active" className="w-full">
-              Aktywni
-            </TabsTrigger>
-            <TabsTrigger value="archived" className="w-full">
-              Zarchiwizowani
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      {/* ✅ Floating add button */}
+      <FloatingActionMenu
+        actions={[
+          {
+            label: 'Dodaj pracownika',
+            icon: <MdAdd className="text-xl" />,
+            colorClass: 'bg-success hover:bg-success/90',
+            onClick: () => setIsAddDialogOpen(true),
+          },
+        ]}
+        mainIcon={<MdAdd className="text-3xl" />}
+        mainTooltip="Dodaj pracownika"
+      />
 
-        <TabsContent value="active">
-          <EmployeesTable searchTerm={searchTerm} status="ACTIVE" />
-        </TabsContent>
-        <TabsContent value="archived">
-          <EmployeesTable searchTerm={searchTerm} status="INACTIVE" />
-        </TabsContent>
-      </Tabs>
-
+      {/* ✅ Add user dialog */}
       {isAddDialogOpen && (
         <AddUserDialog
           open={isAddDialogOpen}
@@ -69,7 +80,7 @@ const EmployeesPage = () => {
           defaultRole="TECHNICIAN"
         />
       )}
-    </MaxWidthWrapper>
+    </div>
   )
 }
 

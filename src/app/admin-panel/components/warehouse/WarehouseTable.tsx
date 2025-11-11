@@ -26,46 +26,35 @@ import {
   TiArrowUnsorted,
 } from 'react-icons/ti'
 import PaginationControls from '../warehouse/history/PaginationControls'
-import WarehouseFilter from './WarehouseFilter'
 
 type Props = {
   itemType: WarehouseItemType
   searchTerm: string
+  categoryFilter: string | null
 }
 
-type SortField = null | 'name' | 'category'
-type SortOrder = null | 'asc' | 'desc'
-
-type GroupedItem = {
-  name: string
-  category: string
-  quantity: number
-  price: number
-}
-
-const WarehouseTable = ({ itemType, searchTerm }: Props) => {
-  // Sorting
-  const [sortField, setSortField] = useState<SortField>(null)
-  const [sortOrder, setSortOrder] = useState<SortOrder>(null)
-
-  // Filters
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-
-  // Pagination
+/**
+ * WarehouseTable
+ * ------------------------------------------------------
+ * Displays grouped warehouse items by type (device/material),
+ * with sorting, pagination and highlighting of search terms.
+ * Filters (category) are now handled externally via props.
+ */
+const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
+  const [sortField, setSortField] = useState<'name' | 'category' | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(30)
+  const itemsPerPage = 100 // ✅ fixed limit
 
   const locationId = useActiveLocation()
   const { isAdmin, isCoordinator, isTechnician } = useRole()
 
   const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery(
     { locationId: locationId ?? undefined },
-    {
-      enabled: isAdmin || isCoordinator ? !!locationId : !isTechnician,
-    }
+    { enabled: isAdmin || isCoordinator ? !!locationId : !isTechnician }
   )
 
-  /** 1) Base filtering */
+  /** Filter data */
   const filtered = useMemo(() => {
     if (!data) return []
     return data.filter((item) => {
@@ -78,10 +67,15 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     })
   }, [data, itemType, categoryFilter])
 
-  /** 2) Group by name */
-  const grouped: GroupedItem[] = useMemo(() => {
-    const acc = filtered.reduce<Record<string, GroupedItem>>((map, item) => {
-      const key = `${item.name} ?? ''}`
+  /** Group items */
+  const grouped = useMemo(() => {
+    const acc = filtered.reduce<
+      Record<
+        string,
+        { name: string; category: string; quantity: number; price: number }
+      >
+    >((map, item) => {
+      const key = `${item.name} ?? ''`
       if (!map[key]) {
         map[key] = {
           name: item.name,
@@ -98,16 +92,16 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     return Object.values(acc)
   }, [filtered])
 
-  /** 3) Search */
-  const searchedItems: GroupedItem[] = useMemo(() => {
+  /** Apply search */
+  const searched = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!q) return grouped
     return grouped.filter((it) => it.name.toLowerCase().includes(q))
   }, [grouped, searchTerm])
 
-  /** 4) Sort */
-  const sortedItems: GroupedItem[] = useMemo(() => {
-    const items = [...searchedItems]
+  /** Sorting */
+  const sorted = useMemo(() => {
+    const items = [...searched]
     if (!sortField || !sortOrder) return items
     return items.sort((a, b) => {
       const aVal = (a[sortField] ?? '') as string
@@ -116,38 +110,36 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
         ? aVal.localeCompare(bVal)
         : bVal.localeCompare(aVal)
     })
-  }, [searchedItems, sortField, sortOrder])
+  }, [searched, sortField, sortOrder])
 
-  /** 5) Pagination */
-  const totalPages = Math.max(1, Math.ceil(sortedItems.length / itemsPerPage))
-
+  /** Pagination */
+  const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage))
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
-    return sortedItems.slice(start, start + itemsPerPage)
-  }, [sortedItems, currentPage, itemsPerPage])
+    return sorted.slice(start, start + itemsPerPage)
+  }, [sorted, currentPage, itemsPerPage])
 
   /** Handlers */
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: 'name' | 'category') => {
     if (sortField !== field) {
       setSortField(field)
       setSortOrder('asc')
     } else {
-      setSortOrder((prev) =>
-        prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc'
+      setSortOrder(
+        sortOrder === 'asc' ? 'desc' : sortOrder === 'desc' ? null : 'asc'
       )
       if (sortOrder === 'desc') setSortField(null)
     }
     setCurrentPage(1)
   }
 
-  const renderSortIcon = (field: Exclude<SortField, null>) => {
-    if (sortField !== field) {
+  const renderSortIcon = (field: 'name' | 'category') => {
+    if (sortField !== field)
       return <TiArrowUnsorted className="w-4 h-4 text-muted-foreground" />
-    }
     return sortOrder === 'asc' ? (
       <TiArrowSortedUp className="w-4 h-4" />
     ) : (
@@ -155,9 +147,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     )
   }
 
-  /* ---------------------- UI states ---------------------- */
-
-  /* ---------------------- LOADING ---------------------- */
+  /** UI states */
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -184,45 +174,22 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
     )
   }
 
-  /* ---------------------- Render ---------------------- */
+  /** Render */
   return (
     <div className="border rounded-md mb-4">
-      {/* Filters & page size */}
-      <div className="flex items-center justify-between p-2">
-        <WarehouseFilter setCategoryFilter={setCategoryFilter} />
-
-        <div className="flex gap-2">
-          {[30, 50, 100].map((n) => (
-            <Button
-              key={n}
-              variant={itemsPerPage === n ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setItemsPerPage(n)
-                setCurrentPage(1)
-              }}
-            >
-              {n}
-            </Button>
-          ))}
-        </div>
-      </div>
-
       <Table>
         <TableHeader>
           <TableRow>
             {itemType === 'DEVICE' && (
-              <>
-                <TableHead
-                  className="cursor-pointer select-none"
-                  onClick={() => handleSort('category')}
-                >
-                  <div className="flex items-center gap-1">
-                    <span>Kategoria</span>
-                    {renderSortIcon('category')}
-                  </div>
-                </TableHead>
-              </>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => handleSort('category')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Kategoria</span>
+                  {renderSortIcon('category')}
+                </div>
+              </TableHead>
             )}
             <TableHead
               className="cursor-pointer select-none"
@@ -233,7 +200,6 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                 {renderSortIcon('name')}
               </div>
             </TableHead>
-
             <TableHead>Ilość dostępna</TableHead>
             <TableHead>Cena j.</TableHead>
             <TableHead>Wartość</TableHead>
@@ -244,7 +210,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
         <TableBody>
           {pageItems.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={itemType === 'DEVICE' ? 6 : 4}>
+              <TableCell colSpan={itemType === 'DEVICE' ? 6 : 5}>
                 <p className="py-6 text-center text-muted-foreground">
                   Brak pozycji w tej kategorii.
                 </p>
@@ -253,7 +219,7 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
           ) : (
             pageItems.map((item) => {
               const value = item.price * item.quantity
-              const variant: 'default' | 'success' | 'warning' | 'danger' =
+              const variant: 'success' | 'warning' | 'danger' =
                 item.quantity <= 5
                   ? 'danger'
                   : item.quantity <= 15
@@ -263,13 +229,10 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
               return (
                 <TableRow key={`${item.name}-${item.category}`}>
                   {itemType === 'DEVICE' && (
-                    <>
-                      <TableCell>
-                        {devicesTypeMap[item.category] ?? item.category}
-                      </TableCell>
-                    </>
+                    <TableCell>
+                      {devicesTypeMap[item.category] ?? item.category}
+                    </TableCell>
                   )}
-
                   <TableCell>
                     <Highlight
                       highlightClassName="bg-yellow-200"
@@ -278,13 +241,11 @@ const WarehouseTable = ({ itemType, searchTerm }: Props) => {
                       textToHighlight={item.name}
                     />
                   </TableCell>
-
                   <TableCell>
                     <Badge variant={variant}>{item.quantity}</Badge>
                   </TableCell>
                   <TableCell>{item.price.toFixed(2)} zł</TableCell>
                   <TableCell>{value.toFixed(2)} zł</TableCell>
-
                   <TableCell>
                     <Button asChild size="sm" variant="ghost">
                       <NavLink
