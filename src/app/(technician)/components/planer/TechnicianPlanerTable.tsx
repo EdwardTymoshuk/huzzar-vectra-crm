@@ -182,8 +182,17 @@ const TechnicianPlanerTable = ({
       })
     )
 
-    // Prefer to display incoming items first for visibility, then active
-    return [...inc, ...base]
+    // Merge incoming + active
+    const merged = [...inc, ...base]
+
+    // ✅ Sort newest first (descending by date)
+    merged.sort((a, b) => {
+      const diff = b.date.getTime() - a.date.getTime()
+      if (diff !== 0) return diff
+      return a.timeSlot.localeCompare(b.timeSlot)
+    })
+
+    return merged
   }, [activeOrders, incomingTransfers])
 
   /* ---------------------- Client-side search ---------------------- */
