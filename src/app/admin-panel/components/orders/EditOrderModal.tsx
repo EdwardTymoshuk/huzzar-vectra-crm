@@ -16,7 +16,7 @@ import { OrderStatus, Prisma } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { OrderFormFields } from './OrderFormFields'
+import { OrderFormFields } from '../../../components/shared/orders/OrderFormFields'
 
 type OrderWithAssignedTo = Prisma.OrderGetPayload<{
   include: {

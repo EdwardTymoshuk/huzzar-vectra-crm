@@ -2,18 +2,16 @@
 
 import PaginationControls from '@/app/admin-panel/components/warehouse/history/PaginationControls'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import OrderStatusBadge from '@/app/components/shared/OrderStatusBadge'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
-import { Badge } from '@/app/components/ui/badge'
-import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
-import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
+import { orderTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
-import { useSession } from 'next-auth/react'
+import { OrderStatus, OrderType, Prisma } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import {
@@ -23,6 +21,13 @@ import {
 } from 'react-icons/ti'
 import TechnicianCompletedOrderDetails from './TechnicianCompletedOrderDetails'
 
+/**
+ * TechnicianOrdersTable
+ * --------------------------------------------------------------
+ * Displays technician’s realized orders (COMPLETED / NOT_COMPLETED)
+ * in a layout visually consistent with admin OrdersTable.
+ */
+
 type OrderRow = Prisma.OrderGetPayload<{
   select: {
     id: true
@@ -31,12 +36,8 @@ type OrderRow = Prisma.OrderGetPayload<{
     city: true
     street: true
     date: true
-    timeSlot: true
     status: true
-    transferPending: true
-    transferToId: true
-    transferTo: { select: { id: true; name: true } }
-    assignedTo: { select: { id: true; name: true } }
+    operator: true
   }
 }>
 
@@ -58,18 +59,14 @@ const TechnicianOrdersTable = ({
   statusFilter,
   typeFilter,
 }: Props) => {
-  const { data: session } = useSession()
-  const myId = session?.user.id
-
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [openIds, setOpenIds] = useState<string[]>([])
 
   const perPage = 100
 
-  useEffect(() => {
-    setPage(1)
-  }, [statusFilter, typeFilter])
+  useEffect(() => setPage(1), [statusFilter, typeFilter])
 
   const {
     data: list,
@@ -85,77 +82,42 @@ const TechnicianOrdersTable = ({
     searchTerm: searchTerm || undefined,
   })
 
-  const orders: OrderRow[] = useMemo(() => {
-    return (list?.orders ?? []).map((o) => ({
-      ...o,
-      transferPending: false,
-      transferTo: null,
-      transferToId: null,
-    }))
-  }, [list?.orders])
+  const orders: OrderRow[] = useMemo(
+    () => (list?.orders ?? []) as OrderRow[],
+    [list?.orders]
+  )
 
   const totalPages = Math.ceil((list?.totalOrders || 1) / perPage)
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
-  const filtered = useMemo(
-    () =>
-      orders.filter(
-        (o) =>
-          o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          `${o.city} ${o.street}`
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-      ),
-    [orders, searchTerm]
-  )
-
-  const handleSort = (field: 'date' | 'status') => {
-    if (sortField !== field) {
-      setSortField(field)
-      setSortOrder('asc')
-      return
-    }
-    if (sortOrder === 'asc') {
-      setSortOrder('desc')
-    } else if (sortOrder === 'desc') {
-      setSortOrder(null)
-      setSortField(null)
-    } else {
-      setSortOrder('asc')
-    }
-  }
-
-  const badgeFor = (o: OrderRow) => {
-    const outPending = o.transferPending && o.assignedTo?.id === myId
-    const incomingRow = o.transferPending && o.transferToId === myId
-    if (incomingRow)
-      return {
-        txt: 'Do akceptacji',
-        cls: 'bg-amber-400 text-amber-950 hover:bg-amber-400/80',
-      }
-    if (outPending)
-      return {
-        txt: 'Przekazane',
-        cls: 'bg-amber-300 text-amber-900 hover:bg-amber-300/80',
-      }
-    return { txt: statusMap[o.status], cls: statusColorMap[o.status] }
-  }
-
-  const [openIds, setOpenIds] = useState<string[]>([])
   useEffect(() => {
     if (autoOpenOrderId && !openIds.includes(autoOpenOrderId)) {
       setOpenIds((prev) => [...prev, autoOpenOrderId])
     }
   }, [autoOpenOrderId, openIds])
 
+  const handleSort = (field: 'date' | 'status') => {
+    if (sortField !== field) {
+      setSortField(field)
+      setSortOrder('asc')
+    } else {
+      setSortOrder(
+        sortOrder === 'asc' ? 'desc' : sortOrder === 'desc' ? null : 'asc'
+      )
+      if (sortOrder === 'desc') setSortField(null)
+    }
+  }
+
+  /* --------------------------- RENDER --------------------------- */
   if (isLoading)
     return (
-      <div className="w-full flex justify-center">
+      <div className="w-full flex justify-center py-10">
         <LoaderSpinner />
       </div>
     )
+
   if (isError)
     return (
       <p className="w-full py-6 text-center text-destructive">
@@ -163,19 +125,23 @@ const TechnicianOrdersTable = ({
       </p>
     )
 
+  const GRID =
+    'hidden md:grid md:grid-cols-[120px_120px_minmax(220px,1fr)_minmax(280px,2fr)_120px]'
+
   return (
     <div>
-      <div className="w-full md:overflow-x-auto">
-        <div className="w-full min-w-fit md:min-w-[1050px]">
-          <div className="hidden md:grid grid-cols-[150px_minmax(180px,1fr)_minmax(280px,2fr)_140px_120px_120px] gap-2 px-4 py-2 border-b text-sm text-muted-foreground select-none">
+      <div className="w-full overflow-x-auto">
+        <div className="w-full min-w-fit md:min-w-[900px]">
+          {/* Header row */}
+          <div
+            className={`${GRID} gap-2 px-4 py-2 border-b text-sm uppercase text-start font-semibold text-muted-foreground select-none`}
+          >
             <span>Typ</span>
-            <span>Nr zlecenia</span>
-            <span>Adres</span>
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('date')}
             >
-              Data{' '}
+              Data
               {sortField === 'date' ? (
                 sortOrder === 'asc' ? (
                   <TiArrowSortedUp />
@@ -183,15 +149,16 @@ const TechnicianOrdersTable = ({
                   <TiArrowSortedDown />
                 )
               ) : (
-                <TiArrowUnsorted className="opacity-50" />
+                <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
-            <span>Slot</span>
+            <span>Nr zlecenia</span>
+            <span>Adres</span>
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('status')}
             >
-              Status{' '}
+              Status
               {sortField === 'status' ? (
                 sortOrder === 'asc' ? (
                   <TiArrowSortedUp />
@@ -199,14 +166,15 @@ const TechnicianOrdersTable = ({
                   <TiArrowSortedDown />
                 )
               ) : (
-                <TiArrowUnsorted className="opacity-50" />
+                <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
           </div>
 
-          {filtered.length === 0 ? (
+          {/* Data rows */}
+          {orders.length === 0 ? (
             <p className="py-10 text-center text-muted-foreground">
-              Brak wyników.
+              Brak zrealizowanych zleceń.
             </p>
           ) : (
             <Accordion
@@ -214,62 +182,93 @@ const TechnicianOrdersTable = ({
               value={openIds}
               onValueChange={setOpenIds}
             >
-              {filtered.map((o) => {
+              {orders.map((o) => {
                 const open = openIds.includes(o.id)
-                const incomingRow = o.transferPending && o.transferToId === myId
-                const outgoingPending =
-                  o.transferPending && o.assignedTo?.id === myId
-                const badge = badgeFor(o)
-
                 return (
-                  <AccordionItem
-                    key={o.id}
-                    value={o.id}
-                    className={
-                      incomingRow || outgoingPending ? 'opacity-60' : ''
-                    }
-                  >
+                  <AccordionItem key={o.id} value={o.id} className="min-w-fit">
                     <AccordionTrigger
-                      className="px-4 py-3 text-start hover:bg-muted/40"
-                      onClick={() =>
-                        setOpenIds(
-                          open
-                            ? openIds.filter((id) => id !== o.id)
-                            : [...openIds, o.id]
-                        )
-                      }
+                      className="text-sm font-normal px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
+                      asChild
                     >
-                      <div className="w-full grid grid-cols-1 md:grid-cols-[150px_minmax(180px,1fr)_minmax(280px,2fr)_140px_120px_120px] gap-2 text-sm items-start">
-                        <div>{orderTypeMap[o.type] ?? '—'}</div>
-                        <div className="space-y-1">
-                          <Highlight
-                            searchWords={[searchTerm]}
-                            textToHighlight={o.orderNumber}
-                            className="break-all"
-                          />
-                          <div className="md:hidden">
-                            <Badge className={badge.cls}>{badge.txt}</Badge>
+                      <div
+                        onClick={() =>
+                          setOpenIds(
+                            open
+                              ? openIds.filter((id) => id !== o.id)
+                              : [...openIds, o.id]
+                          )
+                        }
+                        className="w-full"
+                      >
+                        {/* ===== DESKTOP VIEW ===== */}
+                        <div
+                          className={`${GRID} w-full gap-2 items-center text-start`}
+                        >
+                          <span>{orderTypeMap[o.type]}</span>
+                          <span>{new Date(o.date).toLocaleDateString()}</span>
+                          <span
+                            className="min-w-0 whitespace-normal break-words"
+                            title={o.orderNumber}
+                          >
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={o.orderNumber}
+                              autoEscape
+                            />
+                          </span>
+                          <span
+                            className="min-w-0 whitespace-normal break-words"
+                            title={`${o.city}, ${o.street}`}
+                          >
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={`${o.city}, ${o.street}`}
+                              autoEscape
+                            />
+                          </span>
+                          <span>
+                            <OrderStatusBadge status={o.status} compact />
+                          </span>
+                        </div>
+
+                        {/* ===== MOBILE VIEW ===== */}
+                        <div className="md:hidden flex flex-col gap-1 text-sm border-b last:border-0 pb-3 mb-2 w-full">
+                          <div className="flex justify-between items-start">
+                            <div className="flex flex-col text-[11px] text-muted-foreground uppercase leading-tight">
+                              <span>{orderTypeMap[o.type]}</span>
+                              <span>{o.operator}</span>
+                            </div>
+                            <div className="flex flex-col text-[11px] text-right text-muted-foreground leading-tight">
+                              <span>
+                                {new Date(o.date).toLocaleDateString()}
+                              </span>
+                              <OrderStatusBadge
+                                status={o.status}
+                                compact
+                                className="mt-1 self-end"
+                              />
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <Highlight
-                            searchWords={[searchTerm]}
-                            textToHighlight={`${o.city}, ${o.street}`}
-                          />
-                        </div>
-                        <div className="hidden md:block">
-                          {new Date(o.date).toLocaleDateString()}
-                        </div>
-                        <div className="hidden md:block">
-                          {getTimeSlotLabel(o.timeSlot as TimeSlot)}
-                        </div>
-                        <div className="hidden md:block">
-                          <Badge className={badge.cls}>{badge.txt}</Badge>
+
+                          <div className="font-semibold text-sm mt-1 tracking-wide">
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={o.orderNumber}
+                              autoEscape
+                            />
+                          </div>
+                          <div className="font-semibold text-xs uppercase">
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={`${o.city}, ${o.street}`}
+                              autoEscape
+                            />
+                          </div>
                         </div>
                       </div>
                     </AccordionTrigger>
 
-                    <AccordionContent className="bg-muted/30 px-4 py-3">
+                    <AccordionContent className="bg-muted/40 px-4 py-3">
                       <TechnicianCompletedOrderDetails
                         orderId={o.id}
                         autoOpen={autoOpenOrderId === o.id}

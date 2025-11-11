@@ -2,7 +2,9 @@
 
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import OrderDetailsContent from '@/app/components/shared/orders/OrderDetailsContent'
+import OrderTimeline from '@/app/components/shared/orders/OrderTimeline'
 import { Button } from '@/app/components/ui/button'
+import { Separator } from '@/app/components/ui/separator'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -115,35 +117,54 @@ const TechnicianCompletedOrderDetails = ({
 
   /* ---------------- Render ---------------- */
   return (
-    <div className="space-y-6 text-sm bg-card text-card-foreground p-4 rounded-lg">
-      {/* Order details */}
-      <OrderDetailsContent order={data} hideTechnician />
+    <div className="flex flex-col md:flex-row gap-6">
+      {/* -------- LEFT COLUMN: main content -------- */}
+      <div className="space-y-4 flex-1">
+        <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
+        <OrderDetailsContent order={data} hideTechnician />
 
-      {canShowAmendButton && (
-        <div className="flex gap-2">
-          <Button variant="success" onClick={() => setShowCompleteModal(true)}>
-            <MdEdit className="mr-1" />
-            Edytuj / uzupełnij odpis
-          </Button>
-        </div>
-      )}
-      {/* Complete wizard modal */}
-      <CompleteOrderWizard
-        key={data.id}
-        open={showCompleteModal}
-        order={data}
-        orderType={data.type}
-        onCloseAction={async () => {
-          setShowCompleteModal(false)
-          await utils.order.getRealizedOrders.invalidate()
-          await utils.order.getOrderById.invalidate({ id: orderId })
-        }}
-        materialDefs={materialDefs}
-        techMaterials={techMaterials}
-        devices={devices}
-        workCodeDefs={workCodeDefs}
-        mode={canShowAmendButton ? 'amend' : 'complete'}
+        {canShowAmendButton && (
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="success"
+              onClick={() => setShowCompleteModal(true)}
+            >
+              <MdEdit className="mr-1" />
+              Edytuj / uzupełnij odpis
+            </Button>
+          </div>
+        )}
+
+        {/* Complete wizard modal */}
+        <CompleteOrderWizard
+          key={data.id}
+          open={showCompleteModal}
+          order={data}
+          orderType={data.type}
+          onCloseAction={async () => {
+            setShowCompleteModal(false)
+            await utils.order.getRealizedOrders.invalidate()
+            await utils.order.getOrderById.invalidate({ id: orderId })
+          }}
+          materialDefs={materialDefs}
+          techMaterials={techMaterials}
+          devices={devices}
+          workCodeDefs={workCodeDefs}
+          mode={canShowAmendButton ? 'amend' : 'complete'}
+        />
+      </div>
+
+      {/* Separator: poziomy na mobile, pionowy na desktop */}
+      <Separator
+        className="my-6 md:my-0 md:h-auto md:w-px"
+        orientation="horizontal"
       />
+
+      {/* -------- RIGHT COLUMN: timeline -------- */}
+      <div className="flex-1">
+        <h3 className="text-base font-semibold mb-2">Historia zlecenia</h3>
+        <OrderTimeline order={data} />
+      </div>
     </div>
   )
 }

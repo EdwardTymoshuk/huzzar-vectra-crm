@@ -1,21 +1,18 @@
 'use client'
 
-import { Badge } from '@/app/components/ui/badge'
-import {
-  devicesTypeMap,
-  materialUnitMap,
-  statusColorMap,
-  statusMap,
-} from '@/lib/constants'
-import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
-import { DeviceCategory, OrderStatus, Prisma, TimeSlot } from '@prisma/client'
+import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
+import { DeviceCategory, OrderStatus, Prisma } from '@prisma/client'
 import React from 'react'
 
 /** Exact payload returned by getOrderById */
 export type OrderWithDetails = Prisma.OrderGetPayload<{
   include: {
     assignedTo: { select: { id: true; name: true } }
-    settlementEntries: true
+    settlementEntries: {
+      include: {
+        rate: true
+      }
+    }
     usedMaterials: { include: { material: true } }
     assignedEquipment: { include: { warehouse: true } }
     services: {
@@ -38,27 +35,17 @@ type Props = {
  * - Shows codes, materials, issued and collected equipment, services, notes, etc.
  * - Automatically handles both INSTALLATION and SERVICE/OUTAGE orders.
  */
-const OrderDetailsContent = ({
-  order,
-  hideTechnician = false,
-  isConfirmed = false,
-}: Props) => {
+const OrderDetailsContent = ({ order }: Props) => {
   const {
-    orderNumber,
-    city,
-    street,
-    operator,
-    date,
-    timeSlot,
     status,
-    assignedTo,
-    closedAt,
+    completedAt,
     settlementEntries,
     usedMaterials,
     assignedEquipment,
     services,
     failureReason,
     notes,
+    attemptNumber,
   } = order
 
   // Split assigned equipment into issued vs collected
@@ -69,59 +56,23 @@ const OrderDetailsContent = ({
     (e) => e.warehouse.status === 'COLLECTED_FROM_CLIENT'
   )
 
-  // Services without linked device (standalone)
-  const standalone = services.filter(
-    (s) => !s.deviceId && s.deviceSource !== 'CLIENT'
-  )
-
   return (
     <div className="space-y-6 text-sm w-full">
       {/* ===== Header ===== */}
       <div className="space-y-1">
-        <HeaderRow label="Nr zlecenia" value={orderNumber} />
-        <HeaderRow label="Adres" value={`${city}, ${street}`} />
-        <HeaderRow label="Operator" value={operator} />
-        <HeaderRow label="Data" value={new Date(date).toLocaleDateString()} />
-        <HeaderRow
-          label="Slot czasowy"
-          value={getTimeSlotLabel(timeSlot as TimeSlot)}
-        />
-        <HeaderRow
-          label="Status"
-          value={
-            <div className="flex items-center gap-2">
-              <Badge className={statusColorMap[status] + ' w-fit'}>
-                {statusMap[status]}
-              </Badge>
-              {isConfirmed && (
-                <Badge className="bg-success w-fit">ZATWIERDZONE</Badge>
-              )}
-            </div>
-          }
-        />
-        {!hideTechnician && (
-          <HeaderRow label="Technik" value={assignedTo?.name || 'Nieznany'} />
-        )}
-        {closedAt && (
+        {completedAt && (
           <HeaderRow
             label="Data zakończenia"
-            value={new Date(closedAt).toLocaleString()}
+            value={new Date(completedAt).toLocaleString()}
           />
         )}
+        {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
       </div>
 
       {/* ===== Work codes ===== */}
       <Section
         title="Kody pracy"
         list={settlementEntries.map((s) => `${s.code} × ${s.quantity}`)}
-      />
-
-      {/* ===== Materials ===== */}
-      <Section
-        title="Zużyty materiał"
-        list={usedMaterials.map(
-          (m) => `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`
-        )}
       />
 
       {/* ===== Issued equipment ===== */}
@@ -283,23 +234,37 @@ const OrderDetailsContent = ({
         })}
       />
 
-      {/* ===== Additional standalone services ===== */}
-      {standalone.length > 0 && (
-        <Section
-          title="Dodatkowe usługi"
-          list={(() => {
-            const grouped: Record<string, number> = {}
-            standalone.forEach((s) => {
-              const label =
-                s.type === 'ATV' ? 'ATV' : s.type === 'TEL' ? 'TEL' : s.type
-              grouped[label] = (grouped[label] || 0) + 1
-            })
-            return Object.entries(grouped).map(([label, count]) =>
-              count > 1 ? `${label} × ${count}` : label
-            )
-          })()}
-        />
-      )}
+      {/* ===== Materials ===== */}
+      <Section
+        title="Zużyty materiał"
+        list={usedMaterials.map(
+          (m) => `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`
+        )}
+      />
+
+      {/* ===== Activated services ===== */}
+      <section className="pt-4 border-t border-border space-y-1">
+        <h4 className="font-semibold">Uruchomione usługi</h4>
+        {services.length ? (
+          <ul className="list-none list-inside">
+            {services.map((s) => (
+              <li key={s.id} className="mt-1">
+                {/* Type name */}
+                <div className="font-medium">{s.type}</div>
+
+                {/* Comment / notes */}
+                {s.notes && (
+                  <div className="text-xs text-muted-foreground ml-4">
+                    {s.notes}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </section>
 
       {/* ===== Not completed reason ===== */}
       {status === OrderStatus.NOT_COMPLETED && (
@@ -308,6 +273,17 @@ const OrderDetailsContent = ({
 
       {/* ===== Notes ===== */}
       {notes && <Section title="Uwagi" list={[notes]} />}
+
+      <div className="pt-4 border-t border-border font-semibold">
+        Kwota:{' '}
+        {settlementEntries
+          .reduce(
+            (acc, e) => acc + (e.rate?.amount ?? 0) * (e.quantity ?? 0),
+            0
+          )
+          .toFixed(2)}{' '}
+        zł
+      </div>
     </div>
   )
 }

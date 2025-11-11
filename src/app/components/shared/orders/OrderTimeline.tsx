@@ -31,9 +31,6 @@ export default function OrderTimeline({
 
   return (
     <section className="pt-3">
-      <h3 className="text-xs text-muted-foreground font-medium mb-2">
-        Historia zlecenia
-      </h3>
       <Timeline items={allEvents} />
     </section>
   )

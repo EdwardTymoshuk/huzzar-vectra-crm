@@ -10,7 +10,7 @@ import { technicianOrderSchema } from '@/lib/schema'
 import { TechnicianOrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 
-import { OrderFormFields } from '@/app/admin-panel/components/orders/OrderFormFields'
+import { OrderFormFields } from '@/app/components/shared/orders/OrderFormFields'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,

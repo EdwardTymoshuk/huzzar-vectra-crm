@@ -3,7 +3,9 @@
 import CompleteOrderWizard from '@/app/(technician)/components/orders/completeOrder/CompleteOrderWizard'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import OrderDetailsContent from '@/app/components/shared/orders/OrderDetailsContent'
+import OrderTimeline from '@/app/components/shared/orders/OrderTimeline'
 import { Button } from '@/app/components/ui/button'
+import { Separator } from '@/app/components/ui/separator'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -126,23 +128,27 @@ const OrderAccordionDetails = ({ order }: Props) => {
       type: 'DEVICE' as const,
     }))
 
-    // ExtraDevices from each service
-    const extraDevicesFromServices =
-  data.services
-    ?.flatMap((s) => s.extraDevices ?? [])
-    .map((d) => ({
-      id: d.id,
-      name: d.name ?? '',
-      serialNumber: d.serialNumber ?? '',
-      category: d.category ?? 'OTHER',
-      type: 'DEVICE' as const,
-    })) ?? []
+  // ExtraDevices from each service
+  const extraDevicesFromServices =
+    data.services
+      ?.flatMap((s) => s.extraDevices ?? [])
+      .map((d) => ({
+        id: d.id,
+        name: d.name ?? '',
+        serialNumber: d.serialNumber ?? '',
+        category: d.category ?? 'OTHER',
+        type: 'DEVICE' as const,
+      })) ?? []
 
   // Merge technician devices with devices assigned to the order
   // and remove possible duplicates by serial number.
   const allDevices = (() => {
     /** Keep all possible sources together */
-    const merged = [...technicianDevices, ...devicesFromOrder, ...extraDevicesFromServices]
+    const merged = [
+      ...technicianDevices,
+      ...devicesFromOrder,
+      ...extraDevicesFromServices,
+    ]
 
     /** Remove duplicates by serialNumber */
     const unique: typeof merged = []
@@ -177,84 +183,92 @@ const OrderAccordionDetails = ({ order }: Props) => {
 
   /* ---------------- Render ---------------- */
   return (
-    <div className="space-y-4">
-      <OrderDetailsContent order={data} isConfirmed={isConfirmed} />
+    <div className="flex gap-6">
+      {/* -------- LEFT COLUMN: main content -------- */}
+      <div className="space-y-4 flex-1">
+        <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
+        <OrderDetailsContent order={data} isConfirmed={isConfirmed} />
 
-      {(canAdminEdit || canApprove) && (
-        <div className="flex flex-wrap gap-2 pt-2">
-          {/* Admin edit completed orders */}
-          {canAdminEdit && !isWarehouseman && (
-            <Button
-              variant="warning"
-              onClick={() => {
-                // NOTE: invalidate before open to ensure fresh data
-                utils.order.getOrderById.invalidate({ id: order.id })
-                setOpenEdit(true)
-              }}
-            >
-              <MdEdit className="mr-1" />
-              Edytuj zakończone zlecenie
-            </Button>
-          )}
+        {(canAdminEdit || canApprove) && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {canAdminEdit && !isWarehouseman && (
+              <Button
+                variant="warning"
+                onClick={() => {
+                  utils.order.getOrderById.invalidate({ id: order.id })
+                  setOpenEdit(true)
+                }}
+              >
+                <MdEdit className="mr-1" />
+                Edytuj zakończone zlecenie
+              </Button>
+            )}
 
-          {/* Approve completed SERVICE / OUTAGE */}
-          {canApprove && (
-            <Button
-              variant="success"
-              onClick={async () => {
-                try {
-                  const now = new Date()
-                  const dateFormatted = formatDateTime(now)
-                  const updatedNotes = `${
-                    data.notes ? data.notes + '\n' : ''
-                  }Zatwierdzone przez ${
-                    session.data?.user?.name
-                  } (${dateFormatted})`
+            {canApprove && (
+              <Button
+                variant="success"
+                onClick={async () => {
+                  try {
+                    const now = new Date()
+                    const dateFormatted = formatDateTime(now)
+                    const updatedNotes = `${
+                      data.notes ? data.notes + '\n' : ''
+                    }Zatwierdzone przez ${
+                      session.data?.user?.name
+                    } (${dateFormatted})`
 
-                  await editOrder.mutateAsync({
-                    id: data.id,
-                    notes: updatedNotes,
-                    orderNumber: data.orderNumber,
-                    date: data.date.toISOString().split('T')[0],
-                    timeSlot: data.timeSlot,
-                    status: data.status,
-                    city: data.city,
-                    street: data.street,
-                    assignedToId: data.assignedTo?.id,
-                  })
+                    await editOrder.mutateAsync({
+                      id: data.id,
+                      notes: updatedNotes,
+                      orderNumber: data.orderNumber,
+                      date: data.date.toISOString().split('T')[0],
+                      timeSlot: data.timeSlot,
+                      status: data.status,
+                      city: data.city,
+                      street: data.street,
+                      assignedToId: data.assignedTo?.id,
+                    })
 
-                  toast.success('Zlecenie zostało zatwierdzone.')
-                  await utils.order.getOrderById.invalidate({ id: data.id })
-                  await utils.order.getOrders.invalidate()
-                } catch {
-                  toast.error('Nie udało się zatwierdzić zlecenia.')
-                }
-              }}
-            >
-              <IoCheckmarkDone className="mr-1" />
-              Zatwierdź
-            </Button>
-          )}
-        </div>
-      )}
+                    toast.success('Zlecenie zostało zatwierdzone.')
+                    await utils.order.getOrderById.invalidate({ id: data.id })
+                    await utils.order.getOrders.invalidate()
+                  } catch {
+                    toast.error('Nie udało się zatwierdzić zlecenia.')
+                  }
+                }}
+              >
+                <IoCheckmarkDone className="mr-1" />
+                Zatwierdź
+              </Button>
+            )}
+          </div>
+        )}
 
-      {/* Admin edit modal (CompleteOrderWizard) */}
-      <CompleteOrderWizard
-        key={order.id}
-        open={openEdit}
-        onCloseAction={async () => {
-          setOpenEdit(false)
-          await utils.order.getOrders.invalidate()
-          await utils.order.getOrderById.invalidate({ id: order.id })
-        }}
-        order={data}
-        orderType={data.type}
-        materialDefs={materialDefs}
-        techMaterials={techMaterials}
-        devices={allDevices}
-        mode="adminEdit"
-        workCodeDefs={workCodeDefs}
-      />
+        <CompleteOrderWizard
+          key={order.id}
+          open={openEdit}
+          onCloseAction={async () => {
+            setOpenEdit(false)
+            await utils.order.getOrders.invalidate()
+            await utils.order.getOrderById.invalidate({ id: order.id })
+          }}
+          order={data}
+          orderType={data.type}
+          materialDefs={materialDefs}
+          techMaterials={techMaterials}
+          devices={allDevices}
+          mode="adminEdit"
+          workCodeDefs={workCodeDefs}
+        />
+      </div>
+
+      <Separator className="h-auto" orientation="vertical" />
+
+      {/* -------- RIGHT COLUMN: timeline -------- */}
+      <div className="flex-1">
+        <h3 className="text-base font-semibold mb-2">Historia zlecenia</h3>
+        <OrderTimeline order={data} />
+      </div>
     </div>
   )
 }

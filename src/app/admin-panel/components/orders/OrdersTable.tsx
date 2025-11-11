@@ -1,23 +1,14 @@
 'use client'
 
+import ConfirmDeleteDialog from '@/app/components/shared/ConfirmDeleteDialog'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import OrderStatusBadge from '@/app/components/shared/OrderStatusBadge'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog'
-import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
   DropdownMenu,
@@ -31,22 +22,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
-import { orderTypeMap, statusColorMap, statusMap } from '@/lib/constants'
+import { orderTypeMap } from '@/lib/constants'
 import { useDebounce } from '@/utils/hooks/useDebounce'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus, OrderType, Prisma } from '@prisma/client'
-import { ChevronDown } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
-import { MdDelete, MdEdit, MdVisibility } from 'react-icons/md'
+import { MdDelete, MdEdit } from 'react-icons/md'
 import { PiDotsThreeOutlineVerticalFill } from 'react-icons/pi'
 import {
   TiArrowSortedDown,
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
-import OrderDetailsSheet from '../../../components/shared/orders/OrderDetailsSheet'
 import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
@@ -120,7 +109,6 @@ const OrdersTableInner = ({
   const [openRowId, setOpenRowId] = useState<string | null>(null)
 
   // Dialogs / panels
-  const [orderId, setOrderId] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<OrderWithAssignedTo | null>(
     null
@@ -176,7 +164,7 @@ const OrdersTableInner = ({
 
   /* ---------------------------- Layout ---------------------------- */
   const GRID =
-    'grid grid-cols-[110px_120px_160px_140px_minmax(260px,2fr)_120px_130px_40px_40px_20px]'
+    'grid grid-cols-[110px_120px_220px_220px_minmax(260px,2fr)_140px_80px_40px_40px]'
 
   /* ---------------------------- Render ---------------------------- */
   return (
@@ -186,7 +174,7 @@ const OrdersTableInner = ({
         <div className="w-full min-w-fit md:min-w-[1100px]">
           {/* Header row */}
           <div
-            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-sm text-start font-normal text-muted-foreground select-none`}
+            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-sm uppercase text-start font-semibold text-muted-foreground select-none`}
           >
             <span>Typ</span>
             <span
@@ -226,7 +214,7 @@ const OrdersTableInner = ({
             <TooltipProvider delayDuration={150}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="flex items-center gap-1 cursor-help font-medium">
+                  <span className="flex items-center gap-1 cursor-help font-semibold">
                     P/R
                   </span>
                 </TooltipTrigger>
@@ -246,7 +234,6 @@ const OrdersTableInner = ({
               </Tooltip>
             </TooltipProvider>
             <span>Akcje</span>
-            <span />
           </div>
 
           {/* Data states */}
@@ -269,7 +256,7 @@ const OrdersTableInner = ({
                 return (
                   <AccordionItem key={o.id} value={o.id} className="min-w-fit">
                     <AccordionTrigger
-                      className="text-sm px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
+                      className="text-sm font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
                       asChild
                     >
                       <div
@@ -278,17 +265,7 @@ const OrdersTableInner = ({
                       >
                         <span>{orderTypeMap[o.type]}</span>
                         <span>{new Date(o.date).toLocaleDateString()}</span>
-                        <span>
-                          {o.assignedTo ? (
-                            <Badge className="bg-secondary hover:bg-secondary">
-                              {o.assignedTo.name}
-                            </Badge>
-                          ) : (
-                            <span className="italic text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </span>
+                        <span>{o.assignedTo ? o.assignedTo.name : '-'}</span>
                         <span
                           className="min-w-0 whitespace-normal break-words"
                           title={o.orderNumber}
@@ -311,19 +288,15 @@ const OrdersTableInner = ({
                         </span>
                         <span>{o.operator}</span>
                         <span>
-                          <Badge
-                            className={statusColorMap[o.status] + ' w-fit'}
-                          >
-                            {statusMap[o.status]}
-                          </Badge>
+                          <OrderStatusBadge status={o.status} compact />
                         </span>
                         <span>
                           {o.createdSource === 'PLANNER' ? (
-                            <span className="text-success font-semibold cursor-help">
+                            <span className="text-success font-semibold">
                               P
                             </span>
                           ) : (
-                            <span className="text-warning font-semibold cursor-help">
+                            <span className="text-warning font-semibold">
                               R
                             </span>
                           )}
@@ -339,15 +312,6 @@ const OrdersTableInner = ({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent className="bg-background">
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setOrderId(o.id)
-                                  }}
-                                >
-                                  <MdVisibility className="mr-2 w-4 h-4 text-warning" />
-                                  Podgląd
-                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation()
@@ -373,8 +337,6 @@ const OrdersTableInner = ({
                             </DropdownMenu>
                           )}
                         </span>
-
-                        <ChevronDown className="h-4 w-4 shrink-0 justify-self-end transition-transform duration-200" />
                       </div>
                     </AccordionTrigger>
 
@@ -398,13 +360,6 @@ const OrdersTableInner = ({
         />
       )}
 
-      {/* Side sheet: details */}
-      <OrderDetailsSheet
-        orderId={orderId}
-        open={!!orderId}
-        onClose={() => setOrderId(null)}
-      />
-
       {/* Edit modal */}
       {isEditModalOpen && editingOrder && (
         <EditOrderModal
@@ -414,38 +369,17 @@ const OrdersTableInner = ({
         />
       )}
 
-      {/* Delete dialog */}
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Czy na pewno chcesz usunąć to zlecenie?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Tej operacji nie można cofnąć.
-              <br />
-              <strong>Nr:</strong> {orderToDelete?.orderNumber}
-              <br />
-              <strong>Adres:</strong> {orderToDelete?.city},{' '}
-              {orderToDelete?.street}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Anuluj</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-danger text-white hover:bg-danger/80"
-              onClick={async () => {
-                if (!orderToDelete) return
-                await deleteOrder.mutateAsync({ id: orderToDelete.id })
-                utils.order.getRealizedOrders.invalidate()
-                setIsDeleteModalOpen(false)
-              }}
-            >
-              Usuń
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={async () => {
+          if (!orderToDelete) return
+          await deleteOrder.mutateAsync({ id: orderToDelete.id })
+          utils.order.getRealizedOrders.invalidate()
+          setIsDeleteModalOpen(false)
+        }}
+        description={`Czy na pewno chcesz usunąć zlecenie "${orderToDelete?.orderNumber}" z adresu "${orderToDelete?.city}, ${orderToDelete?.street}"? Tej operacji nie można cofnąć.`}
+      />
     </div>
   )
 }

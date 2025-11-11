@@ -1,5 +1,8 @@
 'use client'
 
+import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
+import { Button } from '@/app/components/ui/button'
+import { Calendar } from '@/app/components/ui/calendar'
 import {
   FormControl,
   FormField,
@@ -9,6 +12,11 @@ import {
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/app/components/ui/popover'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -17,31 +25,69 @@ import {
 } from '@/app/components/ui/select'
 import { Textarea } from '@/app/components/ui/textarea'
 import { timeSlotOptions } from '@/lib/constants'
-import { TechnicianOrderFormData } from '@/types'
+import { OrderFormData, TechnicianOrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
+import { OrderStatus } from '@prisma/client'
+import { format } from 'date-fns'
+import { pl } from 'date-fns/locale'
 import { useEffect, useState } from 'react'
-import { Control } from 'react-hook-form'
+import { Control, UseFormReturn } from 'react-hook-form'
 
 /**
- * Technician-facing order form fields
- * Minimal set of inputs required to register a new order by technician
+ * OrderFormFields – unified form fields component for both Admin and Technician views.
+ *
+ * - Supports all common fields: type, operator, number, date, city, address, time slot, notes
+ * - Auto-generates outage order numbers (`OUTAGE`)
+ * - Shows technician select only for admin users
+ * - Adjusts status automatically for admin (ASSIGNED / PENDING)
  */
-export const OrderFormFieldsTechnician = ({
-  control,
-}: {
-  control: Control<TechnicianOrderFormData>
-}) => {
+type Props = {
+  /** react-hook-form object (useFormReturn) */
+  form:
+    | UseFormReturn<OrderFormData>
+    | { control: Control<TechnicianOrderFormData> }
+
+  /** If true, enables technician assignment and status handling */
+  isAdmin?: boolean
+}
+
+export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
+  // Cast to allow uniform access (control always exists)
+  const { control, setValue, getValues, watch } =
+    form as UseFormReturn<OrderFormData>
+
   const [operatorList, setOperatorList] = useState<string[]>([])
 
-  // Fetch operator list from database
+  const type = watch?.('type') ?? undefined
+
+  // Fetch operator definitions
   const { data: operatorsData, isLoading: isOperatorsLoading } =
     trpc.operatorDefinition.getAllDefinitions.useQuery()
 
+  // Fetch next outage order number (only if type === OUTAGE)
+  const { data: nextOutageOrderNumber } =
+    trpc.order.getNextOutageOrderNumber.useQuery(undefined, {
+      enabled: type === 'OUTAGE',
+    })
+
+  // Fetch technician list (only if admin)
+  const { data: technicians, isLoading: isTechLoading } = isAdmin
+    ? trpc.user.getTechnicians.useQuery({ status: 'ACTIVE' })
+    : { data: [], isLoading: false }
+
+  /** Populate operator list */
   useEffect(() => {
     if (operatorsData) {
       setOperatorList(operatorsData.map((op) => op.operator))
     }
   }, [operatorsData])
+
+  /** Auto-generate outage order number */
+  useEffect(() => {
+    if (type === 'OUTAGE' && nextOutageOrderNumber) {
+      setValue?.('orderNumber', nextOutageOrderNumber)
+    }
+  }, [type, nextOutageOrderNumber, setValue])
 
   return (
     <>
@@ -51,7 +97,9 @@ export const OrderFormFieldsTechnician = ({
         name="type"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Typ zlecenia *</FormLabel>
+            <FormLabel>
+              Typ zlecenia <span className="text-destructive">*</span>
+            </FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz typ zlecenia" />
@@ -67,7 +115,7 @@ export const OrderFormFieldsTechnician = ({
         )}
       />
 
-      {/* Operator (dynamic, from DB) */}
+      {/* Operator */}
       <FormField
         control={control}
         name="operator"
@@ -107,14 +155,18 @@ export const OrderFormFieldsTechnician = ({
               Numer zlecenia <span className="text-destructive">*</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder="np. ZL/12345" />
+              <Input
+                {...field}
+                placeholder="np. ZL/12345"
+                disabled={type === 'OUTAGE'}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
 
-      {/* Order date */}
+      {/* Date */}
       <FormField
         control={control}
         name="date"
@@ -123,9 +175,27 @@ export const OrderFormFieldsTechnician = ({
             <FormLabel>
               Data <span className="text-destructive">*</span>
             </FormLabel>
-            <FormControl>
-              <Input type="date" {...field} />
-            </FormControl>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  {field.value
+                    ? format(new Date(field.value), 'dd/MM/yyyy', {
+                        locale: pl,
+                      })
+                    : 'Wybierz datę'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={field.value ? new Date(field.value) : undefined}
+                  onSelect={(date) => field.onChange(date?.toISOString() ?? '')}
+                />
+              </PopoverContent>
+            </Popover>
             <FormMessage />
           </FormItem>
         )}
@@ -191,6 +261,59 @@ export const OrderFormFieldsTechnician = ({
           </FormItem>
         )}
       />
+
+      {/* Technician assignment (admin only) */}
+      {isAdmin && (
+        <FormField
+          control={control}
+          name="assignedToId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Przypisany technik <span className="text-destructive">*</span>
+              </FormLabel>
+              <Select
+                onValueChange={(value) => {
+                  const selected = value === 'none' ? null : value
+                  field.onChange(selected)
+
+                  // Automatically adjust status for admin
+                  const currentStatus = getValues?.('status')
+                  if (!currentStatus) return
+                  if (selected && currentStatus === OrderStatus.PENDING) {
+                    setValue?.('status', OrderStatus.ASSIGNED)
+                  } else if (
+                    !selected &&
+                    currentStatus === OrderStatus.ASSIGNED
+                  ) {
+                    setValue?.('status', OrderStatus.PENDING)
+                  }
+                }}
+                value={field.value ?? 'none'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz technika" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">NIEPRZYPISANY</SelectItem>
+                  {isTechLoading ? (
+                    <div className="px-4 py-2 text-sm text-muted-foreground">
+                      <LoaderSpinner />
+                    </div>
+                  ) : (
+                    technicians?.map((tech) => (
+                      <SelectItem key={tech.id} value={tech.id}>
+                        {tech.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Notes (optional) */}
       <FormField
