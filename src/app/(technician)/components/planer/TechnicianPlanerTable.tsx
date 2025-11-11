@@ -255,47 +255,47 @@ const TechnicianPlanerTable = ({
       {filtered.map((o) => (
         <Card
           key={o.id}
-          className={`shadow-sm border rounded-xl ${
+          className={`shadow-sm border rounded-xl space-y-4 ${
             o.incoming ? 'opacity-60' : ''
           }`}
         >
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-0">
             <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
               <div className="flex flex-col w-full">
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-base font-semibold">
-                    <Highlight
-                      searchWords={[searchTerm]}
-                      textToHighlight={o.orderNumber}
-                    />
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-muted-foreground tracking-wide">
+                      {orderTypeMap[o.type] ?? '—'}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      {o.operator}
+                    </span>
+                  </div>
 
-                  <span className="text-sm text-muted-foreground">
-                    {formatDate(o.date)}
-                  </span>
+                  <div className="flex flex-col items-end text-sm text-muted-foreground">
+                    {/* Data */}
+                    <span>{formatDate(o.date)}</span>
+                    <span>{getTimeSlotLabel(o.timeSlot)}</span>
+                  </div>
                 </div>
-
-                <span className="text-sm text-muted-foreground">
-                  {orderTypeMap[o.type] ?? '—'}
-                </span>
               </div>
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="text-sm space-y-2">
+          <CardContent className="text-sm">
             {/* Basic order info */}
-            <div>
-              <strong>Adres:</strong>{' '}
+            <div className="text-base font-semibold">
+              {' '}
+              <Highlight
+                searchWords={[searchTerm]}
+                textToHighlight={o.orderNumber}
+              />
+            </div>
+            <div className="text-base font-semibold">
               <Highlight
                 searchWords={[searchTerm]}
                 textToHighlight={`${o.city}, ${o.street}`}
               />
-            </div>
-            <div>
-              <strong>Slot czasowy:</strong> {getTimeSlotLabel(o.timeSlot)}
-            </div>
-            <div>
-              <strong>Operator:</strong> {o.operator}
             </div>
 
             {/* Actions */}
