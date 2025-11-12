@@ -27,8 +27,10 @@ type Props = {
  * ------------------------------------------------------
  * Filter for technician’s warehouse.
  * Displays only categories that exist in the technician’s stock.
+ * Automatically closes after selection or clearing.
  */
 const WarehouseFilterTech = ({ setCategoryFilter }: Props) => {
+  const [open, setOpen] = useState(false)
   const [categoryValue, setCategoryValue] = useState('all')
 
   // ✅ Get technician’s current stock (only categories that exist)
@@ -46,30 +48,33 @@ const WarehouseFilterTech = ({ setCategoryFilter }: Props) => {
     return Array.from(unique)
   }, [data])
 
+  /** Helper: updates filter and closes popover */
+  const handleChange = (value: string) => {
+    setCategoryValue(value)
+    setCategoryFilter(value === 'all' ? null : value)
+    setOpen(false)
+  }
+
+  /** Clears filters and closes popover */
   const clearFilters = () => {
     setCategoryValue('all')
     setCategoryFilter(null)
+    setOpen(false)
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" disabled={isLoading}>
           <MdFilterList className="mr-2" /> Filtruj
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-72 bg-background space-y-3">
+      <PopoverContent className="w-72 bg-background space-y-3 p-4">
         {/* Category selector */}
         <div>
           <p className="text-sm font-medium mb-1">Kategoria</p>
-          <Select
-            value={categoryValue}
-            onValueChange={(value) => {
-              setCategoryValue(value)
-              setCategoryFilter(value === 'all' ? null : value)
-            }}
-          >
+          <Select value={categoryValue} onValueChange={handleChange}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Wybierz kategorię" />
             </SelectTrigger>

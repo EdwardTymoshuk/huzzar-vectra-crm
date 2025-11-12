@@ -23,38 +23,42 @@ type Props = {
 }
 
 /**
- * WarehouseFilter:
- * - Provides filtering by DeviceCategory and DeviceProvider.
- * - Options are always taken from schema enums (not from data),
- *   so filters remain available even if no items exist in table.
+ * WarehouseFilter
+ * -------------------------------------------------------------
+ * Provides filtering by DeviceCategory (from Prisma enum).
+ * Automatically closes after selecting or clearing filters.
  */
 const WarehouseFilter = ({ setCategoryFilter }: Props) => {
+  const [open, setOpen] = useState(false)
   const [categoryValue, setCategoryValue] = useState<string>('all')
 
+  /** Updates filter and closes popover */
+  const handleChange = (value: string) => {
+    setCategoryValue(value)
+    setCategoryFilter(value === 'all' ? null : value)
+    setOpen(false)
+  }
+
+  /** Clears filters and closes popover */
   const clearFilters = () => {
     setCategoryValue('all')
     setCategoryFilter(null)
+    setOpen(false)
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline">
           <MdFilterList className="mr-2" /> Filtruj
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-72 bg-background space-y-3">
+      <PopoverContent className="w-72 bg-background space-y-3 p-4">
         {/* Category */}
         <div>
           <p className="text-sm font-medium mb-1">Kategoria</p>
-          <Select
-            value={categoryValue}
-            onValueChange={(value) => {
-              setCategoryValue(value)
-              setCategoryFilter(value === 'all' ? null : value)
-            }}
-          >
+          <Select value={categoryValue} onValueChange={handleChange}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Kategoria" />
             </SelectTrigger>
@@ -69,6 +73,7 @@ const WarehouseFilter = ({ setCategoryFilter }: Props) => {
           </Select>
         </div>
 
+        {/* Clear filters */}
         <div className="pt-1">
           <Button variant="ghost" className="w-full" onClick={clearFilters}>
             Wyczyść filtry

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { OrderStatus, OrderType } from '@prisma/client'
+import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type FilterProps = {
@@ -24,6 +25,12 @@ type FilterProps = {
   onClearAction: () => void
 }
 
+/**
+ * TechnicianOrdersFilter
+ * -------------------------------------------------------------
+ * Compact popover for filtering technician orders.
+ * Auto-closes after selecting or clearing filters.
+ */
 export const TechnicianOrdersFilter = ({
   statusValue,
   typeValue,
@@ -31,24 +38,42 @@ export const TechnicianOrdersFilter = ({
   setOrderTypeFilterAction,
   onClearAction,
 }: FilterProps) => {
+  const [open, setOpen] = useState(false)
+
   const statusSelectVal = statusValue ?? 'all'
   const typeSelectVal = typeValue ?? 'all'
 
+  /** Helper: updates filter and closes popover */
+  const handleChange = (fn: () => void) => {
+    fn()
+    setOpen(false)
+  }
+
+  /** Clears filters and closes popover */
+  const handleClear = () => {
+    onClearAction()
+    setOpen(false)
+  }
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline">
           <MdFilterList className="mr-2" /> Filtruj
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 bg-background space-y-4">
+
+      <PopoverContent className="w-64 bg-background space-y-4 p-4">
+        {/* Status filter */}
         <div>
           <p className="text-sm font-medium mb-1">Status</p>
           <Select
             value={statusSelectVal as string}
             onValueChange={(value) =>
-              setStatusFilterAction(
-                value === 'all' ? null : (value as OrderStatus)
+              handleChange(() =>
+                setStatusFilterAction(
+                  value === 'all' ? null : (value as OrderStatus)
+                )
               )
             }
           >
@@ -63,13 +88,16 @@ export const TechnicianOrdersFilter = ({
           </Select>
         </div>
 
+        {/* Type filter */}
         <div>
           <p className="text-sm font-medium mb-1">Typ zlecenia</p>
           <Select
             value={typeSelectVal as string}
             onValueChange={(value) =>
-              setOrderTypeFilterAction(
-                value === 'all' ? null : (value as OrderType)
+              handleChange(() =>
+                setOrderTypeFilterAction(
+                  value === 'all' ? null : (value as OrderType)
+                )
               )
             }
           >
@@ -78,14 +106,15 @@ export const TechnicianOrdersFilter = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="INSTALATION">Instalacja</SelectItem>
+              <SelectItem value="INSTALLATION">Instalacja</SelectItem>
               <SelectItem value="SERVICE">Serwis</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
+        {/* Clear filters */}
         <div className="pt-1">
-          <Button variant="ghost" className="w-full" onClick={onClearAction}>
+          <Button variant="ghost" className="w-full" onClick={handleClear}>
             Wyczyść filtry
           </Button>
         </div>

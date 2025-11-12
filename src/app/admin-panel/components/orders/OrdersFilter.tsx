@@ -24,11 +24,18 @@ type Props = {
   setOrderTypeFilter: (type: OrderType | null) => void
 }
 
+/**
+ * OrdersFilter
+ * -------------------------------------------------------------
+ * Popover filter for admin/coordinator orders list.
+ * Automatically closes after selecting or clearing filters.
+ */
 const OrdersFilter = ({
   setStatusFilter,
   setTechnicianFilter,
   setOrderTypeFilter,
 }: Props) => {
+  const [open, setOpen] = useState(false)
   const [statusValue, setStatusValue] = useState<string>('all')
   const [technicianValue, setTechnicianValue] = useState<string>('all')
   const [typeValue, setTypeValue] = useState<string>('all')
@@ -37,6 +44,13 @@ const OrdersFilter = ({
     status: 'ACTIVE',
   })
 
+  /** Helper: updates filter and closes popover */
+  const handleChange = (fn: () => void) => {
+    fn()
+    setOpen(false)
+  }
+
+  /** Clears filters and closes popover */
   const clearFilters = () => {
     setStatusValue('all')
     setTechnicianValue('all')
@@ -44,35 +58,40 @@ const OrdersFilter = ({
     setStatusFilter(null)
     setTechnicianFilter(null)
     setOrderTypeFilter(null)
+    setOpen(false)
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline">
           <MdFilterList className="mr-2" /> Filtruj
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-72 bg-background space-y-3">
+      <PopoverContent className="w-72 bg-background space-y-3 p-4">
         {/* Order type */}
         <div>
           <p className="text-sm font-medium mb-1">Typ zlecenia</p>
           <Select
             value={typeValue}
-            onValueChange={(value) => {
-              setTypeValue(value)
-              setOrderTypeFilter(value === 'all' ? null : (value as OrderType))
-            }}
+            onValueChange={(value) =>
+              handleChange(() => {
+                setTypeValue(value)
+                setOrderTypeFilter(
+                  value === 'all' ? null : (value as OrderType)
+                )
+              })
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Typ zlecenia" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="INSTALATION">Instalacja</SelectItem>
+              <SelectItem value="INSTALLATION">Instalacja</SelectItem>
               <SelectItem value="SERVICE">Serwis</SelectItem>
-              <SelectItem value="OUTAGE">Linia</SelectItem>
+              <SelectItem value="OUTAGE">Awaria</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -82,10 +101,12 @@ const OrdersFilter = ({
           <p className="text-sm font-medium mb-1">Status</p>
           <Select
             value={statusValue}
-            onValueChange={(value) => {
-              setStatusValue(value)
-              setStatusFilter(value === 'all' ? null : (value as OrderStatus))
-            }}
+            onValueChange={(value) =>
+              handleChange(() => {
+                setStatusValue(value)
+                setStatusFilter(value === 'all' ? null : (value as OrderStatus))
+              })
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Wybierz status" />
@@ -103,10 +124,12 @@ const OrdersFilter = ({
           <p className="text-sm font-medium mb-1">Technik</p>
           <Select
             value={technicianValue}
-            onValueChange={(value) => {
-              setTechnicianValue(value)
-              setTechnicianFilter(value === 'all' ? null : value)
-            }}
+            onValueChange={(value) =>
+              handleChange(() => {
+                setTechnicianValue(value)
+                setTechnicianFilter(value === 'all' ? null : value)
+              })
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Wybierz technika" />
