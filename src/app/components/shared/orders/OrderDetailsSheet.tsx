@@ -151,6 +151,13 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">
+                    Id klienta
+                  </h3>
+                  <p>{order.clientId ? order.clientId : '-'}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
                     Przedział czasowy
                   </h3>
                   <p>{timeSlotMap[order.timeSlot] ?? order.timeSlot}</p>

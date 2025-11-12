@@ -1,6 +1,7 @@
 import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { getCoordinatesFromAddress } from '@/utils/geocode'
+import { normalizeForSearch } from '@/utils/orders/normalizeForSearch'
 import { prisma } from '@/utils/prisma'
 import {
   DeviceCategory,
@@ -172,7 +173,7 @@ async function mapServicesWithDeviceTypes(
 }
 
 export const mutationsRouter = router({
-  /** ✅ Create new order with full retry logic (attempts + address validation) */
+  /** ✅ Create new order (clientId-aware, preserves Polish letters but uses normalized comparisons) */
   createOrder: loggedInEveryone
     .input(
       z.object({
@@ -181,6 +182,7 @@ export const mutationsRouter = router({
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(TimeSlot),
+        clientId: z.string().min(3).optional(),
         clientPhoneNumber: z
           .string()
           .optional()
@@ -192,7 +194,7 @@ export const mutationsRouter = router({
         municipality: z.string().optional(),
         city: z.string(),
         street: z.string(),
-        postalCode: z.string(),
+        postalCode: z.string().optional(),
         assignedToId: z.string().optional(),
         createdSource: z.nativeEnum(OrderCreatedSource).default('PLANNER'),
       })
@@ -200,119 +202,34 @@ export const mutationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const user = getUserOrThrow(ctx)
       const userId = user.id
-      const normalize = (val?: string | null): string =>
-        (val ?? '')
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .trim()
-          .toUpperCase()
 
-      const normOrder = normalize(input.orderNumber)
-      const normCity = normalize(input.city)
-      const normStreet = normalize(input.street)
+      const normOrder = normalizeForSearch(input.orderNumber)
 
-      // 1️⃣ Validate assigned technician if provided
+      /* ------------------------------------------------------------
+       * 1️⃣ Validate assigned technician (if provided)
+       * ---------------------------------------------------------- */
       if (input.assignedToId) {
         const tech = await prisma.user.findUnique({
           where: { id: input.assignedToId },
         })
-        if (!tech) {
+        if (!tech)
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: 'Technik nie istnieje',
           })
-        }
       }
 
-      // 2️⃣ Find the latest existing order with this number
-      const existing = await prisma.order.findFirst({
-        where: { orderNumber: { equals: normOrder, mode: 'insensitive' } },
-        orderBy: { attemptNumber: 'desc' },
-      })
-
-      // 3️⃣ If any order exists with this number, validate address and status
-      if (existing) {
-        const sameAddress =
-          normalize(existing.city) === normCity &&
-          normalize(existing.street) === normStreet
-
-        // ❌ Same number but different address — forbidden
-        if (!sameAddress) {
-          throw new TRPCError({
-            code: 'CONFLICT',
-            message:
-              'Numer zlecenia już istnieje, ale z innym adresem. Sprawdź poprawność danych.',
-          })
-        }
-
-        // ✅ Same number + same address — only allowed if previous was NOT_COMPLETED
-        if (existing.status === OrderStatus.NOT_COMPLETED) {
-          const nextAttempt = existing.attemptNumber + 1
-          const status = input.assignedToId
-            ? OrderStatus.ASSIGNED
-            : OrderStatus.PENDING
-
-          const newOrder = await prisma.order.create({
-            data: {
-              operator: input.operator,
-              type: input.type,
-              orderNumber: normOrder,
-              date: new Date(
-                `${input.date}T${new Date().toISOString().split('T')[1]}`
-              ),
-              timeSlot: input.timeSlot,
-              clientPhoneNumber: input.clientPhoneNumber ?? null,
-              notes: input.notes ?? null,
-              county: input.county ?? null,
-              municipality: input.municipality ?? null,
-              city: input.city,
-              street: input.street,
-              postalCode: input.postalCode,
-              assignedToId: input.assignedToId ?? null,
-              createdSource: input.createdSource,
-              status,
-              attemptNumber: nextAttempt,
-              previousOrderId: existing.id,
-            },
-          })
-
-          await prisma.orderHistory.create({
-            data: {
-              orderId: newOrder.id,
-              changedById: userId,
-              statusBefore: status,
-              statusAfter: status,
-              notes: `Utworzono ponowne podejście (wejście ${nextAttempt})`,
-            },
-          })
-
-          return newOrder
-        }
-
-        // ❌ Same number + same address but previous not NOT_COMPLETED — reject
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message:
-            'Zlecenie o tym numerze i adresie już istnieje i nie jest oznaczone jako nieskuteczne.',
-        })
-      }
-
-      // 4️⃣ No existing order — create the first one
-      const firstStatus = input.assignedToId
-        ? OrderStatus.ASSIGNED
-        : OrderStatus.PENDING
-
-      // 5️⃣ Prepare geocoded coordinates
+      /* ------------------------------------------------------------
+       * 2️⃣ Prepare geocoded coordinates
+       * ---------------------------------------------------------- */
       let lat: number | null = null
       let lng: number | null = null
-
       try {
         const addressVariants = [
           `${input.street}, ${input.postalCode ?? ''} ${input.city}, Polska`,
           `${input.street}, ${input.city}, Polska`,
           `${input.city}, Polska`,
         ]
-
         for (const addr of addressVariants) {
           const coords = await getCoordinatesFromAddress(addr)
           if (coords) {
@@ -329,46 +246,96 @@ export const mutationsRouter = router({
         )
       }
 
+      /* ------------------------------------------------------------
+       * 3️⃣ Determine attempt chain (based on clientId + address)
+       * ---------------------------------------------------------- */
+      let attemptNumber = 1
+      let previousOrderId: string | null = null
+      const status: OrderStatus = input.assignedToId
+        ? OrderStatus.ASSIGNED
+        : OrderStatus.PENDING
+
+      // 🔒 Enforce globally unique order number
+      const existingSameNumber = await prisma.order.findFirst({
+        where: { orderNumber: { equals: normOrder, mode: 'insensitive' } },
+      })
+      if (existingSameNumber) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `Zlecenie o numerze "${input.orderNumber}" już istnieje.`,
+        })
+      }
+
+      // 🔗 Find last NOT_COMPLETED order for same client and address (case + diacritics insensitive)
+      if (input.clientId) {
+        const lastOrder = await prisma.$queryRaw<
+          { id: string; attemptNumber: number }[]
+        >`
+    SELECT id, "attemptNumber"
+    FROM "Order"
+    WHERE "clientId" = ${input.clientId}
+      AND unaccent(lower("city")) = unaccent(lower(${input.city}))
+      AND unaccent(lower("street")) = unaccent(lower(${input.street}))
+      AND "status" = 'NOT_COMPLETED'
+    ORDER BY "createdAt" DESC
+    LIMIT 1;
+  `
+
+        if (lastOrder.length > 0) {
+          attemptNumber = lastOrder[0].attemptNumber + 1
+          previousOrderId = lastOrder[0].id
+        }
+      }
+      /* ------------------------------------------------------------
+       * 4️⃣ Create new order (preserves Polish letters in DB)
+       * ---------------------------------------------------------- */
       const created = await prisma.order.create({
         data: {
+          clientId: input.clientId ?? null,
           operator: input.operator,
           type: input.type,
-          orderNumber: normOrder,
+          orderNumber: input.orderNumber.trim(),
           date: new Date(input.date),
           timeSlot: input.timeSlot,
           clientPhoneNumber: input.clientPhoneNumber ?? null,
           notes: input.notes ?? null,
           county: input.county ?? null,
           municipality: input.municipality ?? null,
-          city: input.city,
-          street: input.street,
-          postalCode: input.postalCode,
+          city: input.city.trim(),
+          street: input.street.trim(),
+          postalCode: input.postalCode?.trim() ?? null,
           lat,
           lng,
           assignedToId: input.assignedToId ?? null,
           createdSource: input.createdSource,
-          status: firstStatus,
-          attemptNumber: 1,
-          previousOrderId: null,
+          status,
+          attemptNumber,
+          previousOrderId,
         },
       })
+
+      /* ------------------------------------------------------------
+       * 5️⃣ Create order history entry
+       * ---------------------------------------------------------- */
+      const historyNote = input.clientId
+        ? previousOrderId
+          ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
+          : 'Utworzono pierwsze zlecenie klienta.'
+        : 'Utworzono pierwsze wejście (ręcznie lub z planera).'
 
       await prisma.orderHistory.create({
         data: {
           orderId: created.id,
           changedById: userId,
           statusBefore: OrderStatus.PENDING,
-          statusAfter: firstStatus,
-          notes: `Utworzono pierwsze wejście (${
-            input.createdSource === 'MANUAL' ? 'ręcznie' : 'z planera'
-          })`,
+          statusAfter: status,
+          notes: historyNote,
         },
       })
 
       return created
     }),
-
-  /** ✅ Edit existing order (safe chain recalculation with Prisma error logging) */
+  /** ✅ Edit existing order (clientId-aware, preserves Polish letters and recalculates attempt chain) */
   editOrder: adminOrCoord
     .input(
       z.object({
@@ -381,6 +348,7 @@ export const mutationsRouter = router({
         city: z.string(),
         street: z.string(),
         assignedToId: z.string().optional(),
+        clientId: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -390,131 +358,121 @@ export const mutationsRouter = router({
         const existing = await prisma.order.findUnique({
           where: { id: input.id },
         })
-        if (!existing) {
+        if (!existing)
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: 'Zlecenie nie istnieje',
           })
-        }
 
-        const normalize = (val: string): string =>
-          val
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim()
-            .toUpperCase()
+        const normOrder = normalizeForSearch(input.orderNumber)
+        const normCity = normalizeForSearch(input.city)
+        const normStreet = normalizeForSearch(input.street)
 
-        const newOrderNumber = normalize(input.orderNumber)
-        const newCity = normalize(input.city)
-        const newStreet = normalize(input.street)
-
-        const oldOrderNumber = normalize(existing.orderNumber)
-        const oldCity = normalize(existing.city)
-        const oldStreet = normalize(existing.street)
+        const oldCityNorm = normalizeForSearch(existing.city)
+        const oldStreetNorm = normalizeForSearch(existing.street)
 
         const addressChanged =
-          newOrderNumber !== oldOrderNumber ||
-          newCity !== oldCity ||
-          newStreet !== oldStreet
+          normCity !== oldCityNorm || normStreet !== oldStreetNorm
 
         let attemptNumber = existing.attemptNumber
         let previousOrderId = existing.previousOrderId
 
-        /* ----------------------------------------------------------
-         * 1️⃣ Recalculate attempt chain if number/address changed
-         * ---------------------------------------------------------- */
-        if (addressChanged) {
-          const lastOrder = await prisma.order.findFirst({
-            where: {
-              orderNumber: { equals: newOrderNumber, mode: 'insensitive' },
-              city: { equals: newCity, mode: 'insensitive' },
-              street: { equals: newStreet, mode: 'insensitive' },
-            },
-            orderBy: { attemptNumber: 'desc' },
+        // 🔒 Prevent duplicate order number globally
+        const existingSameNumber = await prisma.order.findFirst({
+          where: {
+            orderNumber: { equals: normOrder, mode: 'insensitive' },
+            NOT: { id: existing.id },
+          },
+        })
+        if (existingSameNumber)
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: `Numer zlecenia "${input.orderNumber}" jest już używany.`,
           })
 
-          if (lastOrder && lastOrder.status === 'NOT_COMPLETED') {
-            attemptNumber = lastOrder.attemptNumber + 1
-            previousOrderId = lastOrder.id
+        /* ----------------------------------------------------------
+         * 1️⃣ Recalculate attempt chain if address changed
+         * ---------------------------------------------------------- */
+        if (addressChanged) {
+          const clientId = input.clientId ?? existing.clientId
+          if (clientId) {
+            const lastOrder = await prisma.$queryRaw<
+              { id: string; attemptNumber: number; status: OrderStatus }[]
+            >`
+              SELECT id, "attemptNumber", "status"
+              FROM "Order"
+              WHERE "clientId" = ${clientId}
+                AND unaccent(lower("city")) = unaccent(lower(${input.city}))
+                AND unaccent(lower("street")) = unaccent(lower(${input.street}))
+              ORDER BY "attemptNumber" DESC
+              LIMIT 1;
+            `
+
+            if (
+              lastOrder.length > 0 &&
+              lastOrder[0].status === 'NOT_COMPLETED'
+            ) {
+              attemptNumber = lastOrder[0].attemptNumber + 1
+              previousOrderId = lastOrder[0].id
+            } else {
+              attemptNumber = 1
+              previousOrderId = null
+            }
           } else {
             attemptNumber = 1
             previousOrderId = null
           }
-
-          // ✅ Ensure uniqueness — bump attempt if collision
-          const conflict = await prisma.order.findFirst({
-            where: {
-              orderNumber: newOrderNumber,
-              city: newCity,
-              street: newStreet,
-              attemptNumber,
-              NOT: { id: existing.id },
-            },
-          })
-
-          if (conflict) {
-            attemptNumber = conflict.attemptNumber + 1
-          }
         }
 
         /* ----------------------------------------------------------
-         * 2️⃣ Apply the update
+         * 2️⃣ Apply update (keep Polish letters in DB)
          * ---------------------------------------------------------- */
         const updated = await prisma.order.update({
           where: { id: existing.id },
           data: {
-            orderNumber: newOrderNumber,
+            orderNumber: input.orderNumber.trim(),
             date: new Date(input.date),
             timeSlot: input.timeSlot,
             notes: input.notes,
             status: input.status,
-            city: input.city,
-            street: input.street,
+            city: input.city.trim(),
+            street: input.street.trim(),
             assignedToId: input.assignedToId ?? null,
+            clientId: input.clientId ?? existing.clientId,
             attemptNumber,
             previousOrderId,
           },
         })
 
+        /* ----------------------------------------------------------
+         * 3️⃣ Log history entry if status changed
+         * ---------------------------------------------------------- */
+        if (input.status !== existing.status) {
+          await prisma.orderHistory.create({
+            data: {
+              orderId: existing.id,
+              changedById: ctx.user!.id,
+              statusBefore: existing.status,
+              statusAfter: input.status,
+              notes: 'Zmieniono status przez edycję zlecenia',
+            },
+          })
+        }
+
         return updated
       } catch (err) {
-        // ----------------------------------------------------------
-        // 🧠 Prisma error diagnostics
-        // ----------------------------------------------------------
         if (err instanceof Prisma.PrismaClientKnownRequestError) {
-          console.error('PrismaClientKnownRequestError:')
-          console.error('Code:', err.code)
-          console.error('Message:', err.message)
-          console.error('Meta:', err.meta)
-
-          // Handle specific unique constraint case
           if (err.code === 'P2002') {
             throw new TRPCError({
               code: 'CONFLICT',
               message:
-                'Nie można zapisać zmian — kombinacja numeru, adresu i wejścia już istnieje.',
+                'Nie można zapisać — kombinacja numeru, adresu i wejścia już istnieje.',
             })
           }
         }
-
-        if (err instanceof Prisma.PrismaClientValidationError) {
-          console.error('PrismaClientValidationError:')
-          console.error(err.message)
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Błąd walidacji danych przy edycji zlecenia.',
-          })
-        }
-
-        if (err instanceof Error) {
-          console.error('Unexpected error in editOrder:', err)
-        }
-
-        // Fallback — throw general TRPC error
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message:
-            'Nieoczekiwany błąd podczas edycji zlecenia. Sprawdź logi serwera.',
+          message: 'Nieoczekiwany błąd przy edycji zlecenia.',
         })
       }
     }),

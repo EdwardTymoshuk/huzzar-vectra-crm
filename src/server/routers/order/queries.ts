@@ -115,12 +115,16 @@ export const queriesRouter = router({
       return { orders, totalOrders }
     }),
 
-  /** Full order details (with retry chain and full history) */
+  /** ✅ Full order details (with complete attempt chain + full client history) */
   getOrderById: loggedInEveryone
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      // 1️⃣ Fetch the main (current) order
-      const order = await ctx.prisma.order.findUniqueOrThrow({
+      const prisma = ctx.prisma
+
+      /* ------------------------------------------------------------
+       * 1️⃣ Fetch main (current) order with all related details
+       * ---------------------------------------------------------- */
+      const order = await prisma.order.findUnique({
         where: { id: input.id },
         include: {
           assignedTo: { select: { id: true, name: true } },
@@ -137,57 +141,183 @@ export const queriesRouter = router({
               id: true,
               attemptNumber: true,
               date: true,
+              createdAt: true,
               completedAt: true,
               closedAt: true,
               status: true,
               failureReason: true,
               notes: true,
+              previousOrderId: true,
               assignedTo: { select: { id: true, name: true } },
             },
           },
         },
       })
 
-      // 2️⃣ Fetch all related orders (same number + same address)
-      const relatedOrders = await ctx.prisma.order.findMany({
-        where: {
-          orderNumber: order.orderNumber,
-          city: order.city,
-          street: order.street,
+      if (!order)
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Zlecenie nie istnieje',
+        })
+      /* ------------------------------------------------------------
+       * 2️⃣ Recursively fetch all previous orders (attempt chain)
+       * ---------------------------------------------------------- */
+      async function fetchAllPreviousOrders(orderId: string): Promise<
+        {
+          id: string
+          attemptNumber: number
+          date: Date
+          completedAt: Date | null
+          createdAt: Date | null
+          closedAt: Date | null
+          status: OrderStatus
+          failureReason: string | null
+          notes: string | null
+          previousOrderId: string | null
+          assignedTo: { id: string; name: string } | null
+        }[]
+      > {
+        const results: {
+          id: string
+          attemptNumber: number
+          date: Date
+          completedAt: Date | null
+          createdAt: Date | null
+          closedAt: Date | null
+          status: OrderStatus
+          failureReason: string | null
+          notes: string | null
+          previousOrderId: string | null
+          assignedTo: { id: string; name: string } | null
+        }[] = []
+
+        let currentId: string | null = orderId
+
+        while (currentId) {
+          const prev: {
+            id: string
+            attemptNumber: number
+            date: Date
+            createdAt: Date | null
+            completedAt: Date | null
+            closedAt: Date | null
+            status: OrderStatus
+            failureReason: string | null
+            notes: string | null
+            previousOrderId: string | null
+            assignedTo: { id: string; name: string } | null
+          } | null = await prisma.order.findUnique({
+            where: { id: currentId },
+            select: {
+              id: true,
+              attemptNumber: true,
+              date: true,
+              createdAt: true,
+              completedAt: true,
+              closedAt: true,
+              status: true,
+              failureReason: true,
+              notes: true,
+              previousOrderId: true,
+              assignedTo: { select: { id: true, name: true } },
+            },
+          })
+
+          if (!prev) break
+          results.push(prev)
+          currentId = prev.previousOrderId
+        }
+
+        return results.reverse()
+      }
+
+      const previousChain = order.previousOrderId
+        ? await fetchAllPreviousOrders(order.previousOrderId)
+        : []
+
+      /* ------------------------------------------------------------
+       * 3️⃣ Combine all attempts (previous + current)
+       * ---------------------------------------------------------- */
+      const allAttempts = [
+        ...previousChain.map((o) => ({
+          id: o.id,
+          attemptNumber: o.attemptNumber,
+          date: o.date,
+          createdAt: o.createdAt,
+          completedAt: o.completedAt,
+          closedAt: o.closedAt,
+          status: o.status,
+          failureReason: o.failureReason,
+          notes: o.notes,
+          assignedTo: o.assignedTo ? { ...o.assignedTo } : null,
+        })),
+        {
+          id: order.id,
+          attemptNumber: order.attemptNumber,
+          date: order.date,
+          createdAt: order.createdAt,
+          completedAt: order.completedAt,
+          closedAt: order.closedAt,
+          status: order.status,
+          failureReason: order.failureReason,
+          notes: order.notes,
+          assignedTo: order.assignedTo ? { ...order.assignedTo } : null,
         },
-        orderBy: { attemptNumber: 'asc' },
-        include: {
-          assignedTo: { select: { id: true, name: true } },
-          history: {
-            include: { changedBy: { select: { id: true, name: true } } },
-            orderBy: { changeDate: 'desc' },
-          },
-        },
+      ]
+
+      /* ------------------------------------------------------------
+       * 4️⃣ Merge all orderHistory entries from all attempts
+       * ---------------------------------------------------------- */
+      const allOrderIds = [order.id, ...previousChain.map((o) => o.id)]
+
+      const mergedHistory = await prisma.orderHistory.findMany({
+        where: { orderId: { in: allOrderIds } },
+        include: { changedBy: { select: { id: true, name: true } } },
+        orderBy: { changeDate: 'desc' },
       })
 
-      // 3️⃣ Combine attempts (now with completedAt & closedAt)
-      const allAttempts = relatedOrders.map((o) => ({
-        id: o.id,
-        attemptNumber: o.attemptNumber,
-        date: o.date,
-        completedAt: o.completedAt,
-        closedAt: o.closedAt,
-        status: o.status,
-        failureReason: o.failureReason,
-        notes: o.notes,
-        assignedTo: o.assignedTo ? { ...o.assignedTo } : null,
-      }))
+      /* ------------------------------------------------------------
+       * 5️⃣ Fetch full client history (all orders by clientId)
+       * ---------------------------------------------------------- */
+      let clientHistory: {
+        id: string
+        orderNumber: string
+        date: Date
+        status: OrderStatus
+        type: OrderType
+        city: string
+        street: string
+        attemptNumber: number
+      }[] = []
 
-      // 4️⃣ Merge all history entries from all attempts
-      const mergedHistory = relatedOrders
-        .flatMap((o) => o.history)
-        .sort((a, b) => b.changeDate.getTime() - a.changeDate.getTime())
+      if (order.clientId) {
+        const ordersByClient = await prisma.order.findMany({
+          where: { clientId: order.clientId },
+          orderBy: { date: 'desc' },
+          select: {
+            id: true,
+            orderNumber: true,
+            date: true,
+            status: true,
+            type: true,
+            city: true,
+            street: true,
+            attemptNumber: true,
+          },
+        })
 
-      // 5️⃣ Return combined result
+        // Exclude the current order from the summary (optional)
+        clientHistory = ordersByClient.filter((o) => o.id !== order.id)
+      }
+
+      /* ------------------------------------------------------------
+       * 6️⃣ Return combined response
+       * ---------------------------------------------------------- */
       return {
         ...order,
         attempts: allAttempts,
         history: mergedHistory,
+        clientHistory,
       }
     }),
 

@@ -57,6 +57,7 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
     form as UseFormReturn<OrderFormData>
 
   const [operatorList, setOperatorList] = useState<string[]>([])
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const type = watch?.('type') ?? undefined
 
@@ -145,6 +146,31 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
         )}
       />
 
+      {/* Client ID */}
+      <FormField
+        control={control}
+        name="clientId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              ID klienta <span className="text-destructive">*</span>
+            </FormLabel>
+            <FormControl>
+              <Input
+                {...field}
+                placeholder="np. 4312341"
+                className="font-mono"
+                onChange={(e) => {
+                  const cleaned = e.target.value.trim()
+                  field.onChange(cleaned)
+                }}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {/* Order number */}
       <FormField
         control={control}
@@ -175,7 +201,7 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
             <FormLabel>
               Data <span className="text-destructive">*</span>
             </FormLabel>
-            <Popover>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -192,7 +218,11 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
                 <Calendar
                   mode="single"
                   selected={field.value ? new Date(field.value) : undefined}
-                  onSelect={(date) => field.onChange(date?.toISOString() ?? '')}
+                  onSelect={(date) => {
+                    field.onChange(date?.toISOString() ?? '')
+                    setIsCalendarOpen(false)
+                  }}
+                  locale={pl}
                 />
               </PopoverContent>
             </Popover>

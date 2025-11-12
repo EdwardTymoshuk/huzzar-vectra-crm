@@ -79,10 +79,15 @@ const OrderAccordionDetails = ({ order }: Props) => {
     )
   }
 
-  if (!materialDefs || !rawMaterials) {
+  if (
+    !materialDefs ||
+    rawMaterials === undefined ||
+    rawDevices === undefined ||
+    workCodeDefs === undefined
+  ) {
     return (
-      <div className="p-4 text-destructive">
-        Nie udało się pobrać danych magazynowych.
+      <div className="p-4">
+        <LoaderSpinner />
       </div>
     )
   }

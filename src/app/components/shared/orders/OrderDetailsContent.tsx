@@ -46,6 +46,7 @@ const OrderDetailsContent = ({ order }: Props) => {
     failureReason,
     notes,
     attemptNumber,
+    clientId,
   } = order
 
   // Split assigned equipment into issued vs collected
@@ -67,6 +68,7 @@ const OrderDetailsContent = ({ order }: Props) => {
           />
         )}
         {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
+        <HeaderRow label="Id klienta" value={clientId} />
       </div>
 
       {/* ===== Work codes ===== */}
@@ -320,6 +322,6 @@ const HeaderRow = ({
 }) => (
   <div className="flex items-center gap-2">
     <span className="font-semibold">{label}:</span>
-    <span className="inline-flex items-center">{value}</span>
+    <span className="inline-flex items-center">{!!value ? value : '-'}</span>
   </div>
 )

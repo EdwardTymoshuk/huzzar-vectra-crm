@@ -86,6 +86,7 @@ const EditOrderModal = ({
     defaultValues: {
       type: order.type,
       operator: order.operator,
+      clientId: order.clientId || undefined,
       orderNumber: order.orderNumber,
       date: new Date(order.date).toISOString().split('T')[0],
       timeSlot: order.timeSlot,

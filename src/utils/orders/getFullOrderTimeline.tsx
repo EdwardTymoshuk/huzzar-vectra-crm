@@ -49,7 +49,7 @@ export function getFullOrderTimeline(
           : 'warning'
 
       // Select most relevant timestamp
-      const displayDate = a.completedAt ?? a.closedAt ?? a.date
+      const displayDate = a.completedAt ?? a.closedAt ?? a.createdAt ?? a.date
 
       events.push({
         id: `attempt-${a.id}`,

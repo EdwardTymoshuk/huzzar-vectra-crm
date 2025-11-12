@@ -155,6 +155,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           return createOrderMutation.mutateAsync({
             operator: o.operator,
             type: o.type,
+            clientId: o.clientId,
             orderNumber: o.orderNumber,
             date: o.date,
             timeSlot: o.timeSlot,

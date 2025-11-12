@@ -13,6 +13,7 @@ export type ParsedOrderFromExcel = {
   operator: string
   orderNumber: string
   type: 'INSTALATION' // keep current domain naming
+  clientId?: string
   city: string
   street: string
   postalCode: string
@@ -80,12 +81,13 @@ export async function parseOrdersFromExcel(
       col.taskStatus !== null ? String(row[col.taskStatus] ?? '').trim() : ''
     const status = mapStatus(statusRaw)
 
-    // External client ID → ONLY this goes to notes
-    const extId =
+    // External client ID → stored as clientId (not in notes)
+    const clientId =
       col.externalClientId !== null
-        ? String(row[col.externalClientId] ?? '').trim()
-        : ''
-    const notes = extId ? `Zew. ID klienta: ${extId}` : ''
+        ? String(row[col.externalClientId] ?? '').trim() || undefined
+        : undefined
+
+    const notes = '' // no longer used for external ID
 
     // Type — keep constant for now
     const type = 'INSTALATION' as const
@@ -94,6 +96,7 @@ export async function parseOrdersFromExcel(
       operator,
       orderNumber,
       type,
+      clientId,
       city,
       street,
       postalCode,

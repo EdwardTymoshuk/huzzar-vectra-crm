@@ -90,6 +90,20 @@ export const statusColorMap: Record<string, string> = {
 }
 
 /**
+ * Mapping of OrderStatus → timeline color key
+ * Used by timeline components (OrderTimeline, ClientTimeline)
+ */
+export const orderStatusToTimelineColor: Record<
+  string,
+  'success' | 'danger' | 'warning' | 'secondary'
+> = {
+  COMPLETED: 'success',
+  NOT_COMPLETED: 'danger',
+  ASSIGNED: 'warning',
+  PENDING: 'secondary',
+}
+
+/**
  * Mapping of order type to formatted Polish equivalents.
  */
 export const orderTypeMap: Record<string, string> = {

@@ -68,6 +68,7 @@ export const orderSchema = z.object({
   operator: z.string({
     required_error: 'Operator jest wymagany',
   }),
+  clientId: z.string().min(3, 'ID klienta jest wymagane'),
   orderNumber: z
     .string({
       required_error: 'Numer zlecenia jest wymagany',

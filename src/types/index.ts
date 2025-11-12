@@ -277,6 +277,7 @@ export type OrderWithAttempts = {
     date: Date
     completedAt?: Date | null
     closedAt?: Date | null
+    createdAt?: Date | null
     assignedTo?: { id: string; name: string } | null
   }[]
 }
@@ -313,4 +314,15 @@ export const orderTimelineColorMap: Record<OrderStatus, string> = {
   NOT_COMPLETED: 'bg-danger',
   ASSIGNED: 'bg-warning',
   PENDING: 'bg-secondary',
+}
+
+export type ClientHistoryItem = {
+  id: string
+  orderNumber: string
+  date: Date
+  status: OrderStatus
+  type: OrderType
+  city: string
+  street: string
+  attemptNumber: number
 }
