@@ -40,6 +40,16 @@ export const transferRouter = router({
       const me = user.id
 
       await ctx.prisma.$transaction(async (tx) => {
+        // Find target technician name
+        const targetTech = await tx.user.findUnique({
+          where: { id: newTechnicianId },
+          select: { name: true },
+        })
+
+        if (!targetTech) {
+          throw new Error('Nie znaleziono technika docelowego.')
+        }
+
         const order = await tx.order.update({
           where: { id: orderId, assignedToId: me },
           data: { transferToId: newTechnicianId, transferPending: true },
@@ -51,7 +61,7 @@ export const transferRouter = router({
           userId: me,
           before: order.status,
           after: order.status,
-          note: `Zlecenie przekazane do technika ${newTechnicianId}`,
+          note: `Zlecenie przekazane do technika ${targetTech.name}`,
           prisma: tx,
         })
       })
@@ -64,7 +74,7 @@ export const transferRouter = router({
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const user = getUserOrThrow(ctx)
-      const { id: me } = user
+      const { name: me } = user
       const { orderId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
@@ -86,7 +96,7 @@ export const transferRouter = router({
           orderId,
           userId: me,
           before: current.status,
-          after: current.status, // status stays ASSIGNED
+          after: current.status,
           note: `Technik ${me} przyjął przekazane zlecenie`,
           prisma: tx,
         })
@@ -100,7 +110,7 @@ export const transferRouter = router({
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const user = getUserOrThrow(ctx)
-      const { id: me } = user
+      const { name: me } = user
       const { orderId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
