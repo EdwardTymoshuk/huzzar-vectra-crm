@@ -116,21 +116,6 @@ export const orderTypeMap: Record<string, string> = {
  * Mapping of time slots to formatted Polish equivalents.
  */
 export const timeSlotOptions = [
-  // one hour time slots
-  { value: 'EIGHT_NINE', label: '08:00 - 09:00' },
-  { value: 'NINE_TEN', label: '09:00 - 10:00' },
-  { value: 'TEN_ELEVEN', label: '10:00 - 11:00' },
-  { value: 'ELEVEN_TWELVE', label: '11:00 - 12:00' },
-  { value: 'TWELVE_THIRTEEN', label: '12:00 - 13:00' },
-  { value: 'THIRTEEN_FOURTEEN', label: '13:00 - 14:00' },
-  { value: 'FOURTEEN_FIFTEEN', label: '14:00 - 15:00' },
-  { value: 'FIFTEEN_SIXTEEN', label: '15:00 - 16:00' },
-  { value: 'SIXTEEN_SEVENTEEN', label: '16:00 - 17:00' },
-  { value: 'SEVENTEEN_EIGHTEEN', label: '17:00 - 18:00' },
-  { value: 'EIGHTEEN_NINETEEN', label: '18:00 - 19:00' },
-  { value: 'NINETEEN_TWENTY', label: '19:00 - 20:00' },
-  { value: 'TWENTY_TWENTYONE', label: '20:00 - 21:00' },
-
   // two and three hour time slots
   { value: 'EIGHT_TEN', label: '08:00 - 10:00' },
   { value: 'TEN_TWELVE', label: '10:00 - 12:00' },

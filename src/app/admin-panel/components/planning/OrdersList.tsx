@@ -59,7 +59,7 @@ const OrdersList = () => {
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                   role="rowgroup"
-                  className={`min-h-52 transition-colors w-[900px] sm:w-full ${
+                  className={`min-h-52 transition-colors w-[900px] sm:w-full uppercase ${
                     // ✅ fixed min width to enable scroll
                     snapshot.isDraggingOver
                       ? 'bg-muted/60 border border-secondary rounded-lg'
@@ -69,7 +69,7 @@ const OrdersList = () => {
                   {/* Header row */}
                   <div
                     role="row"
-                    className="grid grid-cols-5 px-3 py-2 border-b bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wide sticky top-0 z-10"
+                    className="grid grid-cols-5 px-3 py-2 border-b bg-muted text-xs font-semibold text-muted-foreground tracking-wide sticky top-0 z-10"
                   >
                     <span role="columnheader">Data</span>
                     <span role="columnheader" className="text-center">
@@ -101,7 +101,7 @@ const OrdersList = () => {
                           role="row"
                           tabIndex={0}
                           onDoubleClick={() => handleOpenDetails(order.id)}
-                          className="grid grid-cols-5 items-center px-3 py-2 text-sm border-b cursor-grab active:cursor-grabbing hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary select-none transition"
+                          className="grid grid-cols-5 items-center px-3 py-2 text-xs border-b cursor-grab active:cursor-grabbing hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary select-none transition"
                         >
                           <span role="cell" className="text-muted-foreground">
                             {format(order.date, 'dd.MM.yyyy')}
@@ -143,7 +143,7 @@ const OrdersList = () => {
                   {filtered.length === 0 && (
                     <div
                       role="row"
-                      className="flex justify-center items-center h-24 text-muted-foreground text-sm"
+                      className="flex justify-center items-center h-24 text-muted-foreground text-xs"
                     >
                       <span role="cell">Brak nieprzypisanych zleceń.</span>
                     </div>

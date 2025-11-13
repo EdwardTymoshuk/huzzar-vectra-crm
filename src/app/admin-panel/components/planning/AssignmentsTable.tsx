@@ -164,7 +164,7 @@ const AssignmentsTable = () => {
                                     ref={drag.innerRef}
                                     {...drag.draggableProps}
                                     {...drag.dragHandleProps}
-                                    className="hover:bg-muted cursor-pointer text-sm"
+                                    className="hover:bg-muted cursor-pointer text-sm uppercase"
                                     onClick={() => {
                                       setSelectedOrderId(order.id)
                                       setIsPanelOpen(true)

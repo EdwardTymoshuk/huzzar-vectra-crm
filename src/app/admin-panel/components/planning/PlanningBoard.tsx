@@ -64,7 +64,7 @@ const PlanningBoard = () => {
                 ? new Date(o.date).toLocaleDateString('pl-PL')
                 : undefined,
               operator: o.operator ?? '—',
-              color: 'var(--primary)',
+              color: '#66b266',
             }))
         )
       ) ?? []
@@ -79,7 +79,7 @@ const PlanningBoard = () => {
         Status: nieprzypisane`,
         date: o.date ? new Date(o.date).toLocaleDateString('pl-PL') : undefined,
         operator: o.operator ?? '—',
-        color: 'var(--secondary)',
+        color: '#E6262D',
       }))
 
     return [...assignedMarkers, ...unassignedMarkers]
@@ -121,16 +121,16 @@ const PlanningBoard = () => {
 
       <DragDropContext onDragEnd={handleDragEnd} enableDefaultSensors>
         {/* 🔹 Top section: schedule + map */}
-        <div className="flex flex-col md:flex-row flex-[7] h-[70%] min-h-[70%] overflow-hidden gap-4">
-          {/* Schedule */}
-          <section className="flex flex-col max-h-full md:w-[70%] overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-[7] h-[70%] min-h-[70%] overflow-hidden gap-4 w-full">
+          {/* Schedule (left panel) */}
+          <section className="flex flex-col flex-shrink-0 md:max-w-[70%] w-full md:w-auto overflow-hidden">
             <div className="flex-1 overflow-y-auto px-2">
               <TechniciansList setProcessing={setProcessing} />
             </div>
           </section>
 
-          {/* Map */}
-          <section className="flex flex-col md:w-[30%] overflow-hidden">
+          {/* Map (right panel, fills remaining space) */}
+          <section className="flex flex-1 overflow-hidden">
             <div className="flex-1 relative overflow-hidden rounded-lg border">
               <MapView
                 mapKey={`planning-map-${selectedDate.toISOString()}-${

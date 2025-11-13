@@ -164,17 +164,17 @@ const OrdersTableInner = ({
 
   /* ---------------------------- Layout ---------------------------- */
   const GRID =
-    'grid grid-cols-[110px_120px_220px_220px_minmax(260px,2fr)_140px_80px_40px_40px]'
+    'grid grid-cols-[40px_120px_220px_220px_220px_minmax(260px,2fr)_80px_40px_40px]'
 
   /* ---------------------------- Render ---------------------------- */
   return (
     <div>
       {/* Scroll wrapper */}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto uppercase">
         <div className="w-full min-w-fit md:min-w-[1100px]">
           {/* Header row */}
           <div
-            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-sm uppercase text-start font-semibold text-muted-foreground select-none`}
+            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-xs uppercase text-start font-semibold text-muted-foreground select-none`}
           >
             <span>Typ</span>
             <span
@@ -193,9 +193,9 @@ const OrdersTableInner = ({
               )}
             </span>
             <span>Technik</span>
+            <span>Id klienta</span>
             <span>Nr zlecenia</span>
             <span>Adres</span>
-            <span>Operator</span>
             <span
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => handleSort('status')}
@@ -256,16 +256,22 @@ const OrdersTableInner = ({
                 return (
                   <AccordionItem key={o.id} value={o.id} className="min-w-fit">
                     <AccordionTrigger
-                      className="text-sm font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
+                      className="text-xs font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
                       asChild
                     >
                       <div
                         onClick={() => setOpenRowId(open ? null : o.id)}
                         className={`${GRID} w-full gap-2 items-center text-start`}
                       >
-                        <span>{orderTypeMap[o.type]}</span>
+                        <span>
+                          {orderTypeMap[o.type]
+                            .trim()
+                            .split('')[0]
+                            .toUpperCase()}
+                        </span>
                         <span>{new Date(o.date).toLocaleDateString()}</span>
                         <span>{o.assignedTo ? o.assignedTo.name : '-'}</span>
+                        <span>{o.clientId}</span>
                         <span
                           className="min-w-0 whitespace-normal break-words"
                           title={o.orderNumber}
@@ -286,7 +292,6 @@ const OrdersTableInner = ({
                             autoEscape
                           />
                         </span>
-                        <span>{o.operator}</span>
                         <span>
                           <OrderStatusBadge status={o.status} compact />
                         </span>

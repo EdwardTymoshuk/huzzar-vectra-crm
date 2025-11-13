@@ -24,6 +24,7 @@ type Props = {
   searchTerm?: string
 }
 
+/** Timeline configuration constants */
 const HOUR_START = 8
 const HOUR_END = 21
 const HOURS = Array.from(
@@ -44,6 +45,9 @@ const TIME_SLOT_MAP: Record<string, [number, number]> = {
   FIFTEEN_EIGHTEEN: [15, 18],
 }
 
+/**
+ * Utility: parses slot enum to numeric start/end hours.
+ */
 function parseSlot(slot: string) {
   if (TIME_SLOT_MAP[slot])
     return { start: TIME_SLOT_MAP[slot][0], end: TIME_SLOT_MAP[slot][1] }
@@ -52,6 +56,9 @@ function parseSlot(slot: string) {
   return { start: 8, end: 9 }
 }
 
+/**
+ * Prepares technician orders into positioned "lanes" for timeline layout.
+ */
 function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
   const flat: {
     id: string
@@ -76,7 +83,6 @@ function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
     )
   })
 
-  // 🔍 optional search filtering inside timeline items
   const visible = searchTerm?.trim()
     ? flat.filter((o) => matchSearch(searchTerm, o.label, o.address))
     : flat
@@ -99,9 +105,12 @@ function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
 
 /**
  * TechniciansTimeline
- * - each row is droppable zone
- * - fixed height (prevents "jumping")
- * - drag highlight + red delete icon
+ * --------------------------------------------------------------
+ * Timeline view for all technicians.
+ * - Each row = one technician (droppable zone)
+ * - Left column sticky (technician names)
+ * - Top header sticky (hours)
+ * - Orders draggable between technicians
  */
 const TechniciansTimeline = ({
   assignments,
@@ -111,9 +120,9 @@ const TechniciansTimeline = ({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
-  const LANE_HEIGHT = 48
-  const LANE_GAP = 8
-  const HOUR_WIDTH = 100
+  const LANE_HEIGHT = 30
+  const LANE_GAP = 5
+  const HOUR_WIDTH = 75
 
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments
@@ -145,12 +154,15 @@ const TechniciansTimeline = ({
 
   return (
     <TooltipProvider>
-      <div className="w-full min-w-0 max-h-full">
+      <div className="w-full min-w-0 h-full max-h-full relative flex">
+        {/* ---------------------------------------------------
+         * MAIN SCROLLABLE TIMELINE SECTION
+         * --------------------------------------------------- */}
         <div
-          className="overflow-x-auto overflow-y-hidden border rounded-md bg-background shadow-inner inline-flex"
+          className="overflow-x-auto overflow-y-auto border rounded-md bg-background shadow-inner flex-1"
           style={{
             WebkitOverflowScrolling: 'touch',
-            overscrollBehaviorX: 'contain',
+            overscrollBehavior: 'contain',
           }}
         >
           <div
@@ -160,25 +172,32 @@ const TechniciansTimeline = ({
               minWidth: '100%',
             }}
           >
-            {/* Header */}
-            <div
-              className="grid border-b bg-muted font-medium text-sm sticky top-0 z-10"
-              style={{
-                gridTemplateColumns: `200px repeat(${HOURS.length}, ${HOUR_WIDTH}px)`,
-              }}
-            >
-              <div className="p-2 border-r text-center bg-muted">TECHNIK</div>
-              {HOURS.map((h) => (
-                <div
-                  key={h}
-                  className="border-r text-center py-1 border-gray-300 bg-muted/40"
-                >
-                  {h}
-                </div>
-              ))}
+            {/* ---------------------------------------------------
+             * Fixed Header (hours) + Fixed Left Column (Technicians)
+             * --------------------------------------------------- */}
+            <div className="flex border-b font-medium text-xs sticky top-0 z-30 bg-muted items-center ">
+              <div className="w-[200px] flex-shrink-0 border-r py-2 my-auto text-center bg-muted sticky left-0 z-40">
+                TECHNIK
+              </div>
+              <div
+                className="flex overflow-x-hidden"
+                style={{ width: `${HOURS.length * HOUR_WIDTH}px` }}
+              >
+                {HOURS.map((h) => (
+                  <div
+                    key={h}
+                    className="border-r text-center py-1 border-gray-300 bg-muted/80 backdrop-blur-sm"
+                    style={{ width: `${HOUR_WIDTH}px` }}
+                  >
+                    {h}
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Rows */}
+            {/* ---------------------------------------------------
+             * Timeline Rows
+             * --------------------------------------------------- */}
             {filteredAssignments.map((tech, rowIdx) => {
               const { items, laneCount } = layoutOrders(tech, searchTerm)
               const rowHeight = laneCount * (LANE_HEIGHT + LANE_GAP)
@@ -194,7 +213,7 @@ const TechniciansTimeline = ({
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
-                        'grid border-b py-[2px] text-sm relative transition-colors',
+                        'grid border-b py-0 text-xs relative transition-colors',
                         rowIdx % 2 === 0 ? 'bg-background' : 'bg-background/50',
                         snapshot.isDraggingOver &&
                           'bg-muted/70 ring-2 ring-secondary scale-y-105'
@@ -205,8 +224,8 @@ const TechniciansTimeline = ({
                         minHeight: `${rowHeight}px`,
                       }}
                     >
-                      {/* Technician name */}
-                      <div className="border-r p-2 first: bg-muted font-semibold flex items-start justify-start whitespace-nowrap">
+                      {/* Sticky technician name (left) */}
+                      <div className="border-r p-2 font-semibold flex text-xs items-start justify-start whitespace-nowrap bg-muted sticky left-0 z-20">
                         {matchSearch(searchTerm, tech.technicianName) ? (
                           <Highlight
                             searchWords={[searchTerm]}
@@ -219,7 +238,7 @@ const TechniciansTimeline = ({
                         )}
                       </div>
 
-                      {/* Hour grid + orders */}
+                      {/* Hour grid + draggable orders */}
                       <div className="relative col-span-13 h-full">
                         {HOURS.map((_, i) => (
                           <div
@@ -261,7 +280,7 @@ const TechniciansTimeline = ({
                                         {...drag.draggableProps}
                                         {...drag.dragHandleProps}
                                         className={cn(
-                                          'absolute truncate rounded-md shadow-sm border border-gray-300 overflow-hidden px-2 py-2 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group',
+                                          'absolute truncate rounded-md shadow-sm border border-gray-300 overflow-hidden px-1 py-0 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group',
                                           snapshot.isDragging &&
                                             'scale-105 shadow-lg z-50 ring-2 ring-secondary'
                                         )}
@@ -284,8 +303,7 @@ const TechniciansTimeline = ({
                                           setIsSheetOpen(true)
                                         }}
                                       >
-                                        {/* Header + delete */}
-                                        <div className="flex justify-between items-start">
+                                        <div className="flex justify-between text-[0.65rem] items-start">
                                           <div className="truncate font-semibold pr-2">
                                             <Highlight
                                               highlightClassName="bg-yellow-200"
@@ -305,15 +323,14 @@ const TechniciansTimeline = ({
                                           </Button>
                                         </div>
 
-                                        {/* Address */}
-                                        <div className="truncate text-[11px] opacity-80">
+                                        <div className="truncate text-[0.65rem]">
                                           {order.address}
                                         </div>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent
                                       side="top"
-                                      className="max-w-sm"
+                                      className="max-w-sm text-[0.65rem]"
                                     >
                                       <p className="font-semibold">
                                         {order.label}
@@ -348,7 +365,7 @@ const TechniciansTimeline = ({
         </div>
       </div>
 
-      {/* 🧾 Order Details Sheet */}
+      {/* Order Details Sheet */}
       <OrderDetailsSheet
         orderId={selectedOrderId}
         open={isSheetOpen}

@@ -46,7 +46,7 @@ const OrderDetailsContent = ({ order }: Props) => {
     failureReason,
     notes,
     attemptNumber,
-    clientId,
+    operator,
   } = order
 
   // Split assigned equipment into issued vs collected
@@ -68,7 +68,7 @@ const OrderDetailsContent = ({ order }: Props) => {
           />
         )}
         {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
-        <HeaderRow label="Id klienta" value={clientId} />
+        <HeaderRow label="Operator" value={operator} />
       </div>
 
       {/* ===== Work codes ===== */}

@@ -56,7 +56,7 @@ const TechniciansList = ({ setProcessing }: Props) => {
   }, [assignments, searchTerm])
 
   return (
-    <div className="space-y-4 w-full max-w-full min-w-0">
+    <div className="space-y-4 w-full h-full max-w-full min-w-0">
       {isLoading ? (
         <TechniciansListSkeleton />
       ) : filteredTechnicians.length === 0 ? (

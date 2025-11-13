@@ -44,7 +44,7 @@ const shortLabel: Record<OrderStatus, string> = {
   COMPLETED: 'W', // wykonane
   NOT_COMPLETED: 'NW', // niewykonane
   ASSIGNED: 'P', // przypisane
-  PENDING: '?', // oczekujące / nieznany
+  PENDING: 'NP', // nieprzypisane
 }
 
 /** Unified badge for displaying order status */
@@ -61,7 +61,7 @@ const OrderStatusBadge = ({
   return (
     <Badge
       variant={variant}
-      className={className}
+      className={`min-w-11 justify-center ${className ?? ''}`}
       title={!compact ? undefined : statusMap[status]}
     >
       {label}
