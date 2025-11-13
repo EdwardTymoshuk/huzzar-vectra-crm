@@ -13,6 +13,7 @@ import DeviceCheckSheet from '../components/warehouse/deviceCheck/DeviceCheckShe
 import IssueModal from '../components/warehouse/issue/IssueModal'
 import ReturnModal from '../components/warehouse/return/ReturnModal'
 import LocationTransferModal from '../components/warehouse/warehouseLocalizations/LocationTransferModal'
+import LocationTransfersTable from '../components/warehouse/warehouseLocalizations/LocationTransfersTable'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -38,6 +39,7 @@ const WarehousePage = () => {
       />
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
         <WarehouseSummaryCard />
+        <LocationTransfersTable />
         <WarehouseTabs
           searchTerm={searchTerm}
           categoryFilter={categoryFilter}
