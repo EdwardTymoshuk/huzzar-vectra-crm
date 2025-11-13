@@ -49,34 +49,25 @@ const EditOrderModal = ({
    */
   const updateOrderMutation = trpc.order.editOrder.useMutation({
     onSuccess: () => {
-      toast.success('Zlecenie zostało pomyślnie zaktualizowane.')
+      toast.success('Zlecenie zostało zapisane.')
       utils.order.getUnassignedOrders.invalidate()
       utils.order.getAssignedOrders.invalidate()
       utils.order.getOrderById.invalidate({ id: order.id })
       onCloseAction()
     },
     onError: (err) => {
-      console.error('Błąd podczas edycji zlecenia:', err)
+      console.error('[editOrder error]', err)
 
-      const message =
-        (err.data?.code
-          ? `Błąd [${err.data.code}]: ${err.message}`
-          : err.message) || 'Nieznany błąd podczas aktualizacji zlecenia.'
-
-      // Better display for known Prisma / TRPC errors
-      if (message.includes('Unique constraint')) {
-        toast.error('Nie można zapisać — zlecenie z tym numerem już istnieje.')
-      } else if (err.data?.code === 'CONFLICT') {
-        toast.error(
-          'Zlecenie o tym numerze i adresie już istnieje. Sprawdź poprawność danych.'
-        )
-      } else if (err.data?.code === 'BAD_REQUEST') {
-        toast.error('Błąd walidacji — sprawdź wprowadzone dane.')
-      } else if (err.data?.code === 'NOT_FOUND') {
+      if (err.data?.code === 'NOT_FOUND') {
         toast.error('Zlecenie nie istnieje lub zostało usunięte.')
+      } else if (err.data?.code === 'CONFLICT') {
+        toast.error('Nie można użyć tego numeru zlecenia — jest już zajęty.')
+      } else if (err.data?.code === 'BAD_REQUEST') {
+        toast.error('Nieprawidłowe dane w formularzu.')
       } else {
-        toast.error(message)
+        toast.error('Wystąpił nieoczekiwany błąd podczas zapisu.')
       }
+
       setIsSubmitting(false)
     },
   })
@@ -125,8 +116,8 @@ const EditOrderModal = ({
           data.assignedToId === 'none' ? undefined : data.assignedToId,
       })
     } catch (error) {
-      console.error('❌ Nieoczekiwany błąd onSubmit:', error)
-      toast.error('❌ Nieoczekiwany błąd podczas aktualizacji zlecenia.')
+      console.error('Nieoczekiwany błąd onSubmit:', error)
+      toast.error('Nieoczekiwany błąd podczas aktualizacji zlecenia.')
     } finally {
       setIsSubmitting(false)
     }

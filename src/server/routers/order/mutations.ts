@@ -340,6 +340,8 @@ export const mutationsRouter = router({
     .input(
       z.object({
         id: z.string(),
+        type: z.nativeEnum(OrderType),
+        operator: z.string(),
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(TimeSlot),
@@ -424,6 +426,33 @@ export const mutationsRouter = router({
           }
         }
 
+        let lat: number | null | undefined = undefined
+        let lng: number | null | undefined = undefined
+
+        if (addressChanged) {
+          const variants = [
+            `${input.street}, ${input.city}, Polska`,
+            `${input.city}, Polska`,
+          ]
+
+          for (const v of variants) {
+            try {
+              const coords = await getCoordinatesFromAddress(v)
+              if (coords) {
+                lat = coords.lat
+                lng = coords.lng
+                break
+              }
+            } catch {
+              // ignore and check next variant
+            }
+          }
+
+          // no result -> clear coordinates so they can be filled later
+          if (lat === undefined) lat = null
+          if (lng === undefined) lng = null
+        }
+
         /* ----------------------------------------------------------
          * 2️⃣ Apply update (keep Polish letters in DB)
          * ---------------------------------------------------------- */
@@ -431,6 +460,8 @@ export const mutationsRouter = router({
           where: { id: existing.id },
           data: {
             orderNumber: input.orderNumber.trim(),
+            type: input.type,
+            operator: input.operator,
             date: new Date(input.date),
             timeSlot: input.timeSlot,
             notes: input.notes,
@@ -441,6 +472,12 @@ export const mutationsRouter = router({
             clientId: input.clientId ?? existing.clientId,
             attemptNumber,
             previousOrderId,
+            ...(addressChanged
+              ? {
+                  lat: lat ?? null,
+                  lng: lng ?? null,
+                }
+              : {}),
           },
         })
 
@@ -478,17 +515,48 @@ export const mutationsRouter = router({
     }),
 
   /** ✅ Delete order */
-  deleteOrder: adminOnly
+  deleteOrder: adminOrCoord
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      const order = await prisma.order.findUnique({ where: { id: input.id } })
-      if (!order) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Zlecenie nie istnieje',
+      return prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: { id: input.id },
+          select: { status: true },
         })
-      }
-      return prisma.order.delete({ where: { id: input.id } })
+
+        if (!order) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Zlecenie nie istnieje',
+          })
+        }
+
+        if (order.status === 'COMPLETED' || order.status === 'NOT_COMPLETED') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Nie można usunąć zlecenia, które zostało już rozliczone.',
+          })
+        }
+
+        await tx.orderMaterial.deleteMany({ where: { orderId: input.id } })
+        await tx.orderEquipment.deleteMany({ where: { orderId: input.id } })
+        await tx.orderService.deleteMany({ where: { orderId: input.id } })
+        await tx.orderExtraDevice.deleteMany({
+          where: {
+            service: { orderId: input.id },
+          },
+        })
+        await tx.orderSettlementEntry.deleteMany({
+          where: { orderId: input.id },
+        })
+        await tx.orderHistory.deleteMany({
+          where: { orderId: input.id },
+        })
+
+        return tx.order.delete({
+          where: { id: input.id },
+        })
+      })
     }),
 
   /** ✅ Change order status */

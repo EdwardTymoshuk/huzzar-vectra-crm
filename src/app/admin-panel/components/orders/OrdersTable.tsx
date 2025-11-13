@@ -36,6 +36,7 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
+import { toast } from 'sonner'
 import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
@@ -147,7 +148,27 @@ const OrdersTableInner = ({
 
   /* -------------------------- Mutations --------------------------- */
   const utils = trpc.useUtils()
-  const deleteOrder = trpc.order.deleteOrder.useMutation()
+  const deleteOrder = trpc.order.deleteOrder.useMutation({
+    onSuccess: () => {
+      toast.success('Zlecenie zostało usunięte.')
+      utils.order.getRealizedOrders.invalidate()
+    },
+    onError: (err) => {
+      console.error('[deleteOrder error]', err)
+
+      if (err.data?.code === 'NOT_FOUND') {
+        toast.error('Zlecenie nie istnieje lub zostało już usunięte.')
+      } else if (err.data?.code === 'BAD_REQUEST') {
+        toast.error('Nie można usunąć zlecenia, które zostało wykonane.')
+      } else if (err.data?.code === 'CONFLICT') {
+        toast.error('Nie można usunąć zlecenia powiązanego z innymi rekordami.')
+      } else {
+        toast.error('Wystąpił nieoczekiwany błąd podczas usuwania zlecenia.')
+      }
+
+      setIsDeleteModalOpen(false)
+    },
+  })
 
   /* --------------------------- Handlers --------------------------- */
   const handleSort = (field: 'date' | 'status') => {
@@ -379,8 +400,14 @@ const OrdersTableInner = ({
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={async () => {
           if (!orderToDelete) return
-          await deleteOrder.mutateAsync({ id: orderToDelete.id })
-          utils.order.getRealizedOrders.invalidate()
+          try {
+            await deleteOrder.mutateAsync({ id: orderToDelete.id })
+            toast.success('Zlecenie usunięte.')
+            utils.order.getRealizedOrders.invalidate()
+          } catch (err) {
+            // ❗ Error already handled inside mutation handler
+            console.error('[OrdersTable delete error]', err)
+          }
           setIsDeleteModalOpen(false)
         }}
         description={`Czy na pewno chcesz usunąć zlecenie "${orderToDelete?.orderNumber}" z adresu "${orderToDelete?.city}, ${orderToDelete?.street}"? Tej operacji nie można cofnąć.`}

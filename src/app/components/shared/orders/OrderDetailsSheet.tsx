@@ -51,14 +51,29 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
 
   const deleteMutation = trpc.order.deleteOrder.useMutation({
     onSuccess: () => {
-      toast.success('Zlecenie usunięte.')
+      toast.success('Zlecenie zostało pomyślnie usunięte.')
       utils.order.getTechnicianActiveOrders.invalidate()
       utils.order.getAssignedOrders.invalidate()
       utils.order.getUnassignedOrders.invalidate()
       setShowDeleteDialog(false)
       onClose()
     },
-    onError: () => toast.error('Nie udało się usunąć zlecenia.'),
+    onError: (err) => {
+      console.error('[deleteOrder error]', err)
+
+      // ▸ More detailed backend error mapping
+      if (err.data?.code === 'NOT_FOUND') {
+        toast.error('Zlecenie już nie istnieje.')
+      } else if (err.data?.code === 'BAD_REQUEST') {
+        toast.error('Nie można usunąć wykonanego zlecenia.')
+      } else if (err.data?.code === 'CONFLICT') {
+        toast.error('Nie można usunąć zlecenia powiązanego z innymi rekordami.')
+      } else {
+        toast.error('Wystąpił nieoczekiwany błąd podczas usuwania.')
+      }
+
+      setShowDeleteDialog(false)
+    },
   })
 
   const handleDelete = () => {
@@ -79,26 +94,28 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
             </SheetTitle>
 
             {/* --- Only Admin/Coordinator see action buttons --- */}
-            {!isTechnician &&
-              order &&
-              (order.status === 'ASSIGNED' || order.status === 'PENDING') && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowEditModal(true)}
-                  >
-                    Edytuj
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    Usuń
-                  </Button>
-                </div>
-              )}
+            {!isTechnician && order && (
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowEditModal(true)}
+                >
+                  Edytuj
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={
+                    order.status === 'COMPLETED' ||
+                    order.status === 'NOT_COMPLETED'
+                  }
+                >
+                  Usuń
+                </Button>
+              </div>
+            )}
           </SheetHeader>
 
           {/* --- Loading / error states --- */}

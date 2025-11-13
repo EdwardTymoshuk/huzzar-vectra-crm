@@ -224,6 +224,8 @@ const OrderAccordionDetails = ({ order }: Props) => {
 
                     await editOrder.mutateAsync({
                       id: data.id,
+                      operator: data.operator,
+                      type: data.type,
                       notes: updatedNotes,
                       orderNumber: data.orderNumber,
                       date: data.date.toISOString().split('T')[0],
