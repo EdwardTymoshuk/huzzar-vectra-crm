@@ -156,9 +156,9 @@ const ItemModeTable = ({ mode, items }: Props) => {
           <TableRow>
             <TableHead>Lp</TableHead>
             <TableHead>
-              {items[0]?.itemType === 'MATERIAL' ? 'Indeks' : 'Numer seryjny'}
+              {items[0]?.itemType === 'MATERIAL' ? 'Indeks' : 'SN/MAC'}
             </TableHead>
-            {showLocationColumn && <TableHead>Lokalizacja</TableHead>}
+            {showLocationColumn && <TableHead>Magazyn</TableHead>}
             {mode === 'warehouse' && (
               <>
                 <TableHead>Data przyjęcia</TableHead>
