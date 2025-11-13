@@ -33,6 +33,10 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
   const { data: allRates = [] } = trpc.rateDefinition.getAllRates.useQuery()
   const allCodes = sortCodes(allRates.map((r) => r.code))
 
+  const openTechnicianBilling = (id: string) => {
+    window.location.href = `/admin-panel/billing/technician/${id}?from=${from}&to=${to}`
+  }
+
   if (isLoading)
     return (
       <div className="w-full flex justify-center">
@@ -58,7 +62,7 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
               <TableHead key={code}>{code}</TableHead>
             ))}
             <TableHead>Postęp</TableHead>
-            <TableHead>Akcje</TableHead>
+            <TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -73,7 +77,11 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
                 ? 'bg-warning'
                 : 'bg-success'
             return (
-              <TableRow key={row.technicianId}>
+              <TableRow
+                key={row.technicianId}
+                className="cursor-pointer hover:bg-muted transition"
+                onClick={() => openTechnicianBilling(row.technicianId)}
+              >
                 <TableCell>{i + 1}</TableCell>
                 <TableCell>{row.technicianName}</TableCell>
                 {allCodes.map((code) => (
@@ -98,6 +106,10 @@ const BillingMonthlySummaryTable = ({ from, to }: Props) => {
                       size="sm"
                       variant="ghost"
                       aria-label="Podsumowanie technika"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openTechnicianBilling(row.technicianId)
+                      }}
                     >
                       <MdKeyboardArrowRight className="mr-1" />
                     </Button>
