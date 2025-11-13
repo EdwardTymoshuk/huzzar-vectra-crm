@@ -112,11 +112,24 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
     })
   }, [searched, sortField, sortOrder])
 
+  const safeSetPage = (page: number) => {
+    if (page < 1) return
+    if (page > totalPages) return
+    setCurrentPage(page)
+  }
+
   /** Pagination */
   const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage))
+  /**
+   * Ensure currentPage never exceeds totalPages.
+   * Only correct when totalPages shrinks.
+   */
   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages)
-  }, [currentPage, totalPages])
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages])
 
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
@@ -268,7 +281,7 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
       <PaginationControls
         page={currentPage}
         totalPages={totalPages}
-        onPageChange={setCurrentPage}
+        onPageChange={safeSetPage}
       />
     </div>
   )
