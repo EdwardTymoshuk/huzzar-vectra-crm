@@ -27,20 +27,18 @@ import { useState } from 'react'
 import { MdVisibility } from 'react-icons/md'
 
 interface Props {
-  /** Technician database ID */
   technicianId: string
-  /** Selected month for report */
   selectedMonth: Date
-  /** Determines whether called in admin or technician context */
   mode: 'admin' | 'technician'
 }
 
 /**
  * TechnicianMonthlyDetails
  * ---------------------------------------------------------
- * Unified monthly settlements view used by both Admin and Technician panels.
- * - Keeps technician layout (summary header + codes grid)
- * - Uses admin-style daily table layout for consistency.
+ * Displays detailed monthly settlements for a technician (admin/tech view).
+ * - Always shows ALL defined work codes (from rate definitions)
+ * - Missing entries default to zero values
+ * - Same codes are used for summary tiles and daily table
  */
 const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -48,12 +46,30 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
   const from = format(startOfMonth(selectedMonth), 'yyyy-MM-dd')
   const to = format(endOfMonth(selectedMonth), 'yyyy-MM-dd')
 
+  // Monthly technician data
   const { data, isLoading } =
     trpc.settlement.getTechnicianMonthlyDetails.useQuery({
       technicianId,
       from,
       to,
     })
+
+  // All available work codes (used as full reference list)
+  const { data: rateDefs = [] } = trpc.rateDefinition.getAllRates.useQuery()
+
+  // Full, sorted list of work code identifiers
+  const allRateCodes = sortCodes(rateDefs.map((r) => r.code))
+
+  // Responsive tile grid
+  const getCols = (len: number) => {
+    if (len <= 2) return 'grid-cols-2'
+    if (len <= 3) return 'grid-cols-3'
+    if (len <= 4) return 'grid-cols-4'
+    if (len <= 6) return 'grid-cols-6'
+    if (len <= 7) return 'grid-cols-7'
+    if (len <= 8) return 'grid-cols-8'
+    return 'grid-cols-8'
+  }
 
   if (isLoading)
     return (
@@ -69,8 +85,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
       </div>
     )
 
-  // ✅ Summary and derived data
-  const allCodes = sortCodes(Object.keys(data.summary ?? {}))
+  // Summary calculations
   const totalCompleted = data.days.reduce(
     (acc, d) => acc + d.orders.filter((o) => o.status === 'COMPLETED').length,
     0
@@ -85,7 +100,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
 
   return (
     <div className="space-y-6">
-      {/* ✅ Summary header */}
+      {/* Summary header */}
       <TechnicianSummaryHeader
         technicianName={data.technicianName}
         selectedMonth={selectedMonth}
@@ -96,20 +111,45 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
         totalRatio={totalRatio}
       />
 
-      {/* ✅ Work code grid (always full list of codes, even if 0) */}
-      <div className="grid gap-2 my-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        {allCodes.map((code) => (
-          <div
-            key={code}
-            className="bg-muted border rounded-xl flex flex-col items-center justify-between px-3 py-2 shadow-sm"
-          >
-            <span className="text-xs text-muted-foreground">{code}</span>
-            <span className="font-bold text-lg">{data.summary[code] ?? 0}</span>
-          </div>
-        ))}
+      {/* Work code tiles */}
+      <div
+        className={`grid gap-3 my-4 ${getCols(
+          allRateCodes.length
+        )} items-center justify-center`}
+      >
+        {allRateCodes.map((code) => {
+          const val = data.summary[code] ?? 0
+
+          return (
+            <div
+              key={code}
+              title={code}
+              className="
+                bg-muted border rounded-xl 
+                flex flex-col items-center justify-between 
+                p-3 shadow-sm
+              "
+            >
+              <span
+                className="
+    text-xs text-muted-foreground 
+    w-full 
+    whitespace-nowrap
+    overflow-hidden 
+    text-ellipsis
+    truncate
+    text-center
+  "
+              >
+                {code}
+              </span>
+              <span className="font-bold text-lg">{val}</span>
+            </div>
+          )
+        })}
       </div>
 
-      {/* ✅ Daily breakdown (admin-style table) */}
+      {/* Daily breakdown */}
       <Accordion type="multiple" className="mb-4">
         {data.days.map((day) => {
           const completed = day.orders.filter(
@@ -156,13 +196,17 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                       <TableHead>Nr zlecenia</TableHead>
                       <TableHead>Adres</TableHead>
                       <TableHead>Status</TableHead>
-                      {allCodes.map((code) => (
+
+                      {/* Full set of work code columns */}
+                      {allRateCodes.map((code) => (
                         <TableHead key={code}>{code}</TableHead>
                       ))}
+
                       <TableHead>Kwota</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
+
                   <TableBody>
                     {day.orders.map((order, idx) => {
                       const amount = order.settlementEntries.reduce(
@@ -177,6 +221,8 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                           <TableCell className="text-xs">
                             {order.city}, {order.street}
                           </TableCell>
+
+                          {/* Status */}
                           <TableCell>
                             <Badge
                               variant={
@@ -190,7 +236,9 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                                 : 'Niewykonane'}
                             </Badge>
                           </TableCell>
-                          {allCodes.map((code) => {
+
+                          {/* Work code values (default 0) */}
+                          {allRateCodes.map((code) => {
                             const entry = order.settlementEntries.find(
                               (e) => e.code === code
                             )
@@ -200,6 +248,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                               </TableCell>
                             )
                           })}
+
                           <TableCell>{amount.toFixed(2)} zł</TableCell>
                           <TableCell>
                             <Button
@@ -221,7 +270,6 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
         })}
       </Accordion>
 
-      {/* ✅ Shared order details sheet */}
       <OrderDetailsSheet
         open={!!selectedOrderId}
         orderId={selectedOrderId}
