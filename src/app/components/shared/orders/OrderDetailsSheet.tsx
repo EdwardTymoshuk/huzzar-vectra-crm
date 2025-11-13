@@ -267,16 +267,38 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     </h3>
                     {order.services?.length ? (
                       <ul className="list-disc pl-4">
-                        {order.services.map((s) => (
-                          <li key={s.id} className="mt-1">
-                            <>
-                              {s.type}
-                              {s.notes && (
-                                <div className="text-xs text-muted-foreground ml-4">
-                                  Komentarz: {s.notes}
-                                </div>
-                              )}
-                            </>
+                        {Object.entries(
+                          order.services.reduce(
+                            (
+                              acc: Record<
+                                string,
+                                { count: number; notes: string[] }
+                              >,
+                              s
+                            ) => {
+                              if (!acc[s.type]) {
+                                acc[s.type] = { count: 0, notes: [] }
+                              }
+                              acc[s.type].count += 1
+                              if (s.notes) acc[s.type].notes.push(s.notes)
+                              return acc
+                            },
+                            {}
+                          )
+                        ).map(([type, data]) => (
+                          <li key={type} className="mt-1">
+                            <span className="font-medium">
+                              {type} × {data.count}
+                            </span>
+
+                            {/* Notes (if any) */}
+                            {data.notes.length > 0 && (
+                              <ul className="ml-4 mt-1 text-xs text-muted-foreground space-y-1">
+                                {data.notes.map((n, i) => (
+                                  <li key={i}>Komentarz: {n}</li>
+                                ))}
+                              </ul>
+                            )}
                           </li>
                         ))}
                       </ul>
