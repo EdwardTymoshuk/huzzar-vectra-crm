@@ -40,19 +40,19 @@ export const transferRouter = router({
       const me = user.id
 
       await ctx.prisma.$transaction(async (tx) => {
-        // Find target technician name
         const targetTech = await tx.user.findUnique({
           where: { id: newTechnicianId },
           select: { name: true },
         })
 
-        if (!targetTech) {
-          throw new Error('Nie znaleziono technika docelowego.')
-        }
+        if (!targetTech) throw new Error('Nie znaleziono technika docelowego.')
 
         const order = await tx.order.update({
           where: { id: orderId, assignedToId: me },
-          data: { transferToId: newTechnicianId, transferPending: true },
+          data: {
+            transferToId: newTechnicianId,
+            transferPending: true,
+          },
           select: { status: true },
         })
 
@@ -74,7 +74,8 @@ export const transferRouter = router({
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const user = getUserOrThrow(ctx)
-      const { name: me } = user
+      const userId = user.id
+      const userName = user.name
       const { orderId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
@@ -84,9 +85,9 @@ export const transferRouter = router({
         })
 
         await tx.order.update({
-          where: { id: orderId, transferToId: me, transferPending: true },
+          where: { id: orderId, transferToId: userId, transferPending: true },
           data: {
-            assignedToId: me,
+            assignedToId: userId,
             transferToId: null,
             transferPending: false,
           },
@@ -94,10 +95,10 @@ export const transferRouter = router({
 
         await addOrderHistory({
           orderId,
-          userId: me,
+          userId,
           before: current.status,
           after: current.status,
-          note: `Technik ${me} przyjął przekazane zlecenie`,
+          note: `Technik ${userName} przyjął przekazane zlecenie`,
           prisma: tx,
         })
       })
@@ -110,7 +111,8 @@ export const transferRouter = router({
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const user = getUserOrThrow(ctx)
-      const { name: me } = user
+      const userId = user.id
+      const userName = user.name
       const { orderId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
@@ -120,16 +122,19 @@ export const transferRouter = router({
         })
 
         await tx.order.update({
-          where: { id: orderId, transferToId: me, transferPending: true },
-          data: { transferToId: null, transferPending: false },
+          where: { id: orderId, transferToId: userId, transferPending: true },
+          data: {
+            transferToId: null,
+            transferPending: false,
+          },
         })
 
         await addOrderHistory({
           orderId,
-          userId: me,
+          userId,
           before: current.status,
           after: current.status,
-          note: `Technik ${me} odrzucił przekazane zlecenie`,
+          note: `Technik ${userName} odrzucił przekazane zlecenie`,
           prisma: tx,
         })
       })

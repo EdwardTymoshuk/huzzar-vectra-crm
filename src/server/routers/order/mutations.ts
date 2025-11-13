@@ -205,6 +205,34 @@ export const mutationsRouter = router({
 
       const normOrder = normalizeForSearch(input.orderNumber)
 
+      // ------------------------------------------------------------
+      // 🔍 Check if order number already exists (global, case-insensitive)
+      // ------------------------------------------------------------
+      const existingOrder = await prisma.order.findFirst({
+        where: {
+          orderNumber: { equals: normOrder, mode: 'insensitive' },
+        },
+      })
+
+      // 1️⃣ If completed or failed → SKIP during Excel import
+      if (existingOrder) {
+        if (
+          existingOrder.status === OrderStatus.COMPLETED ||
+          existingOrder.status === OrderStatus.NOT_COMPLETED
+        ) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Zlecenie ${input.orderNumber} jest już wykonane — pominięto.`,
+          })
+        }
+
+        // 2️⃣ Exists but still active → normal duplicate error
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `Zlecenie o numerze "${input.orderNumber}" już istnieje.`,
+        })
+      }
+
       /* ------------------------------------------------------------
        * 1️⃣ Validate assigned technician (if provided)
        * ---------------------------------------------------------- */

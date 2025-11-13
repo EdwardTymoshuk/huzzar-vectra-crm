@@ -1,4 +1,3 @@
-// src/app/.../ImportOrdersModal.tsx
 'use client'
 
 import { Button } from '@/app/components/ui/button'
@@ -26,6 +25,16 @@ interface ImportOrdersModalProps {
   onClose: () => void
 }
 
+/**
+ * ImportOrdersModal
+ * --------------------------------------------------------------
+ * Allows administrators/coordinators to upload installation orders
+ * from Excel (.xls/.xlsx). Performs:
+ * - local parsing,
+ * - technician name → ID resolution,
+ * - bulk create via TRPC (createOrder),
+ * - detailed summary report (added / skipped / duplicates / errors).
+ */
 const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   open,
   onClose,
@@ -37,11 +46,13 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   const utils = trpc.useUtils()
   const createOrderMutation = trpc.order.createOrder.useMutation()
 
+  /** Ensures correct file type */
   const isExcelFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
     return !!ext && ALLOWED_EXTENSIONS.includes(ext)
   }
 
+  /** File picker handler */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -55,28 +66,32 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     parseExcelFile(file)
   }
 
+  /** Drag & drop handler */
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragOver(false)
+
     const file = e.dataTransfer.files?.[0]
     if (!file) return
+
     if (!isExcelFile(file)) {
       toast.error(
         'Nieobsługiwany format pliku. Akceptowane są tylko .xls/.xlsx.'
       )
       return
     }
+
     setSelectedFile(file)
     parseExcelFile(file)
   }
 
+  /** Parses Excel file into normalized rows */
   const parseExcelFile = async (file: File) => {
     try {
       const result = await parseOrdersFromExcel(file)
       setOrders(result)
       toast.success(`Wczytano ${result.length} rekordów z pliku.`)
     } catch (err) {
-      console.error('Error parsing Excel file:', err)
       const msg =
         err instanceof Error ? err.message : 'Błąd podczas parsowania pliku.'
       toast.error(msg)
@@ -84,50 +99,54 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   }
 
   /**
-   * Resolve unique technician names to IDs using a local normalized index.
-   * This avoids substring-order issues and diacritics mismatches.
+   * Resolves technician names to user IDs using normalization.
+   * This avoids mismatches due to diacritics or inconsistent formats.
    */
   const resolveTechniciansByName = async (
     names: string[]
   ): Promise<Map<string, string | undefined>> => {
-    // Build a unique set of normalized names from parsed rows
     const uniqueNormalized = Array.from(
       new Set(
         names
           .map((n) => n?.trim())
-          .filter((n): n is string => !!n && n.length > 0)
-          .map((n) => normalizeName(n)) // ensure same normalization pipeline
+          .filter((n): n is string => !!n)
+          .map((n) => normalizeName(n))
       )
     )
 
-    const map = new Map<string, string | undefined>()
-    if (uniqueNormalized.length === 0) return map
+    const result = new Map<string, string | undefined>()
+    if (uniqueNormalized.length === 0) return result
 
-    // Fetch all active technicians once
     const allTechs = await utils.user.getTechnicians.fetch({ status: 'ACTIVE' })
 
-    // Build normalized index: normalizedName -> id
     const index = new Map<string, string>()
     for (const t of allTechs) {
-      // NOTE: We normalize DB names with the same helper used for Excel rows
-      const key = normalizeName(t.name)
-      if (key && !index.has(key)) index.set(key, t.id)
+      index.set(normalizeName(t.name), t.id)
     }
 
-    // Resolve each requested normalized name via local index
     for (const n of uniqueNormalized) {
-      map.set(n, index.get(n)) // undefined when not found
+      result.set(n, index.get(n))
     }
 
-    return map
+    return result
   }
+
+  /**
+   * Performs bulk import using createOrder mutation.
+   * Categorizes results into:
+   * - added
+   * - skipped (completed already)
+   * - duplicates
+   * - other errors
+   * Shows detailed summary toast.
+   */
   const uploadOrders = async () => {
     if (!orders.length) {
       toast.error('Brak danych do dodania.')
       return
     }
+
     try {
-      // Gather unique technician display names present in parsed rows
       const namesToResolve = orders
         .map((o) => o.assignedToName)
         .filter((v): v is string => !!v)
@@ -142,13 +161,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
             ? nameToIdMap.get(normalizeName(o.assignedToName))
             : undefined
 
-          // Log missing match (only once per row)
           if (!assignedToId && o.assignedToName) {
-            console.warn(
-              `Brak technika: "${o.assignedToName}" → ${normalizeName(
-                o.assignedToName
-              )} (brak dopasowania)`
-            )
             unresolvedTechCount++
           }
 
@@ -171,40 +184,47 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         })
       )
 
-      const addedCount = results.filter((r) => r.status === 'fulfilled').length
-      const duplicateCount = results.filter(
-        (r) =>
-          r.status === 'rejected' &&
-          (r as PromiseRejectedResult).reason?.message?.includes(
-            'Unique constraint failed'
-          )
-      ).length
-      const skippedCompletedCount = results.filter(
-        (r) =>
-          r.status === 'rejected' &&
-          (r as PromiseRejectedResult).reason?.message?.includes('już wykonane')
-      ).length
+      // --------------------------------------------------------
+      // Categorization
+      // --------------------------------------------------------
+      let addedCount = 0
+      let duplicateCount = 0
+      let skippedCompletedCount = 0
+      let otherErrors = 0
 
-      if (addedCount > 0) {
-        toast.success(
-          `Dodano ${addedCount}. Pominięto wykonane: ${skippedCompletedCount}, duplikaty: ${duplicateCount}.`
-        )
-      } else {
-        toast.warning(
-          'Wszystkie zlecenia z pliku już istnieją lub wystąpiły błędy.'
-        )
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          addedCount++
+          continue
+        }
+
+        const msg: string = r.reason?.message ?? ''
+
+        if (msg.includes('już wykonane')) skippedCompletedCount++
+        else if (msg.includes('już istnieje')) duplicateCount++
+        else otherErrors++
       }
+
+      // --------------------------------------------------------
+      // Final summary
+      // --------------------------------------------------------
+      toast.success(
+        `📌 Podsumowanie importu:
+Dodane: ${addedCount}
+Pominięte (wykonane): ${skippedCompletedCount}
+Duplikaty aktywnych: ${duplicateCount}
+Inne błędy: ${otherErrors}`
+      )
 
       if (unresolvedTechCount > 0) {
         toast.warning(
-          `Nie przypisano ${unresolvedTechCount} zleceń — nie znaleziono technika po nazwie.`
+          `Nie przypisano ${unresolvedTechCount} zleceń — technik nie został odnaleziony.`
         )
       }
 
       utils.order.getOrders.invalidate()
       onClose()
-    } catch (error) {
-      console.error('Error adding orders:', error)
+    } catch {
       toast.error('Wystąpił błąd podczas dodawania zleceń.')
     }
   }
@@ -219,6 +239,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
+        {/* File drop area */}
         <div
           onDrop={handleDrop}
           onDragOver={(e) => {
@@ -247,8 +268,9 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           />
         </div>
 
+        {/* Import button */}
         <Button
-          className="w-full"
+          className="w-full mt-4"
           disabled={!orders.length}
           onClick={uploadOrders}
         >

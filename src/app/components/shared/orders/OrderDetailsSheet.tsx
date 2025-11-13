@@ -129,7 +129,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
           ) : isError || !order ? (
             <p className="text-danger">Błąd ładowania danych.</p>
           ) : (
-            <div className="space-y-5 text-sm divide-y divide-border">
+            <div className="space-y-5 text-sm uppercase divide-y divide-border">
               {/* --- Basic info --- */}
               <section className="space-y-3">
                 <div className="flex justify-between">
