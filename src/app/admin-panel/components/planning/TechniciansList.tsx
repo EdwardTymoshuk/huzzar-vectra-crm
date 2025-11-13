@@ -2,6 +2,7 @@
 
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { getErrMessage } from '@/utils/errorHandler'
+import { matchSearch } from '@/utils/searchUtils'
 import { trpc } from '@/utils/trpc'
 import { useMemo } from 'react'
 import { toast } from 'sonner'
@@ -47,27 +48,49 @@ const TechniciansList = ({ setProcessing }: Props) => {
     }
   }
 
-  /** Filters technicians by search term (name) */
-  const filteredTechnicians = useMemo(() => {
-    const valid = assignments.filter((t) => t.technicianId && t.technicianName)
-    if (!searchTerm) return valid
-    const q = searchTerm.toLowerCase()
-    return valid.filter((t) => t.technicianName.toLowerCase().includes(q))
+  const filteredAssignments = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return assignments
+
+    return assignments
+      .map((tech) => {
+        const technicianMatches = matchSearch(term, tech.technicianName)
+
+        const filteredSlots = tech.slots
+          .map((slot) => {
+            const filteredOrders = slot.orders.filter((o) =>
+              matchSearch(term, o.orderNumber, o.address)
+            )
+            return { ...slot, orders: filteredOrders }
+          })
+          .filter((slot) => slot.orders.length > 0)
+
+        if (technicianMatches) {
+          return tech
+        }
+
+        if (filteredSlots.length > 0) {
+          return { ...tech, slots: filteredSlots }
+        }
+
+        return null
+      })
+      .filter(Boolean) as typeof assignments
   }, [assignments, searchTerm])
 
   return (
     <div className="space-y-4 w-full h-full max-w-full min-w-0">
       {isLoading ? (
         <TechniciansListSkeleton />
-      ) : filteredTechnicians.length === 0 ? (
-        <div className="flex w-full h-52 items-center justify-center">
+      ) : filteredAssignments.length === 0 ? (
+        <div className="flex w-full min-w-[70%] h-52 items-center justify-center">
           <p className="text-center text-muted-foreground">
             Brak techników lub przypisanych zleceń.
           </p>
         </div>
       ) : (
         <TechniciansTimeline
-          assignments={filteredTechnicians}
+          assignments={filteredAssignments}
           onUnassign={unassignOrder}
         />
       )}
