@@ -357,7 +357,7 @@ const ServiceConfigDialog = ({
       usDbmUp: us ? Number(us) : undefined,
       speedTest: type === 'NET' ? speed.trim() : undefined,
       extraDevices: extras.map((d) => ({
-        id: crypto.randomUUID(),
+        id: d.id,
         source: 'WAREHOUSE',
         category: d.category,
         serialNumber: d.serialNumber ?? '',

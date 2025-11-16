@@ -21,8 +21,10 @@ export async function middleware(req: NextRequest): Promise<Response> {
   const token = (await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
-    secureCookie: isHttps(req), // 👈 KLUCZOWA ZMIANA: tylko na HTTPS
+    secureCookie: isHttps(req),
   })) as AppJwt | null
+
+  const locations = token?.locations
 
   const { pathname } = req.nextUrl
 
@@ -56,7 +58,10 @@ export async function middleware(req: NextRequest): Promise<Response> {
   // Warehouseman landing on "/" → go to warehouse tab in admin panel
   if (userRole === 'WAREHOUSEMAN' && pathname === '/') {
     return NextResponse.redirect(
-      new URL('/admin-panel?tab=warehouse', req.nextUrl.origin)
+      new URL(
+        `/admin-panel?tab=warehouse&loc=${locations ? locations[0].id : ''}`,
+        req.nextUrl.origin
+      )
     )
   }
 

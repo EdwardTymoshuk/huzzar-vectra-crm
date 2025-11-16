@@ -307,91 +307,120 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     )}
                   </div>
 
-                  {/* --- Issued equipment --- */}
+                  {/* --- Issued equipment (merged + deduplicated) --- */}
                   <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Sprzęt wydany w ramach zlecenia
                     </h3>
 
-                    {/* Show issued devices from services (installation) */}
-                    {order.services?.some(
-                      (s) =>
-                        (s.deviceName &&
-                          (s.type !== 'TEL' || s.serialNumber)) ||
-                        s.deviceName ||
-                        s.deviceName2 ||
-                        s.extraDevices?.length
-                    ) ? (
-                      <ul className="list-disc pl-4">
-                        {order.services.map((s) => (
-                          <div key={s.id}>
-                            {/* Primary device */}
-                            {s.deviceName &&
-                              (s.type !== 'TEL' || s.serialNumber) && (
-                                <li>
-                                  {s.deviceType &&
-                                    devicesTypeMap[
-                                      s.deviceType
-                                    ].toUpperCase()}{' '}
-                                  {s.deviceName.toUpperCase()}
-                                  {s.serialNumber &&
-                                    ` (SN: ${s.serialNumber.toUpperCase()})`}
-                                </li>
-                              )}
+                    {(() => {
+                      /** ---------------------------------------------------------
+                       * 1. Collect equipment from services
+                       * --------------------------------------------------------- */
+                      const fromServices = order.services.flatMap((s) => {
+                        const items: {
+                          name: string
+                          serial: string | null
+                          category: string | null
+                          id: string
+                        }[] = []
 
-                            {/* Secondary device */}
-                            {s.deviceName2 && (
-                              <li className="ml-4">
-                                {s.deviceName2.toUpperCase()}
-                                {s.serialNumber2 &&
-                                  ` (SN: ${s.serialNumber2.toUpperCase()})`}
-                              </li>
-                            )}
+                        // Primary device
+                        if (
+                          s.deviceName &&
+                          (s.type !== 'TEL' || s.serialNumber)
+                        ) {
+                          items.push({
+                            id: `${s.id}-p`,
+                            name: s.deviceName,
+                            serial: s.serialNumber,
+                            category: s.deviceType
+                              ? devicesTypeMap[s.deviceType]
+                              : null,
+                          })
+                        }
 
-                            {/* Extra devices */}
-                            {s.extraDevices?.length > 0 &&
-                              s.extraDevices.map((ex) => (
-                                <li key={ex.id} className="ml-4">
-                                  {ex.name?.toUpperCase()}
-                                  {ex.serialNumber &&
-                                    ` (SN: ${ex.serialNumber.toUpperCase()})`}
-                                </li>
-                              ))}
-                          </div>
-                        ))}
+                        // Secondary device
+                        if (s.deviceName2) {
+                          items.push({
+                            id: `${s.id}-s`,
+                            name: s.deviceName2,
+                            serial: s.serialNumber2,
+                            category: null,
+                          })
+                        }
 
-                        {/* Include also assigned equipment (SERVICE/OUTAGE) */}
-                        {order.assignedEquipment
+                        // Extra devices
+                        if (s.extraDevices?.length) {
+                          s.extraDevices.forEach((ex) => {
+                            items.push({
+                              id: ex.id,
+                              name: ex.name ?? '',
+                              serial: ex.serialNumber ?? null,
+                              category: null,
+                            })
+                          })
+                        }
+
+                        return items
+                      })
+
+                      /** ---------------------------------------------------------
+                       * 2. Collect equipment assigned to order (WAREHOUSE)
+                       * --------------------------------------------------------- */
+                      const fromWarehouse =
+                        order.assignedEquipment
                           ?.filter(
                             (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
                           )
-                          .map((item) => (
+                          .map((item) => ({
+                            id: item.id,
+                            name: item.warehouse.name,
+                            serial: item.warehouse.serialNumber,
+                            category: null,
+                          })) ?? []
+
+                      /** ---------------------------------------------------------
+                       * 3. Merge and deduplicate by (name + serial)
+                       * --------------------------------------------------------- */
+                      const merged = Object.values(
+                        [...fromServices, ...fromWarehouse].reduce(
+                          (acc, item) => {
+                            const key = `${item.name}_${
+                              item.serial ?? ''
+                            }`.toLowerCase()
+                            if (!acc[key]) acc[key] = item
+                            return acc
+                          },
+                          {} as Record<string, (typeof fromServices)[number]>
+                        )
+                      )
+
+                      /** ---------------------------------------------------------
+                       * 4. Render
+                       * --------------------------------------------------------- */
+                      if (merged.length === 0) return <p>Brak</p>
+
+                      return (
+                        <ul className="list-disc pl-4">
+                          {merged.map((item) => (
                             <li key={item.id}>
-                              {item.warehouse.name.toUpperCase()}
-                              {item.warehouse.serialNumber &&
-                                ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
+                              {/* Category */}
+                              {item.category && (
+                                <span className="font-medium">
+                                  {item.category.toUpperCase()}{' '}
+                                </span>
+                              )}
+                              {/* Name */}
+                              {item.name.toUpperCase()}
+                              {/* Serial */}
+                              {item.serial &&
+                                ` (SN: ${item.serial.toUpperCase()})`}
                             </li>
                           ))}
-                      </ul>
-                    ) : order.assignedEquipment?.filter(
-                        (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
-                      ).length ? (
-                      <ul className="list-disc pl-4">
-                        {order.assignedEquipment
-                          .filter(
-                            (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
-                          )
-                          .map((item) => (
-                            <li key={item.id}>
-                              {item.warehouse.name.toUpperCase()}
-                              {item.warehouse.serialNumber &&
-                                ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
-                            </li>
-                          ))}
-                      </ul>
-                    ) : (
-                      <p>Brak</p>
-                    )}
+                        </ul>
+                      )
+                    })()}
                   </div>
 
                   {/* --- Collected from client --- */}

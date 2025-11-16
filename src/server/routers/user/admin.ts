@@ -63,7 +63,7 @@ export const adminUserRouter = router({
         role: z
           .enum(['TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN'])
           .default('TECHNICIAN'),
-        locationIds: z.array(z.string()).optional(), // nowe pole
+        locationIds: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -122,7 +122,7 @@ export const adminUserRouter = router({
         role: z
           .enum(['ADMIN', 'TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN'])
           .optional(),
-        locationIds: z.array(z.string()).optional(), // nowe pole
+        locationIds: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -135,7 +135,7 @@ export const adminUserRouter = router({
       if (input.role) data.role = input.role
       if (input.locationIds) {
         data.locations = {
-          set: input.locationIds.map((id) => ({ id })), // nadpisuje relacje
+          set: input.locationIds.map((id) => ({ id })),
         }
       }
       return prisma.user.update({ where: { id: input.id }, data })

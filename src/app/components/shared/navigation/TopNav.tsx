@@ -16,36 +16,35 @@ import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.share
 import NotificationDropdown from '../NotificationDropdown'
 
 interface NavProps {
-  /** List of navigation menu items */
   menuItems: MenuItem[]
-  /** Currently active navigation key */
   activeKey: string
-  /** Next.js router instance for navigation */
   router: AppRouterInstance
-  /** Defines if view belongs to technician context */
   isTechnician?: boolean
+  isWarehouseman?: boolean
 }
 
-/**
- * TopNav
- *
- * Main desktop navigation bar.
- * - Displays logo, navigation menu, notifications, and user dropdown.
- * - Fixed at the top with subtle border and background.
- * - Uses Tooltip for compact icon-only navigation on smaller widths.
- */
-const TopNav = ({ menuItems, activeKey, router, isTechnician }: NavProps) => {
+/** Desktop top navigation */
+const TopNav = ({
+  menuItems,
+  activeKey,
+  router,
+  isTechnician,
+  isWarehouseman,
+}: NavProps) => {
+  /** Restrict items for warehouseman */
+  const filteredItems = isWarehouseman
+    ? menuItems.filter((item) => ['warehouse', 'orders'].includes(item.key))
+    : menuItems
+
   return (
-    <header className="hidden fixed md:flex items-center justify-between w-full bg-secondary border-b border-border px-4 py-2 overflow-hidden gap-1 lg:gap-4 z-50">
-      {/* Left: Logo */}
-      <div className="flex items-center gap-3 shrink-1 p-2">
+    <header className="hidden fixed md:flex items-center justify-between w-full bg-secondary border-b border-border px-4 py-2 gap-3 z-50">
+      <div className="flex items-center gap-3">
         <Logo className="h-auto" widthClass="w-36" />
       </div>
 
-      {/* Center: Navigation buttons */}
       <TooltipProvider>
-        <nav className="flex items-center gap-1 flex-nowrap overflow-hidden scrollbar-none">
-          {menuItems.map((item) => {
+        <nav className="flex items-center gap-1">
+          {filteredItems.map((item) => {
             if (item.key === 'warehouse') {
               return <WarehouseDropdownMenu key="warehouse" />
             }
@@ -55,13 +54,12 @@ const TopNav = ({ menuItems, activeKey, router, isTechnician }: NavProps) => {
               <Tooltip key={item.key}>
                 <TooltipTrigger asChild>
                   <Button
-                    key={item.key}
                     variant="ghost"
                     className={cn(
-                      'relative flex items-center justify-center whitespace-nowrap text-sm font-medium px-3 py-2 min-w-[44px] rounded-md transition-colors duration-150 gap-0',
+                      'relative text-sm px-3 py-2 rounded-md',
                       isActive
-                        ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
-                        : 'text-primary-foreground hover:text-accent-foreground hover:bg-primary'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-primary-foreground hover:bg-primary'
                     )}
                     onClick={() =>
                       router.push(
@@ -76,10 +74,7 @@ const TopNav = ({ menuItems, activeKey, router, isTechnician }: NavProps) => {
                   </Button>
                 </TooltipTrigger>
 
-                <TooltipContent
-                  side="bottom"
-                  className="block lg:hidden bg-primary text-primary-hoverforeground text-xs font-medium rounded-md px-2 py-1"
-                >
+                <TooltipContent side="bottom" className="lg:hidden">
                   {item.name}
                 </TooltipContent>
               </Tooltip>
@@ -88,8 +83,7 @@ const TopNav = ({ menuItems, activeKey, router, isTechnician }: NavProps) => {
         </nav>
       </TooltipProvider>
 
-      {/* Right: Notifications and User menu */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3">
         <NotificationDropdown />
         <UserDropdown />
       </div>

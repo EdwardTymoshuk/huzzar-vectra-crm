@@ -94,7 +94,7 @@ const TechnicianStockSheet = ({ open, setOpen }: Props) => {
           {/* Search field */}
           {technicianId && (
             <SearchInput
-              placeholder="Szukaj po nazwie lub sn/mac..."
+              placeholder="Szukaj po nazwie lub SN/MAC..."
               value={searchTerm}
               onChange={setSearchTerm}
             />

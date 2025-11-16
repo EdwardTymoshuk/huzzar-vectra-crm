@@ -2,26 +2,20 @@
 
 import { adminsMenuItems, techniciansMenuItems } from '@/lib/constants'
 import { MenuItem } from '@/types'
-import { useSession } from 'next-auth/react'
+import { useRole } from '@/utils/hooks/useRole'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import MobileNav from './MobileNav'
 import TopNav from './TopNav'
 
-/**
- * ResponsiveNavigation
- *
- * - Desktop: top navigation bar with logo, menu, and user actions.
- * - Mobile: bottom tab navigation (native app style).
- */
+/** Responsive navigation for admin/technician/warehouseman roles */
 const ResponsiveNavigation = () => {
-  const { data: session } = useSession()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile view
+  /** Detect viewport width */
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     handleResize()
@@ -29,39 +23,60 @@ const ResponsiveNavigation = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Determine menu items and context
-  const isTechnician = session?.user?.role === 'TECHNICIAN'
-  const menuItems: MenuItem[] = isTechnician
-    ? techniciansMenuItems
-    : adminsMenuItems
+  const { isWarehouseman, isTechnician } = useRole()
 
-  // Compute active tab (always before conditional return)
+  /** Build menu list based on role */
+  let menuItems: MenuItem[] = adminsMenuItems
+
+  if (isTechnician) {
+    menuItems = techniciansMenuItems
+  }
+
+  if (isWarehouseman) {
+    /** Warehouseman sees only warehouse and orders */
+    menuItems = adminsMenuItems.filter((item) =>
+      ['warehouse', 'orders'].includes(item.key)
+    )
+  }
+
+  /** Compute active tab */
   const activeKey = useMemo(() => {
+    if (isWarehouseman) {
+      const tab = searchParams.get('tab')
+      return tab ?? 'warehouse'
+    }
+
     const tabParam = searchParams.get('tab')
     if (tabParam) return tabParam
 
-    // Recognize "settings" page manually since it's not in menuItems
     if (pathname.includes('/settings')) return 'settings'
 
     const match = menuItems.find((item) => pathname.includes(item.key))
     return match ? match.key : 'dashboard'
-  }, [pathname, searchParams, menuItems])
+  }, [pathname, searchParams, menuItems, isWarehouseman])
 
-  if (!session?.user) return null
+  /** Redirect warehouseman to warehouse by default */
+  useEffect(() => {
+    if (isWarehouseman && !searchParams.get('tab')) {
+      router.replace('/admin-panel?tab=warehouse')
+    }
+  }, [isWarehouseman, searchParams, router])
 
   return isMobile ? (
     <MobileNav
       menuItems={menuItems}
       activeKey={activeKey}
       router={router}
-      isTechnician={!!isTechnician}
+      isTechnician={isTechnician}
+      isWarehouseman={isWarehouseman}
     />
   ) : (
     <TopNav
       menuItems={menuItems}
       activeKey={activeKey}
       router={router}
-      isTechnician={!!isTechnician}
+      isTechnician={isTechnician}
+      isWarehouseman={isWarehouseman}
     />
   )
 }

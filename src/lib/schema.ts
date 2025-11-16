@@ -3,9 +3,14 @@ import {
   DeviceCategory,
   OrderStatus,
   OrderType,
+  ServiceType,
   TimeSlot,
 } from '@prisma/client'
 import { z } from 'zod'
+
+/* --------------------------------------------------------------------------
+ * Device creation schema
+ * -------------------------------------------------------------------------- */
 
 export const deviceSchema = z
   .object({
@@ -20,12 +25,16 @@ export const deviceSchema = z
     quantity: z.coerce.number().min(1).default(1),
     warningAlert: z.coerce.number().min(1, 'Wymagany próg ostrzegawczy'),
     alarmAlert: z.coerce.number().min(1, 'Wymagany próg alarmowy'),
-    price: z.coerce.number().min(0, 'Podaj cenę urządzenia').default(0),
+    price: z.coerce.number().min(0, 'Podaj cenę urządzenia').default(0),
   })
   .refine((data) => data.alarmAlert < data.warningAlert, {
     message: 'Alert krytyczny musi być mniejszy niż ostrzegawczy',
     path: ['alarmAlert'],
   })
+
+/* --------------------------------------------------------------------------
+ * Material creation schema
+ * -------------------------------------------------------------------------- */
 
 export const materialSchema = z
   .object({
@@ -34,12 +43,16 @@ export const materialSchema = z
     unit: z.enum(['PIECE', 'METER']),
     warningAlert: z.coerce.number().min(1, 'Wymagany próg ostrzegawczy'),
     alarmAlert: z.coerce.number().min(1, 'Wymagany próg alarmowy'),
-    price: z.coerce.number().min(0, 'Podaj cenę materiału').default(0),
+    price: z.coerce.number().min(0, 'Podaj cenę materiału').default(0),
   })
   .refine((data) => data.alarmAlert < data.warningAlert, {
     message: 'Alert krytyczny musi być mniejszy niż ostrzegawczy',
     path: ['alarmAlert'],
   })
+
+/* --------------------------------------------------------------------------
+ * Warehouse add item form (device or material)
+ * -------------------------------------------------------------------------- */
 
 export const warehouseFormSchema = z.discriminatedUnion('type', [
   z.object({
@@ -57,45 +70,30 @@ export const warehouseFormSchema = z.discriminatedUnion('type', [
     quantity: z.coerce.number().min(1, 'Ilość musi być większa niż 0'),
   }),
 ])
+
+/* --------------------------------------------------------------------------
+ * Operator schema
+ * -------------------------------------------------------------------------- */
+
 export const operatorSchema = z.object({
   operator: z.string().min(2, 'Nazwa jest wymagana').max(50, 'Za długa nazwa'),
 })
 
+/* --------------------------------------------------------------------------
+ * Order creation schema
+ * -------------------------------------------------------------------------- */
+
 export const orderSchema = z.object({
-  type: z.nativeEnum(OrderType, {
-    required_error: 'Typ zlecenia jest wymagany',
-  }),
-  operator: z.string({
-    required_error: 'Operator jest wymagany',
-  }),
+  type: z.nativeEnum(OrderType),
+  operator: z.string(),
   clientId: z.string().min(3, 'ID klienta jest wymagane'),
-  orderNumber: z
-    .string({
-      required_error: 'Numer zlecenia jest wymagany',
-    })
-    .min(3, 'Numer zlecenia musi mieć co najmniej 3 znaki'),
-  date: z
-    .string({
-      required_error: 'Data jest wymagana',
-    })
-    .min(1, 'Data nie może być pusta'),
-  timeSlot: z.nativeEnum(TimeSlot, {
-    required_error: 'Przedział czasowy jest wymagany',
-  }),
-  city: z
-    .string({
-      required_error: 'Miasto jest wymagane',
-    })
-    .min(2, 'Miasto musi mieć co najmniej 2 znaki'),
-  street: z
-    .string({
-      required_error: 'Adres jest wymagany',
-    })
-    .min(3, 'Adres musi mieć co najmniej 3 znaki'),
+  orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),
+  date: z.string().min(1, 'Data jest wymagana'),
+  timeSlot: z.nativeEnum(TimeSlot),
+  city: z.string().min(2, 'Miasto jest wymagane'),
+  street: z.string().min(3, 'Adres jest wymagany'),
   postalCode: z.string().max(6).optional().default(''),
-  assignedToId: z.string({
-    required_error: 'Wymagane przypisanie technika',
-  }),
+  assignedToId: z.string(),
   notes: z.string().optional(),
   status: z.nativeEnum(OrderStatus),
 })
@@ -103,4 +101,74 @@ export const orderSchema = z.object({
 export const technicianOrderSchema = orderSchema.omit({
   postalCode: true,
   assignedToId: true,
+})
+
+export const workCodeSchema = z.object({
+  code: z.string(),
+  quantity: z.number().min(1),
+})
+
+export const usedMaterialSchema = z.object({
+  id: z.string(),
+  quantity: z.number().min(1),
+})
+
+export const collectedDeviceSchema = z.object({
+  name: z.string(),
+  category: z.nativeEnum(DeviceCategory),
+  serialNumber: z.string().optional(),
+})
+
+export const extraDeviceSchema = z.object({
+  id: z.string(),
+  source: z.enum(['WAREHOUSE', 'CLIENT']),
+  category: z.nativeEnum(DeviceCategory),
+  name: z.string().optional(),
+  serialNumber: z.string().optional(),
+})
+
+export const serviceSchema = z.object({
+  id: z.string(),
+  type: z.nativeEnum(ServiceType),
+  deviceSource: z.enum(['WAREHOUSE', 'CLIENT']).optional(),
+  deviceName: z.string().optional(),
+  deviceType: z.nativeEnum(DeviceCategory).optional(),
+
+  deviceId: z.string().optional(),
+  serialNumber: z.string().optional(),
+  deviceId2: z.string().optional(),
+  deviceName2: z.string().optional(),
+  serialNumber2: z.string().optional(),
+  speedTest: z.string().optional(),
+  usDbmDown: z.coerce.number().optional(),
+  usDbmUp: z.coerce.number().optional(),
+  notes: z.string().optional(),
+  extraDevices: z.array(extraDeviceSchema).optional(),
+})
+
+export const servicesArraySchema = z.array(serviceSchema).default([])
+
+export const baseCompletionInput = {
+  orderId: z.string(),
+  status: z.nativeEnum(OrderStatus),
+  notes: z.string().nullable().optional(),
+  failureReason: z.string().nullable().optional(),
+  workCodes: z.array(workCodeSchema).optional(),
+  equipmentIds: z.array(z.string()).optional(),
+  usedMaterials: z.array(usedMaterialSchema).optional(),
+  collectedDevices: z.array(collectedDeviceSchema).optional(),
+  services: servicesArraySchema,
+}
+
+export const completeOrderSchema = z.object({
+  ...baseCompletionInput,
+  issuedDevices: z.array(z.string()).optional(),
+})
+
+export const amendCompletionSchema = z.object({
+  ...baseCompletionInput,
+})
+
+export const adminEditCompletionSchema = z.object({
+  ...baseCompletionInput,
 })

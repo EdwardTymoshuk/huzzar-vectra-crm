@@ -1,12 +1,19 @@
 //sec/types/index.ts
 
 import {
+  adminEditCompletionSchema,
+  amendCompletionSchema,
+  collectedDeviceSchema,
+  completeOrderSchema,
   deviceSchema,
   materialSchema,
   operatorSchema,
   orderSchema,
+  serviceSchema,
   technicianOrderSchema,
+  usedMaterialSchema,
   warehouseFormSchema,
+  workCodeSchema,
 } from '@/lib/schema'
 import {
   DeviceCategory,
@@ -326,3 +333,11 @@ export type ClientHistoryItem = {
   street: string
   attemptNumber: number
 }
+export type WorkCodeInput = z.infer<typeof workCodeSchema>
+export type UsedMaterialInput = z.infer<typeof usedMaterialSchema>
+export type CollectedDeviceInput = z.infer<typeof collectedDeviceSchema>
+export type ServiceInput = z.infer<typeof serviceSchema>
+export type CompleteOrderInput = z.infer<typeof completeOrderSchema>
+export type AmendCompletionInput = z.infer<typeof amendCompletionSchema>
+export type AdminEditCompletionInput = z.infer<typeof adminEditCompletionSchema>
+export type DbTx = Prisma.TransactionClient | PrismaClient

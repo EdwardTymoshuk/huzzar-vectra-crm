@@ -107,7 +107,12 @@ const StepSummary = ({
           status === 'NOT_COMPLETED' ? failureReason ?? undefined : undefined,
         equipmentIds,
         usedMaterials: materials,
-        collectedDevices: collected,
+        collectedDevices: collected.map((c) => ({
+          id: c.id,
+          name: c.name.trim(),
+          category: c.category,
+          serialNumber: c.serialNumber.trim().toUpperCase(),
+        })),
         services,
         workCodes,
       })

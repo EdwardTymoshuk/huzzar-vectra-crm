@@ -141,12 +141,12 @@ const OrderDetailsContent = ({ order }: Props) => {
                   {(s.usDbmDown || s.usDbmUp || s.speedTest) && (
                     <div className="text-xs text-muted-foreground ml-4 space-y-0.5">
                       {(s.usDbmDown || s.usDbmUp) && (
-                        <div>
-                          {s.usDbmDown && <>DS: {s.usDbmDown} dBm </>}
-                          {s.usDbmUp && <>US: {s.usDbmUp} dBm</>}
+                        <div className="w-full">
+                          {s.usDbmDown && <>DS: {s.usDbmDown} dBm </>} |{' '}
+                          {s.usDbmUp && <>US: {s.usDbmUp} dBm</>} |{' '}
+                          {s.speedTest && <>Speedtest: {s.speedTest} mb/s</>}
                         </div>
                       )}
-                      {s.speedTest && <div>Speedtest: {s.speedTest}</div>}
                     </div>
                   )}
                 </li>
@@ -165,15 +165,18 @@ const OrderDetailsContent = ({ order }: Props) => {
                 </li>
               ))}
 
-            {/* TEL (SIM card) */}
+            {/* TEL (SIM cards) */}
             {services.some((s) => s.type === 'TEL' && !!s.serialNumber) && (
-              <li className="mt-2">
-                KARTA SIM (SN:{' '}
+              <ul className="list-none list-inside">
                 {services
-                  .find((s) => s.type === 'TEL')
-                  ?.serialNumber?.toUpperCase() ?? ''}
-                )
-              </li>
+                  .filter((s) => s.type === 'TEL')
+                  .map((s) => {
+                    const sn = s.serialNumber?.toUpperCase() || ''
+                    return (
+                      <li key={s.id}>{sn ? `KARTA SIM (SN: ${sn})` : ''}</li>
+                    )
+                  })}
+              </ul>
             )}
 
             {/* CLIENT devices */}
@@ -247,17 +250,31 @@ const OrderDetailsContent = ({ order }: Props) => {
       {/* ===== Activated services ===== */}
       <section className="pt-4 border-t border-border space-y-1">
         <h4 className="font-semibold">Uruchomione usługi</h4>
+
         {services.length ? (
           <ul className="list-none list-inside">
-            {services.map((s) => (
-              <li key={s.id} className="mt-1">
-                {/* Type name */}
-                <div className="font-medium">{s.type}</div>
+            {Object.entries(
+              services.reduce<
+                Record<string, { count: number; notes: string[] }>
+              >((acc, s) => {
+                if (!acc[s.type]) acc[s.type] = { count: 0, notes: [] }
+                acc[s.type].count++
+                if (s.notes) acc[s.type].notes.push(s.notes)
+                return acc
+              }, {})
+            ).map(([type, data]) => (
+              <li key={type} className="mt-1">
+                {/* Type name + count */}
+                <div className="font-medium">
+                  {type} {data.count > 1 && `× ${data.count}`}
+                </div>
 
-                {/* Comment / notes */}
-                {s.notes && (
-                  <div className="text-xs text-muted-foreground ml-4">
-                    {s.notes}
+                {/* Notes for services of this type */}
+                {data.notes.length > 0 && (
+                  <div className="text-xs text-muted-foreground ml-4 space-y-0.5">
+                    {data.notes.map((note, i) => (
+                      <div key={i}>{note}</div>
+                    ))}
                   </div>
                 )}
               </li>

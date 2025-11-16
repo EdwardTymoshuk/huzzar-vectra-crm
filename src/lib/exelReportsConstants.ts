@@ -27,47 +27,6 @@ export const COLS = [
   'Pomiar prędkości 300/600',
   'Pion (Ilość kondygnacji)',
   'Montaż listew / rur PCV (mb)',
-
-  /* MATERIAŁY */
-  'KABEL RG-6 (mb)',
-  'KABEL RG-11 (mb)',
-  'KABEL UTP (mb)',
-  'ZŁĄCZE F-60 (szt)',
-  'ZŁĄCZE F-59 (szt)',
-  'ZŁĄCZE F-11 (szt)',
-  'ADAPTER FF-FF (szt)',
-  'OPORNIK 75 Ω (szt)',
-  'ZŁĄCZE WKW “M” (szt)',
-  'ZŁĄCZE WKG “F” (szt)',
-  'ZŁĄCZE WKS “S” (szt)',
-  'GN. 2×DATA (szt)',
-  'GN. 3×DATA (szt)',
-  'DSS2 (szt)',
-  'DSS3 (szt)',
-  'DSS3U (szt)',
-  'DSS4 (szt)',
-  'FILTR SOLO NET',
-  'TŁUMIK TKZ-03 (szt)',
-  'TŁUMIK TKZ-06 (szt)',
-  'TŁUMIK TKZ-09 (szt)',
-  'TŁUMIK TKZ-12 (szt)',
-  'TŁUMIK AFM-1A (szt)',
-  'TŁUMIK AFM-2A (szt)',
-  'TŁUMIK AFM-3A (szt)',
-  'TŁUMIK AFM-4A (szt)',
-  'TŁUMIK AFM-6A (szt)',
-  'TŁUMIK AFM-8A (szt)',
-  'TŁUMIK AFM-10A (szt)',
-  'TŁUMIK AFM-12A (szt)',
-  'UCHWYT KABLA FLOP (szt)',
-  'OPASKA KABLOWA (szt)',
-  'KORYTKO 15×10 2 m (szt)',
-  'RURA PCV RL18 2 m (szt)',
-  'KOLANKO ZCL18 (szt)',
-  'UCHWYT UZ18 (szt)',
-  'OZNACZNIK KABLOWY',
-  'PATCHCORD 1 m',
-  'PATCHCORD 3 m',
 ]
 
 /* ───────── grupy (wiersz 1) ───────── */
@@ -201,14 +160,6 @@ export const LIGHT_GRAY_COLS = new Set([
   'numer SN dekodera | karty CI+',
   'adres MAC modemu',
   'Pomiar prędkości 300/600',
-  'TŁUMIK AFM-1A (szt)',
-  'TŁUMIK AFM-2A (szt)',
-  'TŁUMIK AFM-3A (szt)',
-  'TŁUMIK AFM-4A (szt)',
-  'TŁUMIK AFM-6A (szt)',
-  'TŁUMIK AFM-8A (szt)',
-  'TŁUMIK AFM-10A (szt)',
-  'TŁUMIK AFM-12A (szt)',
 ])
 
 export const LIGHT_BLUE_COLS = new Set([
@@ -227,49 +178,6 @@ export const GRAY_COLS = new Set([
   'Pion (Ilość kondygnacji)',
   'Montaż listew / rur PCV (mb)',
 ])
-export const ORANGE_COLS = new Set([
-  'KABEL RG-6 (mb)',
-  'KABEL RG-11 (mb)',
-  'KABEL UTP (mb)',
-])
-export const PURPLE_COLS = new Set([
-  'ZŁĄCZE F-60 (szt)',
-  'ZŁĄCZE F-59 (szt)',
-  'ZŁĄCZE F-11 (szt)',
-  'ADAPTER FF-FF (szt)',
-  'OPORNIK 75 Ω (szt)',
-  'ZŁĄCZE WKW “M” (szt)',
-  'ZŁĄCZE WKG “F” (szt)',
-  'ZŁĄCZE WKS “S” (szt)',
-])
-export const DARK_YELLOW_COLS = new Set([
-  'GN. 2×DATA (szt)',
-  'GN. 3×DATA (szt)',
-])
-export const GREEN_COLS = new Set([
-  'DSS2 (szt)',
-  'DSS3 (szt)',
-  'DSS3U (szt)',
-  'DSS4 (szt)',
-  'FILTR SOLO NET',
-])
-export const PEACH_COLS = new Set([
-  'TŁUMIK TKZ-03 (szt)',
-  'TŁUMIK TKZ-06 (szt)',
-  'TŁUMIK TKZ-09 (szt)',
-  'TŁUMIK TKZ-12 (szt)',
-])
-export const LIGHT_ORANGE_COLS = new Set([
-  'UCHWYT KABLA FLOP (szt)',
-  'OPASKA KABLOWA (szt)',
-])
-export const LIGHT_PURPLE_COLS = new Set([
-  'KORYTKO 15×10 2 m (szt)',
-  'RURA PCV RL18 2 m (szt)',
-  'KOLANKO ZCL18 (szt)',
-  'UCHWYT UZ18 (szt)',
-])
-export const YELLOW_COLS = new Set(['OZNACZNIK KABLOWY'])
 
 /* od której kolumny pionowy tekst */
 export const VERT_START = COLS.indexOf('Pion (Ilość kondygnacji)') + 1
@@ -281,13 +189,5 @@ export function pickFill(hdr: string) {
   if (DECODER_COLOR_COLS.has(hdr)) return DECODER_COLOR
   if (MODEM_COLOR_COLS.has(hdr)) return MODEM_COLOR
   if (GRAY_COLS.has(hdr)) return GRAY
-  if (ORANGE_COLS.has(hdr)) return ORANGE
-  if (PURPLE_COLS.has(hdr)) return PURPLE
-  if (DARK_YELLOW_COLS.has(hdr)) return DARK_YELLOW
-  if (GREEN_COLS.has(hdr)) return GREEN
-  if (PEACH_COLS.has(hdr)) return PEACH
-  if (LIGHT_ORANGE_COLS.has(hdr)) return LIGHT_ORANGE
-  if (LIGHT_PURPLE_COLS.has(hdr)) return LIGHT_PURPLE
-  if (YELLOW_COLS.has(hdr)) return YELLOW
   return DEFAULT
 }

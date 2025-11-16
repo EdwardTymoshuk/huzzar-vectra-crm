@@ -62,12 +62,12 @@ export function getFullOrderTimeline(
           <>
             {a.assignedTo?.name && <p>Technik: {a.assignedTo.name}</p>}
             {a.failureReason && (
-              <p className="italic text-muted-foreground font-medium">
+              <p className=" text-muted-foreground text-xs font-medium">
                 Powód: {a.failureReason}
               </p>
             )}
             {a.notes && (
-              <p className="italic text-muted-foreground">Uwagi: {a.notes}</p>
+              <p className=" text-xs text-muted-foreground">Uwagi: {a.notes}</p>
             )}
           </>
         ),
@@ -92,7 +92,7 @@ export function getFullOrderTimeline(
         title: 'Zlecenie zatwierdzone przez koordynatora',
         color: 'secondary',
         description: (
-          <p className="italic text-muted-foreground">
+          <p className=" text-xs text-muted-foreground">
             Rozliczenie i ostateczna akceptacja zlecenia.
           </p>
         ),
@@ -142,9 +142,13 @@ export function getFullOrderTimeline(
           color,
           description: (
             <>
-              {h.changedBy?.name && <p>Wykonał: {h.changedBy.name}</p>}
+              {h.changedBy?.name && (
+                <p className="text-sm">Wykonał: {h.changedBy.name}</p>
+              )}
               {h.notes && (
-                <p className="italic text-muted-foreground">{h.notes}</p>
+                <p className=" text-xs text-muted-foreground">
+                  Uwagi: {h.notes}
+                </p>
               )}
             </>
           ),

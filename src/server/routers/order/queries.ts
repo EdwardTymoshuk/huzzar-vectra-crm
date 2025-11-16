@@ -135,7 +135,21 @@ export const queriesRouter = router({
           settlementEntries: { include: { rate: true } },
           usedMaterials: { include: { material: true } },
           assignedEquipment: { include: { warehouse: true } },
-          services: { include: { extraDevices: true } },
+          services: {
+            include: {
+              extraDevices: {
+                select: {
+                  id: true,
+                  source: true,
+                  name: true,
+                  serialNumber: true,
+                  category: true,
+                  warehouseId: true,
+                  serviceId: true,
+                },
+              },
+            },
+          },
           previousOrder: {
             select: {
               id: true,

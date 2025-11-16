@@ -62,12 +62,12 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
 
   // Responsive tile grid
   const getCols = (len: number) => {
-    if (len <= 2) return 'grid-cols-2'
-    if (len <= 3) return 'grid-cols-3'
-    if (len <= 4) return 'grid-cols-4'
-    if (len <= 6) return 'grid-cols-6'
-    if (len <= 7) return 'grid-cols-7'
-    if (len <= 8) return 'grid-cols-8'
+    if (len <= 2) return 'md:grid-cols-2'
+    if (len <= 3) return 'md:grid-cols-3'
+    if (len <= 4) return 'md:grid-cols-4'
+    if (len <= 6) return 'md:grid-cols-6'
+    if (len <= 7) return 'md:grid-cols-7'
+    if (len <= 8) return 'md:grid-cols-8'
     return 'grid-cols-8'
   }
 
@@ -113,7 +113,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
 
       {/* Work code tiles */}
       <div
-        className={`grid gap-3 my-4 ${getCols(
+        className={`grid gap-3 my-4 grid-cols-1 ${getCols(
           allRateCodes.length
         )} items-center justify-center`}
       >

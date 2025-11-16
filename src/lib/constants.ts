@@ -283,11 +283,11 @@ export const devicesTypeMap: Record<string, string> = {
  * Mapping of devices status to polish.
  */
 export const devicesStatusMap: Record<string, string> = {
-  AVAILABLE: 'DOSTĘPNY',
+  AVAILABLE: 'DOSTĘPNY NA MAGAZYNIE',
   ASSIGNED: 'PRZYPISANY DO TECHNIKA',
-  RETURNED: 'ZWRÓCONY',
-  RETURNED_TO_OPERATOR: 'ZWRÓCONY',
-  ASSIGNED_TO_ORDER: 'WYDANY',
+  RETURNED: 'ZWRÓCONY OD TECHNIKA',
+  RETURNED_TO_OPERATOR: 'ZWRÓCONY DO OPERATORA',
+  ASSIGNED_TO_ORDER: 'WYDANY NA ZLECENIU',
 }
 /**
  * Mapping of material units to Polish display names.

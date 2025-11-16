@@ -348,6 +348,7 @@ model TechnicianSettings {
 model OrderExtraDevice {
   id           String          @id @default(uuid())
   serviceId    String
+  warehouseId  String? 
   source       DeviceSource
   name         String
   serialNumber String?

@@ -218,26 +218,62 @@ export const queriesRouter = router({
 
   /** 🔍 Check serial number for device status + last action */
   checkDeviceBySerialNumber: loggedInEveryone
-    .input(z.object({ serialNumber: z.string().min(3) }))
+    .input(z.object({ serialNumber: z.string().min(3).optional() }))
     .query(async ({ input }) => {
+      if (!input.serialNumber || input.serialNumber.trim().length < 3) {
+        return null
+      }
+
+      const serial = input.serialNumber.trim()
+
       const item = await prisma.warehouse.findFirst({
         where: {
           serialNumber: {
-            equals: input.serialNumber.trim(),
+            equals: serial,
             mode: 'insensitive',
           },
           itemType: WarehouseItemType.DEVICE,
         },
         include: {
+          // Relacja do technika – zgodnie z modelem Warehouse
           assignedTo: { select: { id: true, name: true } },
+
+          // Relacja do orderów przez OrderEquipment
           orderAssignments: {
-            include: { order: { select: { id: true, orderNumber: true } } },
+            include: {
+              order: {
+                select: {
+                  id: true,
+                  orderNumber: true,
+                  createdAt: true,
+                },
+              },
+            },
+            // ⭐ Tu był błąd: trzeba sortować po polu relacji "order"
+            // a nie po "createdAt" bezpośrednio na OrderEquipment
+            orderBy: {
+              order: {
+                createdAt: 'desc',
+              },
+            },
+            take: 1,
           },
+
+          // Pełna historia magazynowa dla timeliny
           history: {
             orderBy: { actionDate: 'desc' },
-            take: 1,
-            select: { action: true, actionDate: true },
+            include: {
+              performedBy: { select: { id: true, name: true } },
+              assignedTo: { select: { id: true, name: true } },
+              assignedOrder: {
+                select: { id: true, orderNumber: true },
+              },
+              fromLocation: { select: { id: true, name: true } },
+              toLocation: { select: { id: true, name: true } },
+            },
           },
+
+          // Lokalizacja zgodnie z modelem
           location: { select: { id: true, name: true } },
         },
       })
@@ -249,19 +285,48 @@ export const queriesRouter = router({
         })
       }
 
-      const last = item.history[0] ?? null
       return {
         id: item.id,
         name: item.name,
         status: item.status,
+
         assignedTo: item.assignedTo,
         assignedOrder: item.orderAssignments[0]?.order ?? null,
-        lastAction: last?.action ?? null,
-        lastActionDate: last?.actionDate ?? null,
+
+        // Stara logika – zostawiamy, bo może być gdzieś używana
+        lastAction: item.history[0]?.action ?? null,
+        lastActionDate: item.history[0]?.actionDate ?? null,
+
+        // Nowość: pełna historia dla timeline
+        history: item.history.map((h) => ({
+          id: h.id,
+          action: h.action,
+          actionDate: h.actionDate,
+          notes: h.notes ?? null,
+          quantity: h.quantity ?? null,
+          performedBy: h.performedBy
+            ? { id: h.performedBy.id, name: h.performedBy.name }
+            : null,
+          assignedTo: h.assignedTo
+            ? { id: h.assignedTo.id, name: h.assignedTo.name }
+            : null,
+          assignedOrder: h.assignedOrder
+            ? {
+                id: h.assignedOrder.id,
+                orderNumber: h.assignedOrder.orderNumber,
+              }
+            : null,
+          fromLocation: h.fromLocation
+            ? { id: h.fromLocation.id, name: h.fromLocation.name }
+            : null,
+          toLocation: h.toLocation
+            ? { id: h.toLocation.id, name: h.toLocation.name }
+            : null,
+        })),
+
         location: item.location,
       }
     }),
-
   searchDevices: adminOrCoord
     .input(
       z.object({
@@ -363,7 +428,6 @@ export const queriesRouter = router({
     if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
     if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
-      // Admin/koordynator ma wszystkie
       return ctx.prisma.warehouseLocation.findMany({
         orderBy: { name: 'asc' },
         select: { id: true, name: true },
@@ -371,7 +435,6 @@ export const queriesRouter = router({
     }
 
     if (user.role === 'WAREHOUSEMAN') {
-      // Magazynier tylko przypisane
       return user.locations
     }
 

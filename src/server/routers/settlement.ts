@@ -496,4 +496,23 @@ export const settlementRouter = router({
       const buf = await writeInstallationTemplateFromDb(input.year)
       return buf.toString('base64')
     }),
+  generateMonthlyInstallationReport: adminOrCoord
+    .input(
+      z.object({
+        year: z.number().min(2020),
+        month: z.number().min(1).max(12),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { writeInstallationTemplateForMonth } = await import(
+        '@/utils/reports/writeInstallationTemplateFromDb'
+      )
+
+      const buf = await writeInstallationTemplateForMonth(
+        input.year,
+        input.month
+      )
+
+      return buf.toString('base64')
+    }),
 })

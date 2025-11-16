@@ -89,10 +89,7 @@ const SerialScanInput = ({
    * Includes support for additional devices (e.g. extenders).
    */
   const isAllowedForService = useCallback(
-    (
-      device: { name: string; category?: DeviceCategory },
-      isAdditional?: boolean
-    ): boolean => {
+    (device: { name: string; category?: DeviceCategory }): boolean => {
       if (!serviceType) return true
 
       const category = device.category
@@ -101,10 +98,14 @@ const SerialScanInput = ({
       switch (serviceType) {
         // NET: main -> modems only, additional -> extenders/routers
         case 'NET':
-          if (isAdditional)
+          if (allowedCategories?.includes(DeviceCategory.OTHER)) {
             return (
-              nameUpper.includes('EXTENDER') || nameUpper.includes('ROUTER')
+              nameUpper.includes('EXTENDER') ||
+              nameUpper.includes('PLC') ||
+              nameUpper.includes('REPEATER') ||
+              nameUpper.includes('EXT')
             )
+          }
           return (
             category === DeviceCategory.MODEM_HFC ||
             category === DeviceCategory.MODEM_GPON
@@ -126,7 +127,7 @@ const SerialScanInput = ({
           return true
       }
     },
-    [serviceType]
+    [serviceType, allowedCategories]
   )
 
   /**

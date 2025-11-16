@@ -401,65 +401,76 @@ type TelRowProps = {
  * - For the second and further TEL: switch forced ON + required serial.
  */
 const TelRow = ({ service, devices, onChange, allServices }: TelRowProps) => {
-  // Count how many TELs are in total and find index of this one
+  /** Determine TEL index */
   const telServices = allServices?.filter((s) => s.type === 'TEL') ?? []
-  const isAdditionalTel = telServices.findIndex((s) => s.id === service.id) > 0
+  const index = telServices.findIndex((s) => s.id === service.id)
 
-  // If additional TEL → always ON and cannot be toggled
+  const isAdditionalTel = index > 0
+
+  /** Switch state */
   const [addSerial, setAddSerial] = useState<boolean>(
     isAdditionalTel || Boolean(service.serialNumber)
   )
 
-  // When this TEL becomes additional (after list updates)
   useEffect(() => {
     if (isAdditionalTel) setAddSerial(true)
   }, [isAdditionalTel])
 
+  /** Handle device selection */
   const handleSelectSim = (device: IssuedItemDevice) => {
     onChange({
       ...service,
       deviceId: device.id,
-      serialNumber: device.serialNumber,
-      deviceName: 'KARTA SIM',
+      serialNumber: device.serialNumber ?? '',
+      deviceName: device.name ?? 'KARTA SIM',
       deviceType: DeviceCategory.OTHER,
+      deviceSource: 'WAREHOUSE',
     })
   }
+
+  /** SIM card options (technician + warehouse) */
+  const simDevices = devices.filter(
+    (d) =>
+      d.category === DeviceCategory.OTHER &&
+      (d.name.toUpperCase().includes('SIM') ||
+        d.name.toUpperCase().includes('KARTA SIM'))
+  )
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label
-          className={addSerial ? 'text-sm' : 'text-sm text-muted-foreground'}
-        >
-          Numer seryjny
-        </Label>
+        <Label className="text-sm">Numer seryjny</Label>
+
         <Switch
           checked={addSerial}
           onCheckedChange={(v) => !isAdditionalTel && setAddSerial(v)}
-          disabled={isAdditionalTel} // 🔒 Cannot disable for 2nd+ TEL
+          disabled={isAdditionalTel}
         />
       </div>
 
-      {/* Serial input required for 2nd+ TEL */}
-      {addSerial && !service.serialNumber && (
-        <SerialScanInput
-          serviceType="TEL"
-          devices={devices.filter((d) => d.category === DeviceCategory.OTHER)}
-          onAddDevice={handleSelectSim}
-          variant="block"
-        />
+      {/* When user wants to add serial OR it's required */}
+      {addSerial && (
+        <>
+          <SerialScanInput
+            serviceType="TEL"
+            devices={simDevices}
+            allowedCategories={[DeviceCategory.OTHER]}
+            variant="block"
+            onAddDevice={handleSelectSim}
+            // ALWAYS allow re-selection, even if serial exists
+          />
+
+          {service.serialNumber && (
+            <div className="text-sm text-muted-foreground mt-1">
+              Wybrano: <strong>{service.serialNumber}</strong>
+            </div>
+          )}
+        </>
       )}
 
-      {service.serialNumber && (
-        <div className="text-sm text-muted-foreground">
-          KARTA SIM (SN:{' '}
-          <span className="font-medium">{service.serialNumber}</span>)
-        </div>
-      )}
-
-      {/* 🔹 Validation note for second and further TELs */}
+      {/* Validation for TEL #2+ */}
       {isAdditionalTel && !service.serialNumber && (
-        <p className="text-xs text-danger mt-1">Numer seryjny jest wymagany.</p>
+        <p className="text-xs text-danger mt-1">Numer seryjny wymagany.</p>
       )}
     </div>
   )

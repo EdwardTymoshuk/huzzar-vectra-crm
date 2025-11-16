@@ -36,6 +36,7 @@ type ReportType =
   | 'SUMMARY'
   | 'CODE_BREAKDOWN'
   | 'SETTLEMENT_REPORT'
+  | 'INSTALLATION_MONTH'
 
 const GenerateBillingReportDialog = ({
   open,
@@ -69,6 +70,8 @@ const GenerateBillingReportDialog = ({
     trpc.settlement.generateWorkCodeSummaryReport.useMutation()
   const yearlyTemplateMutation =
     trpc.settlement.generateYearlyInstallationReport.useMutation()
+  const monthlyTemplateMutation =
+    trpc.settlement.generateMonthlyInstallationReport.useMutation()
 
   // Helper: base64 -> Blob
   const base64ToBlob = (base64: string, mime: string): Blob => {
@@ -128,6 +131,24 @@ const GenerateBillingReportDialog = ({
         a.click()
         URL.revokeObjectURL(url)
         toast.success('Raport roczny został wygenerowany.')
+        onClose()
+        return
+      } else if (reportType === 'INSTALLATION_MONTH') {
+        base64 = await monthlyTemplateMutation.mutateAsync({
+          year: yearFromDate,
+          month,
+        })
+        const blob = base64ToBlob(
+          base64,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `RAP.-ROZ. ${month}, ${yearFromDate}.xlsx`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success('Raport miesięczny został wygenerowany.')
         onClose()
         return
       }
@@ -210,6 +231,9 @@ const GenerateBillingReportDialog = ({
               <SelectItem value="CODE_BREAKDOWN">
                 Zestawienie prac (miesięczne)
               </SelectItem>
+              <SelectItem value="INSTALLATION_MONTH">
+                Raport rozliczeniowy (miesięczny)
+              </SelectItem>
               <SelectItem value="SETTLEMENT_REPORT">
                 Raport rozliczeniowy (roczny)
               </SelectItem>
@@ -236,7 +260,12 @@ const GenerateBillingReportDialog = ({
           )}
 
           {/* Month — for monthly reports */}
-          {['TECHNICIAN', 'SUMMARY', 'CODE_BREAKDOWN'].includes(reportType) && (
+          {[
+            'TECHNICIAN',
+            'SUMMARY',
+            'CODE_BREAKDOWN',
+            'INSTALLATION_MONTH',
+          ].includes(reportType) && (
             <MonthPicker selected={selectedDate} onChange={setSelectedDate} />
           )}
 

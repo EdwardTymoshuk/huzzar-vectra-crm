@@ -37,9 +37,9 @@ const WIDTHS: Record<string, number> = {
   NET: 9,
   TEL: 9,
   ATV: 9,
-  'adres MAC dekodera': 18,
-  'adres MAC modemu': 18,
-  'numer SN dekodera | karty CI+': 18,
+  'adres MAC dekodera': 26,
+  'adres MAC modemu': 26,
+  'numer SN dekodera | karty CI+': 26,
   'multiroom ATV/DTV; przebudowy': 9,
   'uruchomienie gniazda': 14,
   'uruchomienie instalacji przyłącza ab.': 14,
@@ -375,8 +375,6 @@ export async function writeInstallationTemplateFromDb(
   const US_NET_IDX = nthIndexOf('US. 40/51 dBm', 2) + 1
   const DS_NET_IDX = nthIndexOf('DS. −9/+11 dBm', 2) + 1
 
-  const IDX = (h: string) => COLS.indexOf(h) + 1
-
   for (let m = 1; m <= 12; m++) {
     const ws = buildSheet(wb, m)
     const rows = byMonth[m] ?? []
@@ -385,12 +383,13 @@ export async function writeInstallationTemplateFromDb(
     const extra = Math.max(0, rows.length - DEFAULT_DATA_ROWS)
     for (let i = 0; i < extra; i++) {
       const r = ws.addRow(Array(COLS.length).fill(''))
-      const lp = r.getCell(1)
-      lp.value = DEFAULT_DATA_ROWS + i + 1
-      lp.fill = LIGHT_GRAY
-      lp.font = { bold: true, color: { argb: 'ff000000' } }
-      lp.border = BORDER
-      lp.alignment = { horizontal: 'center', vertical: 'middle' }
+      const lpCell = r.getCell(1)
+      lpCell.value = DEFAULT_DATA_ROWS + i + 1
+      lpCell.fill = LIGHT_GRAY
+      lpCell.font = { bold: true, color: { argb: 'ff000000' } }
+      lpCell.border = BORDER
+      lpCell.alignment = { horizontal: 'center', vertical: 'middle' }
+
       r.eachCell({ includeEmpty: true }, (cell, idx) => {
         if (idx === 1) return
         const hdr = COLS[idx - 1]
@@ -401,11 +400,382 @@ export async function writeInstallationTemplateFromDb(
       })
     }
 
-    // fill data
-    rows.forEach((o, i) => {
-      const row = DATA_START_ROW + i
+    /** Row type for a single order in this month. */
+    type OrderRow = (typeof rows)[number]
 
-      // base
+    /** Extracts US measurement as string or null when missing. */
+    const extractUs = (v: number | null): string | null =>
+      v !== null ? String(v) : null
+
+    /** Extracts DS measurement as string or null when missing. */
+    const extractDs = (v: number | null): string | null =>
+      v !== null ? String(v) : null
+
+    /** True when device category should be treated as modem-like (modem / SIM / extender). */
+    const isModemLikeCategory = (cat: DeviceCategory | null): boolean => {
+      if (!cat) return false
+      if (
+        cat === DeviceCategory.MODEM_HFC ||
+        cat === DeviceCategory.MODEM_GPON
+      ) {
+        return true
+      }
+      // SIM / EXTENDER are stored as OTHER.
+      return cat === DeviceCategory.OTHER
+    }
+
+    /** Returns label suffix for SIM/EXTENDER based on warehouse name. */
+    const labelForOtherDevice = (
+      name: string | null | undefined
+    ): string | null => {
+      if (!name) return null
+      const lower = name.toLowerCase()
+      if (lower.includes('sim')) return '[KARTA SIM]'
+      if (lower.includes('ext')) return '[EXTENDER]'
+      return null
+    }
+
+    /** Represents one logical decoder line. */
+    type DecoderLine = {
+      serials: string[]
+      us: string[]
+      ds: string[]
+      isClientDevice: boolean
+      isTwoWay: boolean
+    }
+
+    /** Represents one logical modem/SIM/EXTENDER line. */
+    type ModemLine = {
+      serials: string[]
+      us: string[]
+      ds: string[]
+      speeds: string[]
+      isOther: boolean // SIM/EXTENDER when true
+      isClientDevice: boolean
+    }
+
+    type ExpandedLine = {
+      order: OrderRow
+      isFirstForOrder: boolean
+      dec2?: DecoderLine
+      dec1?: DecoderLine
+      modem?: ModemLine
+      dtvCount: number
+      netCount: number
+      telCount: number
+      atvCount: number
+    }
+
+    const expandedRows: ExpandedLine[] = []
+
+    for (const o of rows) {
+      // issued equipment (warehouse) – relation is already scoped to this order
+      const issued = o.assignedEquipment.filter(
+        (e) => e.warehouse.status !== 'COLLECTED_FROM_CLIENT'
+      )
+
+      const dec1Equip = issued.filter(
+        (e) => e.warehouse.category === DeviceCategory.DECODER_1_WAY
+      )
+      const dec2Equip = issued.filter(
+        (e) => e.warehouse.category === DeviceCategory.DECODER_2_WAY
+      )
+      const modemLikeEquip = issued.filter((e) =>
+        isModemLikeCategory(e.warehouse.category)
+      )
+
+      const dtvServices = o.services.filter((s) => s.type === 'DTV')
+      const netServices = o.services.filter((s) => s.type === 'NET')
+      const telServices = o.services.filter((s) => s.type === 'TEL')
+      const atvServices = o.services.filter((s) => s.type === 'ATV')
+
+      const dtvCount = dtvServices.length
+      const netCount = netServices.length
+      const telCount = telServices.length
+      const atvCount = atvServices.length
+
+      const deviceSerial = (serialNumber: string | null): string =>
+        serialNumber?.trim() ?? ''
+
+      const dec2Lines: DecoderLine[] = []
+      const dec1Lines: DecoderLine[] = []
+      const modemLines: ModemLine[] = []
+
+      /* ===================== WAREHOUSE DECODERS ===================== */
+
+      // 2-way from warehouse
+      for (const d of dec2Equip) {
+        const related = dtvServices.filter((s) => s.deviceId === d.warehouse.id)
+
+        const baseSerial = deviceSerial(d.warehouse.serialNumber)
+        const extraSerials = related
+          .map((s) => deviceSerial(s.serialNumber))
+          .filter((x) => x.length > 0)
+
+        const serials = uniq(
+          baseSerial.length > 0 ? [baseSerial, ...extraSerials] : extraSerials
+        )
+
+        const usValues = related
+          .map((s) => extractUs(s.usDbmUp))
+          .filter((x): x is string => x !== null)
+        const dsValues = related
+          .map((s) => extractDs(s.usDbmDown))
+          .filter((x): x is string => x !== null)
+
+        dec2Lines.push({
+          serials,
+          us: usValues,
+          ds: dsValues,
+          isClientDevice: false,
+          isTwoWay: true,
+        })
+      }
+
+      // 1-way from warehouse
+      for (const d of dec1Equip) {
+        const related = dtvServices.filter((s) => s.deviceId === d.warehouse.id)
+
+        const baseSerial = deviceSerial(d.warehouse.serialNumber)
+        const extraSerials = related
+          .flatMap((s) => [s.serialNumber, s.serialNumber2])
+          .map((v) => deviceSerial(v))
+          .filter((x) => x.length > 0)
+
+        const serials = uniq(
+          baseSerial.length > 0 ? [baseSerial, ...extraSerials] : extraSerials
+        )
+
+        const usValues = related
+          .map((s) => extractUs(s.usDbmUp))
+          .filter((x): x is string => x !== null)
+        const dsValues = related
+          .map((s) => extractDs(s.usDbmDown))
+          .filter((x): x is string => x !== null)
+
+        dec1Lines.push({
+          serials,
+          us: usValues,
+          ds: dsValues,
+          isClientDevice: false,
+          isTwoWay: false,
+        })
+      }
+
+      /* ===================== WAREHOUSE MODEMS / SIM / EXT ===================== */
+
+      for (const mDev of modemLikeEquip) {
+        const relatedNet = netServices.filter(
+          (s) => s.deviceId === mDev.warehouse.id
+        )
+        const relatedTel = telServices.filter(
+          (s) => s.deviceId === mDev.warehouse.id
+        )
+        const related = [...relatedNet, ...relatedTel]
+
+        const rawSerial = deviceSerial(mDev.warehouse.serialNumber)
+        const label =
+          mDev.warehouse.category === DeviceCategory.OTHER
+            ? labelForOtherDevice(mDev.warehouse.name)
+            : null
+
+        let baseSerial = rawSerial
+        if (label) {
+          baseSerial = rawSerial.length > 0 ? `${rawSerial} ${label}` : label
+        }
+        const extraSerials =
+          mDev.warehouse.category === DeviceCategory.OTHER
+            ? []
+            : related
+                .map((s) => deviceSerial(s.serialNumber))
+                .filter((x) => x.length > 0)
+
+        const serials = uniq(
+          baseSerial.length > 0 ? [baseSerial, ...extraSerials] : extraSerials
+        )
+
+        const usValues = related
+          .map((s) => extractUs(s.usDbmUp))
+          .filter((x): x is string => x !== null)
+        const dsValues = related
+          .map((s) => extractDs(s.usDbmDown))
+          .filter((x): x is string => x !== null)
+        const speeds = related
+          .map((s) => s.speedTest ?? '')
+          .filter((x) => x.length > 0)
+
+        modemLines.push({
+          serials,
+          us: usValues,
+          ds: dsValues,
+          speeds,
+          isOther: mDev.warehouse.category === DeviceCategory.OTHER,
+          isClientDevice: false,
+        })
+      }
+
+      /* ===================== CLIENT DEVICES (no deviceId) ===================== */
+
+      // DTV – client-owned decoders
+      const dtvClient = dtvServices.filter((s) => !s.deviceId && s.serialNumber)
+      for (const s of dtvClient) {
+        const baseSerial = deviceSerial(s.serialNumber)
+        const extraSerials = [s.serialNumber2]
+          .map((v) => deviceSerial(v))
+          .filter((x) => x.length > 0)
+
+        const combinedSerials = uniq(
+          baseSerial.length > 0 ? [baseSerial, ...extraSerials] : extraSerials
+        )
+        const serialsWithTag = combinedSerials.map(
+          (sn) => `${sn} [SPRZĘT KLIENTA]`
+        )
+
+        const usValues = extractUs(s.usDbmUp)
+        const dsValues = extractDs(s.usDbmDown)
+
+        const usArr = usValues ? [usValues] : []
+        const dsArr = dsValues ? [dsValues] : []
+
+        if (s.deviceType === DeviceCategory.DECODER_2_WAY) {
+          dec2Lines.push({
+            serials: serialsWithTag,
+            us: usArr,
+            ds: dsArr,
+            isClientDevice: true,
+            isTwoWay: true,
+          })
+        } else if (s.deviceType === DeviceCategory.DECODER_1_WAY) {
+          dec1Lines.push({
+            serials: serialsWithTag,
+            us: usArr,
+            ds: dsArr,
+            isClientDevice: true,
+            isTwoWay: false,
+          })
+        }
+      }
+
+      // NET/TEL – client-owned modems
+      const netTelClient = [...netServices, ...telServices].filter(
+        (s) => !s.deviceId && s.serialNumber
+      )
+      for (const s of netTelClient) {
+        const baseSerial = deviceSerial(s.serialNumber)
+        const serial = baseSerial.length
+          ? `${baseSerial} [SPRZĘT KLIENTA]`
+          : '[SPRZĘT KLIENTA]'
+
+        const usValues = extractUs(s.usDbmUp)
+        const dsValues = extractDs(s.usDbmDown)
+        const usArr = usValues ? [usValues] : []
+        const dsArr = dsValues ? [dsValues] : []
+        const speeds = s.speedTest ? [s.speedTest] : []
+
+        modemLines.push({
+          serials: [serial],
+          us: usArr,
+          ds: dsArr,
+          speeds,
+          isOther: false,
+          isClientDevice: true,
+        })
+      }
+
+      /* ===================== FALLBACK MEASUREMENTS (no devices) ===================== */
+
+      if (
+        dec2Lines.length === 0 &&
+        dec1Lines.length === 0 &&
+        dtvServices.length
+      ) {
+        const usValues = dtvServices
+          .map((s) => extractUs(s.usDbmUp))
+          .filter((x): x is string => x !== null)
+        const dsValues = dtvServices
+          .map((s) => extractDs(s.usDbmDown))
+          .filter((x): x is string => x !== null)
+
+        if (usValues.length || dsValues.length) {
+          dec2Lines.push({
+            serials: [],
+            us: usValues,
+            ds: dsValues,
+            isClientDevice: false,
+            isTwoWay: true,
+          })
+        }
+      }
+
+      if (
+        modemLines.length === 0 &&
+        (netServices.length || telServices.length)
+      ) {
+        const all = [...netServices, ...telServices]
+        const usValues = all
+          .map((s) => extractUs(s.usDbmUp))
+          .filter((x): x is string => x !== null)
+        const dsValues = all
+          .map((s) => extractDs(s.usDbmDown))
+          .filter((x): x is string => x !== null)
+        const speeds = all
+          .map((s) => s.speedTest ?? '')
+          .filter((x) => x.length > 0)
+
+        if (usValues.length || dsValues.length || speeds.length) {
+          modemLines.push({
+            serials: [],
+            us: usValues,
+            ds: dsValues,
+            speeds,
+            isOther: false,
+            isClientDevice: false,
+          })
+        }
+      }
+
+      /* ===================== ORDER → MULTI-LINE EXPANSION ===================== */
+
+      // SIM / EXTENDER last: first non-OTHER, then OTHER.
+      const modemNonOther = modemLines.filter((l) => !l.isOther)
+      const modemOther = modemLines.filter((l) => l.isOther)
+      const finalModems = [...modemNonOther, ...modemOther]
+
+      const lineCount = Math.max(
+        dec2Lines.length,
+        dec1Lines.length,
+        finalModems.length,
+        1
+      )
+
+      for (let i = 0; i < lineCount; i++) {
+        const dec2Line = i < dec2Lines.length ? dec2Lines[i] : undefined
+        const dec1Line = i < dec1Lines.length ? dec1Lines[i] : undefined
+        const modemLine = i < finalModems.length ? finalModems[i] : undefined
+
+        expandedRows.push({
+          order: o,
+          isFirstForOrder: i === 0,
+          dec2: dec2Line,
+          dec1: dec1Line,
+          modem: modemLine,
+          dtvCount,
+          netCount,
+          telCount,
+          atvCount,
+        })
+      }
+    }
+
+    /* ===================== WRITE expandedRows TO SHEET ===================== */
+
+    const IDX = (h: string) => COLS.indexOf(h) + 1
+
+    expandedRows.forEach((entry, idx) => {
+      const row = DATA_START_ROW + idx
+      const o = entry.order
+
+      // Order number and address repeated on every line for the order.
       ws.getCell(row, IDX('schemat / nr klienta')).value = o.orderNumber ?? ''
       ws.getCell(row, IDX('Adres\nMIASTO, ULICA NUMER')).value = [
         o.city,
@@ -413,199 +783,137 @@ export async function writeInstallationTemplateFromDb(
       ]
         .filter(Boolean)
         .join(', ')
-      ws.getCell(row, IDX('WYKONANE\nTAK | NIE')).value =
-        o.status === 'COMPLETED' ? 'TAK' : 'NIE'
-      ws.getCell(row, IDX('UWAGI')).value = o.notes ?? ''
 
-      // services counters
-      const count = (t: 'DTV' | 'NET' | 'TEL' | 'ATV') =>
-        o.services.filter((s) => s.type === t).length
-      if (o.services?.length) {
-        ws.getCell(row, IDX('DTV')).value = count('DTV') || 0
-        ws.getCell(row, IDX('NET')).value = count('NET') || 0
-        ws.getCell(row, IDX('TEL')).value = count('TEL') || 0
-        ws.getCell(row, IDX('ATV')).value = count('ATV') || 0
-      }
+      // Status and notes only on the first line for the order.
+      if (entry.isFirstForOrder) {
+        ws.getCell(row, IDX('WYKONANE\nTAK | NIE')).value =
+          o.status === 'COMPLETED' ? 'TAK' : 'NIE'
+        ws.getCell(row, IDX('UWAGI')).value = o.notes ?? ''
 
-      // ── issued equipment only (exclude collected-from-client) ───────────
-      const issuedEquip = o.assignedEquipment.filter(
-        (e) => e.warehouse.status !== 'COLLECTED_FROM_CLIENT'
-      )
+        // Service counters + multiroom logic (only first line)
+        if (entry.dtvCount > 0) {
+          ws.getCell(row, IDX('DTV')).value = 1
+          if (entry.dtvCount > 1) {
+            ws.getCell(row, IDX('multiroom ATV/DTV; przebudowy')).value =
+              entry.dtvCount - 1
+          }
+        }
+        if (entry.netCount > 0) {
+          ws.getCell(row, IDX('NET')).value = 1
+        }
+        if (entry.telCount > 0) {
+          ws.getCell(row, IDX('TEL')).value = 1
+        }
+        if (entry.atvCount > 0) {
+          ws.getCell(row, IDX('ATV')).value = 1
+        }
 
-      const dec1 = issuedEquip.filter(
-        (e) => e.warehouse.category === DeviceCategory.DECODER_1_WAY
-      )
-      const dec2 = issuedEquip.filter(
-        (e) => e.warehouse.category === DeviceCategory.DECODER_2_WAY
-      )
-      const modems = issuedEquip.filter(
-        (e) =>
-          e.warehouse.category === DeviceCategory.MODEM_GPON ||
-          e.warehouse.category === DeviceCategory.MODEM_HFC
-      )
+        // Settlement codes summed only on the first line.
+        for (const se of o.settlementEntries) {
+          const colHdr = mapRateToCol(se.code)
+          if (!colHdr) continue
+          const colIndex = IDX(colHdr)
+          if (colIndex > 0) {
+            const current = Number(ws.getCell(row, colIndex).value || 0)
+            ws.getCell(row, colIndex).value = current + (se.quantity ?? 0)
+          }
+        }
 
-      const dec1Ids = new Set(dec1.map((d) => d.warehouse.id))
-      const dec2Ids = new Set(dec2.map((d) => d.warehouse.id))
-      const issuedDecoderIds = new Set<string>([
-        ...Array.from(dec1Ids),
-        ...Array.from(dec2Ids),
-      ])
-      const issuedModemIds = new Set(modems.map((m) => m.warehouse.id))
-
-      const dtvServices = o.services.filter(
-        (s) =>
-          s.type === 'DTV' && (!s.deviceId || issuedDecoderIds.has(s.deviceId))
-      )
-      const netServices = o.services.filter(
-        (s) =>
-          s.type === 'NET' && (!s.deviceId || issuedModemIds.has(s.deviceId))
-      )
-      const telServices = o.services.filter(
-        (s) =>
-          s.type === 'TEL' && (!s.deviceId || issuedModemIds.has(s.deviceId))
-      )
-
-      // ── DECODERS SPLIT ─────────────────────────────────────────────
-      // 2-way → "adres MAC dekodera" (wpisujemy SN-y urządzeń 2-way + ewentualne serialNumber z usług powiązanych z 2-way)
-      const dec2MACs = uniq([
-        ...(dec2
-          .map((d) => d.warehouse.serialNumber?.trim())
-          .filter(Boolean) as string[]),
-        ...(dtvServices
-          .filter((s) => s.deviceId && dec2Ids.has(s.deviceId))
-          .map((s) => s.serialNumber?.trim())
-          .filter(Boolean) as string[]),
-      ])
-
-      // 1-way → "numer SN dekodera | karty CI+" (SN + karta CI+)
-      const dec1SNs = uniq([
-        ...(dec1
-          .map((d) => d.warehouse.serialNumber?.trim())
-          .filter(Boolean) as string[]),
-        ...(dtvServices
-          .filter((s) => s.deviceId && dec1Ids.has(s.deviceId))
-          .flatMap((s) => [s.serialNumber?.trim(), s.serialNumber2?.trim()])
-          .filter(Boolean) as string[]),
-      ])
-
-      if (dec2MACs.length) {
-        const c = ws.getCell(row, IDX('adres MAC dekodera'))
-        c.value = dec2MACs.join('\n')
-        c.alignment = { wrapText: true }
-      }
-      if (dec1SNs.length) {
-        const c = ws.getCell(row, IDX('numer SN dekodera | karty CI+'))
-        c.value = dec1SNs.join('\n')
-        c.alignment = { wrapText: true }
-      }
-
-      // ── MODEM MACs ────────────────────────────────────────────────
-      const modemMacs = uniq([
-        ...(modems
-          .map((m) => m.warehouse.serialNumber?.trim())
-          .filter(Boolean) as string[]),
-        ...(netServices
-          .map((s) => s.serialNumber?.trim())
-          .filter(Boolean) as string[]),
-        ...(telServices
-          .map((s) => s.serialNumber?.trim())
-          .filter(Boolean) as string[]),
-      ])
-      if (modemMacs.length) {
-        const c = ws.getCell(row, IDX('adres MAC modemu'))
-        c.value = modemMacs.join('\n')
-        c.alignment = { wrapText: true }
-      }
-
-      // ── measurements (US/DS/speed) ─────────────────────────────────
-      const nums = (xs: Array<number | null | undefined>) =>
-        xs.filter((v): v is number => v !== null && v !== undefined).map(String)
-
-      // DTV → first pair US/DS
-      const usDtv = nums(dtvServices.map((s) => s.usDbmUp))
-      const dsDtv = nums(dtvServices.map((s) => s.usDbmDown))
-      if (US_DEC_IDX > 0 && usDtv.length) {
-        const c = ws.getCell(row, US_DEC_IDX)
-        c.value = usDtv.length > 1 ? usDtv.join('\n') : usDtv[0]
-        c.alignment = { wrapText: true }
-      }
-      if (DS_DEC_IDX > 0 && dsDtv.length) {
-        const c = ws.getCell(row, DS_DEC_IDX)
-        c.value = dsDtv.length > 1 ? dsDtv.join('\n') : dsDtv[0]
-        c.alignment = { wrapText: true }
-      }
-
-      // NET/TEL → second pair US/DS (combined)
-      const usNetTel = nums([
-        ...netServices.map((s) => s.usDbmUp),
-        ...telServices.map((s) => s.usDbmUp),
-      ])
-      const dsNetTel = nums([
-        ...netServices.map((s) => s.usDbmDown),
-        ...telServices.map((s) => s.usDbmDown),
-      ])
-      if (US_NET_IDX > 0 && usNetTel.length) {
-        const c = ws.getCell(row, US_NET_IDX)
-        c.value = usNetTel.length > 1 ? usNetTel.join('\n') : usNetTel[0]
-        c.alignment = { wrapText: true }
-      }
-      if (DS_NET_IDX > 0 && dsNetTel.length) {
-        const c = ws.getCell(row, DS_NET_IDX)
-        c.value = dsNetTel.length > 1 ? dsNetTel.join('\n') : dsNetTel[0]
-        c.alignment = { wrapText: true }
-      }
-
-      // Speedtests (strings, NET/TEL)
-      const speeds = uniq([
-        ...(netServices.map((s) => s.speedTest).filter(Boolean) as string[]),
-        ...(telServices.map((s) => s.speedTest).filter(Boolean) as string[]),
-      ])
-      if (speeds.length) {
-        const c = ws.getCell(row, IDX('Pomiar prędkości 300/600'))
-        c.value = speeds.join('\n')
-        c.alignment = { wrapText: true }
-      }
-
-      // ── settlement codes → add quantities to mapped columns ────────
-      for (const se of o.settlementEntries) {
-        const colHdr = mapRateToCol(se.code)
-        if (!colHdr) continue
-        const col = IDX(colHdr)
-        if (col > 0) {
-          const cur = Number(ws.getCell(row, col).value || 0)
-          ws.getCell(row, col).value = cur + (se.quantity ?? 0)
+        // Materials summed only on the first line.
+        for (const um of o.usedMaterials) {
+          const colIndex = IDX(um.material?.name ?? '')
+          if (colIndex > 0) {
+            const current = Number(ws.getCell(row, colIndex).value || 0)
+            ws.getCell(row, colIndex).value = current + (um.quantity ?? 0)
+          }
         }
       }
 
-      // materials → sum to their exact-name columns
-      for (const um of o.usedMaterials) {
-        const col = IDX(um.material?.name ?? '')
-        if (col > 0) {
-          const cur = Number(ws.getCell(row, col).value || 0)
-          ws.getCell(row, col).value = cur + (um.quantity ?? 0)
+      // DECODER 2-way → MAC column
+      if (entry.dec2 && entry.dec2.serials.length) {
+        ws.getCell(row, IDX('adres MAC dekodera')).value =
+          entry.dec2.serials.join('\n')
+        ws.getCell(row, IDX('adres MAC dekodera')).alignment = {
+          wrapText: true,
+        }
+      }
+
+      // DECODER 1-way → SN column
+      if (entry.dec1 && entry.dec1.serials.length) {
+        ws.getCell(row, IDX('numer SN dekodera | karty CI+')).value =
+          entry.dec1.serials.join('\n')
+        ws.getCell(row, IDX('numer SN dekodera | karty CI+')).alignment = {
+          wrapText: true,
+        }
+      }
+
+      // DTV measurements (first US/DS pair)
+      if (entry.dec2 && entry.dec2.us.length) {
+        const value =
+          entry.dec2.us.length > 1 ? entry.dec2.us.join('\n') : entry.dec2.us[0]
+        ws.getCell(row, US_DEC_IDX).value = value
+        ws.getCell(row, US_DEC_IDX).alignment = { wrapText: true }
+      }
+      if (entry.dec2 && entry.dec2.ds.length) {
+        const value =
+          entry.dec2.ds.length > 1 ? entry.dec2.ds.join('\n') : entry.dec2.ds[0]
+        ws.getCell(row, DS_DEC_IDX).value = value
+        ws.getCell(row, DS_DEC_IDX).alignment = { wrapText: true }
+      }
+
+      // MODEM / SIM / EXTENDER
+      if (entry.modem && entry.modem.serials.length) {
+        ws.getCell(row, IDX('adres MAC modemu')).value =
+          entry.modem.serials.join('\n')
+        ws.getCell(row, IDX('adres MAC modemu')).alignment = { wrapText: true }
+      }
+
+      if (entry.modem && entry.modem.us.length) {
+        const value =
+          entry.modem.us.length > 1
+            ? entry.modem.us.join('\n')
+            : entry.modem.us[0]
+        ws.getCell(row, US_NET_IDX).value = value
+        ws.getCell(row, US_NET_IDX).alignment = { wrapText: true }
+      }
+      if (entry.modem && entry.modem.ds.length) {
+        const value =
+          entry.modem.ds.length > 1
+            ? entry.modem.ds.join('\n')
+            : entry.modem.ds[0]
+        ws.getCell(row, DS_NET_IDX).value = value
+        ws.getCell(row, DS_NET_IDX).alignment = { wrapText: true }
+      }
+
+      if (entry.modem && entry.modem.speeds.length) {
+        ws.getCell(row, IDX('Pomiar prędkości 300/600')).value =
+          entry.modem.speeds.join('\n')
+        ws.getCell(row, IDX('Pomiar prędkości 300/600')).alignment = {
+          wrapText: true,
         }
       }
     })
 
     // outlines + fix top formulas to last row
     drawSectionOutlines(ws)
-    const last = DATA_START_ROW + Math.max(rows.length, DEFAULT_DATA_ROWS) - 1
+    const lastRow =
+      DATA_START_ROW + Math.max(expandedRows.length, DEFAULT_DATA_ROWS) - 1
     const range400 = `D${DATA_START_ROW}:D${
       DATA_START_ROW + DEFAULT_DATA_ROWS - 1
     }`
-    ws.getCell('B1').value = { formula: `COUNTIF(${range400};"TAK")` }
+    ws.getCell('B1').value = { formula: `COUNTIF(${range400},"TAK")` }
     ws.getCell('B2').value = {
-      formula: `COUNTIF(${range400};"TAK")+COUNTIF(${range400};"NIE")`,
+      formula: `COUNTIF(${range400},"TAK") + COUNTIF(${range400},"NIE")`,
     }
 
     // Row 2 sums (colored headers) – recalc to last data row
     COLS.forEach((hdr, i) => {
-      const col = i + 1
-      if (col <= 4) return
+      const colIndex = i + 1
+      if (colIndex <= 4) return
       if (EXCLUDED_SUM_COLS.has(hdr)) return
-      const cell = ws.getCell(2, col)
-      const L = toLetter(col)
-      cell.value = { formula: `SUM(${L}${DATA_START_ROW}:${L}${last})` }
+      const cell = ws.getCell(2, colIndex)
+      const L = toLetter(colIndex)
+      cell.value = { formula: `SUM(${L}${DATA_START_ROW}:${L}${lastRow})` }
     })
   }
 
@@ -704,4 +1012,40 @@ export async function writeInstallationTemplateFromDb(
   }
 
   return Buffer.from(await wb.xlsx.writeBuffer())
+}
+/**
+ * Generates installation template for a specific month.
+ * Loads the full-year workbook, removes unused sheets,
+ * and returns a single-sheet workbook as Node.js Buffer.
+ */
+export async function writeInstallationTemplateForMonth(
+  year: number,
+  month: number
+): Promise<Buffer> {
+  // Clamp month to 1..12
+  const safeMonth = Math.min(12, Math.max(1, month))
+
+  // 1) Full workbook buffer (ArrayBuffer recommended)
+  const fullBuffer = await writeInstallationTemplateFromDb(year)
+
+  // 2) Load workbook using ExcelJS
+  const wb = new ExcelJS.Workbook()
+
+  // ExcelJS accepts ArrayBuffer or Uint8Array
+  await wb.xlsx.load(fullBuffer as unknown as ArrayBuffer)
+
+  // 3) Keep only the target month sheet
+  const targetSheetName = `(${safeMonth})`
+  const sheets = [...wb.worksheets]
+
+  for (const sheet of sheets) {
+    if (sheet.name !== targetSheetName) {
+      wb.removeWorksheet(sheet.id)
+    }
+  }
+
+  // 4) Convert workbook to ArrayBuffer and wrap as Node.js Buffer
+  const out = await wb.xlsx.writeBuffer()
+
+  return Buffer.from(out)
 }

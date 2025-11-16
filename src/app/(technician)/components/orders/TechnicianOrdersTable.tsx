@@ -187,7 +187,7 @@ const TechnicianOrdersTable = ({
                 return (
                   <AccordionItem key={o.id} value={o.id} className="min-w-fit">
                     <AccordionTrigger
-                      className="text-sm font-normal px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
+                      className="text-sm font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
                       asChild
                     >
                       <div
