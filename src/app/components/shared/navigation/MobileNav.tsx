@@ -85,9 +85,9 @@ const MobileNav = ({
             <Button
               variant="ghost"
               className={cn(
-                'flex flex-col items-center justify-center text-sm sm:text-base px-2 py-4 rounded-none flex-1',
+                'flex flex-col items-center my-auto h-full justify-center text-sm sm:text-base px-2 py-4 rounded-none flex-1',
                 hiddenItems.some((item) => item.key === activeKey)
-                  ? 'bg-primary text-primary-foreground hover:bg-primary'
+                  ? 'bg-primary text-primary-foreground hover:bg-primary my-auto'
                   : 'text-primary-foreground hover:text-accent-foreground'
               )}
             >
@@ -96,7 +96,11 @@ const MobileNav = ({
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent side="top" align="center" className="w-64">
+          <DropdownMenuContent
+            side="top"
+            align="center"
+            className="w-64 bg-background"
+          >
             {hiddenItems.map((item) => {
               const isActive = activeKey === item.key
               return (

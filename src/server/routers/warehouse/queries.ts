@@ -38,6 +38,139 @@ export const queriesRouter = router({
       })
     }),
 
+  getDefinitionsWithStock: loggedInEveryone
+    .input(
+      z.object({
+        itemType: z.nativeEnum(WarehouseItemType),
+        locationId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const user = getUserOrThrow(ctx)
+      const locId = resolveLocationId(user, input)
+
+      // ------------------------------------------------------------
+      // DEVICE DEFINITIONS
+      // ------------------------------------------------------------
+      if (input.itemType === 'DEVICE') {
+        // 1) Load all device definitions
+        const definitions = await prisma.deviceDefinition.findMany({
+          orderBy: { name: 'asc' },
+        })
+
+        // 2) Load current warehouse stock (only names/prices/category)
+        const stock = await prisma.warehouse.findMany({
+          where: {
+            locationId: locId ?? undefined,
+            itemType: 'DEVICE',
+          },
+          select: {
+            name: true,
+            quantity: true,
+            price: true,
+            category: true,
+          },
+        })
+
+        // 3) Merge definitions and stock
+        const map = new Map<
+          string,
+          {
+            name: string
+            category: string
+            quantity: number
+            price: number
+            itemType: WarehouseItemType
+          }
+        >()
+
+        // Populate all definitions with default quantity = 0
+        for (const def of definitions) {
+          map.set(def.name, {
+            name: def.name,
+            category: def.category,
+            quantity: 0,
+            price: Number(def.price ?? 0),
+            itemType: 'DEVICE',
+          })
+        }
+
+        // Add actual stock
+        for (const item of stock) {
+          const row = map.get(item.name)
+          if (!row) continue
+          row.quantity += item.quantity
+          if (item.price != null) row.price = Number(item.price)
+          if (item.category) row.category = item.category
+        }
+
+        return Array.from(map.values())
+      }
+
+      // ------------------------------------------------------------
+      // MATERIAL DEFINITIONS
+      // ------------------------------------------------------------
+      if (input.itemType === 'MATERIAL') {
+        const definitions = await prisma.materialDefinition.findMany({
+          orderBy: { name: 'asc' },
+        })
+
+        const stock = await prisma.warehouse.findMany({
+          where: {
+            locationId: locId ?? undefined,
+            itemType: 'MATERIAL',
+          },
+          select: {
+            name: true,
+            quantity: true,
+            price: true,
+            index: true,
+            unit: true,
+          },
+        })
+
+        const map = new Map<
+          string,
+          {
+            name: string
+            category: string
+            quantity: number
+            price: number
+            itemType: WarehouseItemType
+          }
+        >()
+
+        // Populate definitions
+        for (const def of definitions) {
+          map.set(def.name, {
+            name: def.name,
+            // For materials "category" shows supplier index code
+            category: def.index ?? '—',
+            quantity: 0,
+            price: Number(def.price ?? 0),
+            itemType: 'MATERIAL',
+          })
+        }
+
+        // Merge stock
+        for (const item of stock) {
+          const row = map.get(item.name)
+          if (!row) continue
+          row.quantity += item.quantity
+          if (item.price != null) row.price = Number(item.price)
+          if (item.index) row.category = item.index
+        }
+
+        return Array.from(map.values())
+      }
+
+      // Should never happen
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Unsupported item type.',
+      })
+    }),
+
   /**
    * 📦 Get items by name for a concrete mode (Magazyn/Technicy/Wydane/Zwrócone).
    * Server-side filtering keeps payload small and ensures typing matches WarehouseWithRelations.

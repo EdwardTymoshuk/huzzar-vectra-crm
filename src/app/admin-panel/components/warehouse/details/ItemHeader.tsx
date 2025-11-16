@@ -6,32 +6,32 @@ import { SlimWarehouseItem } from '@/utils/warehouse'
 import { useMemo } from 'react'
 
 type Props = {
-  items: SlimWarehouseItem[]
+  items: SlimWarehouseItem[] // actual warehouse stock (possibly empty)
+  definition: {
+    name: string
+    category: string | null
+    index?: string | null
+    price: number | null
+    itemType: 'DEVICE' | 'MATERIAL'
+  }
   activeLocationId?: 'all' | string
 }
 
 /**
  * ItemHeader
- * - Shows main KPIs (warehouse/technicians/orders), respecting activeLocationId.
- * - Provides optional per-location breakdown as subpoints in ItemStatsCard.
+ * - Shows item KPIs for both DEVICE and MATERIAL.
+ * - Works even if warehouse has 0 actual items (definitions page).
  */
-const ItemHeader = ({ items, activeLocationId = 'all' }: Props) => {
-  // Filter items by selected location for main KPIs
+const ItemHeader = ({ items, definition, activeLocationId = 'all' }: Props) => {
+  const isDevice = definition.itemType === 'DEVICE'
+
+  // Filter by location
   const filtered = useMemo(() => {
-    if (!items.length) return []
     if (activeLocationId === 'all') return items
     return items.filter((i) => i.location?.id === activeLocationId)
   }, [items, activeLocationId])
 
-  // Detect first element and item type
-  const first = items[0]
-  const isDevice = first?.itemType === 'DEVICE'
-
-  const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0)
-  const money = (n: number | undefined) =>
-    typeof n === 'number' ? n.toFixed(2) : '—'
-
-  // Split filtered items
+  // KPI splits
   const { stockInWarehouse, heldByTechnicians, assignedToOrders } =
     useMemo(() => {
       const stockInWarehouse = filtered.filter(
@@ -52,7 +52,9 @@ const ItemHeader = ({ items, activeLocationId = 'all' }: Props) => {
       return { stockInWarehouse, heldByTechnicians, assignedToOrders }
     }, [filtered])
 
-  // KPI numbers
+  const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0)
+
+  // Quantities (fallback to 0 if no items)
   const warehouseQty = isDevice
     ? stockInWarehouse.length
     : sum(stockInWarehouse.map((i) => i.quantity))
@@ -61,28 +63,33 @@ const ItemHeader = ({ items, activeLocationId = 'all' }: Props) => {
     ? heldByTechnicians.length
     : sum(heldByTechnicians.map((i) => i.quantity))
 
+  const totalAvailable = warehouseQty + technicianQty
+
   const usedInOrders = isDevice
     ? assignedToOrders.length
     : sum(assignedToOrders.map((i) => i.quantity))
 
-  // Monetary totals for MATERIAL
+  // Monetary for materials only
   const warehouseValue = !isDevice
     ? stockInWarehouse.reduce((acc, i) => acc + i.quantity * (i.price ?? 0), 0)
     : undefined
+
   const technicianValue = !isDevice
     ? heldByTechnicians.reduce((acc, i) => acc + i.quantity * (i.price ?? 0), 0)
     : undefined
 
-  // Breakdown per location (on ALL items, not filtered)
+  // Per location breakdown
   const byLocation = useMemo(() => {
     const map = new Map<string, { name: string; qty: number }>()
     for (const it of items) {
       const id = it.location?.id ?? 'unknown'
       const name = it.location?.name ?? '—'
+
       const inWarehouse =
         it.status === 'AVAILABLE' &&
         it.assignedToId === null &&
         it.orderAssignments.length === 0
+
       if (!inWarehouse) continue
 
       const current = map.get(id) ?? { name, qty: 0 }
@@ -92,18 +99,15 @@ const ItemHeader = ({ items, activeLocationId = 'all' }: Props) => {
     return Array.from(map.entries()).map(([id, v]) => ({ id, ...v }))
   }, [items, isDevice])
 
-  // Early return after all hooks
-  if (!first) return null
-
   return (
     <ItemStatsCard
-      name={first.name}
+      name={definition.name}
       categoryOrIndex={
         isDevice
-          ? devicesTypeMap[first.category ?? ''] ?? '—'
-          : first.index ?? '—'
+          ? devicesTypeMap[definition.category ?? ''] ?? '—'
+          : definition.index ?? '—'
       }
-      price={money(first.price)}
+      price={(definition.price ?? 0).toFixed(2)}
       isDevice={isDevice}
       warehouseQty={warehouseQty}
       warehouseValue={warehouseValue}
@@ -112,6 +116,7 @@ const ItemHeader = ({ items, activeLocationId = 'all' }: Props) => {
       technicianValue={technicianValue}
       technicianLabel="Stan techników"
       usedInOrders={usedInOrders}
+      totalAvailable={totalAvailable}
       showWarehouse
       showTechnician
     />

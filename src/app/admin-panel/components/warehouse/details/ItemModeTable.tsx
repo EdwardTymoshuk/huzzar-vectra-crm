@@ -4,13 +4,6 @@ import SearchInput from '@/app/components/shared/SearchInput'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -19,6 +12,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { useRole } from '@/utils/hooks/useRole'
+import { trpc } from '@/utils/trpc'
 import {
   SlimWarehouseItem,
   fmt,
@@ -44,17 +38,20 @@ interface Props {
  */
 const ItemModeTable = ({ mode, items }: Props) => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeLocation, setActiveLocation] = useState<'all' | string>('all')
   const [orderId, setOrderId] = useState<string | null>(null)
 
   const { isAdmin, isCoordinator, isWarehouseman } = useRole()
-  const locations = Array.from(
-    new Map(
-      items
-        .filter((i) => i.location)
-        .map((i) => [i.location!.id, i.location!.name])
-    ).entries()
-  ).map(([id, name]) => ({ id, name }))
+  const { data: userLocations = [] } = trpc.warehouse.getUserLocations.useQuery(
+    undefined,
+    {
+      enabled: isAdmin || isCoordinator || isWarehouseman,
+    }
+  )
+
+  const locations = userLocations.map((loc) => ({
+    id: loc.id,
+    name: loc.name,
+  }))
 
   const showLocationColumn =
     isAdmin || ((isCoordinator || isWarehouseman) && locations.length > 1)
@@ -62,11 +59,6 @@ const ItemModeTable = ({ mode, items }: Props) => {
   // Apply filters
   const filtered = useMemo(() => {
     let data = items
-
-    // Filter by location
-    if (activeLocation !== 'all') {
-      data = data.filter((it) => it.location?.id === activeLocation)
-    }
 
     // Filter by search
     const q = searchTerm.trim().toLowerCase()
@@ -82,7 +74,7 @@ const ItemModeTable = ({ mode, items }: Props) => {
     }
 
     return data
-  }, [items, activeLocation, searchTerm])
+  }, [items, searchTerm])
 
   const pickDate = (it: SlimWarehouseItem): Date | null => {
     if (mode === 'warehouse') {
@@ -122,33 +114,13 @@ const ItemModeTable = ({ mode, items }: Props) => {
   return (
     <>
       {/* Controls above table */}
-      <div className="flex flex-col xs:flex-row justify-between items-center gap-3 mb-3">
+      <div className="flex flex-col xs:flex-row w-full md:w-1/3 md:justify-self-end justify-between items-center gap-3 mb-3">
         <SearchInput
           placeholder="Szukaj"
           value={searchTerm}
           onChange={setSearchTerm}
           className="flex-1 w-full"
         />
-        {showLocationColumn && (
-          <Select
-            value={activeLocation}
-            onValueChange={(val) =>
-              setActiveLocation((val as 'all' | string) ?? 'all')
-            }
-          >
-            <SelectTrigger className="flex-1 w-full xs:max-w-64">
-              <SelectValue placeholder="Filtruj po magazynie" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie magazyny</SelectItem>
-              {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.id}>
-                  {loc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
       <Table>

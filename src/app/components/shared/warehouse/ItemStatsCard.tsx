@@ -32,6 +32,7 @@ interface Props {
 
   /* always-visible */
   usedInOrders: number
+  totalAvailable?: number
 }
 
 const ItemStatsCard = ({
@@ -52,6 +53,7 @@ const ItemStatsCard = ({
   showTechnician = true,
   /* orders */
   usedInOrders,
+  totalAvailable,
 }: Props) => (
   <Card className="p-4 flex flex-col md:flex-row gap-4 justify-between">
     {/* ─────────────────── Left column ─ basic info ─────────────────── */}
@@ -78,6 +80,10 @@ const ItemStatsCard = ({
           qty={technicianQty}
           value={!isDevice ? technicianValue : undefined}
         />
+      )}
+
+      {totalAvailable !== undefined && (
+        <Row label="Stan ogólny" value={totalAvailable.toString()} />
       )}
 
       <Row label="Wydane na zleceniach" value={usedInOrders.toString()} />

@@ -2,6 +2,7 @@ import { deviceSchema } from '@/lib/schema'
 import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { prisma } from '@/utils/prisma'
 import { DeviceCategory } from '@prisma/client'
+import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { router } from '../../trpc'
 
@@ -92,6 +93,69 @@ export const deviceDefinitionRouter = router({
     .mutation(({ input }) => {
       return prisma.deviceDefinition.delete({
         where: { id: input.id },
+      })
+    }),
+  /**
+   * 📘 Get item definition (DEVICE or MATERIAL) by name.
+   * Used in warehouse detail page header.
+   *
+   * Returns:
+   * {
+   *   name: string
+   *   category: string | null     // DEVICE category
+   *   index: string | null        // MATERIAL index
+   *   price: number | null
+   *   itemType: 'DEVICE' | 'MATERIAL'
+   * }
+   */
+  getItemDefinition: loggedInEveryone
+    .input(z.object({ name: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const name = input.name.trim()
+
+      // Try to match DEVICE definition
+      const device = await prisma.deviceDefinition.findFirst({
+        where: { name },
+        select: {
+          name: true,
+          category: true,
+          price: true,
+        },
+      })
+
+      if (device) {
+        return {
+          name: device.name,
+          category: device.category,
+          index: null,
+          price: device.price ?? 0,
+          itemType: 'DEVICE' as const,
+        }
+      }
+
+      // Try to match MATERIAL definition
+      const material = await prisma.materialDefinition.findFirst({
+        where: { name },
+        select: {
+          name: true,
+          index: true,
+          price: true,
+        },
+      })
+
+      if (material) {
+        return {
+          name: material.name,
+          category: null,
+          index: material.index,
+          price: material.price ?? 0,
+          itemType: 'MATERIAL' as const,
+        }
+      }
+
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: `Nie znaleziono definicji dla: ${name}`,
       })
     }),
 })

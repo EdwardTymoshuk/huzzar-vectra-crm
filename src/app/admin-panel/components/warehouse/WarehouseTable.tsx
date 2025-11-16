@@ -49,23 +49,24 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
   const locationId = useActiveLocation()
   const { isAdmin, isCoordinator, isTechnician } = useRole()
 
-  const { data, isLoading, isError } = trpc.warehouse.getAll.useQuery(
-    { locationId: locationId ?? undefined },
-    { enabled: isAdmin || isCoordinator ? !!locationId : !isTechnician }
-  )
+  const { data, isLoading, isError } =
+    trpc.warehouse.getDefinitionsWithStock.useQuery(
+      {
+        itemType,
+        locationId: locationId ?? undefined,
+      },
+      {
+        enabled: isAdmin || isCoordinator ? !!locationId : !isTechnician,
+      }
+    )
 
   /** Filter data */
   const filtered = useMemo(() => {
     if (!data) return []
     return data.filter((item) => {
-      const matchesType =
-        item.itemType === itemType && item.status === 'AVAILABLE'
-      const matchesCategory = categoryFilter
-        ? item.category === categoryFilter
-        : true
-      return matchesType && matchesCategory
+      return categoryFilter ? item.category === categoryFilter : true
     })
-  }, [data, itemType, categoryFilter])
+  }, [data, categoryFilter])
 
   /** Group items */
   const grouped = useMemo(() => {
@@ -102,11 +103,24 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
   /** Sorting */
   const sorted = useMemo(() => {
     const items = [...searched]
-    if (!sortField || !sortOrder) return items
+
     return items.sort((a, b) => {
-      const aVal = (a[sortField] ?? '') as string
-      const bVal = (b[sortField] ?? '') as string
-      return sortOrder === 'asc'
+      // ----------------------------------------
+      // Rule 1: available stock always on top
+      // ----------------------------------------
+      if (a.quantity > 0 && b.quantity === 0) return -1
+      if (a.quantity === 0 && b.quantity > 0) return 1
+
+      // ----------------------------------------
+      // Rule 2: determine sorting field & order
+      // ----------------------------------------
+      const field: 'name' | 'category' = sortField ?? 'name'
+      const order: 'asc' | 'desc' = sortOrder ?? 'asc'
+
+      const aVal = (a[field] ?? '') as string
+      const bVal = (b[field] ?? '') as string
+
+      return order === 'asc'
         ? aVal.localeCompare(bVal)
         : bVal.localeCompare(aVal)
     })
@@ -262,9 +276,15 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
                   <TableCell>
                     <Button asChild size="sm" variant="ghost">
                       <NavLink
-                        href={`/admin-panel/warehouse/details/${encodeURIComponent(
-                          item.name.trim()
-                        )}`}
+                        href={
+                          locationId
+                            ? `/admin-panel/warehouse/details/${encodeURIComponent(
+                                item.name.trim()
+                              )}?loc=${locationId}`
+                            : `/admin-panel/warehouse/details/${encodeURIComponent(
+                                item.name.trim()
+                              )}`
+                        }
                         prefetch
                       >
                         <MdKeyboardArrowRight />
