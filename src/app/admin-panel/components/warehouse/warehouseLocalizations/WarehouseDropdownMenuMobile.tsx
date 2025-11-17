@@ -64,7 +64,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
           )
         }
         className={cn(
-          'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 h-full py-4 rounded-none',
+          'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 min-h-16 h-full py-4 rounded-none',
           isActive
             ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
             : 'text-primary-foreground hover:text-accent-foreground'
@@ -83,7 +83,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician }: Props) => {
         <Button
           variant="ghost"
           className={cn(
-            'flex flex-col my-auto items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 w-full h-full py-4 rounded-none relative',
+            'flex flex-col my-auto items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 w-full min-h-16 h-full py-4 rounded-none relative',
             /**
              * Highlight warehouse button as active when any warehouse tab
              * or its subpage (details/history) is currently open.

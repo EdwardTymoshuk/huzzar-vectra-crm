@@ -957,7 +957,7 @@ export const mutationsRouter = router({
             data: {
               status: 'ASSIGNED_TO_ORDER',
               assignedToId: null,
-              locationId: undefined,
+              locationId: null,
             },
           })
 
@@ -1009,7 +1009,7 @@ export const mutationsRouter = router({
             data: {
               status: 'ASSIGNED_TO_ORDER',
               assignedToId: null,
-              locationId: undefined,
+              locationId: null,
             },
           })
 
@@ -1139,7 +1139,7 @@ export const mutationsRouter = router({
                       data: {
                         status: 'ASSIGNED_TO_ORDER',
                         assignedToId: null, // extra device is now bound to the order, not to technician
-                        locationId: undefined,
+                        locationId: null,
                       },
                     })
 
@@ -1564,7 +1564,7 @@ export const mutationsRouter = router({
                     data: {
                       status: 'ASSIGNED_TO_ORDER',
                       assignedToId: null,
-                      locationId: undefined,
+                      locationId: null,
                     },
                   })
 
@@ -1858,7 +1858,7 @@ export const mutationsRouter = router({
             data: {
               status: 'ASSIGNED_TO_ORDER',
               assignedToId: null,
-              locationId: undefined,
+              locationId: null,
             },
           })
 
@@ -2008,7 +2008,7 @@ export const mutationsRouter = router({
                   data: {
                     status: 'ASSIGNED_TO_ORDER',
                     assignedToId: null,
-                    locationId: undefined,
+                    locationId: null,
                   },
                 })
 

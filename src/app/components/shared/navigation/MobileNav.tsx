@@ -44,12 +44,28 @@ const MobileNav = ({
   )
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 flex justify-stretch bg-secondary border-t border-border pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 flex justify-stretch bg-secondary border-t border-border ios-safe-bottom">
       {visibleItems.map((item) => {
         if (item.key === 'warehouse') {
           return (
             <div key="warehouse" className="flex-1 flex items-stretch">
-              <WarehouseDropdownMenuMobile isTechnician={isTechnician} />
+              {isTechnician ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push('/?tab=warehouse')}
+                  className={cn(
+                    'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 h-full py-4 rounded-none',
+                    activeKey === 'warehouse'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary'
+                      : 'text-primary-foreground hover:text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-6 w-6 sm:scale-150" />
+                  <span>Magazyn</span>
+                </Button>
+              ) : (
+                <WarehouseDropdownMenuMobile isTechnician={false} />
+              )}
             </div>
           )
         }
@@ -67,7 +83,7 @@ const MobileNav = ({
               )
             }
             className={cn(
-              'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 h-full py-4 rounded-none',
+              'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 min-h-16 h-full py-4 rounded-none',
               isActive
                 ? 'bg-primary text-primary-foreground hover:bg-primary'
                 : 'text-primary-foreground hover:text-accent-foreground'
@@ -85,7 +101,7 @@ const MobileNav = ({
             <Button
               variant="ghost"
               className={cn(
-                'flex flex-col items-center my-auto h-full justify-center text-sm sm:text-base px-2 py-4 rounded-none flex-1',
+                'flex flex-col items-center my-auto min-h-16 h-full justify-center text-sm sm:text-base px-2 py-4 rounded-none flex-1',
                 hiddenItems.some((item) => item.key === activeKey)
                   ? 'bg-primary text-primary-foreground hover:bg-primary my-auto'
                   : 'text-primary-foreground hover:text-accent-foreground'

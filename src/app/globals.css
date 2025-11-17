@@ -117,3 +117,9 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(120, 120, 120, 0.6);
 }
+
+@supports (padding: max(0px)) {
+  .ios-safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  }
+}
