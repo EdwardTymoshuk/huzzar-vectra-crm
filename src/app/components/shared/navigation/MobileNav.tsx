@@ -54,7 +54,7 @@ const MobileNav = ({
                   variant="ghost"
                   onClick={() => router.push('/?tab=warehouse')}
                   className={cn(
-                    'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 h-full py-4 rounded-none',
+                    'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 min-h-16 h-full py-4 rounded-none',
                     activeKey === 'warehouse'
                       ? 'bg-primary text-primary-foreground hover:bg-primary'
                       : 'text-primary-foreground hover:text-accent-foreground'
