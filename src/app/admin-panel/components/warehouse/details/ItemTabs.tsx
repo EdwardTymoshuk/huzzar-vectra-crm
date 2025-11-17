@@ -23,10 +23,16 @@ type Props = {
  *   warehouse / technicians / orders / returned
  */
 const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
-  // Apply location filter once up-front for all tabs
   const locFiltered = useMemo(() => {
     if (activeLocationId === 'all') return items
-    return items.filter((i) => i.location?.id === activeLocationId)
+
+    return items.filter((i) => {
+      // Case 1 — assigned to order → always visible regardless of location
+      if (i.status === 'ASSIGNED_TO_ORDER') return true
+
+      // Case 2 — normal items → filter by location
+      return i.location?.id === activeLocationId
+    })
   }, [items, activeLocationId])
 
   // Derived collections never mutate; memoize for render stability.
