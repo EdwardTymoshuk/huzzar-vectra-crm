@@ -24,14 +24,36 @@ type Props = {
  */
 const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
   const locFiltered = useMemo(() => {
+    // All items if no specific location selected
     if (activeLocationId === 'all') return items
 
     return items.filter((i) => {
-      // Case 1 — assigned to order → always visible regardless of location
-      if (i.status === 'ASSIGNED_TO_ORDER') return true
+      // 1) Technicians — always visible
+      if (i.status === 'ASSIGNED' && i.assignedToId) {
+        return true
+      }
 
-      // Case 2 — normal items → filter by location
-      return i.location?.id === activeLocationId
+      // 2) Collected from client — always visible
+      if (i.status === 'COLLECTED_FROM_CLIENT') {
+        return true
+      }
+
+      // 3) Assigned to order — always visible
+      if (i.status === 'ASSIGNED_TO_ORDER') {
+        return true
+      }
+
+      // 4) Returned to operator — always visible
+      if (i.status === 'RETURNED_TO_OPERATOR') {
+        return true
+      }
+
+      // 5) Only AVAILABLE items depend on warehouse location
+      if (i.status === 'AVAILABLE') {
+        return i.location?.id === activeLocationId
+      }
+
+      return false
     })
   }, [items, activeLocationId])
 
