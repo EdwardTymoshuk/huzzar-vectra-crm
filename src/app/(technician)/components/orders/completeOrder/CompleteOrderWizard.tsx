@@ -256,6 +256,8 @@ const CompleteOrderWizard = ({
 
       await utils.order.getTechnicianRealizedOrders.invalidate()
       await utils.order.getOrderById.invalidate({ id: order.id })
+      await utils.order.getAssignedOrders.invalidate()
+      await utils.order.getUnassignedOrders.invalidate()
       onCloseAction()
     } catch {
       toast.error('Błąd podczas zapisu zlecenia.')

@@ -1,5 +1,6 @@
 'use client'
 
+import CompleteOrderWizard from '@/app/(technician)/components/orders/completeOrder/CompleteOrderWizard'
 import EditOrderModal from '@/app/admin-panel/components/orders/EditOrderModal'
 import ConfirmDeleteDialog from '@/app/components/shared/ConfirmDeleteDialog'
 import { Button } from '@/app/components/ui/button'
@@ -25,20 +26,13 @@ type Props = {
   open: boolean
 }
 
-/**
- * OrderDetailsSheet
- * -------------------------------------------------------------
- * Role-based order details view:
- * - Technician: can view all orders but without edit/delete and
- *   without status for "ASSIGNED" or "PENDING" ones.
- * - Admin/Coordinator: full details with actions.
- */
 const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
-  const { isTechnician } = useRole()
+  const { isTechnician, isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showAdminEdit, setShowAdminEdit] = useState(false)
 
   const {
     data: order,
@@ -59,18 +53,13 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
       onClose()
     },
     onError: (err) => {
-      console.error('[deleteOrder error]', err)
-
-      // ▸ More detailed backend error mapping
-      if (err.data?.code === 'NOT_FOUND') {
+      if (err.data?.code === 'NOT_FOUND')
         toast.error('Zlecenie już nie istnieje.')
-      } else if (err.data?.code === 'BAD_REQUEST') {
+      else if (err.data?.code === 'BAD_REQUEST')
         toast.error('Nie można usunąć wykonanego zlecenia.')
-      } else if (err.data?.code === 'CONFLICT') {
-        toast.error('Nie można usunąć zlecenia powiązanego z innymi rekordami.')
-      } else {
-        toast.error('Wystąpił nieoczekiwany błąd podczas usuwania.')
-      }
+      else if (err.data?.code === 'CONFLICT')
+        toast.error('Zlecenie powiązane z innymi rekordami.')
+      else toast.error('Nieoczekiwany błąd podczas usuwania.')
 
       setShowDeleteDialog(false)
     },
@@ -93,9 +82,9 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
               <h2>Szczegóły zlecenia</h2>
             </SheetTitle>
 
-            {/* --- Only Admin/Coordinator see action buttons --- */}
+            {/* ADMIN + COORDINATOR ACTIONS */}
             {!isTechnician && order && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-fit justify-center mt-2">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -103,6 +92,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 >
                   Edytuj
                 </Button>
+
                 <Button
                   variant="destructive"
                   size="sm"
@@ -114,6 +104,18 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 >
                   Usuń
                 </Button>
+                {(isAdmin || isCoordinator) &&
+                  order.status !== 'COMPLETED' &&
+                  order.status !== 'NOT_COMPLETED' && (
+                    <Button
+                      variant="warning"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowAdminEdit(true)}
+                    >
+                      Odpisz zlecenie
+                    </Button>
+                  )}
               </div>
             )}
           </SheetHeader>
@@ -505,6 +507,20 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
           open={showEditModal}
           onCloseAction={() => setShowEditModal(false)}
           order={order}
+        />
+      )}
+
+      {order && (
+        <CompleteOrderWizard
+          open={showAdminEdit}
+          onCloseAction={() => setShowAdminEdit(false)}
+          order={order}
+          orderType={order.type}
+          materialDefs={[]}
+          techMaterials={[]}
+          devices={[]}
+          mode="adminEdit"
+          workCodeDefs={[]}
         />
       )}
 
