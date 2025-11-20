@@ -233,6 +233,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
             quantity: m.quantity,
           })),
         ],
+        locationId: activeLocationId ?? '',
         notes,
       })
 

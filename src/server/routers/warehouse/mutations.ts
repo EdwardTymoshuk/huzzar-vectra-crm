@@ -222,6 +222,7 @@ export const mutationsRouter = router({
             }),
           ])
         ),
+        locationId: z.string(),
         notes: z.string().optional(),
       })
     )
@@ -286,7 +287,7 @@ export const mutationsRouter = router({
               name: original.name,
               index: original.index,
               unit: original.unit,
-              locationId: original.locationId,
+              locationId: input.locationId,
               assignedToId: null,
               status: 'AVAILABLE',
             },
@@ -310,7 +311,7 @@ export const mutationsRouter = router({
                 price: original.price,
                 status: 'AVAILABLE',
                 materialDefinitionId: original.materialDefinitionId,
-                locationId: original.locationId,
+                locationId: input.locationId,
               },
             })
           }
