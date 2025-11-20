@@ -2,11 +2,11 @@
 
 import { router } from '../trpc'
 import { orderRouter } from './order'
+import { settlementRouter } from './reports/settlement'
 import { deviceDefinitionRouter } from './settings/deviceDefinitionRouter'
 import { materialDefinitionRouter } from './settings/materialDefinitionRouter'
 import { operatorDefinitionRouter } from './settings/operatorDefinitionRouter'
 import { rateDefinitionRouter } from './settings/rateDefinition'
-import { settlementRouter } from './settlement'
 import { userRouter } from './user'
 import { warehouseRouter } from './warehouse'
 

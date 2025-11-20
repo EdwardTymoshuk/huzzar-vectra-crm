@@ -42,7 +42,7 @@ const ReportDialog = ({ open, onClose }: Props) => {
   const [month, setMonth] = useState<Date>(startOfMonth(new Date()))
 
   // tRPC mutations
-  const dailyReportMutation = trpc.order.generateDailyReport.useMutation()
+  const dailyReportMutation = trpc.settlement.generateDailyReport.useMutation()
   const monthlyReportMutation =
     trpc.settlement.generateMonthlyReport.useMutation()
 

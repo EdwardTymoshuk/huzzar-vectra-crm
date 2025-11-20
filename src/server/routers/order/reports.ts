@@ -1,9 +1,7 @@
 import { adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
-import { writeToBuffer } from '@/utils/reports/writeToBuffer'
 import { sortCodes } from '@/utils/sortCodes'
-import { endOfDay, format, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
 export const reportsRouter = router({
@@ -86,39 +84,6 @@ export const reportsRouter = router({
         prevFailed: previous.failed,
       }
     }),
-
-  /** XLSX daily report (returns base64) */
-  generateDailyReport: adminOrCoord
-    .input(z.object({ date: z.string() }))
-    .mutation(async ({ input }) => {
-      const start = startOfDay(new Date(input.date))
-      const end = endOfDay(start)
-
-      const orders = await prisma.order.findMany({
-        where: { date: { gte: start, lte: end } },
-        include: { assignedTo: true },
-        orderBy: { date: 'asc' },
-      })
-      if (!orders.length) return null
-
-      const rows = orders.map((o, i) => ({
-        Lp: i + 1,
-        'Nr zlecenia': o.orderNumber,
-        Adres: `${o.city} ${o.postalCode}, ${o.street}`,
-        Wykonano: o.status === 'COMPLETED' ? 'TAK' : 'NIE',
-        'Powód niewykonania': o.status === 'NOT_COMPLETED' ? o.notes ?? '' : '',
-        Uwagi: o.notes ?? '',
-        Technik: o.assignedTo?.name ?? 'Nieprzypisany',
-        Operator: o.operator,
-      }))
-
-      const buf = await writeToBuffer(
-        rows,
-        `Raport ${format(start, 'yyyy-MM-dd')}`
-      )
-      return buf.toString('base64')
-    }),
-
   /** Monthly billing summary (codes × qty per technician) */
   getBillingMonthlySummary: adminOrCoord
     .input(

@@ -46,7 +46,7 @@ const FloatingActionMenu = ({
   position = 'bottom-right',
   disableOverlay = false,
   size = 56,
-  mainColorClass = 'bg-primary hover:bg-primary/90',
+  mainColorClass = 'bg-primary hover:bg-primary/90 shadow-lg',
   mainIcon = <MdAdd className="text-3xl" />,
   mainTooltip,
   disableRotate = false,

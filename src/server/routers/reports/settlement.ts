@@ -1,14 +1,15 @@
 import { prisma } from '@/utils/prisma'
 import { writeTechnicianSummaryReport } from '@/utils/reports/writeTechnicianSummaryReport'
+import { writeToBuffer } from '@/utils/reports/writeToBuffer'
 import {
   WorkCodeSummaryRow,
   writeWorkCodeExecutionReport,
 } from '@/utils/reports/writeWorkCodeExecutionReport'
 import { sortCodes } from '@/utils/sortCodes'
-import { format } from 'date-fns'
+import { endOfDay, format, startOfDay } from 'date-fns'
 import { z } from 'zod'
-import { adminOrCoord, loggedInEveryone } from '../roleHelpers'
-import { router } from '../trpc'
+import { adminOrCoord, loggedInEveryone } from '../../roleHelpers'
+import { router } from '../../trpc'
 
 /**
  * Helper to group rows by week number for side summary table
@@ -21,22 +22,30 @@ function getWeekSummaries(
     number,
     { received: number; done: number; failed: number }
   > = {}
+
   rows.forEach((row) => {
     if (!row.tydzień || typeof row.tydzień !== 'number') return
+
     const week = row.tydzień as number
-    const received = Number(row['Ilość instalacji otrzymanych'] ?? 0)
-    const done = Number(row['Ilość instalacji wykonanych'] ?? 0)
-    const failed = Number(row['Ilość instalacji niewykonanych'] ?? 0)
+
+    // Read correct column keys used in the DAILY table
+    const received = Number(row['Otrzymane'] ?? 0)
+    const done = Number(row['Wykonane'] ?? 0)
+    const failed = Number(row['Niewykonane'] ?? 0)
+
     if (!summaries[week]) summaries[week] = { received: 0, done: 0, failed: 0 }
+
     summaries[week].received += received
     summaries[week].done += done
     summaries[week].failed += failed
   })
+
   return Object.entries(summaries).map(([week, stats]) => {
     const ratio =
       stats.received > 0
         ? `${((stats.done / stats.received) * 100).toFixed(2)}%`
         : '0,00%'
+
     return [`Tydzień ${week}`, stats.received, stats.done, stats.failed, ratio]
   })
 }
@@ -44,9 +53,8 @@ function getWeekSummaries(
 export const settlementRouter = router({
   /**
    * generateMonthlyReport
-   * - Returns an Excel file with a full summary for the selected month.
-   * - Main table: daily stats (per day), with correct columns (including 'Ilość instalacji otrzymanych')
-   * - Side table: weekly summary (tygodniowa) placed on the right
+   * - Generates monthly Excel report with daily and weekly summaries.
+   * - Fix: now includes ALL received orders (ASSIGNED + COMPLETED + NOT_COMPLETED)
    */
   generateMonthlyReport: adminOrCoord
     .input(
@@ -57,97 +65,157 @@ export const settlementRouter = router({
     )
     .mutation(async ({ input }) => {
       const { year, month } = input
+
+      // Month range
       const start = new Date(year, month - 1, 1)
       const end = new Date(year, month, 0, 23, 59, 59, 999)
       const daysInMonth = end.getDate()
 
-      // Aggregate stats by date
+      /**
+       * Daily stats map:
+       * - received: total orders for the day
+       * - completed: COMPLETED
+       * - notCompleted: NOT_COMPLETED
+       */
       const statsByDate: Record<
         string,
-        { completed: number; notCompleted: number }
+        {
+          received: number
+          completed: number
+          notCompleted: number
+        }
       > = {}
 
-      // Fetch all relevant orders for this month
+      /**
+       * Fetch ALL installation orders for this month:
+       * - ASSIGNED
+       * - COMPLETED
+       * - NOT_COMPLETED
+       *
+       * This ensures correct "received" counts.
+       */
       const orders = await prisma.order.findMany({
         where: {
           type: 'INSTALATION',
           date: { gte: start, lte: end },
-          status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
+          status: { in: ['ASSIGNED', 'COMPLETED', 'NOT_COMPLETED'] },
         },
         select: { date: true, status: true },
+        orderBy: { date: 'asc' },
       })
 
+      // Aggregate daily statistics
       for (const order of orders) {
-        const dateKey = format(order.date, 'yyyy-MM-dd') // ⬅︎ tu zmiana
-        if (!statsByDate[dateKey])
-          statsByDate[dateKey] = { completed: 0, notCompleted: 0 }
+        const dateKey = format(order.date, 'yyyy-MM-dd')
 
+        if (!statsByDate[dateKey]) {
+          statsByDate[dateKey] = {
+            received: 0,
+            completed: 0,
+            notCompleted: 0,
+          }
+        }
+
+        // Every order counts as received
+        statsByDate[dateKey].received++
+
+        // Completed / Not completed classification
         if (order.status === 'COMPLETED') statsByDate[dateKey].completed++
-        else statsByDate[dateKey].notCompleted++
+        if (order.status === 'NOT_COMPLETED')
+          statsByDate[dateKey].notCompleted++
       }
 
-      // Generate main table (rows) for all days in the month
+      /**
+       * MAIN DAILY TABLE (rows)
+       * ----------------------------------------------------------------
+       * For each day 1..daysInMonth we create a row regardless of whether
+       * the day contains orders or not.
+       */
       const rows: Record<string, string | number>[] = []
+
       for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(year, month - 1, d)
         const iso = format(date, 'yyyy-MM-dd')
-        // Calculate week number in Polish style
+
+        // Week number calculation (Polish style)
         const firstDayWeekday = new Date(year, month - 1, 1).getDay() || 7
         const week = Math.ceil((d + firstDayWeekday - 1) / 7)
 
-        const stats = statsByDate[iso] || { completed: 0, notCompleted: 0 }
-        const total = stats.completed + stats.notCompleted
-        const ratio =
-          total > 0
-            ? `${((stats.completed / total) * 100).toFixed(2)}%`
+        const stats = statsByDate[iso] || {
+          received: 0,
+          completed: 0,
+          notCompleted: 0,
+        }
+
+        const completion =
+          stats.received > 0
+            ? `${((stats.completed / stats.received) * 100).toFixed(2)}%`
             : '0,00%'
 
         rows.push({
           tydzień: week,
           data: iso,
-          'Ilość instalacji otrzymanych': total,
-          'Ilość instalacji wykonanych': stats.completed,
-          'Ilość instalacji niewykonanych': stats.notCompleted,
-          Kompletacja: ratio,
+          Otrzymane: stats.received,
+          Wykonane: stats.completed,
+          Niewykonane: stats.notCompleted,
+          Kompletacja: completion,
         })
       }
 
-      // Add monthly summary row
-      const totalDone = orders.filter((o) => o.status === 'COMPLETED').length
-      const totalFailed = orders.filter(
+      /**
+       * MONTHLY SUMMARY
+       * ----------------------------------------------------------------
+       * Global totals for the whole month.
+       */
+      const totalReceived = orders.length
+      const totalCompleted = orders.filter(
+        (o) => o.status === 'COMPLETED'
+      ).length
+      const totalNotCompleted = orders.filter(
         (o) => o.status === 'NOT_COMPLETED'
       ).length
-      const totalAll = totalDone + totalFailed
-      const completion =
-        totalAll > 0 ? `${((totalDone / totalAll) * 100).toFixed(2)}%` : '0,00%'
+
+      const monthlyCompletion =
+        totalReceived > 0
+          ? `${((totalCompleted / totalReceived) * 100).toFixed(2)}%`
+          : '0,00%'
 
       rows.push(
-        {},
+        {}, // spacing row
         {
           tydzień: 'Podsumowanie miesięczne',
           data: '',
-          'Ilość instalacji otrzymanych': totalAll,
-          'Ilość instalacji wykonanych': totalDone,
-          'Ilość instalacji niewykonanych': totalFailed,
-          Kompletacja: completion,
+          Otrzymane: totalReceived,
+          Wykonane: totalCompleted,
+          Niewykonane: totalNotCompleted,
+          Kompletacja: monthlyCompletion,
         }
       )
 
-      // Build side table summary by week
+      /**
+       * WEEKLY SUMMARY TABLE (right-hand side)
+       * ----------------------------------------------------------------
+       * getWeekSummaries must be fed with the same row structure.
+       */
       const weekSummaries = getWeekSummaries(rows)
 
-      // Import and use the Excel export util
+      /**
+       * Export the report to XLSX using styled buffer generator.
+       */
       const { writeToBufferStyled } = await import(
         '@/utils/reports/writeToBufferStyled'
       )
+
       const filename = `Raport_rozliczen_${year}_${String(month).padStart(
         2,
         '0'
       )}`
+
       const buffer = await writeToBufferStyled(rows, filename, weekSummaries)
 
       return buffer.toString('base64')
     }),
+
   /**
    * Get monthly details per technician
    */
@@ -321,6 +389,7 @@ export const settlementRouter = router({
 
       return buffer.toString('base64')
     }),
+
   generateTechniciansMonthlySummary: adminOrCoord
     .input(
       z.object({ month: z.number().min(1).max(12), year: z.number().min(2020) })
@@ -513,6 +582,45 @@ export const settlementRouter = router({
         input.month
       )
 
+      return buf.toString('base64')
+    }),
+  /** XLSX daily report (returns base64) */
+  generateDailyReport: adminOrCoord
+    .input(z.object({ date: z.string() }))
+    .mutation(async ({ input }) => {
+      const start = startOfDay(new Date(input.date))
+      const end = endOfDay(start)
+
+      // Fetch + sort by technician name
+      const orders = await prisma.order.findMany({
+        where: { date: { gte: start, lte: end } },
+        include: { assignedTo: true },
+        orderBy: [
+          { assignedTo: { name: 'asc' } }, // sort by technician
+          { date: 'asc' }, // then by time
+        ],
+      })
+
+      if (!orders.length) return null
+
+      const rows = orders.map((o, i) => ({
+        Lp: i + 1,
+        'Nr zlecenia': o.orderNumber,
+        Adres: `${o.city} ${o.postalCode}, ${o.street}`,
+        Wykonano: o.status === 'COMPLETED' ? 'TAK' : 'NIE',
+        Technik: o.assignedTo?.name ?? 'Nieprzypisany',
+        Operator: o.operator,
+
+        // moved to the end
+        'Powód niewykonania':
+          o.status === 'NOT_COMPLETED' ? o.failureReason ?? '' : '',
+        Uwagi: o.notes ?? '',
+      }))
+
+      const buf = await writeToBuffer(
+        rows,
+        `Raport ${format(start, 'yyyy-MM-dd')}`
+      )
       return buf.toString('base64')
     }),
 })
