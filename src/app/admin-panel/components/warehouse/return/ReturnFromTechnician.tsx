@@ -90,7 +90,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
       defaults[name] = materialQuantities[name] ?? 1
     })
     setMaterialQuantities(defaults)
-  }, [assignedMaterialNames])
+  }, [assignedMaterialNames, materialQuantities])
 
   // Add material to return list
   /** Add material to return list using actual warehouse IDs */

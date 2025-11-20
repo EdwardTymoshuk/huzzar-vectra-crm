@@ -11,7 +11,12 @@ import {
   SheetTitle,
 } from '@/app/components/ui/sheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { devicesTypeMap, orderTypeMap, timeSlotMap } from '@/lib/constants'
+import {
+  devicesTypeMap,
+  materialUnitMap,
+  orderTypeMap,
+  timeSlotMap,
+} from '@/lib/constants'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -461,7 +466,8 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       <ul className="list-disc pl-4">
                         {order.usedMaterials.map((m) => (
                           <li key={m.id}>
-                            {m.material.name} – {m.quantity} {m.unit}
+                            {m.material.name} – {m.quantity}{' '}
+                            {materialUnitMap[m.unit]}
                           </li>
                         ))}
                       </ul>
