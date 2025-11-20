@@ -17,7 +17,7 @@ import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { WarehouseStatus } from '@prisma/client'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
@@ -83,6 +83,14 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
       ),
     ].filter((name) => name.toLowerCase().includes(search.toLowerCase()))
   }, [warehouse, technicianId, search])
+
+  useEffect(() => {
+    const defaults: Record<string, number> = {}
+    assignedMaterialNames.forEach((name) => {
+      defaults[name] = materialQuantities[name] ?? 1
+    })
+    setMaterialQuantities(defaults)
+  }, [assignedMaterialNames])
 
   // Add material to return list
   /** Add material to return list using actual warehouse IDs */
@@ -345,7 +353,6 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
-                        defaultValue={1}
                         min={1}
                         max={remainingQty}
                         className="w-20 h-8 text-sm"

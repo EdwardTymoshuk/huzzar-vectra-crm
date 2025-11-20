@@ -189,7 +189,6 @@ export const mutationsRouter = router({
               assignedToId: input.assignedToId,
               status: 'ASSIGNED',
               materialDefinitionId: original.materialDefinitionId,
-              locationId: original.locationId, // keep original location
             },
           })
 
