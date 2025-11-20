@@ -196,11 +196,11 @@ model Warehouse {
   materialDefinitionId String?
   transferPending      Boolean                @default(false)
   transferToId         String?
-  locationId           String?                 @default("gdansk")
+  locationId           String?                
   transferLines        LocationTransferLine[] @relation("WarehouseToTransferLines")
   orderAssignments     OrderEquipment[]       @relation("WarehouseToOrderEquipment")
   assignedTo           User?                  @relation("WarehouseAssignedTo", fields: [assignedToId], references: [id])
-  location             WarehouseLocation?      @relation(fields: [locationId], references: [id])
+  location              WarehouseLocation?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
   materialDefinition   MaterialDefinition?    @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
   transferTo           User?                  @relation("WarehouseTransfer", fields: [transferToId], references: [id])
   history              WarehouseHistory[]
