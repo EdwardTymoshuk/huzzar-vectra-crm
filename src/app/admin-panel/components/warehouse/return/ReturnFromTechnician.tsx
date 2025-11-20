@@ -85,47 +85,75 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   }, [warehouse, technicianId, search])
 
   // Add material to return list
+  /** Add material to return list using actual warehouse IDs */
   const handleAddMaterial = (materialName: string) => {
-    const technicianQty = sumTechnicianMaterialStock(
-      warehouse,
-      technicianId!,
-      materialName
-    )
-    const alreadyAddedQty =
-      issuedMaterials.find((m) => m.name === materialName)?.quantity ?? 0
+    if (!technicianId) return
 
     const qty = materialQuantities[materialName]
     if (!qty || qty <= 0 || isNaN(qty)) {
       toast.warning('Podaj poprawną ilość.')
       return
     }
+
+    // All records assigned to this technician for this material
+    const availableRecords = warehouse
+      .filter(
+        (i) =>
+          i.itemType === 'MATERIAL' &&
+          i.assignedToId === technicianId &&
+          i.name === materialName
+      )
+      .sort((a, b) => (b.quantity ?? 0) - (a.quantity ?? 0)) // largest first
+
+    const technicianQty = sumTechnicianMaterialStock(
+      warehouse,
+      technicianId,
+      materialName
+    )
+    const alreadyAddedQty = issuedMaterials
+      .filter((m) => m.name === materialName)
+      .reduce((sum, m) => sum + m.quantity, 0)
+
     if (qty > technicianQty - alreadyAddedQty) {
       toast.warning('Nie można zwrócić więcej niż technik posiada.')
       return
     }
 
-    const existing = issuedMaterials.find((m) => m.name === materialName)
-    if (existing) {
-      setIssuedMaterials((prev) =>
-        prev.map((m) =>
-          m.name === materialName ? { ...m, quantity: m.quantity + qty } : m
-        )
-      )
-    } else {
-      setIssuedMaterials((prev) => [
-        ...prev,
-        {
-          id: '',
-          type: 'MATERIAL',
-          name: materialName,
-          quantity: qty,
-          materialDefinitionId: '',
-        },
-      ])
+    /* =============================================================
+     * 🧠 MAIN LOGIC
+     * Break user-entered quantity into specific warehouse items (IDs)
+     * ============================================================= */
+
+    let remaining = qty
+    const additions: IssuedItemMaterial[] = []
+
+    for (const rec of availableRecords) {
+      if (remaining <= 0) break
+
+      const available = rec.quantity ?? 0
+      if (available <= 0) continue
+
+      const take = Math.min(available, remaining)
+
+      additions.push({
+        id: rec.id, // ✔ correct warehouse item ID
+        type: 'MATERIAL',
+        name: materialName,
+        quantity: take,
+        materialDefinitionId: rec.materialDefinitionId ?? '',
+      })
+
+      remaining -= take
     }
 
+    // Add split material items to the issued list
+    setIssuedMaterials((prev) => [...prev, ...additions])
+
+    // Clear input
     setMaterialQuantities((prev) => ({ ...prev, [materialName]: 1 }))
     setExpandedRows((prev) => prev.filter((r) => r !== materialName))
+
+    toast.success('Dodano materiał do zwrotu.')
   }
 
   // Remove item from return list
@@ -200,8 +228,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         items: [
           ...issuedDevices.map((d) => ({ id: d.id, type: 'DEVICE' as const })),
           ...issuedMaterials.map((m) => ({
-            id: '', // handled by backend using name
-            name: m.name,
+            id: m.id,
             type: 'MATERIAL' as const,
             quantity: m.quantity,
           })),
@@ -317,6 +344,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
+                        defaultValue={1}
                         min={1}
                         max={remainingQty}
                         className="w-20 h-8 text-sm"

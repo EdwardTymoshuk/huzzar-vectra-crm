@@ -130,6 +130,26 @@ async function mapServicesWithDeviceTypes(
   )
 }
 
+/** Creates warehouseHistory entry for material usage */
+async function createMaterialHistory(
+  tx: DbTx,
+  technicianItemId: string,
+  quantity: number,
+  orderId: string,
+  technicianId: string
+) {
+  await tx.warehouseHistory.create({
+    data: {
+      warehouseItemId: technicianItemId,
+      action: 'ISSUED',
+      quantity,
+      performedById: technicianId,
+      assignedOrderId: orderId,
+      actionDate: new Date(),
+    },
+  })
+}
+
 export const mutationsRouter = router({
   /** ✅ Create new order (clientId-aware, preserves Polish letters but uses normalized comparisons) */
   createOrder: loggedInEveryone
@@ -826,16 +846,14 @@ export const mutationsRouter = router({
               where: { id: technicianMaterial.id },
               data: { quantity: remaining },
             })
-            await tx.warehouseHistory.create({
-              data: {
-                warehouseItemId: technicianMaterial.id,
-                action: 'ISSUED',
-                quantity: item.quantity,
-                performedById: userId,
-                assignedOrderId: input.orderId,
-                actionDate: new Date(),
-              },
-            })
+
+            await createMaterialHistory(
+              tx,
+              technicianMaterial.id,
+              item.quantity,
+              input.orderId,
+              userId
+            )
           }
         }
 
@@ -1310,6 +1328,27 @@ export const mutationsRouter = router({
           })
         }
 
+        // Create history for materials (technician does not mutate stock in amend)
+        for (const m of input.usedMaterials ?? []) {
+          const techItem = await tx.warehouse.findFirst({
+            where: {
+              materialDefinitionId: m.id,
+              assignedToId: userId,
+              itemType: 'MATERIAL',
+            },
+          })
+
+          if (techItem) {
+            await createMaterialHistory(
+              tx,
+              techItem.id,
+              m.quantity,
+              input.orderId,
+              userId
+            )
+          }
+        }
+
         /* -------------------------------------------------------------------
          * Step 6️⃣ — DEVICE RESTORATION LOGIC
          * -------------------------------------------------------------------
@@ -1740,6 +1779,26 @@ export const mutationsRouter = router({
               unit: (unitMap.get(m.id) as MaterialUnit) ?? 'PIECE',
             })),
           })
+        }
+
+        // Add material history for admin editor
+        for (const m of input.usedMaterials ?? []) {
+          const techItem = await tx.warehouse.findFirst({
+            where: {
+              materialDefinitionId: m.id,
+              itemType: 'MATERIAL',
+            },
+          })
+
+          if (techItem) {
+            await createMaterialHistory(
+              tx,
+              techItem.id,
+              m.quantity,
+              input.orderId,
+              adminId
+            )
+          }
         }
 
         /* -------------------------------------------------------------------

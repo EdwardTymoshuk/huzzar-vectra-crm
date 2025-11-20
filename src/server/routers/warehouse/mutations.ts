@@ -279,19 +279,41 @@ export const mutationsRouter = router({
             data: { quantity: { decrement: item.quantity } },
           })
 
-          await prisma.warehouse.create({
-            data: {
+          // Find existing AVAILABLE stock in warehouse
+          const existingStock = await prisma.warehouse.findFirst({
+            where: {
               itemType: 'MATERIAL',
               name: original.name,
-              quantity: item.quantity,
-              unit: original.unit,
               index: original.index,
-              price: original.price,
+              unit: original.unit,
+              locationId: original.locationId,
+              assignedToId: null,
               status: 'AVAILABLE',
-              materialDefinitionId: original.materialDefinitionId,
-              locationId: original.locationId, // preserve location
             },
           })
+
+          if (existingStock) {
+            // Increase warehouse stock quantity
+            await prisma.warehouse.update({
+              where: { id: existingStock.id },
+              data: { quantity: { increment: item.quantity } },
+            })
+          } else {
+            // Create new material record in warehouse
+            await prisma.warehouse.create({
+              data: {
+                itemType: 'MATERIAL',
+                name: original.name,
+                quantity: item.quantity,
+                unit: original.unit,
+                index: original.index,
+                price: original.price,
+                status: 'AVAILABLE',
+                materialDefinitionId: original.materialDefinitionId,
+                locationId: original.locationId,
+              },
+            })
+          }
 
           await prisma.warehouseHistory.create({
             data: {

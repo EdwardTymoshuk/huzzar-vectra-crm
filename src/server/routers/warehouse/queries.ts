@@ -63,6 +63,9 @@ export const queriesRouter = router({
           where: {
             locationId: locId ?? undefined,
             itemType: 'DEVICE',
+            assignedToId: null,
+            status: 'AVAILABLE',
+            orderAssignments: { none: {} },
           },
           select: {
             name: true,
@@ -119,6 +122,9 @@ export const queriesRouter = router({
           where: {
             locationId: locId ?? undefined,
             itemType: 'MATERIAL',
+            assignedToId: null,
+            status: 'AVAILABLE',
+            orderAssignments: { none: {} },
           },
           select: {
             name: true,
