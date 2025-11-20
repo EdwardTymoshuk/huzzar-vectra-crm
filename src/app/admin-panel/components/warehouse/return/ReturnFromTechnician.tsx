@@ -85,12 +85,21 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   }, [warehouse, technicianId, search])
 
   useEffect(() => {
-    const defaults: Record<string, number> = {}
-    assignedMaterialNames.forEach((name) => {
-      defaults[name] = materialQuantities[name] ?? 1
+    setMaterialQuantities((prev) => {
+      const updated = { ...prev }
+      let changed = false
+
+      assignedMaterialNames.forEach((name) => {
+        if (updated[name] === undefined) {
+          updated[name] = 1
+          changed = true
+        }
+      })
+
+      return changed ? updated : prev
     })
-    setMaterialQuantities(defaults)
-  }, [assignedMaterialNames, materialQuantities])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignedMaterialNames])
 
   // Add material to return list
   /** Add material to return list using actual warehouse IDs */
