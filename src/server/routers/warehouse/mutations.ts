@@ -166,6 +166,7 @@ export const mutationsRouter = router({
             where: { id: item.id },
           })
           if (!original) throw new TRPCError({ code: 'NOT_FOUND' })
+
           if ((original.quantity ?? 0) < item.quantity) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
@@ -173,28 +174,53 @@ export const mutationsRouter = router({
             })
           }
 
+          // 1. Decrement from warehouse stock
           await prisma.warehouse.update({
             where: { id: item.id },
             data: { quantity: { decrement: item.quantity } },
           })
 
-          await prisma.warehouse.create({
-            data: {
+          // 2. Look for existing technician stock
+          const existingTechMaterial = await prisma.warehouse.findFirst({
+            where: {
               itemType: 'MATERIAL',
-              name: original.name,
-              quantity: item.quantity,
-              unit: original.unit,
-              index: original.index,
-              price: original.price,
               assignedToId: input.assignedToId,
-              status: 'ASSIGNED',
               materialDefinitionId: original.materialDefinitionId,
+              locationId: null, // technician stock has NO location
             },
           })
 
+          if (existingTechMaterial) {
+            // 3A. If exists → increment it
+            await prisma.warehouse.update({
+              where: { id: existingTechMaterial.id },
+              data: {
+                quantity: { increment: item.quantity },
+                status: 'ASSIGNED',
+              },
+            })
+          } else {
+            // 3B. If doesn't exist → create it ONCE
+            await prisma.warehouse.create({
+              data: {
+                itemType: 'MATERIAL',
+                name: original.name,
+                quantity: item.quantity,
+                unit: original.unit,
+                index: original.index,
+                price: original.price,
+                materialDefinitionId: original.materialDefinitionId,
+                assignedToId: input.assignedToId,
+                status: 'ASSIGNED',
+                locationId: null,
+              },
+            })
+          }
+
+          // 4. History entry
           await prisma.warehouseHistory.create({
             data: {
-              warehouseItemId: item.id,
+              warehouseItemId: original.id,
               action: 'ISSUED',
               quantity: item.quantity,
               performedById: userId,
