@@ -106,7 +106,7 @@ export async function parseOrdersFromExcel(
      * - fallback → INSTALLATION
      */
 
-    let type = 'INSTALATION' as const
+    const type = 'INSTALATION' as const
     let extraNoteFromTaskType = ''
     const isPrzeniesienie = parsedTypeRaw.includes('przenies')
 

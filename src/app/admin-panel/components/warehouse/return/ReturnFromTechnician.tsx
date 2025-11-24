@@ -98,7 +98,6 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
 
       return changed ? updated : prev
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignedMaterialNames])
 
   // Add material to return list
