@@ -89,8 +89,33 @@ export async function parseOrdersFromExcel(
 
     const notes = '' // no longer used for external ID
 
-    // Type — keep constant for now
-    const type = 'INSTALATION' as const
+    // =======================
+    // TASK TYPE MAPPING
+    // =======================
+    let parsedTypeRaw = ''
+    if (col.taskType !== null) {
+      parsedTypeRaw = String(row[col.taskType] ?? '')
+        .trim()
+        .toLowerCase()
+    }
+
+    /**
+     * SAFEST LOGIC:
+     * - if contains "instalac" → treat as INSTALLATION
+     * - if contains "przenies" → INSTALLATION + add note
+     * - fallback → INSTALLATION
+     */
+
+    let type = 'INSTALATION' as const
+    let extraNoteFromTaskType = ''
+    const isPrzeniesienie = parsedTypeRaw.includes('przenies')
+
+    if (isPrzeniesienie) {
+      extraNoteFromTaskType = 'Przeniesienie'
+    }
+
+    // Combine notes
+    const finalNotes = [notes, extraNoteFromTaskType].filter(Boolean).join('\n')
 
     return {
       operator,
@@ -103,7 +128,7 @@ export async function parseOrdersFromExcel(
       date: isoDate,
       timeSlot,
       assignedToName,
-      notes,
+      notes: finalNotes,
       status,
     }
   })
