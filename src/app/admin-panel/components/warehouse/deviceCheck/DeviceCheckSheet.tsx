@@ -55,19 +55,19 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
       <Sheet open={open} onOpenChange={(val) => !val && handleClose()}>
         <SheetContent side="right" className="w-[95%] md:max-w-md">
           <SheetHeader>
-            <SheetTitle>Sprawdź sprzęt po numerze seryjnym</SheetTitle>
+            <SheetTitle>Sprawdź sprzęt po numerze seryjnym lub MAC</SheetTitle>
           </SheetHeader>
 
           <div className="mt-4 space-y-4">
             {/* Serial input */}
             <div className="space-y-1">
-              <Label htmlFor="serial">Numer seryjny</Label>
+              <Label htmlFor="serial">Numer seryjny/MAC</Label>
               <Input
                 id="serial"
                 value={serial}
                 onChange={(e) => setSerial(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
-                placeholder="Wprowadź numer seryjny..."
+                placeholder="Wprowadź numer seryjny lub MAC..."
                 autoFocus
               />
             </div>

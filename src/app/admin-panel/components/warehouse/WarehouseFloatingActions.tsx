@@ -68,7 +68,7 @@ const WarehouseFloatingActions = ({
           onClick: onStockCheck,
         },
         {
-          label: 'Sprawdź SN',
+          label: 'Sprawdź SN/MAC',
           icon: <TbListSearch />,
           colorClass: 'bg-secondary hover:bg-secondary/90',
           onClick: onSerialCheck,

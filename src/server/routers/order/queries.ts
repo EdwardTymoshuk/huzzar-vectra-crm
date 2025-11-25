@@ -356,6 +356,7 @@ export const queriesRouter = router({
       const assigned = await ctx.prisma.order.findMany({
         where: {
           assignedToId: { not: null },
+          type: OrderType.INSTALATION,
           date: { gte: startOfDay(target), lte: endOfDay(target) },
         },
         select: {
@@ -525,7 +526,10 @@ export const queriesRouter = router({
     .input(z.object({ date: z.string().optional() }).optional())
     .query(async ({ input, ctx }) => {
       const target = input?.date ? parseISO(input.date) : null
-      const where: Prisma.OrderWhereInput = { assignedToId: null }
+      const where: Prisma.OrderWhereInput = {
+        assignedToId: null,
+        type: OrderType.INSTALATION,
+      }
       if (target) {
         where.date = { gte: startOfDay(target), lte: endOfDay(target) }
       }
