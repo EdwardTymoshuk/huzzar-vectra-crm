@@ -1,5 +1,6 @@
 'use client'
 
+import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import {
   Accordion,
   AccordionContent,
@@ -7,17 +8,29 @@ import {
   AccordionTrigger,
 } from '@/app/components/ui/accordion'
 import { Badge } from '@/app/components/ui/badge'
+import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { devicesTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { differenceInDays, format } from 'date-fns'
+import { useState } from 'react'
 import { MdInventory } from 'react-icons/md'
 
 const CollectedFromClientSection = () => {
+  const [orderId, setOrderId] = useState<string | null>(null)
+
   const { data, isLoading } = trpc.warehouse.getCollectedWithDetails.useQuery()
 
   /* loading */
   if (isLoading) return <Skeleton className="h-16 w-full rounded-lg mb-6" />
+
+  // sort newest first
+  const sortedData = (data ?? []).sort((a, b) => {
+    const dateA = new Date(a.history[0]?.actionDate ?? a.updatedAt).getTime()
+    const dateB = new Date(b.history[0]?.actionDate ?? b.updatedAt).getTime()
+
+    return dateB - dateA
+  })
 
   const count = data?.length ?? 0
 
@@ -47,7 +60,7 @@ const CollectedFromClientSection = () => {
               </p>
             ) : (
               <div className="space-y-3">
-                {data!.map((item) => {
+                {sortedData.map((item) => {
                   const order = item.orderAssignments[0]?.order
                   const collectedAt =
                     item.history[0]?.actionDate ?? item.updatedAt
@@ -85,9 +98,14 @@ const CollectedFromClientSection = () => {
                       <div className="flex flex-col">
                         {order ? (
                           <>
-                            <span className="text-sm break-all">
+                            <Button
+                              variant="link"
+                              className="p-0"
+                              onClick={() => setOrderId(order.id)}
+                            >
                               {order.orderNumber}
-                            </span>
+                            </Button>
+
                             <span className="text-xs text-muted-foreground break-all">
                               {order.city}, {order.street}
                             </span>
@@ -116,6 +134,12 @@ const CollectedFromClientSection = () => {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      <OrderDetailsSheet
+        orderId={orderId}
+        open={!!orderId}
+        onClose={() => setOrderId(null)}
+      />
     </div>
   )
 }

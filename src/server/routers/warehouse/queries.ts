@@ -526,6 +526,7 @@ export const queriesRouter = router({
           include: {
             order: {
               select: {
+                id: true,
                 orderNumber: true,
                 city: true,
                 street: true,

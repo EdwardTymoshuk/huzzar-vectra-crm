@@ -13,6 +13,12 @@ import {
 } from '@/app/components/ui/table'
 import { trpc } from '@/utils/trpc'
 import { OrderType } from '@prisma/client'
+import { useMemo, useState } from 'react'
+import {
+  TiArrowSortedDown,
+  TiArrowSortedUp,
+  TiArrowUnsorted,
+} from 'react-icons/ti'
 
 type Props = {
   date: Date | undefined
@@ -20,16 +26,18 @@ type Props = {
   orderType: OrderType
 }
 
+type SortKey =
+  | 'technicianName'
+  | 'received'
+  | 'completed'
+  | 'notCompleted'
+  | 'successRate'
+
 /**
  * TechnicianEfficiencyTable
  * ------------------------------------------------------------------
- * Displays:
- *  - received (assigned + completed + notCompleted)
- *  - completed
- *  - notCompleted
- *  - successRate (completed/received)
- *
- * Fully synced with backend logic.
+ * Displays technician efficiency ranking (received, completed,
+ * notCompleted, successRate) with sortable columns.
  */
 const TechnicianEfficiencyTable = ({ date, range, orderType }: Props) => {
   const { data, isLoading, isError } =
@@ -38,6 +46,61 @@ const TechnicianEfficiencyTable = ({ date, range, orderType }: Props) => {
       range,
       orderType,
     })
+
+  // Sorting state
+  const [sortKey, setSortKey] = useState<SortKey>('successRate')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+
+  /**
+   * Toggles sorting key & direction when clicking table headers.
+   */
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDirection('desc')
+    }
+  }
+
+  /**
+   * Returns proper sorting icon for each column.
+   */
+  const renderSortIcon = (key: SortKey) => {
+    if (sortKey !== key)
+      return <TiArrowUnsorted className="inline-block text-base" />
+    return sortDirection === 'asc' ? (
+      <TiArrowSortedUp className="inline-block text-base" />
+    ) : (
+      <TiArrowSortedDown className="inline-block text-base" />
+    )
+  }
+
+  /**
+   * Memoized sorted data to avoid re-sorting on every render.
+   */
+  const sortedData = useMemo(() => {
+    if (!data) return []
+
+    return [...data].sort((a, b) => {
+      const valA = a[sortKey]
+      const valB = b[sortKey]
+
+      // String sorting
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDirection === 'asc'
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA)
+      }
+
+      // Number sorting
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDirection === 'asc' ? valA - valB : valB - valA
+      }
+
+      return 0
+    })
+  }, [data, sortKey, sortDirection])
 
   if (isLoading || !data) {
     return (
@@ -66,16 +129,60 @@ const TechnicianEfficiencyTable = ({ date, range, orderType }: Props) => {
         <TableHeader>
           <TableRow>
             <TableHead>Lp</TableHead>
-            <TableHead>Technik</TableHead>
-            <TableHead>Otrzymane</TableHead>
-            <TableHead>Wykonane</TableHead>
-            <TableHead>Niewykonane</TableHead>
-            <TableHead>Skuteczność</TableHead>
+
+            <TableHead>
+              <span
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={() => toggleSort('technicianName')}
+              >
+                Technik
+                {renderSortIcon('technicianName')}
+              </span>
+            </TableHead>
+
+            <TableHead>
+              <span
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={() => toggleSort('received')}
+              >
+                Otrzymane
+                {renderSortIcon('received')}
+              </span>
+            </TableHead>
+
+            <TableHead>
+              <span
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={() => toggleSort('completed')}
+              >
+                Wykonane
+                {renderSortIcon('completed')}
+              </span>
+            </TableHead>
+
+            <TableHead>
+              <span
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={() => toggleSort('notCompleted')}
+              >
+                Niewykonane
+                {renderSortIcon('notCompleted')}
+              </span>
+            </TableHead>
+
+            <TableHead>
+              <span
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={() => toggleSort('successRate')}
+              >
+                Skuteczność
+                {renderSortIcon('successRate')}
+              </span>
+            </TableHead>
           </TableRow>
         </TableHeader>
-
         <TableBody>
-          {data.map((tech, index) => {
+          {sortedData.map((tech, index) => {
             const variant =
               tech.successRate >= 90
                 ? 'success'
