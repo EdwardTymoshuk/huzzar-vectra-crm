@@ -490,9 +490,9 @@ export const mutationsRouter = router({
         },
         orderAssignments: { include: { order: true } },
       },
-      orderBy: { updatedAt: 'asc' },
     })
   ),
+
   /** 📥 Import devices batch with result report */
   importDevices: adminCoordOrWarehouse
     .input(
