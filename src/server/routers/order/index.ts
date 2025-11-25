@@ -1,9 +1,9 @@
 // orders/index.ts
 import { mergeRouters } from '@/server/trpc'
+import { metricsRouter } from './metrics'
 import { mutationsRouter } from './mutations'
 import { queriesRouter } from './queries'
 import { reportsRouter } from './reports'
-import { technicianReportsRouter } from './technicianReports'
 import { transferRouter } from './transfer'
 
 export const orderRouter = mergeRouters(
@@ -11,5 +11,5 @@ export const orderRouter = mergeRouters(
   mutationsRouter,
   transferRouter,
   reportsRouter,
-  technicianReportsRouter
+  metricsRouter
 )

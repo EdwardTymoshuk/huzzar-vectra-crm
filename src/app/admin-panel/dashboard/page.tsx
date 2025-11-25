@@ -2,20 +2,23 @@
 
 import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
 import { useRole } from '@/utils/hooks/useRole'
+import { OrderType } from '@prisma/client'
 import { useState } from 'react'
 import DashboardHeaderBar from '../components/dashboard/DashboardHeaderBar'
-import OrderStatsSection from '../components/dashboard/OrderStatsSection'
-import SuccessChart from '../components/dashboard/SuccessChart'
-import TechnicianEfficiencyTable from '../components/dashboard/TechnicianEfficiencyTable'
+import DashboardSection from '../components/dashboard/DashboardSection'
 
 /**
  * DashboardPage
  * --------------------------------------------------
- * Displays main dashboard with unified header bar and statistics.
+ * Main dashboard container:
+ * - Uses shared date & range selector.
+ * - Renders 3 independent dashboard sections:
+ *    • INSTALLATIONS
+ *    • SERVICES
+ *    • LINES
  * Warehousemen cannot access this page.
  */
 const DashboardPage = () => {
-  // Separate date states per range (to preserve user selection)
   const [selectedDay, setSelectedDay] = useState<Date>(new Date())
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [selectedYear, setSelectedYear] = useState<Date>(new Date())
@@ -25,24 +28,24 @@ const DashboardPage = () => {
   if (isPageLoading) return null
   if (isWarehouseman) return <UnauthorizedPage />
 
-  /** Returns the current date according to active range. */
+  /** Returns currently active date based on the selected range. */
   const getSelectedDate = (): Date | undefined => {
     if (range === 'day') return selectedDay
     if (range === 'month') return selectedMonth
-    if (range === 'year') return selectedYear
+    return selectedYear
   }
 
-  /** Updates the correct date state when user changes date. */
+  /** Updates the appropriate date state. */
   const handleChangeDate = (date: Date | undefined) => {
     if (!date) return
     if (range === 'day') setSelectedDay(date)
     else if (range === 'month') setSelectedMonth(date)
-    else if (range === 'year') setSelectedYear(date)
+    else setSelectedYear(date)
   }
 
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
-      {/* ✅ Unified dashboard header bar */}
+      {/* Dashboard controls */}
       <DashboardHeaderBar
         selectedDate={getSelectedDate()}
         onChangeDate={handleChangeDate}
@@ -50,11 +53,28 @@ const DashboardPage = () => {
         onChangeRange={setRange}
       />
 
-      {/* ✅ Main content below header */}
+      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <OrderStatsSection date={getSelectedDate()} range={range} />
-        <SuccessChart date={getSelectedDate()} range={range} />
-        <TechnicianEfficiencyTable date={getSelectedDate()} range={range} />
+        <DashboardSection
+          label="Instalacje"
+          date={getSelectedDate()}
+          range={range}
+          orderType={OrderType.INSTALATION}
+        />
+
+        <DashboardSection
+          label="Serwisy"
+          date={getSelectedDate()}
+          range={range}
+          orderType={OrderType.SERVICE}
+        />
+
+        <DashboardSection
+          label="Linie"
+          date={getSelectedDate()}
+          range={range}
+          orderType={OrderType.OUTAGE}
+        />
       </div>
     </div>
   )

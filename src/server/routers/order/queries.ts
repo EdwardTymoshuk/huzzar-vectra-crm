@@ -4,7 +4,6 @@ import { router } from '@/server/trpc'
 import { sortedTimeSlotsByHour } from '@/lib/constants'
 import {
   adminCoordOrWarehouse,
-  adminOnly,
   adminOrCoord,
   loggedInEveryone,
   technicianOnly,
@@ -673,76 +672,6 @@ export const queriesRouter = router({
           serialNumber: eq.warehouse.serialNumber,
         })),
       }
-    }),
-
-  /** Company success trend for dashboard chart (day/month/year granularity) */
-  getCompanySuccessOverTime: adminOnly
-    .input(
-      z.object({
-        date: z.date(),
-        range: z.enum(['day', 'month', 'year']),
-      })
-    )
-    .query(async ({ input, ctx }) => {
-      const { date, range } = input
-      const prisma = ctx.prisma
-
-      if (!date) throw new TRPCError({ code: 'BAD_REQUEST' })
-
-      // Decide time window based on the selected range
-      let dateFrom: Date
-      let dateTo: Date
-
-      const year = date.getFullYear()
-      const month = date.getMonth() // 0–11
-
-      if (range === 'day') {
-        dateFrom = new Date(year, month, 1)
-        dateTo = new Date(year, month + 1, 0, 23, 59, 59)
-      } else if (range === 'month') {
-        dateFrom = new Date(year, 0, 1)
-        dateTo = new Date(year, 11, 31, 23, 59, 59)
-      } else {
-        dateFrom = new Date(year - 4, 0, 1)
-        dateTo = new Date(year, 11, 31, 23, 59, 59)
-      }
-
-      const orders = await prisma.order.findMany({
-        where: {
-          date: { gte: dateFrom, lte: dateTo },
-        },
-        select: { date: true, status: true },
-      })
-
-      // Aggregate to success rate per bucket
-      const grouped = new Map<
-        string | number,
-        { total: number; completed: number }
-      >()
-
-      for (const o of orders) {
-        const d = o.date
-        let key: string | number
-        if (range === 'day') key = d.getDate()
-        else if (range === 'month') key = d.getMonth() + 1
-        else key = d.getFullYear()
-
-        const current = grouped.get(key) ?? { total: 0, completed: 0 }
-        current.total += 1
-        if (o.status === 'COMPLETED') current.completed += 1
-        grouped.set(key, current)
-      }
-
-      return Array.from(grouped.entries())
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
-        .map(([key, { total, completed }]) => ({
-          ...(range === 'day'
-            ? { day: Number(key) }
-            : range === 'month'
-            ? { month: Number(key) }
-            : { year: Number(key) }),
-          successRate: total === 0 ? 0 : Math.round((completed / total) * 100),
-        }))
     }),
   getNextOutageOrderNumber: loggedInEveryone.query(async () => {
     return await getNextLineOrderNumber()

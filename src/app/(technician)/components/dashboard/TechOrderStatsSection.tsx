@@ -2,30 +2,40 @@
 
 import { Badge } from '@/app/components/ui/badge'
 import { Card } from '@/app/components/ui/card'
-import { Skeleton } from '@/app/components/ui/skeleton'
-import { buildDateParam } from '@/utils/dates/buildDateParam'
-import { trpc } from '@/utils/trpc'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+import TechEarningsMonthlyChart from './TechEarningsMonthlyChart'
+
+type SuccessData =
+  | { day: number; successRate: number }
+  | { month: number; successRate: number }
+  | { year: number; successRate: number }
 
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
+  data: {
+    total: number
+    completed: number
+    failed: number
+    prevTotal: number
+    prevCompleted: number
+    prevFailed: number
+  }
+  successData: SuccessData[]
 }
 
-const COLORS = ['#66b266', '#E6262D']
+const COLORS = ['#16a34a', '#dc2626']
 
 /**
- * Technician Order Stats (compact row layout)
+ * TechOrderStatsSection
+ * --------------------------------------------------------------
+ * Technician dashboard section:
+ * - Pie chart with success KPI,
+ * - KPI cards (received, failed, completed),
+ * - Success trend chart (day/month/year).
  */
-const TechOrderStatsSection = ({ date, range }: Props) => {
-  const dateParam = buildDateParam(date, range)
-
-  const { data, isLoading, isError } = trpc.order.getTechOrderStats.useQuery({
-    date: dateParam,
-    range,
-  })
-
+const TechOrderStatsSection = ({ date, range, data, successData }: Props) => {
   const formatChange = (value: number) => {
     const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight
     const color = value >= 0 ? 'text-success' : 'text-danger'
@@ -42,30 +52,23 @@ const TechOrderStatsSection = ({ date, range }: Props) => {
     return Math.round(((current - prev) / prev) * 100)
   }
 
-  if (isError) {
-    return (
-      <p className="text-sm text-destructive text-center mt-4">
-        Nie udało się załadować statystyk
-      </p>
-    )
-  }
-
-  if (isLoading || !data) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-[220px] w-full" />
-        ))}
-      </div>
-    )
-  }
-
   const { total, completed, failed, prevTotal, prevCompleted, prevFailed } =
     data
 
-  const totalForSuccess = completed + failed
+  const isAllZero = completed === 0 && failed === 0
+
+  const pieData = isAllZero
+    ? [
+        { name: 'Wykonane', value: 1 },
+        { name: 'Niewykonane', value: 1 },
+      ]
+    : [
+        { name: 'Wykonane', value: completed },
+        { name: 'Niewykonane', value: failed },
+      ]
+
   const successRate =
-    totalForSuccess > 0 ? Math.round((completed / totalForSuccess) * 100) : 0
+    total > 0 ? Math.round((completed / (completed + failed)) * 100) : 0
 
   const variant =
     successRate >= 90
@@ -74,60 +77,67 @@ const TechOrderStatsSection = ({ date, range }: Props) => {
       ? 'warning'
       : 'destructive'
 
-  const pieData = [
-    { name: 'Wykonane', value: completed },
-    { name: 'Niewykonane', value: failed },
-  ]
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 480
+  const innerR = isMobile ? 40 : 70
+  const outerR = isMobile ? 60 : 100
 
   return (
-    <div className="mb-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="flex flex-col items-center justify-center lg:col-span-2">
-          <div className="w-full h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  label
-                >
-                  {pieData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="my-4 text-center">
+    <div className="flex flex-col lg:flex-row gap-4 mb-4 h-auto">
+      {/* LEFT COLUMN */}
+      <div className="flex w-full lg:w-1/3 gap-4 h-full">
+        <Card className="flex flex-col items-center justify-center w-full h-auto">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={innerR}
+                outerRadius={outerR}
+                label={!isAllZero && !isMobile}
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+
+          <div className="mb-4 -mt-4">
             <Badge variant={variant}>{successRate}% skuteczność</Badge>
           </div>
         </Card>
-        <div className="grid grid-rows-2 gap-4">
-          <Card className="p-4 text-center flex flex-col justify-center items-center">
-            <p className="text-sm text-muted-foreground">Wszystkie zlecenia</p>
-            <p className="text-4xl font-bold">{total}</p>
+
+        <div className="flex flex-col gap-4 h-full">
+          <Card className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">Otrzymane</p>
+            <p className="text-2xl font-bold">{total}</p>
             {formatChange(percentDiff(total, prevTotal))}
           </Card>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="p-4 text-center">
-              <p className="text-sm text-muted-foreground">Niewykonane</p>
-              <p className="text-2xl font-bold text-danger">{failed}</p>
-              {formatChange(percentDiff(failed, prevFailed))}
-            </Card>
+          <Card className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">Niewykonane</p>
+            <p className="text-2xl font-bold text-danger">{failed}</p>
+            {formatChange(percentDiff(failed, prevFailed))}
+          </Card>
 
-            <Card className="p-4 text-center">
-              <p className="text-sm text-muted-foreground">Wykonane</p>
-              <p className="text-2xl font-bold text-success">{completed}</p>
-              {formatChange(percentDiff(completed, prevCompleted))}
-            </Card>
-          </div>
+          <Card className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">Wykonane</p>
+            <p className="text-2xl font-bold text-success">{completed}</p>
+            {formatChange(percentDiff(completed, prevCompleted))}
+          </Card>
         </div>
+      </div>
+
+      {/* RIGHT COLUMN */}
+      <div className="w-full lg:w-2/3 h-auto">
+        <TechEarningsMonthlyChart
+          date={date}
+          range={range}
+          data={successData}
+        />
       </div>
     </div>
   )

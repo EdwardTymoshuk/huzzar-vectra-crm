@@ -5,55 +5,54 @@ import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { buildDateParam } from '@/utils/dates/buildDateParam'
 import { trpc } from '@/utils/trpc'
+import { OrderType } from '@prisma/client'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+import SuccessChart from './SuccessChart'
 
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
+  orderType: OrderType
 }
 
-// Chart colors: green for success, red for failure
 const COLORS = ['#16a34a', '#dc2626']
 
-const OrderStatsSection = ({ date, range }: Props) => {
+/**
+ * OrderStatsSection
+ * ------------------------------------------------------------------
+ * Renders:
+ *  - Pie chart (completed vs failed)
+ *  - KPI cards (received, completed, failed)
+ *  - Success chart on the right side
+ */
+const OrderStatsSection = ({ date, range, orderType }: Props) => {
   const dateParam = buildDateParam(date, range)
 
   const { data, isLoading, isError } = trpc.order.getOrderStats.useQuery({
     date: dateParam,
     range,
+    orderType,
   })
 
-  /**
-   * Render change indicator with icon and color
-   */
-  const formatChange = (value: number) => {
-    const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight
-    const color = value >= 0 ? 'text-success' : 'text-danger'
+  const formatChange = (val: number) => {
+    const Icon = val >= 0 ? ArrowUpRight : ArrowDownRight
+    const color = val >= 0 ? 'text-success' : 'text-danger'
     return (
       <span className={`flex items-center gap-1 text-sm ${color}`}>
         <Icon className="w-4 h-4" />
-        {Math.abs(value)}%
+        {Math.abs(val)}%
       </span>
     )
   }
 
-  /**
-   * Calculate percentage difference between current and previous value
-   */
   const percentDiff = (current: number, prev: number) => {
     if (prev === 0) return current > 0 ? 100 : 0
     return Math.round(((current - prev) / prev) * 100)
   }
 
   if (isLoading || !data) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-[150px] w-full" />
-        ))}
-      </div>
-    )
+    return <Skeleton className="h-[300px] w-full my-6" />
   }
 
   if (isError) {
@@ -67,9 +66,9 @@ const OrderStatsSection = ({ date, range }: Props) => {
   const { total, completed, failed, prevTotal, prevCompleted, prevFailed } =
     data
 
-  const totalForSuccess = completed + failed
+  const received = total
   const successRate =
-    totalForSuccess > 0 ? Math.round((completed / totalForSuccess) * 100) : 0
+    received > 0 ? Math.round((completed / received) * 100) : 0
 
   const variant =
     successRate >= 90
@@ -77,67 +76,83 @@ const OrderStatsSection = ({ date, range }: Props) => {
       : successRate >= 70
       ? 'warning'
       : 'destructive'
+  // Pie chart data with fallback (Recharts does not render all-zero pies)
+  const isAllZero = completed === 0 && failed === 0
 
-  const pieData = [
-    { name: 'Wykonane', value: completed },
-    { name: 'Niewykonane', value: failed },
-  ]
+  const pieData = isAllZero
+    ? [
+        { name: 'Wykonane', value: 1 },
+        { name: 'Niewykonane', value: 1 },
+      ]
+    : [
+        { name: 'Wykonane', value: completed },
+        { name: 'Niewykonane', value: failed },
+      ]
+
+  // detect mobile screen
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 480
+
+  const innerR = isMobile ? 40 : 70
+  const outerR = isMobile ? 60 : 100
 
   return (
-    <div className="mb-6 space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* PieChart */}
-        <Card className="flex flex-col items-center justify-center">
-          <div className="w-full h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  label
-                >
-                  {pieData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="my-4 text-center">
+    <div className="flex flex-col lg:flex-row gap-4 mb-4 h-auto">
+      {/* LEFT COLUMN: Pie + KPI cards */}
+      <div className="flex w-full lg:w-1/3 gap-4 h-full">
+        {/* Pie chart */}
+        <Card className="flex flex-col items-center justify-center w-full h-auto">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={innerR}
+                outerRadius={outerR}
+                label={!isAllZero && !isMobile}
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+
+          <div className="mb-4 -mt-4">
             <Badge variant={variant}>{successRate}% skuteczność</Badge>
           </div>
         </Card>
 
-        {/* Wszystkie zlecenia */}
-        <Card className="p-4 text-center flex flex-col justify-center items-center">
-          <p className="text-sm text-muted-foreground mb-1">
-            Wszystkie zlecenia
-          </p>
-          <p className="text-4xl font-bold">{total}</p>
-          {formatChange(percentDiff(total, prevTotal))}
-        </Card>
+        {/* KPI cards */}
+        <div className="flex flex-col gap-4 h-full">
+          {/* Received */}
+          <Card className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">Otrzymane</p>
+            <p className="text-3xl font-bold">{received}</p>
+            {formatChange(percentDiff(received, prevTotal))}
+          </Card>
 
-        {/* Wykonane + Niewykonane */}
-        <div className="grid grid-cols-2 md:grid-cols-1 gap-4">
-          {/* Wykonane */}
-          <Card className="p-4 text-center flex flex-col justify-center items-center">
+          {/* Completed */}
+          <Card className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Wykonane</p>
             <p className="text-2xl font-bold text-success">{completed}</p>
             {formatChange(percentDiff(completed, prevCompleted))}
           </Card>
 
-          {/* Niewykonane */}
-          <Card className="p-4 text-center flex flex-col justify-center items-center">
-            <p className="text-sm text-muted-foreground ">Niewykonane</p>
+          {/* Failed */}
+          <Card className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">Niewykonane</p>
             <p className="text-2xl font-bold text-danger">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
           </Card>
         </div>
+      </div>
+
+      {/* RIGHT COLUMN: Success chart */}
+      <div className="w-full lg:w-2/3 h-auto">
+        <SuccessChart date={date} range={range} orderType={orderType} />
       </div>
     </div>
   )

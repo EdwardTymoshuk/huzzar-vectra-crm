@@ -4,6 +4,7 @@ import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { polishMonthsNominative } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
+import { OrderType } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
@@ -18,6 +19,7 @@ import {
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
+  orderType: OrderType
 }
 
 /** Strongly-typed result shapes returned by the tRPC endpoint. */
@@ -26,16 +28,25 @@ type MonthPoint = { month: number; successRate: number }
 type YearPoint = { year: number; successRate: number }
 
 /**
- * AreaChart showing company-wide success rate over time.
- * - Uses strict type narrowing based on the selected range to avoid union-map issues.
+ * SuccessChart
+ * --------------------------------------------------------------
+ * Renders company-wide success rate over time.
+ * Supports filtering by OrderType:
+ *  - INSTALLATION
+ *  - SERVICE
+ *  - OUTAGE (LINES)
+ *
+ * Range variants:
+ *  - day:    every day in month
+ *  - month:  every month in selected year
+ *  - year:   year-over-year
  */
-const SuccessChart = ({ date, range }: Props) => {
-  // Guard against undefined date to satisfy the tRPC input contract and TS.
+const SuccessChart = ({ date, range, orderType }: Props) => {
   if (!date) return null
 
   const { data, isLoading, isError } =
     trpc.order.getCompanySuccessOverTime.useQuery(
-      { date, range },
+      { date, range, orderType },
       { enabled: true }
     )
 
@@ -51,7 +62,7 @@ const SuccessChart = ({ date, range }: Props) => {
     return <Skeleton className="h-[280px] w-full my-4" />
   }
 
-  /** Build a normalized [{ name, successRate }] array depending on the range. */
+  /** Normalize tRPC dataset for Recharts. */
   let chartData: Array<{ name: string; successRate: number }>
 
   switch (range) {
@@ -63,6 +74,7 @@ const SuccessChart = ({ date, range }: Props) => {
       }))
       break
     }
+
     case 'month': {
       const rows = data as MonthPoint[]
       chartData = rows.map((d) => ({
@@ -71,6 +83,7 @@ const SuccessChart = ({ date, range }: Props) => {
       }))
       break
     }
+
     case 'year': {
       const rows = data as YearPoint[]
       chartData = rows.map((d) => ({
@@ -82,25 +95,27 @@ const SuccessChart = ({ date, range }: Props) => {
   }
 
   return (
-    <Card className="p-4">
+    <Card className="p-2 w-full h-full">
       <h2 className="text-lg font-semibold mb-4">
-        Skuteczność firmy —{' '}
+        Skuteczność —{' '}
         {range === 'day'
           ? format(date, 'MMMM yyyy', { locale: pl })
           : range === 'month'
           ? date.getFullYear()
           : 'Lata'}
       </h2>
-      <div className="h-[260px] w-full">
+
+      <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
-            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
             <YAxis
               tickFormatter={(v) => `${v}%`}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }}
               domain={[0, 100]}
             />
             <Tooltip formatter={(v) => [`${v}%`, 'Skuteczność']} />
+
             <Area
               type="monotone"
               dataKey="successRate"

@@ -12,22 +12,31 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { trpc } from '@/utils/trpc'
+import { OrderType } from '@prisma/client'
 
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
+  orderType: OrderType
 }
 
 /**
- * TechnicianEfficiencyTable:
- * - Shows detailed breakdown of all technician stats.
- * - Only COMPLETED & NOT_COMPLETED are included in success rate.
+ * TechnicianEfficiencyTable
+ * ------------------------------------------------------------------
+ * Displays:
+ *  - received (assigned + completed + notCompleted)
+ *  - completed
+ *  - notCompleted
+ *  - successRate (completed/received)
+ *
+ * Fully synced with backend logic.
  */
-const TechnicianEfficiencyTable = ({ date, range }: Props) => {
+const TechnicianEfficiencyTable = ({ date, range, orderType }: Props) => {
   const { data, isLoading, isError } =
     trpc.user.getTechnicianEfficiency.useQuery({
       date: date?.toISOString() ?? new Date().toISOString(),
       range,
+      orderType,
     })
 
   if (isLoading || !data) {
@@ -52,27 +61,25 @@ const TechnicianEfficiencyTable = ({ date, range }: Props) => {
   return (
     <Card className="p-4 my-6 overflow-x-auto">
       <h2 className="text-lg font-semibold mb-4">Ranking techników</h2>
+
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Lp</TableHead>
             <TableHead>Technik</TableHead>
+            <TableHead>Otrzymane</TableHead>
             <TableHead>Wykonane</TableHead>
             <TableHead>Niewykonane</TableHead>
             <TableHead>Skuteczność</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {data.map((tech, index) => {
-            const { completed, notCompleted } = tech
-            const total = completed + notCompleted
-            const successRate =
-              total > 0 ? Math.round((completed / total) * 100) : 0
-
             const variant =
-              successRate >= 90
+              tech.successRate >= 90
                 ? 'success'
-                : successRate >= 70
+                : tech.successRate >= 70
                 ? 'warning'
                 : 'destructive'
 
@@ -80,10 +87,11 @@ const TechnicianEfficiencyTable = ({ date, range }: Props) => {
               <TableRow key={tech.technicianId}>
                 <TableCell>{index + 1}</TableCell>
                 <TableCell>{tech.technicianName}</TableCell>
-                <TableCell>{completed}</TableCell>
-                <TableCell>{notCompleted}</TableCell>
+                <TableCell>{tech.received}</TableCell>
+                <TableCell>{tech.completed}</TableCell>
+                <TableCell>{tech.notCompleted}</TableCell>
                 <TableCell>
-                  <Badge variant={variant}>{successRate}%</Badge>
+                  <Badge variant={variant}>{tech.successRate}%</Badge>
                 </TableCell>
               </TableRow>
             )

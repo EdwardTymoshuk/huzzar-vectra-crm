@@ -1,31 +1,48 @@
 'use client'
 
 import DashboardHeaderBar from '@/app/admin-panel/components/dashboard/DashboardHeaderBar'
+import { buildDateParam } from '@/utils/dates/buildDateParam'
+import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
+
+import { DashboardStatsSkeleton } from '../components/dashboard/DashboardStatsSkeleton'
+import { EarningsKpisSkeleton } from '../components/dashboard/EarningsKpisSkeleton'
 import TechEarningsKpis from '../components/dashboard/TechEarningsKpis'
-import TechEarningsMonthlyChart from '../components/dashboard/TechEarningsMonthlyChart'
 import TechOrderStatsSection from '../components/dashboard/TechOrderStatsSection'
 
-/**
- * Technician Pulpit Page
- * - Mirrors the admin dashboard structure (range tabs + date picker).
- * - Shows KPIs and charts scoped strictly to the logged-in technician.
- */
 const TechnicianDashboardPage = () => {
-  // Separate date states per range (to preserve user selection)
   const [selectedDay, setSelectedDay] = useState<Date>(new Date())
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [selectedYear, setSelectedYear] = useState<Date>(new Date())
   const [range, setRange] = useState<'day' | 'month' | 'year'>('month')
 
-  /** Returns the current date according to active range. */
   const getSelectedDate = (): Date | undefined => {
     if (range === 'day') return selectedDay
     if (range === 'month') return selectedMonth
     if (range === 'year') return selectedYear
   }
 
-  /** Updates the correct date state when user changes date. */
+  const selectedDate = getSelectedDate()
+  const dateParam = buildDateParam(selectedDate, range)
+
+  // Fetch ALL data
+  const techStats = trpc.order.getTechOrderStats.useQuery({
+    date: dateParam,
+    range,
+  })
+
+  const successTrend = trpc.order.getTechSuccessOverTime.useQuery({
+    date: selectedDate ?? new Date(),
+    range,
+  })
+
+  const earnings = trpc.order.getTechEarningsKpis.useQuery({
+    date: dateParam,
+    range,
+  })
+
+  const goals = trpc.user.getGoals.useQuery()
+
   const handleChangeDate = (date: Date | undefined) => {
     if (!date) return
     if (range === 'day') setSelectedDay(date)
@@ -33,22 +50,49 @@ const TechnicianDashboardPage = () => {
     else if (range === 'year') setSelectedYear(date)
   }
 
+  const isLoading =
+    techStats.isLoading || successTrend.isLoading || earnings.isLoading
+
+  const hasAllData = !!techStats.data && !!successTrend.data && !!earnings.data
+
+  const isError =
+    techStats.isError ||
+    successTrend.isError ||
+    earnings.isError ||
+    goals.isError
+
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
-      {/* ✅ Unified dashboard header bar */}
       <DashboardHeaderBar
-        selectedDate={getSelectedDate()}
+        selectedDate={selectedDate}
         onChangeDate={handleChangeDate}
         range={range}
         onChangeRange={setRange}
       />
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
-        <TechEarningsKpis date={getSelectedDate()} range={range} />
-        <TechOrderStatsSection date={getSelectedDate()} range={range} />
 
-        <TechEarningsMonthlyChart
-          year={(getSelectedDate() ?? new Date()).getFullYear()}
-        />
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        {isLoading || isError || !hasAllData ? (
+          <>
+            <DashboardStatsSkeleton />
+            <EarningsKpisSkeleton />
+          </>
+        ) : (
+          <>
+            <TechOrderStatsSection
+              date={selectedDate}
+              range={range}
+              data={techStats.data}
+              successData={successTrend.data ?? []}
+            />
+
+            <TechEarningsKpis
+              date={selectedDate}
+              range={range}
+              data={earnings.data}
+              goals={goals.data ?? null}
+            />
+          </>
+        )}
       </div>
     </div>
   )
