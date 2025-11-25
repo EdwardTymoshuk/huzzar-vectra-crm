@@ -67,6 +67,7 @@ function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
     operator: string
     start: number
     end: number
+    status: string
   }[] = []
 
   tech.slots.forEach((slot) => {
@@ -79,6 +80,7 @@ function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
         operator: o.operator,
         start,
         end,
+        status: o.status,
       })
     )
   })
@@ -121,8 +123,15 @@ const TechniciansTimeline = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   const LANE_HEIGHT = 30
-  const LANE_GAP = 5
+  const LANE_GAP = 6
   const HOUR_WIDTH = 75
+
+  /**
+   * Utility: determines whether order should be locked from drag & unassign.
+   */
+  const isLockedStatus = (status: string): boolean => {
+    return status === 'COMPLETED' || status === 'NOT_COMPLETED'
+  }
 
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments
@@ -270,19 +279,29 @@ const TechniciansTimeline = ({
                               key={order.id}
                               draggableId={order.id}
                               index={idx}
+                              isDragDisabled={isLockedStatus(order.status)} // <-- BLOCK DRAG
                             >
                               {(drag, snapshot) => {
+                                const locked = isLockedStatus(order.status)
+                                const isCompleted = order.status === 'COMPLETED'
+                                const isFailed =
+                                  order.status === 'NOT_COMPLETED'
+
                                 const content = (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
                                         ref={drag.innerRef}
                                         {...drag.draggableProps}
-                                        {...drag.dragHandleProps}
+                                        {...(!locked
+                                          ? drag.dragHandleProps
+                                          : {})}
                                         className={cn(
-                                          'absolute truncate rounded-md shadow-sm border border-gray-300 overflow-hidden px-1 py-0 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group',
+                                          'absolute truncate rounded-md shadow-sm my-[1px] px-1 py-0 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group overflow-hidden',
                                           snapshot.isDragging &&
-                                            'scale-105 shadow-lg z-50 ring-2 ring-secondary'
+                                            !locked &&
+                                            'scale-105 shadow-lg z-50 ring-2 ring-secondary',
+                                          locked && 'cursor-default'
                                         )}
                                         style={{
                                           left: `${
@@ -295,7 +314,13 @@ const TechniciansTimeline = ({
                                             order.lane *
                                             (LANE_HEIGHT + LANE_GAP)
                                           }px`,
+
+                                          // Preserve operator-based background color
                                           backgroundColor: color,
+
+                                          // No border for any status
+                                          border: 'none',
+
                                           ...drag.draggableProps.style,
                                         }}
                                         onDoubleClick={() => {
@@ -303,6 +328,33 @@ const TechniciansTimeline = ({
                                           setIsSheetOpen(true)
                                         }}
                                       >
+                                        {/* Disabled overlay for locked orders (prevents interaction without affecting colors) */}
+                                        {locked && (
+                                          <div
+                                            className="absolute inset-0 bg-black/20 pointer-events-none rounded-md"
+                                            style={{ zIndex: 5 }}
+                                          />
+                                        )}
+
+                                        {/* Status badge for completed/failed orders.
+      Positioned cleanly near the top-right corner without borders. */}
+                                        {locked && (
+                                          <div
+                                            className={cn(
+                                              'absolute rounded-full flex items-center justify-center text-white shadow-md',
+                                              'h-5 w-5',
+                                              order.status === 'COMPLETED'
+                                                ? 'bg-green-600'
+                                                : 'bg-red-600'
+                                            )}
+                                            style={{
+                                              top: '-10px', // subtle downward offset for aesthetic placement
+                                              right: '-10px', // subtle inward offset for balanced appearance
+                                            }}
+                                          ></div>
+                                        )}
+
+                                        {/* Order label (order number) */}
                                         <div className="flex justify-between text-[0.65rem] items-start">
                                           <div className="truncate font-semibold pr-2">
                                             <Highlight
@@ -312,22 +364,30 @@ const TechniciansTimeline = ({
                                               textToHighlight={order.label}
                                             />
                                           </div>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => onUnassign(order.id)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-0 h-4 w-4 min-w-0 text-danger hover:bg-danger/80"
-                                          >
-                                            <MdClose className="w-3.5 h-3.5" />
-                                          </Button>
+
+                                          {/* Unassign button hidden for locked orders */}
+                                          {!locked && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() =>
+                                                onUnassign(order.id)
+                                              }
+                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0 h-4 w-4 min-w-0 text-danger hover:bg-danger/80"
+                                            >
+                                              <MdClose className="w-3.5 h-3.5" />
+                                            </Button>
+                                          )}
                                         </div>
 
+                                        {/* Address line */}
                                         <div className="truncate text-[0.65rem]">
                                           {order.address}
                                         </div>
                                       </div>
                                     </TooltipTrigger>
+
                                     <TooltipContent
                                       side="top"
                                       className="max-w-sm text-[0.65rem]"
@@ -342,6 +402,18 @@ const TechniciansTimeline = ({
                                       <p className="text-xs mt-1">
                                         Operator: {order.operator}
                                       </p>
+
+                                      {isCompleted && (
+                                        <p className="text-xs font-semibold text-green-700 mt-1">
+                                          ✔ Zlecenie wykonane
+                                        </p>
+                                      )}
+
+                                      {isFailed && (
+                                        <p className="text-xs font-semibold text-red-700 mt-1">
+                                          ✖ Zlecenie niewykonane
+                                        </p>
+                                      )}
                                     </TooltipContent>
                                   </Tooltip>
                                 )
