@@ -31,6 +31,7 @@ type SortKey =
   | 'received'
   | 'completed'
   | 'notCompleted'
+  | 'assigned'
   | 'successRate'
 
 /**
@@ -173,6 +174,16 @@ const TechnicianEfficiencyTable = ({ date, range, orderType }: Props) => {
             <TableHead>
               <span
                 className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={() => toggleSort('assigned')}
+              >
+                Przypisane
+                {renderSortIcon('assigned')}
+              </span>
+            </TableHead>
+
+            <TableHead>
+              <span
+                className="flex items-center gap-1 cursor-pointer select-none"
                 onClick={() => toggleSort('successRate')}
               >
                 Skuteczność
@@ -197,6 +208,7 @@ const TechnicianEfficiencyTable = ({ date, range, orderType }: Props) => {
                 <TableCell>{tech.received}</TableCell>
                 <TableCell>{tech.completed}</TableCell>
                 <TableCell>{tech.notCompleted}</TableCell>
+                <TableCell>{tech.assigned}</TableCell>
                 <TableCell>
                   <Badge variant={variant}>{tech.successRate}%</Badge>
                 </TableCell>

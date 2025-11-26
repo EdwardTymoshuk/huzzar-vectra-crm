@@ -603,19 +603,24 @@ export const settlementRouter = router({
 
       if (!orders.length) return null
 
-      const rows = orders.map((o, i) => ({
-        Lp: i + 1,
-        'Nr zlecenia': o.orderNumber,
-        Adres: `${o.city} ${o.postalCode}, ${o.street}`,
-        Wykonano: o.status === 'COMPLETED' ? 'TAK' : 'NIE',
-        Technik: o.assignedTo?.name ?? 'Nieprzypisany',
-        Operator: o.operator,
+      const rows = orders.map((o, i) => {
+        let wykonano = 'NP'
 
-        // moved to the end
-        'Powód niewykonania':
-          o.status === 'NOT_COMPLETED' ? o.failureReason ?? '' : '',
-        Uwagi: o.notes ?? '',
-      }))
+        if (o.status === 'COMPLETED') wykonano = 'TAK'
+        else if (o.status === 'NOT_COMPLETED') wykonano = 'NIE'
+
+        return {
+          Lp: i + 1,
+          'Nr zlecenia': o.orderNumber,
+          Adres: `${o.city} ${o.postalCode}, ${o.street}`,
+          Wykonano: wykonano,
+          Technik: o.assignedTo?.name ?? 'Nieprzypisany',
+          Operator: o.operator,
+          'Powód niewykonania':
+            o.status === 'NOT_COMPLETED' ? o.failureReason ?? '' : '',
+          Uwagi: o.notes ?? '',
+        }
+      })
 
       const buf = await writeToBuffer(
         rows,

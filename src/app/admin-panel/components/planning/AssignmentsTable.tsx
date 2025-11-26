@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import OrderDetailsSheet from '../../../components/shared/orders/OrderDetailsSheet'
 import { usePlanningContext } from './PlanningContext'
+import UnassignedOrdersAccordion from './UnassignedOrdersAccordion'
 
 /**
  * AssignmentsTable
@@ -34,6 +35,15 @@ const AssignmentsTable = () => {
   const { selectedDate, searchTerm } = usePlanningContext()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
+
+  const [from, setFrom] = useState<Date | undefined>()
+  const [to, setTo] = useState<Date | undefined>()
+
+  const { data: unassigned = [], isLoading: isUnassignedLoading } =
+    trpc.order.getAllUnassigned.useQuery({
+      dateFrom: from,
+      dateTo: to,
+    })
 
   const utils = trpc.useUtils()
   const updateTechnicianMutation = trpc.order.assignTechnician.useMutation()
@@ -101,6 +111,19 @@ const AssignmentsTable = () => {
 
   return (
     <div className="space-y-6">
+      <UnassignedOrdersAccordion
+        data={unassigned}
+        loading={isUnassignedLoading}
+        from={from}
+        to={to}
+        setFrom={setFrom}
+        setTo={setTo}
+        onOpenOrder={(id) => {
+          setSelectedOrderId(id)
+          setIsPanelOpen(true)
+        }}
+      />
+
       <DragDropContext onDragEnd={onDragEnd} enableDefaultSensors>
         {isLoading ? (
           <div className="w-full flex justify-center py-10">

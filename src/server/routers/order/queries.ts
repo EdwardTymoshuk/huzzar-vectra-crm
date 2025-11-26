@@ -633,6 +633,40 @@ export const queriesRouter = router({
       }
     }),
 
+  /** Fetches ALL Unassigned orders from all technitians and from all the time */
+  getAllUnassigned: adminOrCoord
+    .input(
+      z.object({
+        dateFrom: z.date().optional(),
+        dateTo: z.date().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { dateFrom, dateTo } = input
+
+      return ctx.prisma.order.findMany({
+        where: {
+          status: 'ASSIGNED',
+          ...(dateFrom && dateTo
+            ? { date: { gte: dateFrom, lte: dateTo } }
+            : {}),
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          city: true,
+          street: true,
+          date: true,
+          operator: true,
+          clientId: true,
+          assignedTo: true,
+          status: true,
+          timeSlot: true,
+        },
+        orderBy: { date: 'asc' },
+      })
+    }),
+
   /** Accounting-level order breakdown */
   getOrderDetails: adminOrCoord
     .input(z.object({ orderId: z.string().uuid() }))
