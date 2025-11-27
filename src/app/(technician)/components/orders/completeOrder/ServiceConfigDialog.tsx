@@ -369,13 +369,6 @@ const ServiceConfigDialog = ({
     onCloseAction()
   }
 
-  const allowedCategoriesMap: Record<ServiceType, DeviceCategory[]> = {
-    DTV: ['DECODER_1_WAY', 'DECODER_2_WAY'],
-    NET: ['MODEM_HFC', 'MODEM_GPON', 'OTHER'],
-    TEL: ['OTHER'],
-    ATV: ['OTHER'],
-  }
-
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
       <DialogContent className="max-w-md w-[95vw] overflow-x-hidden">

@@ -80,6 +80,7 @@ const CollectedFromClientSection = () => {
                       className={`
                         border rounded-md p-3
                         grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4
+                        items-center
                       `}
                     >
                       {/* col 1 – name + SN */}
@@ -95,7 +96,7 @@ const CollectedFromClientSection = () => {
                       </div>
 
                       {/* col 2 – order ref  (hidden on xs) */}
-                      <div className="flex flex-col">
+                      <div className="flex flex-col items-start">
                         {order ? (
                           <>
                             <Button
