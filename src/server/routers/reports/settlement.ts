@@ -232,7 +232,7 @@ export const settlementRouter = router({
       const orders = await prisma.order.findMany({
         where: {
           assignedToId: input.technicianId,
-          type: { in: ['INSTALATION', 'SERVICE'] },
+          type: { in: ['INSTALATION'] },
           date: { gte: new Date(input.from), lte: new Date(input.to) },
         },
         include: { settlementEntries: { include: { rate: true } } },
@@ -584,6 +584,28 @@ export const settlementRouter = router({
 
       return buf.toString('base64')
     }),
+  generateMonthlyInstallationReportForTechnician: adminOrCoord
+    .input(
+      z.object({
+        year: z.number().min(2020),
+        month: z.number().min(1).max(12),
+        technicianId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { writeInstallationTemplateForTechnician } = await import(
+        '@/utils/reports/writeInstallationTemplateFromDb'
+      )
+
+      const buf = await writeInstallationTemplateForTechnician(
+        input.year,
+        input.month,
+        input.technicianId
+      )
+
+      return buf.toString('base64')
+    }),
+
   /** XLSX daily report (returns base64) */
   generateDailyReport: adminOrCoord
     .input(z.object({ date: z.string() }))

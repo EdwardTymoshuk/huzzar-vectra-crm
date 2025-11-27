@@ -35,8 +35,9 @@ type ReportType =
   | 'TECHNICIAN'
   | 'SUMMARY'
   | 'CODE_BREAKDOWN'
-  | 'SETTLEMENT_REPORT'
+  | 'INSTALLATION_YEAR'
   | 'INSTALLATION_MONTH'
+  | 'INSTALLATION_MONTH_TECHNICIAN'
 
 const GenerateBillingReportDialog = ({
   open,
@@ -72,6 +73,8 @@ const GenerateBillingReportDialog = ({
     trpc.settlement.generateYearlyInstallationReport.useMutation()
   const monthlyTemplateMutation =
     trpc.settlement.generateMonthlyInstallationReport.useMutation()
+  const monthlyTechnicianTemplateMutation =
+    trpc.settlement.generateMonthlyInstallationReportForTechnician.useMutation()
 
   // Helper: base64 -> Blob
   const base64ToBlob = (base64: string, mime: string): Blob => {
@@ -117,7 +120,7 @@ const GenerateBillingReportDialog = ({
           month,
           year: yearFromDate,
         })
-      } else if (reportType === 'SETTLEMENT_REPORT') {
+      } else if (reportType === 'INSTALLATION_YEAR') {
         // Yearly, pre-filled installation report
         base64 = await yearlyTemplateMutation.mutateAsync({ year: yearNumber })
         const blob = base64ToBlob(
@@ -149,6 +152,33 @@ const GenerateBillingReportDialog = ({
         a.click()
         URL.revokeObjectURL(url)
         toast.success('Raport miesięczny został wygenerowany.')
+        onClose()
+        return
+      } else if (reportType === 'INSTALLATION_MONTH_TECHNICIAN') {
+        if (!selectedTechnician) {
+          toast.warning('Wybierz technika.')
+          return
+        }
+
+        base64 = await monthlyTechnicianTemplateMutation.mutateAsync({
+          year: yearFromDate,
+          month,
+          technicianId: selectedTechnician,
+        })
+
+        const blob = base64ToBlob(
+          base64,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `RAP.-ROZ.-TECHNIK-${month}-${yearFromDate}.xlsx`
+        a.click()
+        URL.revokeObjectURL(url)
+
+        toast.success('Raport miesięczny technika został wygenerowany.')
         onClose()
         return
       }
@@ -231,10 +261,13 @@ const GenerateBillingReportDialog = ({
               <SelectItem value="CODE_BREAKDOWN">
                 Zestawienie prac (miesięczne)
               </SelectItem>
+              <SelectItem value="INSTALLATION_MONTH_TECHNICIAN">
+                Raport rozliczeniowy technika (miesięczny)
+              </SelectItem>
               <SelectItem value="INSTALLATION_MONTH">
                 Raport rozliczeniowy (miesięczny)
               </SelectItem>
-              <SelectItem value="SETTLEMENT_REPORT">
+              <SelectItem value="INSTALLATION_YEAR">
                 Raport rozliczeniowy (roczny)
               </SelectItem>
             </SelectContent>
@@ -270,7 +303,7 @@ const GenerateBillingReportDialog = ({
           )}
 
           {/* Year — only for yearly report */}
-          {reportType === 'SETTLEMENT_REPORT' && (
+          {reportType === 'INSTALLATION_YEAR' && (
             <div className="w-full flex justify-center">
               <DatePicker
                 selected={yearDate}
@@ -283,6 +316,24 @@ const GenerateBillingReportDialog = ({
                 fullWidth
               />
             </div>
+          )}
+
+          {reportType === 'INSTALLATION_MONTH_TECHNICIAN' && (
+            <Select
+              value={selectedTechnician}
+              onValueChange={setSelectedTechnician}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz technika" />
+              </SelectTrigger>
+              <SelectContent>
+                {technicians.map((t: UserWithBasic) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
           <Button
