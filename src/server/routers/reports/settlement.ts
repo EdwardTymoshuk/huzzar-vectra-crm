@@ -593,11 +593,11 @@ export const settlementRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const { writeInstallationTemplateForTechnician } = await import(
+      const { writeInstallationTemplateForTechnicianMonth } = await import(
         '@/utils/reports/writeInstallationTemplateFromDb'
       )
 
-      const buf = await writeInstallationTemplateForTechnician(
+      const buf = await writeInstallationTemplateForTechnicianMonth(
         input.year,
         input.month,
         input.technicianId

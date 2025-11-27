@@ -160,6 +160,10 @@ const GenerateBillingReportDialog = ({
           return
         }
 
+        const tech = technicians.find((t) => t.id === selectedTechnician)
+        const techName = tech?.name ?? 'technik'
+        const safeTechName = techName.replace(/[^\p{L}0-9]+/gu, '_')
+
         base64 = await monthlyTechnicianTemplateMutation.mutateAsync({
           year: yearFromDate,
           month,
@@ -174,7 +178,7 @@ const GenerateBillingReportDialog = ({
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `RAP.-ROZ.-TECHNIK-${month}-${yearFromDate}.xlsx`
+        a.download = `RAP.-ROZ.-${safeTechName}-${month}-${yearFromDate}.xlsx`
         a.click()
         URL.revokeObjectURL(url)
 
@@ -298,6 +302,7 @@ const GenerateBillingReportDialog = ({
             'SUMMARY',
             'CODE_BREAKDOWN',
             'INSTALLATION_MONTH',
+            'INSTALLATION_MONTH_TECHNICIAN',
           ].includes(reportType) && (
             <MonthPicker selected={selectedDate} onChange={setSelectedDate} />
           )}
@@ -340,6 +345,8 @@ const GenerateBillingReportDialog = ({
             onClick={handleDownload}
             disabled={
               (reportType === 'TECHNICIAN' && !selectedTechnician) ||
+              (reportType === 'INSTALLATION_MONTH_TECHNICIAN' &&
+                !selectedTechnician) ||
               technicianReportMutation.isLoading ||
               monthlySummaryMutation.isLoading ||
               codeBreakdownMutation.isLoading ||
