@@ -103,7 +103,8 @@ const SerialScanInput = ({
               nameUpper.includes('EXTENDER') ||
               nameUpper.includes('PLC') ||
               nameUpper.includes('REPEATER') ||
-              nameUpper.includes('EXT')
+              nameUpper.includes('EXT') ||
+              category === DeviceCategory.NETWORK_DEVICE
             )
           }
           return (

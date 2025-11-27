@@ -565,7 +565,12 @@ const ServiceConfigDialog = ({
                   }
                   onAddDevice={handleAddExtra}
                   variant="block"
-                  allowedCategories={allowedCategoriesMap[type]}
+                  allowedCategories={[
+                    DeviceCategory.MODEM_HFC,
+                    DeviceCategory.MODEM_GPON,
+                    DeviceCategory.OTHER,
+                    DeviceCategory.NETWORK_DEVICE,
+                  ]}
                 />
 
                 {extras.length > 0 && (

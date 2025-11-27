@@ -10,7 +10,9 @@
     "db:local": "cp .env.docker .env && npx prisma migrate dev",
     "db:prod": "cp .env.local .env && npx prisma db push",
     "db:pull:prod": "cp .env.local .env && npx prisma db pull",
-    "db:pull:local": "cp .env.docker .env && npx prisma db pull"
+    "db:pull:local": "cp .env.docker .env && npx prisma db pull",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
