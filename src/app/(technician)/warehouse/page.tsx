@@ -30,7 +30,7 @@ const TechnicianWarehousePage = () => {
         setCategoryFilter={setCategoryFilter}
       />
 
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="flex-1 overflow-y-auto space-y-2 px-2 pb-2">
         <WarehouseSummaryCard />
         <CollectedFromClientSection />
         <TechnicianTransfersTable />

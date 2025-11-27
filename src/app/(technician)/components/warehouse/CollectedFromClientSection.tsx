@@ -22,7 +22,7 @@ const CollectedFromClientSection = () => {
   const { data, isLoading } = trpc.warehouse.getCollectedWithDetails.useQuery()
 
   /* loading */
-  if (isLoading) return <Skeleton className="h-16 w-full rounded-lg mb-6" />
+  if (isLoading) return <Skeleton className="h-16 w-full rounded-lg" />
 
   // sort newest first
   const sortedData = (data ?? []).sort((a, b) => {
