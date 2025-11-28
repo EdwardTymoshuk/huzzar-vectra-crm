@@ -92,7 +92,7 @@ const ReturnedFromTechniciansSection = () => {
   return (
     <>
       {/* -------------- MAIN ACCORDION -------------- */}
-      <div className="border rounded-lg bg-card shadow-sm mb-6">
+      <div className="border rounded-lg bg-card shadow-sm">
         <Accordion type="single" collapsible>
           <AccordionItem value="returned">
             <AccordionTrigger className="flex items-center justify-between w-full p-4 gap-2">

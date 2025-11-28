@@ -6,7 +6,7 @@ import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
-import { MdAdd, MdHistory, MdUploadFile } from 'react-icons/md'
+import { MdAdd, MdDescription, MdHistory, MdUploadFile } from 'react-icons/md'
 import { PiUserListFill } from 'react-icons/pi'
 import { TbListSearch } from 'react-icons/tb'
 
@@ -19,6 +19,7 @@ interface WarehouseFloatingActionsProps {
   onSerialCheck: () => void
   onTransfer: () => void
   onHistory: () => void
+  onReports: () => void
 }
 
 const WarehouseFloatingActions = ({
@@ -30,6 +31,7 @@ const WarehouseFloatingActions = ({
   onSerialCheck,
   onTransfer,
   onHistory,
+  onReports,
 }: WarehouseFloatingActionsProps) => {
   return (
     <FloatingActionMenu
@@ -78,6 +80,12 @@ const WarehouseFloatingActions = ({
           icon: <CgArrowsExchangeAlt />,
           colorClass: 'bg-secondary hover:bg-secondary/90',
           onClick: onTransfer,
+        },
+        {
+          label: 'Raporty',
+          icon: <MdDescription />,
+          colorClass: 'bg-secondary hover:bg-secondary/90',
+          onClick: onReports,
         },
         {
           label: 'Historia magazynu',

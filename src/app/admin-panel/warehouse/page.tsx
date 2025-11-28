@@ -3,6 +3,8 @@
 import WarehouseTabs from '@/app/components/shared/warehouse/WarehouseTabs'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import ReportsDialog from '../components/warehouse/ReportsDialog'
+import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFromTechniciansSection'
 import TechnicianStockSheet from '../components/warehouse/TechnicianStockSheet'
 import WarehouseFloatingActions from '../components/warehouse/WarehouseFloatingActions'
 import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
@@ -28,6 +30,8 @@ const WarehousePage = () => {
   const [isSerialOpen, setSerialOpen] = useState(false)
   const [isTransferOpen, setTransferOpen] = useState(false)
 
+  const [isReportsOpen, setReportsOpen] = useState(false)
+
   const router = useRouter()
 
   return (
@@ -40,6 +44,7 @@ const WarehousePage = () => {
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
         <WarehouseSummaryCard />
         <LocationTransfersTable />
+        <ReturnedFromTechniciansSection />
         <WarehouseTabs
           searchTerm={searchTerm}
           categoryFilter={categoryFilter}
@@ -55,6 +60,7 @@ const WarehousePage = () => {
           onSerialCheck={() => setSerialOpen(true)}
           onTransfer={() => setTransferOpen(true)}
           onHistory={() => router.push('/admin-panel/warehouse/history')}
+          onReports={() => setReportsOpen(true)}
         />
       </div>
 
@@ -80,6 +86,10 @@ const WarehousePage = () => {
       <LocationTransferModal
         open={isTransferOpen}
         onCloseAction={() => setTransferOpen(false)}
+      />
+      <ReportsDialog
+        open={isReportsOpen}
+        onClose={() => setReportsOpen(false)}
       />
     </div>
   )

@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
+import { base64ToBlob } from '@/utils/reports/base64ToBlob'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { MdDownload } from 'react-icons/md'
@@ -81,19 +82,6 @@ const GenerateTechniciansSummaryDialog = ({ open, onClose }: Props) => {
   /**
    * Converts base64 to Blob for download
    */
-  const base64ToBlob = (base64: string, mime: string): Blob => {
-    const byteCharacters = atob(base64)
-    const byteArrays = []
-    for (let i = 0; i < byteCharacters.length; i += 512) {
-      const slice = byteCharacters.slice(i, i + 512)
-      const byteNumbers = new Array(slice.length)
-      for (let j = 0; j < slice.length; j++) {
-        byteNumbers[j] = slice.charCodeAt(j)
-      }
-      byteArrays.push(new Uint8Array(byteNumbers))
-    }
-    return new Blob(byteArrays, { type: mime })
-  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
