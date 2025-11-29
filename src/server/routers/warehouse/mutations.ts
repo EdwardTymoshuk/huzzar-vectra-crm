@@ -376,19 +376,23 @@ export const mutationsRouter = router({
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
+      const createdHistoryIds: string[] = []
+
       for (const item of input.items) {
         if (item.type === 'DEVICE') {
-          await prisma.warehouse.update({
-            where: { id: item.id },
-            data: { status: 'RETURNED_TO_OPERATOR' },
-          })
-          await prisma.warehouseHistory.create({
+          const hist = await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: item.id,
               action: 'RETURNED_TO_OPERATOR',
               performedById: userId,
               notes: input.notes,
             },
+          })
+          createdHistoryIds.push(hist.id)
+
+          await prisma.warehouse.update({
+            where: { id: item.id },
+            data: { status: 'RETURNED_TO_OPERATOR' },
           })
         }
 
@@ -403,12 +407,7 @@ export const mutationsRouter = router({
             })
           }
 
-          await prisma.warehouse.update({
-            where: { id: item.id },
-            data: { quantity: { decrement: item.quantity } },
-          })
-
-          await prisma.warehouseHistory.create({
+          const hist = await prisma.warehouseHistory.create({
             data: {
               warehouseItemId: item.id,
               action: 'RETURNED_TO_OPERATOR',
@@ -417,9 +416,16 @@ export const mutationsRouter = router({
               notes: input.notes,
             },
           })
+          createdHistoryIds.push(hist.id)
+
+          await prisma.warehouse.update({
+            where: { id: item.id },
+            data: { quantity: { decrement: item.quantity } },
+          })
         }
       }
-      return { success: true }
+
+      return { success: true, historyIds: createdHistoryIds }
     }),
 
   /** 📦 Collect device from client by technician */

@@ -48,14 +48,45 @@ const ReturnedFromTechniciansSection = () => {
   const [loading, setLoading] = useState(false)
 
   /* ───── mutation ───────────────────────────────────────────────── */
+
+  const generateReport =
+    trpc.warehouse.generateReturnToOperatorReport.useMutation()
+
   const returnMutation = trpc.warehouse.returnToOperator.useMutation({
-    onSuccess: () => {
+    onSuccess: async (res) => {
       setLoading(false)
       setShowConfirm(false)
+
+      if (res.historyIds?.length) {
+        try {
+          const base64 = await generateReport.mutateAsync({
+            historyIds: res.historyIds,
+          })
+
+          const binary = atob(base64)
+          const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+          const blob = new Blob([bytes], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          })
+
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          const date = new Date().toISOString().slice(0, 10)
+          a.download = `Zwrot_do_operatora_${date}.xlsx`
+          a.click()
+          URL.revokeObjectURL(url)
+        } catch (e) {
+          console.error(e)
+          toast.error('Nie udało się wygenerować raportu.')
+        }
+      }
+
       setSelected([])
       setNotes('')
+
       utils.warehouse.getReturnedFromTechnicians.invalidate()
-      toast.success('Sprzęt wysłany do operatora.')
+      toast.success('Sprzęt został wysłany oraz wygenerowano raport.')
     },
     onError: () => {
       setLoading(false)
@@ -242,29 +273,54 @@ const ReturnedFromTechniciansSection = () => {
 
       {/* -------------- CONFIRMATION MODAL -------------- */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="max-w-lg space-y-4">
+        <DialogContent className="max-w-lg space-y-5 bg-background border border-border rounded-xl">
           <DialogHeader>
-            <DialogTitle>Czy wysłać urządzenia do operatora?</DialogTitle>
+            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+              <MdAssignmentReturn className="h-5 w-5 text-primary" />
+              Potwierdzenie wysyłki do operatora
+            </DialogTitle>
           </DialogHeader>
 
-          {/* list of selected devices */}
-          <ul className="list-disc list-inside space-y-1 text-sm max-h-40 overflow-auto pr-2">
-            {data
-              ?.filter((d) => selected.includes(d.id))
-              .map((d) => (
-                <li key={d.id}>
-                  {d.name}
-                  {d.serialNumber ? ` • SN: ${d.serialNumber}` : ''}
-                </li>
-              ))}
-          </ul>
+          {/* Selected items list */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-primary border-b pb-1">
+              Wybrane urządzenia ({selected.length})
+            </h3>
 
-          {/* notes */}
-          <Textarea
-            placeholder="Uwagi (opcjonalnie)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
+            <div className="max-h-64 overflow-y-auto pr-1 space-y-2">
+              {data
+                ?.filter((d) => selected.includes(d.id))
+                .map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex justify-between items-center border border-border rounded-lg p-3 bg-muted/30"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{d.name}</span>
+                      {d.serialNumber && (
+                        <span className="text-xs text-muted-foreground">
+                          SN: {d.serialNumber}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground">
+              Uwagi (opcjonalnie)
+            </label>
+            <Textarea
+              placeholder="Dodaj uwagi do wysyłki…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="bg-background"
+              rows={3}
+            />
+          </div>
 
           <DialogFooter>
             <Button
@@ -274,7 +330,12 @@ const ReturnedFromTechniciansSection = () => {
             >
               Anuluj
             </Button>
-            <Button onClick={confirmSend} disabled={loading}>
+
+            <Button
+              onClick={confirmSend}
+              disabled={loading}
+              className="min-w-[120px]"
+            >
               {loading ? 'Wysyłanie…' : 'Wyślij'}
             </Button>
           </DialogFooter>

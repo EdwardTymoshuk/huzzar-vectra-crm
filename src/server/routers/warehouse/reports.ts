@@ -1,7 +1,8 @@
 // src/server/routers/warehouse/queries.ts
 
-import { adminOrCoord } from '@/server/roleHelpers'
+import { adminCoordOrWarehouse, adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
+import { writeReturnToOperatorReport } from '@/utils/reports/warehouse/writeReturnToOperatorReport'
 import { writeTechnicianStockReport } from '@/utils/reports/warehouse/writeTechnicianStockReport'
 import { writeWarehouseStockReport } from '@/utils/reports/warehouse/writeWarehouseStockReport'
 import { z } from 'zod'
@@ -26,6 +27,13 @@ export const reportsRouters = router({
     .input(z.object({}).optional())
     .mutation(async () => {
       const buffer = await writeWarehouseStockReport()
+      return buffer.toString('base64')
+    }),
+
+  generateReturnToOperatorReport: adminCoordOrWarehouse
+    .input(z.object({ historyIds: z.array(z.string().uuid()) }))
+    .mutation(async ({ input }) => {
+      const buffer = await writeReturnToOperatorReport(input.historyIds)
       return buffer.toString('base64')
     }),
 })

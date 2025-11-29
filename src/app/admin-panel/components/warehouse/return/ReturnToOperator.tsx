@@ -49,6 +49,8 @@ const ReturnToOperator = ({ onClose }: Props) => {
     activeLocationId ? { locationId: activeLocationId } : undefined
   )
   const returnMutation = trpc.warehouse.returnToOperator.useMutation()
+  const generateReturnReport =
+    trpc.warehouse.generateReturnToOperatorReport.useMutation()
 
   const availableMaterials = useMemo(() => {
     return warehouse.filter(
@@ -156,7 +158,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
 
     setLoading(true)
     try {
-      await returnMutation.mutateAsync({
+      const result = await returnMutation.mutateAsync({
         items: [
           ...issuedDevices.map((d) => ({ id: d.id, type: 'DEVICE' as const })),
           ...issuedMaterials.map((m) => ({
@@ -168,7 +170,28 @@ const ReturnToOperator = ({ onClose }: Props) => {
         notes,
       })
 
-      toast.success('Zwrócono sprzęt do operatora.')
+      toast.success('Sprzęt został zwrócony oraz wygenerowano raport.')
+
+      if (result.historyIds && result.historyIds.length > 0) {
+        const base64 = await generateReturnReport.mutateAsync({
+          historyIds: result.historyIds,
+        })
+
+        const binary = atob(base64)
+        const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+
+        const blob = new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        })
+
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `Zwrot-do-operatora_${new Date().toISOString()}.xlsx`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+
       handleClearAll()
       await utils.warehouse.getAll.invalidate()
     } catch {
