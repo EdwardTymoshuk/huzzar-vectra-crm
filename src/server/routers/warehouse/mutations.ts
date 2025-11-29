@@ -355,7 +355,7 @@ export const mutationsRouter = router({
       return { success: true }
     }),
 
-  /** ❌ Return damaged/obsolete items to operator (removal) */
+  /** Returns damaged/obsolete items to operator (permanent removal from stock). */
   returnToOperator: adminCoordOrWarehouse
     .input(
       z.object({
@@ -379,6 +379,17 @@ export const mutationsRouter = router({
       const createdHistoryIds: string[] = []
 
       for (const item of input.items) {
+        // Preserve link to the last order that used this item
+        const previous = await prisma.warehouseHistory.findFirst({
+          where: {
+            warehouseItemId: item.id,
+            assignedOrderId: { not: null },
+          },
+          orderBy: { actionDate: 'desc' },
+        })
+
+        const assignedOrderId = previous?.assignedOrderId ?? null
+
         if (item.type === 'DEVICE') {
           const hist = await prisma.warehouseHistory.create({
             data: {
@@ -386,6 +397,7 @@ export const mutationsRouter = router({
               action: 'RETURNED_TO_OPERATOR',
               performedById: userId,
               notes: input.notes,
+              assignedOrderId,
             },
           })
           createdHistoryIds.push(hist.id)
@@ -414,6 +426,7 @@ export const mutationsRouter = router({
               performedById: userId,
               quantity: item.quantity,
               notes: input.notes,
+              assignedOrderId,
             },
           })
           createdHistoryIds.push(hist.id)
@@ -478,7 +491,7 @@ export const mutationsRouter = router({
           performedById: techId,
           assignedOrderId: input.orderId,
           assignedToId: techId,
-          notes: 'Device picked up from client',
+          notes: 'Odebrano urządzenie od klienta',
         },
       })
 
