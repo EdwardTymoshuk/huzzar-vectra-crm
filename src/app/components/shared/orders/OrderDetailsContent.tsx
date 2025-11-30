@@ -1,6 +1,7 @@
 'use client'
 
 import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
+import { collectOrderEquipment } from '@/utils/orders/collectOrderEquipment'
 import { DeviceCategory, OrderStatus, Prisma } from '@prisma/client'
 import React from 'react'
 
@@ -14,7 +15,15 @@ export type OrderWithDetails = Prisma.OrderGetPayload<{
       }
     }
     usedMaterials: { include: { material: true } }
-    assignedEquipment: { include: { warehouse: true } }
+    assignedEquipment: {
+      include: {
+        warehouse: {
+          include: {
+            history: true
+          }
+        }
+      }
+    }
     services: {
       include: {
         extraDevices: true
@@ -49,12 +58,9 @@ const OrderDetailsContent = ({ order }: Props) => {
     operator,
   } = order
 
-  // Split assigned equipment into issued vs collected
-  const issued = assignedEquipment.filter(
-    (e) => e.warehouse.status !== 'COLLECTED_FROM_CLIENT'
-  )
-  const collected = assignedEquipment.filter(
-    (e) => e.warehouse.status === 'COLLECTED_FROM_CLIENT'
+  // Collected = sprzęt odebrany od klienta
+  const collected = assignedEquipment.filter((e) =>
+    e.warehouse.history.some((h) => h.action === 'COLLECTED_FROM_CLIENT')
   )
 
   return (
@@ -81,144 +87,32 @@ const OrderDetailsContent = ({ order }: Props) => {
       <section className="pt-4 border-t border-border space-y-1">
         <h4 className="font-semibold">Sprzęt wydany</h4>
 
-        {/* --- If services exist (INSTALLATION) --- */}
-        {services.length > 0 ? (
-          <ul className="list-none list-inside">
-            {/* NET group (modem + router + extender + measurements) */}
-            {services
-              .filter((s) => s.type === 'NET')
-              .reduce<typeof services>((acc, cur) => {
-                if (
-                  !acc.some(
-                    (a) =>
-                      a.serialNumber?.toUpperCase() ===
-                      cur.serialNumber?.toUpperCase()
-                  )
+        {(() => {
+          const equipment = collectOrderEquipment(order)
+
+          if (equipment.length === 0)
+            return <span className="text-muted-foreground">—</span>
+
+          return (
+            <ul className="list-none list-inside">
+              {equipment.map((e) => {
+                const category =
+                  e.category && e.category !== 'OTHER'
+                    ? `${devicesTypeMap[e.category]} `
+                    : ''
+
+                return (
+                  <li key={e.id} className="mt-1">
+                    {category}
+                    {e.name.toUpperCase()}
+                    {e.serial && ` (SN: ${e.serial.toUpperCase()})`}
+                    {e.client && ' [sprzęt klienta]'}
+                  </li>
                 )
-                  acc.push(cur)
-                return acc
-              }, [])
-              .map((s) => (
-                <li key={s.id} className="space-y-1 mt-2">
-                  {/* Main modem */}
-                  <div>
-                    {s.deviceType !== 'OTHER' &&
-                      `${devicesTypeMap[s.deviceType as DeviceCategory]} `}
-                    {s.deviceName?.toUpperCase()}
-                    {s.serialNumber && ` (SN: ${s.serialNumber.toUpperCase()})`}
-                    {s.deviceSource === 'CLIENT' && ' [sprzęt klienta]'}
-                  </div>
-
-                  {/* Router */}
-                  {s.deviceId2 && (
-                    <div className="ml-4">
-                      {s.deviceType2 !== 'OTHER' &&
-                        `${devicesTypeMap[s.deviceType2 as DeviceCategory]} `}
-                      {s.deviceName2?.toUpperCase()}
-                      {s.serialNumber2 &&
-                        ` (SN: ${s.serialNumber2.toUpperCase()})`}
-                    </div>
-                  )}
-
-                  {/* Extenders */}
-                  {s.extraDevices?.length > 0 && (
-                    <div className="ml-4 space-y-0.5">
-                      {s.extraDevices.map((ex) => (
-                        <div key={ex.id}>
-                          {ex.category && ex.category !== 'OTHER'
-                            ? `${devicesTypeMap[ex.category]} `
-                            : ''}
-                          {ex.name?.toUpperCase()}
-                          {ex.serialNumber &&
-                            ` (SN: ${ex.serialNumber.toUpperCase()})`}
-                          {ex.source === 'CLIENT' && ' [sprzęt klienta]'}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Measurements */}
-                  {(s.usDbmDown || s.usDbmUp || s.speedTest) && (
-                    <div className="text-xs text-muted-foreground ml-4 space-y-0.5">
-                      {(s.usDbmDown || s.usDbmUp) && (
-                        <div className="w-full">
-                          {s.usDbmDown && <>DS: {s.usDbmDown} dBm </>} |{' '}
-                          {s.usDbmUp && <>US: {s.usDbmUp} dBm</>} |{' '}
-                          {s.speedTest && <>Speedtest: {s.speedTest} mb/s</>}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </li>
-              ))}
-
-            {/* DTV (decoders) */}
-            {services
-              .filter((s) => s.type === 'DTV')
-              .map((s) => (
-                <li key={s.id} className="mt-2">
-                  {s.deviceType !== 'OTHER' &&
-                    `${devicesTypeMap[s.deviceType as DeviceCategory]} `}
-                  {s.deviceName?.toUpperCase()}
-                  {s.serialNumber && ` (SN: ${s.serialNumber.toUpperCase()})`}
-                  {s.deviceSource === 'CLIENT' && ' [sprzęt klienta]'}
-                </li>
-              ))}
-
-            {/* TEL (SIM cards) */}
-            {services.some((s) => s.type === 'TEL' && !!s.serialNumber) && (
-              <ul className="list-none list-inside">
-                {services
-                  .filter((s) => s.type === 'TEL')
-                  .map((s) => {
-                    const sn = s.serialNumber?.toUpperCase() || ''
-                    return (
-                      <li key={s.id}>{sn ? `KARTA SIM (SN: ${sn})` : ''}</li>
-                    )
-                  })}
-              </ul>
-            )}
-
-            {/* CLIENT devices */}
-            {services
-              .filter(
-                (s) =>
-                  s.deviceSource === 'CLIENT' &&
-                  !['NET', 'DTV', 'TEL'].includes(s.type)
-              )
-              .map((s) => (
-                <li key={s.id} className="mt-2">
-                  {s.deviceType !== 'OTHER' &&
-                    `${devicesTypeMap[s.deviceType as DeviceCategory]} `}
-                  {s.deviceName?.toUpperCase()}
-                  {s.serialNumber &&
-                    ` (SN: ${s.serialNumber.toUpperCase()})`}{' '}
-                  [sprzęt klienta]
-                </li>
-              ))}
-          </ul>
-        ) : issued.length > 0 ? (
-          /* --- If no services but issued equipment exists (SERVICE/OUTAGE) --- */
-          <ul className="list-none list-inside">
-            {issued.map((e) => {
-              const cat = (e.warehouse.category || 'OTHER') as DeviceCategory
-              const prefix = cat !== 'OTHER' ? `${devicesTypeMap[cat]} ` : ''
-              const name = e.warehouse.name?.toUpperCase() ?? ''
-              const sn = e.warehouse.serialNumber
-                ? ` (SN: ${e.warehouse.serialNumber.toUpperCase()})`
-                : ''
-              return (
-                <li key={e.warehouse.id} className="mt-2">
-                  {prefix}
-                  {name}
-                  {sn}
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+              })}
+            </ul>
+          )
+        })()}
       </section>
 
       {/* ===== Collected equipment ===== */}

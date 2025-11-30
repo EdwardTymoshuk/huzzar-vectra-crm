@@ -11,14 +11,10 @@ import {
   SheetTitle,
 } from '@/app/components/ui/sheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import {
-  devicesTypeMap,
-  materialUnitMap,
-  orderTypeMap,
-  timeSlotMap,
-} from '@/lib/constants'
+import { materialUnitMap, orderTypeMap, timeSlotMap } from '@/lib/constants'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
+import { collectOrderEquipment } from '@/utils/orders/collectOrderEquipment'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -322,86 +318,9 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
 
                     {(() => {
                       /** ---------------------------------------------------------
-                       * 1. Collect equipment from services
-                       * --------------------------------------------------------- */
-                      const fromServices = order.services.flatMap((s) => {
-                        const items: {
-                          name: string
-                          serial: string | null
-                          category: string | null
-                          id: string
-                        }[] = []
-
-                        // Primary device
-                        if (
-                          s.deviceName &&
-                          (s.type !== 'TEL' || s.serialNumber)
-                        ) {
-                          items.push({
-                            id: `${s.id}-p`,
-                            name: s.deviceName,
-                            serial: s.serialNumber,
-                            category: s.deviceType
-                              ? devicesTypeMap[s.deviceType]
-                              : null,
-                          })
-                        }
-
-                        // Secondary device
-                        if (s.deviceName2) {
-                          items.push({
-                            id: `${s.id}-s`,
-                            name: s.deviceName2,
-                            serial: s.serialNumber2,
-                            category: null,
-                          })
-                        }
-
-                        // Extra devices
-                        if (s.extraDevices?.length) {
-                          s.extraDevices.forEach((ex) => {
-                            items.push({
-                              id: ex.id,
-                              name: ex.name ?? '',
-                              serial: ex.serialNumber ?? null,
-                              category: null,
-                            })
-                          })
-                        }
-
-                        return items
-                      })
-
-                      /** ---------------------------------------------------------
-                       * 2. Collect equipment assigned to order (WAREHOUSE)
-                       * --------------------------------------------------------- */
-                      const fromWarehouse =
-                        order.assignedEquipment
-                          ?.filter(
-                            (e) => e.warehouse.status === 'ASSIGNED_TO_ORDER'
-                          )
-                          .map((item) => ({
-                            id: item.id,
-                            name: item.warehouse.name,
-                            serial: item.warehouse.serialNumber,
-                            category: null,
-                          })) ?? []
-
-                      /** ---------------------------------------------------------
                        * 3. Merge and deduplicate by (name + serial)
                        * --------------------------------------------------------- */
-                      const merged = Object.values(
-                        [...fromServices, ...fromWarehouse].reduce(
-                          (acc, item) => {
-                            const key = `${item.name}_${
-                              item.serial ?? ''
-                            }`.toLowerCase()
-                            if (!acc[key]) acc[key] = item
-                            return acc
-                          },
-                          {} as Record<string, (typeof fromServices)[number]>
-                        )
-                      )
+                      const merged = collectOrderEquipment(order)
 
                       /** ---------------------------------------------------------
                        * 4. Render
@@ -435,14 +354,18 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Sprzęt odebrany od klienta
                     </h3>
-                    {order.assignedEquipment?.filter(
-                      (e) => e.warehouse.status === 'COLLECTED_FROM_CLIENT'
+
+                    {order.assignedEquipment?.filter((e) =>
+                      e.warehouse.history?.some(
+                        (h) => h.action === 'COLLECTED_FROM_CLIENT'
+                      )
                     ).length ? (
                       <ul className="list-disc pl-4">
                         {order.assignedEquipment
-                          .filter(
-                            (e) =>
-                              e.warehouse.status === 'COLLECTED_FROM_CLIENT'
+                          .filter((e) =>
+                            e.warehouse.history?.some(
+                              (h) => h.action === 'COLLECTED_FROM_CLIENT'
+                            )
                           )
                           .map((item) => (
                             <li key={item.id}>

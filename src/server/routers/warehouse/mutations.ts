@@ -273,7 +273,7 @@ export const mutationsRouter = router({
             data: {
               status: newStatus,
               assignedToId: null,
-              locationId: current.locationId,
+              locationId: input.locationId,
             },
           })
 
