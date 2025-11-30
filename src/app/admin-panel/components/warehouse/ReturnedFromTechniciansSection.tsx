@@ -29,6 +29,7 @@ import {
 } from '@/app/components/ui/dialog'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { Textarea } from '@/app/components/ui/textarea'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { differenceInDays, format } from 'date-fns'
 import { useState } from 'react'
@@ -100,6 +101,8 @@ const ReturnedFromTechniciansSection = () => {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
 
+  const locationId = useActiveLocation() ?? ''
+
   const allIds = data?.map((d) => d.id) ?? []
   const allSelected = allIds.length > 0 && selected.length === allIds.length
 
@@ -111,6 +114,7 @@ const ReturnedFromTechniciansSection = () => {
     returnMutation.mutate({
       items: selected.map((id) => ({ type: 'DEVICE' as const, id })),
       notes: notes || undefined,
+      locationId,
     })
   }
 

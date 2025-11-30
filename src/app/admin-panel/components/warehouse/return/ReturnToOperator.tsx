@@ -44,7 +44,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
   )
   const [notes, setNotes] = useState('')
 
-  const activeLocationId = useActiveLocation()
+  const activeLocationId = useActiveLocation() ?? ''
   const { data: warehouse = [] } = trpc.warehouse.getAll.useQuery(
     activeLocationId ? { locationId: activeLocationId } : undefined
   )
@@ -168,6 +168,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
           })),
         ],
         notes,
+        locationId: activeLocationId,
       })
 
       toast.success('Sprzęt został zwrócony oraz wygenerowano raport.')
