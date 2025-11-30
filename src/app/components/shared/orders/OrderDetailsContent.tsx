@@ -97,9 +97,7 @@ const OrderDetailsContent = ({ order }: Props) => {
             <ul className="list-none list-inside">
               {equipment.map((e) => {
                 const category =
-                  e.category && e.category !== 'OTHER'
-                    ? `${devicesTypeMap[e.category]} `
-                    : ''
+                  e.category && e.category !== 'OTHER' ? e.displayCategory : ''
 
                 return (
                   <li key={e.id} className="mt-1">

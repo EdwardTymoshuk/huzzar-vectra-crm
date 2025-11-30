@@ -105,7 +105,7 @@ const SuccessChart = ({ date, range, orderType }: Props) => {
           : 'Lata'}
       </h2>
 
-      <div className="h-72 w-full">
+      <div className="h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
             <XAxis dataKey="name" tick={{ fontSize: 10 }} />

@@ -250,7 +250,7 @@ export const metricsRouter = router({
       z.object({
         date: z.string().regex(/^\d{4}(-\d{2}){0,2}$/),
         range: z.enum(['day', 'month', 'year']),
-        orderType: z.nativeEnum(OrderType).optional(), // ← NEW FILTER
+        orderType: z.nativeEnum(OrderType).optional(),
       })
     )
     .query(async ({ input }) => {
@@ -260,6 +260,10 @@ export const metricsRouter = router({
       const d = Number(parts[2] ?? 1)
       const baseDate = new Date(y, m - 1, d)
 
+      /**
+       * Builds a date range for the selected period (day/month/year).
+       * Ensures precise start/end timestamps for correct SQL filtering.
+       */
       const rangeOf = (ref: Date, kind: 'day' | 'month' | 'year') => {
         const start = new Date(ref)
         const end = new Date(ref)
@@ -278,9 +282,14 @@ export const metricsRouter = router({
           end.setMonth(11, 31)
           end.setHours(23, 59, 59, 999)
         }
+
         return { start, end }
       }
 
+      /**
+       * Calculates stats (completed, failed, in-progress / assigned)
+       * for a given time window. Filters only orders assigned to technicians.
+       */
       const calc = async (start: Date, end: Date) => {
         const rows = await prisma.order.findMany({
           where: {
@@ -291,7 +300,7 @@ export const metricsRouter = router({
           select: { status: true },
         })
 
-        // Count all relevant order states
+        // Accumulator for status counters
         const sum = { assigned: 0, completed: 0, failed: 0 }
 
         rows.forEach((o) => {
@@ -300,10 +309,8 @@ export const metricsRouter = router({
           else if (o.status === 'ASSIGNED') sum.assigned++
         })
 
-        // RECEIVED = all orders a technician actually got
         const received = sum.assigned + sum.completed + sum.failed
 
-        // SUCCESS = completed / received
         const successRate =
           received > 0 ? Math.round((sum.completed / received) * 100) : 0
 
@@ -311,7 +318,7 @@ export const metricsRouter = router({
           total: received,
           completed: sum.completed,
           failed: sum.failed,
-          assigned: sum.assigned,
+          inProgress: sum.assigned, // ← NEW FIELD
           successRate,
         }
       }
@@ -336,9 +343,12 @@ export const metricsRouter = router({
         prevTotal: previous.total,
         prevCompleted: previous.completed,
         prevFailed: previous.failed,
+
+        // ← NEW FIELDS
+        prevInProgress: previous.inProgress,
       }
     }),
-  /** Orders stats for the logged-in technician (day/month/year) */
+
   /** Orders stats for the logged-in technician (day/month/year) */
   getTechOrderStats: technicianOnly
     .input(

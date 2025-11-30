@@ -151,17 +151,35 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
 
       {/* Daily breakdown */}
       <Accordion type="multiple" className="mb-4">
+        {/* Header row for meaning of day stats */}
+        <div className="grid grid-cols-6 gap-2 px-2 py-2 text-xs text-muted-foreground font-medium border-b">
+          <span>Data</span>
+          <span className="text-center">Razem</span>
+          <span className="text-center">Wykonane</span>
+          <span className="text-center">Niewykonane</span>
+          <span className="text-center">Skuteczność</span>
+          <span className="text-center">Kwota</span>
+        </div>
+
         {data.days.map((day) => {
-          const completed = day.orders.filter(
+          // Filter ONLY completed or not completed
+          const validOrders = day.orders.filter(
+            (o) => o.status === 'COMPLETED' || o.status === 'NOT_COMPLETED'
+          )
+
+          const completed = validOrders.filter(
             (o) => o.status === 'COMPLETED'
           ).length
-          const notCompleted = day.orders.filter(
+
+          const notCompleted = validOrders.filter(
             (o) => o.status === 'NOT_COMPLETED'
           ).length
+
           const total = completed + notCompleted
           const ratio =
             total > 0 ? ((completed / total) * 100).toFixed(2) + '%' : '0%'
-          const dayAmount = day.orders.reduce(
+
+          const dayAmount = validOrders.reduce(
             (sum, o) =>
               sum +
               o.settlementEntries.reduce(
@@ -197,7 +215,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                       <TableHead>Adres</TableHead>
                       <TableHead>Status</TableHead>
 
-                      {/* Full set of work code columns */}
+                      {/* All work codes */}
                       {allRateCodes.map((code) => (
                         <TableHead key={code}>{code}</TableHead>
                       ))}
@@ -208,7 +226,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                   </TableHeader>
 
                   <TableBody>
-                    {day.orders.map((order, idx) => {
+                    {validOrders.map((order, idx) => {
                       const amount = order.settlementEntries.reduce(
                         (sum, e) => sum + (e.rate?.amount ?? 0) * e.quantity,
                         0
@@ -218,11 +236,11 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                         <TableRow key={order.id}>
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell>{order.orderNumber}</TableCell>
+
                           <TableCell className="text-xs">
                             {order.city}, {order.street}
                           </TableCell>
 
-                          {/* Status */}
                           <TableCell>
                             <Badge
                               variant={
@@ -237,7 +255,6 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                             </Badge>
                           </TableCell>
 
-                          {/* Work code values (default 0) */}
                           {allRateCodes.map((code) => {
                             const entry = order.settlementEntries.find(
                               (e) => e.code === code
@@ -250,6 +267,7 @@ const TechnicianMonthlyDetails = ({ technicianId, selectedMonth }: Props) => {
                           })}
 
                           <TableCell>{amount.toFixed(2)} zł</TableCell>
+
                           <TableCell>
                             <Button
                               variant="outline"

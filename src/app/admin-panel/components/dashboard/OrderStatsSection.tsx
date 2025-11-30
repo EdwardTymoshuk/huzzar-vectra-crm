@@ -63,8 +63,16 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
     )
   }
 
-  const { total, completed, failed, prevTotal, prevCompleted, prevFailed } =
-    data
+  const {
+    total,
+    completed,
+    failed,
+    prevTotal,
+    prevCompleted,
+    prevFailed,
+    inProgress,
+    prevInProgress,
+  } = data
 
   const received = total
   const successRate =
@@ -126,26 +134,33 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
         </Card>
 
         {/* KPI cards */}
-        <div className="flex flex-col gap-4 h-full">
+        <div className="flex flex-col gap-3 h-full">
           {/* Received */}
-          <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Otrzymane</p>
-            <p className="text-3xl font-bold">{received}</p>
+          <Card className="p-3 text-center">
+            <p className="text-xs text-muted-foreground">Otrzymane</p>
+            <p className="text-2xl font-bold">{received}</p>
             {formatChange(percentDiff(received, prevTotal))}
           </Card>
 
           {/* Completed */}
-          <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Wykonane</p>
-            <p className="text-2xl font-bold text-success">{completed}</p>
+          <Card className="p-3 text-center">
+            <p className="text-xs text-muted-foreground">Wykonane</p>
+            <p className="text-xl font-bold text-success">{completed}</p>
             {formatChange(percentDiff(completed, prevCompleted))}
           </Card>
 
           {/* Failed */}
-          <Card className="p-4 text-center">
-            <p className="text-sm text-muted-foreground">Niewykonane</p>
-            <p className="text-2xl font-bold text-danger">{failed}</p>
+          <Card className="p-3 text-center">
+            <p className="text-xs text-muted-foreground">Niewykonane</p>
+            <p className="text-xl font-bold text-danger">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
+          </Card>
+
+          {/* In Progress (ASSIGNED) */}
+          <Card className="p-3 text-center">
+            <p className="text-xs text-muted-foreground">W realizacji</p>
+            <p className="text-xl font-bold text-primary">{inProgress}</p>
+            {formatChange(percentDiff(inProgress, prevInProgress))}
           </Card>
         </div>
       </div>

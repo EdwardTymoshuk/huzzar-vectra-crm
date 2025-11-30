@@ -139,7 +139,7 @@ const UnassignedOrdersAccordion = ({
     <Accordion type="single" collapsible className="mb-6">
       <AccordionItem value="unassigned">
         <AccordionTrigger className="text-lg font-semibold bg-secondary text-white px-4 py-3 rounded-md">
-          Niepodjęte zlecenia ({filtered.length})
+          W realizacji ({filtered.length})
         </AccordionTrigger>
 
         <AccordionContent className="p-4 border rounded-md mt-2">

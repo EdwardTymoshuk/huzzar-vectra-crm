@@ -1,11 +1,9 @@
 import { OrderWithDetails } from '@/app/components/shared/orders/OrderDetailsContent'
+import { devicesTypeMap } from '@/lib/constants'
 
 /**
  * Builds a unified list of equipment used in an order.
- * Merges:
- *  - equipment coming from activated services
- *  - equipment assigned from warehouse (ASSIGNED_TO_ORDER)
- * Deduplicates by (name + serial), preserves category and client source info.
+ * Includes displayCategory for UI while keeping raw category key.
  */
 export function collectOrderEquipment(order: OrderWithDetails) {
   const fromServices = order.services.flatMap((s) => {
@@ -14,27 +12,32 @@ export function collectOrderEquipment(order: OrderWithDetails) {
       name: string
       serial: string | null
       category: string | null
+      displayCategory: string | null
       client: boolean
     }[] = []
 
-    // Primary device (if applicable)
+    // Primary device
     if (s.deviceName && (s.type !== 'TEL' || s.serialNumber)) {
+      const raw = s.deviceType ?? null
       items.push({
         id: `${s.id}-p`,
         name: s.deviceName,
         serial: s.serialNumber,
-        category: s.deviceType ?? null,
+        category: raw,
+        displayCategory: raw ? devicesTypeMap[raw] : null,
         client: s.deviceSource === 'CLIENT',
       })
     }
 
-    // Secondary device
+    // Secondary
     if (s.deviceName2) {
+      const raw = s.deviceType2 ?? null
       items.push({
         id: `${s.id}-s`,
         name: s.deviceName2,
         serial: s.serialNumber2,
-        category: s.deviceType2 ?? null,
+        category: raw,
+        displayCategory: raw ? devicesTypeMap[raw] : null,
         client: false,
       })
     }
@@ -42,11 +45,13 @@ export function collectOrderEquipment(order: OrderWithDetails) {
     // Extra devices
     if (s.extraDevices?.length) {
       s.extraDevices.forEach((ex) => {
+        const raw = ex.category ?? null
         items.push({
           id: ex.id,
           name: ex.name ?? '',
           serial: ex.serialNumber ?? null,
-          category: ex.category ?? null,
+          category: raw,
+          displayCategory: raw ? devicesTypeMap[raw] : null,
           client: ex.source === 'CLIENT',
         })
       })
@@ -55,19 +60,22 @@ export function collectOrderEquipment(order: OrderWithDetails) {
     return items
   })
 
-  // Equipment assigned from warehouse
   const fromWarehouse =
     order.assignedEquipment
       ?.filter((e) => e.warehouse.status === 'ASSIGNED_TO_ORDER')
-      .map((item) => ({
-        id: item.id,
-        name: item.warehouse.name,
-        serial: item.warehouse.serialNumber,
-        category: item.warehouse.category ?? null,
-        client: false,
-      })) ?? []
+      .map((item) => {
+        const raw = item.warehouse.category ?? null
+        return {
+          id: item.id,
+          name: item.warehouse.name,
+          serial: item.warehouse.serialNumber,
+          category: raw,
+          displayCategory: raw ? devicesTypeMap[raw] : null,
+          client: false,
+        }
+      }) ?? []
 
-  // MERGE + DEDUPE
+  // Merge + dedupe
   const merged = Object.values(
     [...fromServices, ...fromWarehouse].reduce((acc, item) => {
       const key = `${item.name}_${item.serial ?? ''}`.toLowerCase()

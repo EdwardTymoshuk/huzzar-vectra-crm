@@ -334,7 +334,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                               {/* Category */}
                               {item.category && (
                                 <span className="font-medium">
-                                  {item.category.toUpperCase()}{' '}
+                                  {item.displayCategory}{' '}
                                 </span>
                               )}
                               {/* Name */}
