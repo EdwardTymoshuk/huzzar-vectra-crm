@@ -17,6 +17,7 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
       warehouseItem: {
         include: { materialDefinition: true, location: true },
       },
+      fromLocation: true,
     },
     orderBy: { actionDate: 'asc' },
   })
@@ -29,7 +30,7 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
 
   // Column width
   sheet.columns = [
-    { width: 6 },
+    { width: 16 },
     { width: 30 },
     { width: 20 },
     { width: 22 },
@@ -45,7 +46,7 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
   const metaRows = [
     ['Osoba wykonująca', meta.performedBy.name],
     ['Data i godzina', meta.actionDate.toLocaleString('pl-PL')],
-    ['Lokalizacja', meta.warehouseItem.location?.name ?? '-'],
+    ['Lokalizacja', meta.fromLocation?.name ?? '-'],
     ['Notatki', meta.notes ?? '-'],
   ]
 
@@ -80,7 +81,7 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
   if (deviceRows.length > 0) {
     // Header
     const header = sheet.getRow(rowCursor++)
-    header.values = ['Lp.', 'Nazwa', 'Kategoria', 'SN / MAC', 'Ilość', '']
+    header.values = ['Lp.', 'Nazwa', 'Kategoria', 'SN / MAC', 'Ilość']
 
     header.eachCell((cell) => {
       cell.font = { bold: true }
@@ -124,7 +125,7 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
 
   if (materialRows.length > 0) {
     const header = sheet.getRow(rowCursor++)
-    header.values = ['Lp.', 'Nazwa', 'Index', 'Ilość', 'Jednostka', '']
+    header.values = ['Lp.', 'Nazwa', 'Index', 'Ilość', 'Jednostka']
 
     header.eachCell((cell) => {
       cell.font = { bold: true }

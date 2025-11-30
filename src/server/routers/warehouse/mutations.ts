@@ -370,6 +370,7 @@ export const mutationsRouter = router({
           ])
         ),
         notes: z.string().optional(),
+        locationId: z.string(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -389,6 +390,7 @@ export const mutationsRouter = router({
         })
 
         const assignedOrderId = previous?.assignedOrderId ?? null
+        const activeLocationId = input.locationId
 
         if (item.type === 'DEVICE') {
           const hist = await prisma.warehouseHistory.create({
@@ -398,6 +400,7 @@ export const mutationsRouter = router({
               performedById: userId,
               notes: input.notes,
               assignedOrderId,
+              fromLocationId: activeLocationId,
             },
           })
           createdHistoryIds.push(hist.id)
@@ -427,6 +430,7 @@ export const mutationsRouter = router({
               quantity: item.quantity,
               notes: input.notes,
               assignedOrderId,
+              fromLocationId: activeLocationId,
             },
           })
           createdHistoryIds.push(hist.id)
