@@ -44,7 +44,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   const [isDragOver, setIsDragOver] = useState(false)
 
   const utils = trpc.useUtils()
-  const createOrderMutation = trpc.order.createOrder.useMutation()
+  const bulkImportMutation = trpc.order.bulkImport.useMutation()
 
   /** Ensures correct file type */
   const isExcelFile = (file: File) => {
@@ -147,6 +147,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     }
 
     try {
+      // 1) Resolve technicians
       const namesToResolve = orders
         .map((o) => o.assignedToName)
         .filter((v): v is string => !!v)
@@ -155,67 +156,44 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
 
       let unresolvedTechCount = 0
 
-      const results = await Promise.allSettled(
-        orders.map((o) => {
-          const assignedToId = o.assignedToName
-            ? nameToIdMap.get(normalizeName(o.assignedToName))
-            : undefined
+      // 2) Build final payload for bulk import
+      const payload = orders.map((o) => {
+        let assignedToId: string | undefined = undefined
 
-          if (!assignedToId && o.assignedToName) {
-            unresolvedTechCount++
-          }
-
-          return createOrderMutation.mutateAsync({
-            operator: o.operator,
-            type: o.type,
-            clientId: o.clientId,
-            orderNumber: o.orderNumber,
-            date: o.date,
-            timeSlot: o.timeSlot,
-            clientPhoneNumber: undefined,
-            notes: o.notes,
-            county: undefined,
-            municipality: undefined,
-            city: o.city,
-            street: o.street,
-            postalCode: o.postalCode,
-            assignedToId,
-          })
-        })
-      )
-
-      // --------------------------------------------------------
-      // Categorization
-      // --------------------------------------------------------
-      let addedCount = 0
-      let duplicateCount = 0
-      let skippedCompletedCount = 0
-      let otherErrors = 0
-
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          addedCount++
-          continue
+        if (o.assignedToName) {
+          const id = nameToIdMap.get(normalizeName(o.assignedToName))
+          if (id) assignedToId = id
+          else unresolvedTechCount++
         }
 
-        const msg: string = r.reason?.message ?? ''
+        return {
+          operator: o.operator,
+          type: o.type,
+          clientId: o.clientId,
+          orderNumber: o.orderNumber,
+          date: o.date,
+          timeSlot: o.timeSlot,
+          city: o.city,
+          street: o.street,
+          postalCode: o.postalCode,
+          assignedToId,
+          notes: o.notes,
+        }
+      })
 
-        if (msg.includes('już wykonane')) skippedCompletedCount++
-        else if (msg.includes('już istnieje')) duplicateCount++
-        else otherErrors++
-      }
+      // 3) One fast request to backend
+      const summary = await bulkImportMutation.mutateAsync(payload)
 
-      // --------------------------------------------------------
-      // Final summary
-      // --------------------------------------------------------
+      // 4) Summary toast from backend result
       toast.success(
-        `📌 Podsumowanie importu:
-Dodane: ${addedCount}
-Pominięte (wykonane): ${skippedCompletedCount}
-Duplikaty aktywnych: ${duplicateCount}
-Inne błędy: ${otherErrors}`
+        `Podsumowanie importu:
+Dodane: ${summary.added}
+Pominięte (wykonane): ${summary.skippedCompleted}
+Pominięte (aktywne): ${summary.skippedPendingOrAssigned}
+Inne błędy: ${summary.otherErrors}`
       )
 
+      // 5) Warn if some technicians were not matched
       if (unresolvedTechCount > 0) {
         toast.warning(
           `Nie przypisano ${unresolvedTechCount} zleceń — technik nie został odnaleziony.`
@@ -224,7 +202,8 @@ Inne błędy: ${otherErrors}`
 
       utils.order.getOrders.invalidate()
       onClose()
-    } catch {
+    } catch (err) {
+      console.error(err)
       toast.error('Wystąpił błąd podczas dodawania zleceń.')
     }
   }
