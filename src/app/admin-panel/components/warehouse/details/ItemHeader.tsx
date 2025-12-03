@@ -19,8 +19,14 @@ type Props = {
 
 /**
  * ItemHeader
- * - Shows item KPIs for both DEVICE and MATERIAL.
- * - Works even if warehouse has 0 actual items (definitions page).
+ * --------------------------------------------------------------------
+ * Displays KPI stats for both DEVICE and MATERIAL:
+ *  - quantity in warehouse
+ *  - quantity on technicians
+ *  - quantity used/assigned on orders
+ * For devices "usedInOrders" = devices currently assigned to orders.
+ * For materials "usedInOrders" = total quantity issued to orders
+ *   (based on history entries with action=ISSUED & assignedOrderId != null).
  */
 const ItemHeader = ({ items, definition, activeLocationId = 'all' }: Props) => {
   const isDevice = definition.itemType === 'DEVICE'
@@ -31,7 +37,7 @@ const ItemHeader = ({ items, definition, activeLocationId = 'all' }: Props) => {
     return items.filter((i) => i.location?.id === activeLocationId)
   }, [items, activeLocationId])
 
-  // KPI splits
+  // KPI splits for current stock
   const { stockInWarehouse, heldByTechnicians, assignedToOrders } =
     useMemo(() => {
       const stockInWarehouse = filtered.filter(
@@ -40,21 +46,24 @@ const ItemHeader = ({ items, definition, activeLocationId = 'all' }: Props) => {
           i.assignedToId === null &&
           i.orderAssignments.length === 0
       )
+
       const heldByTechnicians = filtered.filter(
         (i) =>
           i.status === 'ASSIGNED' &&
           i.assignedToId !== null &&
           i.orderAssignments.length === 0
       )
+
       const assignedToOrders = filtered.filter(
         (i) => i.status === 'ASSIGNED_TO_ORDER' && i.orderAssignments.length > 0
       )
+
       return { stockInWarehouse, heldByTechnicians, assignedToOrders }
     }, [filtered])
 
-  const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0)
+  const sum = (arr: number[]): number => arr.reduce((acc, n) => acc + n, 0)
 
-  // Quantities (fallback to 0 if no items)
+  // Quantities for current stock
   const warehouseQty = isDevice
     ? stockInWarehouse.length
     : sum(stockInWarehouse.map((i) => i.quantity))
@@ -65,9 +74,28 @@ const ItemHeader = ({ items, definition, activeLocationId = 'all' }: Props) => {
 
   const totalAvailable = warehouseQty + technicianQty
 
-  const usedInOrders = isDevice
-    ? assignedToOrders.length
-    : sum(assignedToOrders.map((i) => i.quantity))
+  // Used / assigned on orders
+  const usedInOrders = useMemo(() => {
+    // For devices: currently assigned pieces
+    if (isDevice) {
+      return assignedToOrders.length
+    }
+
+    // For materials: sum all ISSUED entries with assignedOrderId
+    // across all items of this definition.
+    return items.reduce((acc, item) => {
+      const issuedToOrders = item.history
+        .filter(
+          (h) =>
+            h.action === 'ISSUED' &&
+            h.assignedOrderId !== null &&
+            (h.quantity ?? 0) > 0
+        )
+        .reduce((sumQty, h) => sumQty + (h.quantity ?? 0), 0)
+
+      return acc + issuedToOrders
+    }, 0)
+  }, [isDevice, assignedToOrders, items])
 
   // Monetary for materials only
   const warehouseValue = !isDevice
@@ -78,7 +106,7 @@ const ItemHeader = ({ items, definition, activeLocationId = 'all' }: Props) => {
     ? heldByTechnicians.reduce((acc, i) => acc + i.quantity * (i.price ?? 0), 0)
     : undefined
 
-  // Per location breakdown
+  // Per location breakdown (warehouse stock only)
   const byLocation = useMemo(() => {
     const map = new Map<string, { name: string; qty: number }>()
     for (const it of items) {

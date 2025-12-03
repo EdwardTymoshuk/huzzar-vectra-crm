@@ -276,6 +276,8 @@ export const queriesRouter = router({
             select: {
               action: true,
               actionDate: true,
+              quantity: true,
+              assignedOrderId: true,
               performedBy: { select: { id: true, name: true } },
               assignedTo: { select: { id: true, name: true } },
             },
@@ -346,7 +348,14 @@ export const queriesRouter = router({
           assignedTo: true,
           transferTo: true,
           history: {
-            include: { performedBy: true, assignedTo: true },
+            select: {
+              action: true,
+              actionDate: true,
+              quantity: true,
+              assignedOrderId: true,
+              performedBy: { select: { id: true, name: true } },
+              assignedTo: { select: { id: true, name: true } },
+            },
             orderBy: { actionDate: 'asc' },
           },
           orderAssignments: { include: { order: true } },
@@ -718,5 +727,37 @@ export const queriesRouter = router({
         existing: Array.from(existing),
         details,
       }
+    }),
+  /** 🔍 Get virtual material deficits for a technician */
+  getTechnicianDeficits: adminCoordOrWarehouse
+    .input(z.object({ technicianId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      const user = getUserOrThrow(ctx)
+
+      // 👮 Technician can only view his own deficits
+      if (user.role === 'TECHNICIAN' && user.id !== input.technicianId) {
+        throw new TRPCError({ code: 'FORBIDDEN' })
+      }
+
+      const deficits = await prisma.technicianMaterialDeficit.findMany({
+        where: { technicianId: input.technicianId },
+        include: {
+          materialDefinition: {
+            select: { id: true, name: true, index: true, unit: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+
+      return deficits.map((d) => ({
+        materialDefinitionId: d.materialDefinitionId,
+        quantity: d.quantity,
+        material: {
+          id: d.materialDefinition.id,
+          name: d.materialDefinition.name,
+          index: d.materialDefinition.index,
+          unit: d.materialDefinition.unit,
+        },
+      }))
     }),
 })

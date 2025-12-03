@@ -10,11 +10,15 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
-import { WarehouseWithRelations } from '@/types'
+import { AppRouter } from '@/server/routers'
+import { inferRouterOutputs } from '@trpc/server'
 import Highlight from 'react-highlight-words'
 
+type TechnicianStockItem =
+  inferRouterOutputs<AppRouter>['warehouse']['getTechnicianStock'][number]
+
 type Props = {
-  items: WarehouseWithRelations[]
+  items: TechnicianStockItem[]
   itemType: 'DEVICE' | 'MATERIAL'
   searchTerm: string
 }

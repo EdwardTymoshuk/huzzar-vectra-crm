@@ -79,7 +79,7 @@ const WarehouseItemPageBase = ({
   const categoryLabel =
     definition.itemType === 'DEVICE'
       ? devicesTypeMap[definition.category ?? ''] ?? ''
-      : definition.index ?? ''
+      : ''
 
   const title = `${categoryLabel} ${name}`
 

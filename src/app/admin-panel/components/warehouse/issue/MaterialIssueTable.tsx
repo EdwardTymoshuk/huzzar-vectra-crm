@@ -36,6 +36,13 @@ const MaterialIssueTable = ({
     activeLocationId ? { locationId: activeLocationId } : undefined
   )
 
+  const { data: deficits = [] } = trpc.warehouse.getTechnicianDeficits.useQuery(
+    { technicianId }
+  )
+  const getDeficit = (defId: string) => {
+    return deficits.find(d => d.materialDefinitionId === defId)?.quantity ?? 0
+  }
+
   const materials = useMemo(() => {
     return (
       warehouseItems?.filter(
@@ -153,14 +160,22 @@ const MaterialIssueTable = ({
                 autoEscape={true}
                 textToHighlight={item.name}
               />
-              <div className="flex gap-2">
-                <Badge variant="secondary" className="w-fit">
-                  Magazyn: {remaining}
-                </Badge>
-                <Badge variant="outline" className="w-fit">
-                  Technik: {technicianQuantity}
-                </Badge>
-              </div>
+<div className="flex gap-2">
+  <Badge variant="secondary" className="w-fit">
+    Magazyn: {remaining}
+  </Badge>
+
+  <Badge variant="outline" className="w-fit">
+    Technik: {technicianQuantity}
+  </Badge>
+
+  {getDeficit(item.materialDefinitionId!) > 0 && (
+    <Badge variant="destructive" className="w-fit">
+      Deficyt: {getDeficit(item.materialDefinitionId!)}
+    </Badge>
+  )}
+</div>
+
             </span>
 
             {expandedRows.includes(item.id) ? (

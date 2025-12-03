@@ -13,42 +13,18 @@ import MaterialHistoryByTabs from './MaterialHistoryByTabs'
 
 type Props = {
   items: SlimWarehouseItem[]
-  activeLocationId?: 'all' | string // ✅ optional filter
+  activeLocationId?: 'all' | string
 }
 
-/**
- * ItemTabs
- * - Applies location filter to items.
- * - Splits a homogeneous item list into 4 views:
- *   warehouse / technicians / orders / returned
- */
 const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
   const locFiltered = useMemo(() => {
-    // All items if no specific location selected
     if (activeLocationId === 'all') return items
 
     return items.filter((i) => {
-      // 1) Technicians — always visible
-      if (i.status === 'ASSIGNED' && i.assignedToId) {
-        return true
-      }
-
-      // 2) Collected from client — always visible
-      if (i.status === 'COLLECTED_FROM_CLIENT') {
-        return true
-      }
-
-      // 3) Assigned to order — always visible
-      if (i.status === 'ASSIGNED_TO_ORDER') {
-        return true
-      }
-
-      // 4) Returned to operator — always visible
-      if (i.status === 'RETURNED_TO_OPERATOR') {
-        return true
-      }
-
-      // 5) Only AVAILABLE items depend on warehouse location
+      if (i.status === 'ASSIGNED' && i.assignedToId) return true
+      if (i.status === 'COLLECTED_FROM_CLIENT') return true
+      if (i.status === 'RETURNED_TO_OPERATOR') return true
+      if (i.orderAssignments.length > 0) return true
       if (i.status === 'AVAILABLE') {
         return i.location?.id === activeLocationId
       }
@@ -57,39 +33,42 @@ const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
     })
   }, [items, activeLocationId])
 
-  // Derived collections never mutate; memoize for render stability.
-  const {
-    stockInWarehouse,
-    heldByTechnicians,
-    assignedToOrders,
-    returnedItems,
-  } = useMemo(() => {
-    const stockInWarehouse = locFiltered.filter(
-      (i) =>
-        i.status === 'AVAILABLE' &&
-        i.assignedToId === null &&
-        i.orderAssignments.length === 0
-    )
-    const heldByTechnicians = locFiltered.filter(
-      (i) =>
-        i.status === 'ASSIGNED' &&
-        i.assignedToId !== null &&
-        i.orderAssignments.length === 0
-    )
-    const assignedToOrders = locFiltered.filter(
-      (i) => i.status === 'ASSIGNED_TO_ORDER' && i.orderAssignments.length > 0
-    )
-    const returnedItems = locFiltered.filter(
-      (i) => i.status === 'RETURNED' || i.status === 'RETURNED_TO_OPERATOR'
-    )
+  const { stockInWarehouse, heldByTechnicians, usedInOrders, returnedItems } =
+    useMemo(() => {
+      const stockInWarehouse = locFiltered.filter((i) => {
+        return (
+          i.status === 'AVAILABLE' &&
+          !i.assignedToId &&
+          i.orderAssignments.length === 0
+        )
+      })
 
-    return {
-      stockInWarehouse,
-      heldByTechnicians,
-      assignedToOrders,
-      returnedItems,
-    }
-  }, [locFiltered])
+      const heldByTechnicians = locFiltered.filter((i) => {
+        return (
+          i.status === 'ASSIGNED' &&
+          i.assignedToId &&
+          i.orderAssignments.length === 0
+        )
+      })
+
+      const usedInOrders = locFiltered.filter((i) => {
+        return i.orderAssignments.length > 0 || i.status === 'ASSIGNED_TO_ORDER'
+      })
+
+      const returnedItems = locFiltered.filter((i) => {
+        return i.status === 'RETURNED' || i.status === 'RETURNED_TO_OPERATOR'
+      })
+
+      return {
+        stockInWarehouse,
+        heldByTechnicians,
+        usedInOrders,
+        returnedItems,
+      }
+    }, [locFiltered])
+
+  const isMaterial = items.length > 0 && items[0].itemType === 'MATERIAL'
+  const name = items[0]?.name || ''
 
   return (
     <Tabs defaultValue="warehouse" className="w-full">
@@ -101,41 +80,32 @@ const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
       </TabsList>
 
       <TabsContent value="warehouse">
-        {stockInWarehouse[0]?.itemType === 'MATERIAL' ? (
-          <MaterialHistoryByTabs
-            name={stockInWarehouse[0].name}
-            type="warehouse"
-          />
+        {isMaterial ? (
+          <MaterialHistoryByTabs name={name} type="warehouse" />
         ) : (
           <ItemModeTable items={stockInWarehouse} mode="warehouse" />
         )}
       </TabsContent>
 
       <TabsContent value="technicians">
-        {heldByTechnicians[0]?.itemType === 'MATERIAL' ? (
-          <MaterialHistoryByTabs
-            name={heldByTechnicians[0].name}
-            type="technicians"
-          />
+        {isMaterial ? (
+          <MaterialHistoryByTabs name={name} type="technicians" />
         ) : (
           <ItemModeTable items={heldByTechnicians} mode="technicians" />
         )}
       </TabsContent>
 
       <TabsContent value="orders">
-        {assignedToOrders[0]?.itemType === 'MATERIAL' ? (
-          <MaterialHistoryByTabs
-            name={assignedToOrders[0].name}
-            type="orders"
-          />
+        {isMaterial ? (
+          <MaterialHistoryByTabs name={name} type="orders" />
         ) : (
-          <ItemModeTable items={assignedToOrders} mode="orders" />
+          <ItemModeTable items={usedInOrders} mode="orders" />
         )}
       </TabsContent>
 
       <TabsContent value="returned">
-        {returnedItems[0]?.itemType === 'MATERIAL' ? (
-          <MaterialHistoryByTabs name={returnedItems[0].name} type="returned" />
+        {isMaterial ? (
+          <MaterialHistoryByTabs name={name} type="returned" />
         ) : (
           <ItemModeTable items={returnedItems} mode="returned" />
         )}

@@ -8,6 +8,8 @@ import { WarehouseAction } from '@prisma/client'
 export type SlimHistory = {
   action: WarehouseAction
   actionDate: Date | string
+  quantity: number | null
+  assignedOrderId: string | null
   performedBy?: { id: string; name: string } | null
   assignedTo?: { id: string; name: string } | null
 }

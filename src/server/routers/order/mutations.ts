@@ -5,7 +5,6 @@ import { normalizeForSearch } from '@/utils/orders/normalizeForSearch'
 import { prisma } from '@/utils/prisma'
 import {
   DeviceCategory,
-  MaterialUnit,
   OrderCreatedSource,
   OrderStatus,
   OrderType,
@@ -18,6 +17,7 @@ import { TRPCError } from '@trpc/server'
 import { differenceInMinutes } from 'date-fns'
 import { z } from 'zod'
 import { getUserOrThrow } from '../_helpers/getUserOrThrow'
+import { reconcileOrderMaterials } from '../_helpers/reconcileOrderMaterials'
 
 type DbTx = Prisma.TransactionClient | PrismaClient
 
@@ -128,26 +128,6 @@ async function mapServicesWithDeviceTypes(
       }
     })
   )
-}
-
-/** Creates warehouseHistory entry for material usage */
-async function createMaterialHistory(
-  tx: DbTx,
-  technicianItemId: string,
-  quantity: number,
-  orderId: string,
-  technicianId: string
-) {
-  await tx.warehouseHistory.create({
-    data: {
-      warehouseItemId: technicianItemId,
-      action: 'ISSUED',
-      quantity,
-      performedById: technicianId,
-      assignedOrderId: orderId,
-      actionDate: new Date(),
-    },
-  })
 }
 
 export const mutationsRouter = router({
@@ -797,65 +777,16 @@ export const mutationsRouter = router({
 
         /* -------------------------------------------------------------------
          * 4️⃣  Save used materials and update technician warehouse stock
+         *      (with virtual deficit tracking for technicians)
          * ------------------------------------------------------------------- */
-        if (input.usedMaterials?.length) {
-          const materialDefs = await tx.materialDefinition.findMany({
-            where: { id: { in: input.usedMaterials.map((m) => m.id) } },
-            select: { id: true, name: true, unit: true },
-          })
-          const nameMap = new Map(materialDefs.map((d) => [d.id, d.name]))
-          const unitMap = new Map(materialDefs.map((d) => [d.id, d.unit]))
-
-          // Snapshot of used materials for the order
-          await tx.orderMaterial.createMany({
-            data: input.usedMaterials.map((item) => ({
-              orderId: input.orderId,
-              materialId: item.id,
-              quantity: item.quantity,
-              unit: (unitMap.get(item.id) as MaterialUnit) ?? 'PIECE',
-            })),
-          })
-
-          // Decrement technician stock and create warehouse history entries
-          for (const item of input.usedMaterials) {
-            const technicianMaterial = await tx.warehouse.findFirst({
-              where: {
-                materialDefinitionId: item.id,
-                assignedToId: userId,
-                itemType: 'MATERIAL',
-              },
-            })
-
-            const materialName = nameMap.get(item.id) ?? `ID: ${item.id}`
-
-            if (!technicianMaterial) {
-              warnings.push(`Brak materiału ${materialName} na Twoim stanie.`)
-              continue
-            }
-
-            const available = technicianMaterial.quantity
-            const remaining = Math.max(available - item.quantity, 0)
-
-            if (item.quantity > available) {
-              warnings.push(
-                `Zużyto ${item.quantity} szt. materiału „${materialName}”, ale na stanie było tylko ${available}.`
-              )
-            }
-
-            await tx.warehouse.update({
-              where: { id: technicianMaterial.id },
-              data: { quantity: remaining },
-            })
-
-            await createMaterialHistory(
-              tx,
-              technicianMaterial.id,
-              item.quantity,
-              input.orderId,
-              userId
-            )
-          }
-        }
+        const { warnings: matWarnings } = await reconcileOrderMaterials({
+          tx,
+          orderId: input.orderId,
+          technicianId: order.assignedToId,
+          editorId: userId,
+          newMaterials: input.usedMaterials ?? [],
+        })
+        warnings.push(...matWarnings)
 
         /* -------------------------------------------------------------------
          * 5️⃣  Assign used devices from technician warehouse (equipmentIds)
@@ -1262,7 +1193,6 @@ export const mutationsRouter = router({
         /* -------------------------------------------------------------------
          * Step 2️⃣ — Clear previous work (materials, services, equipment)
          * ------------------------------------------------------------------- */
-        await tx.orderMaterial.deleteMany({ where: { orderId: input.orderId } })
         await tx.orderEquipment.deleteMany({
           where: {
             orderId: input.orderId,
@@ -1308,46 +1238,17 @@ export const mutationsRouter = router({
         }
 
         /* -------------------------------------------------------------------
-         * Step 5️⃣ — Used materials snapshot only
-         * (No warehouse mutations in amend)
-         * ------------------------------------------------------------------- */
-        if (input.usedMaterials?.length) {
-          const defs = await tx.materialDefinition.findMany({
-            where: { id: { in: input.usedMaterials.map((m) => m.id) } },
-            select: { id: true, unit: true },
-          })
-          const unitMap = new Map(defs.map((d) => [d.id, d.unit]))
+         * Step 5️⃣ — Reconcile material usage
+         * -------------------------------------------------------------------
+         * */
 
-          await tx.orderMaterial.createMany({
-            data: input.usedMaterials.map((m) => ({
-              orderId: input.orderId,
-              materialId: m.id,
-              quantity: m.quantity,
-              unit: (unitMap.get(m.id) as MaterialUnit) ?? 'PIECE',
-            })),
-          })
-        }
-
-        // Create history for materials (technician does not mutate stock in amend)
-        for (const m of input.usedMaterials ?? []) {
-          const techItem = await tx.warehouse.findFirst({
-            where: {
-              materialDefinitionId: m.id,
-              assignedToId: userId,
-              itemType: 'MATERIAL',
-            },
-          })
-
-          if (techItem) {
-            await createMaterialHistory(
-              tx,
-              techItem.id,
-              m.quantity,
-              input.orderId,
-              userId
-            )
-          }
-        }
+        await reconcileOrderMaterials({
+          tx,
+          orderId: input.orderId,
+          technicianId: userId,
+          editorId: userId,
+          newMaterials: input.usedMaterials ?? [],
+        })
 
         /* -------------------------------------------------------------------
          * Step 6️⃣ — DEVICE RESTORATION LOGIC
@@ -1708,7 +1609,6 @@ export const mutationsRouter = router({
          * Removing old materials, services, equipment, settlement entries.
          * This endpoint ALWAYS rebuilds the final state fully.
          * ------------------------------------------------------------------- */
-        await tx.orderMaterial.deleteMany({ where: { orderId: input.orderId } })
 
         await tx.orderEquipment.deleteMany({
           where: {
@@ -1760,46 +1660,17 @@ export const mutationsRouter = router({
             })),
           })
         }
-
         /* -------------------------------------------------------------------
-         * Step 5️⃣ — Used materials snapshot (admin NEVER mutates stock here)
-         * ------------------------------------------------------------------- */
-        if (input.usedMaterials?.length) {
-          const defs = await tx.materialDefinition.findMany({
-            where: { id: { in: input.usedMaterials.map((m) => m.id) } },
-            select: { id: true, unit: true },
-          })
-          const unitMap = new Map(defs.map((d) => [d.id, d.unit]))
-
-          await tx.orderMaterial.createMany({
-            data: input.usedMaterials.map((m) => ({
-              orderId: input.orderId,
-              materialId: m.id,
-              quantity: m.quantity,
-              unit: (unitMap.get(m.id) as MaterialUnit) ?? 'PIECE',
-            })),
-          })
-        }
-
-        // Add material history for admin editor
-        for (const m of input.usedMaterials ?? []) {
-          const techItem = await tx.warehouse.findFirst({
-            where: {
-              materialDefinitionId: m.id,
-              itemType: 'MATERIAL',
-            },
-          })
-
-          if (techItem) {
-            await createMaterialHistory(
-              tx,
-              techItem.id,
-              m.quantity,
-              input.orderId,
-              adminId
-            )
-          }
-        }
+         * Step 5️⃣ — Reconcile material usage (admin full rewrite)
+         * -------------------------------------------------------------------
+         */
+        await reconcileOrderMaterials({
+          tx,
+          orderId: input.orderId,
+          technicianId: assignedTechId,
+          editorId: adminId,
+          newMaterials: input.usedMaterials ?? [],
+        })
 
         /* -------------------------------------------------------------------
          * Step 6️⃣ — HANDLE EQUIPMENT

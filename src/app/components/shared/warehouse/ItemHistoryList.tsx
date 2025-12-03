@@ -17,20 +17,28 @@ import {
 import { WarehouseHistoryWithUser } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { format } from 'date-fns'
+import { ReactNode, useState } from 'react'
+import { Button } from '../../ui/button'
+import OrderDetailsSheet from '../orders/OrderDetailsSheet'
+
+type HistoryContext = 'warehouse' | 'technicians' | 'orders' | 'returned'
+
+type BaseProps = {
+  scope?: 'all' | 'technician'
+  context?: HistoryContext
+}
 
 type Props =
-  | {
+  | (BaseProps & {
       warehouseItemId: string
-      scope?: 'all' | 'technician'
       name?: never
       dataOverride?: never
-    }
-  | {
+    })
+  | (BaseProps & {
       name: string
       warehouseItemId?: never
-      scope?: 'all' | 'technician'
       dataOverride?: WarehouseHistoryWithUser[]
-    }
+    })
 
 /* -------- badge label + colour ------------------------------------ */
 const mapAction = (
@@ -46,10 +54,14 @@ const mapAction = (
       return { label: 'Przyjęcie', variant: 'success' }
     case 'ISSUED':
       return { label: 'Wydanie', variant: 'warning' }
+    case 'ASSIGNED_TO_ORDER':
+      return { label: 'Wydane na zleceniu', variant: 'warning' }
     case 'RETURNED':
       return { label: 'Zwrot', variant: 'destructive' }
     case 'RETURNED_TO_OPERATOR':
       return { label: 'Zwrot do operatora', variant: 'danger' }
+    case 'RETURNED_TO_TECHNICIAN':
+      return { label: 'Zwrot do technika', variant: 'danger' }
     case 'COLLECTED_FROM_CLIENT':
       return { label: 'Odbiór od klienta', variant: 'secondary' }
     default:
@@ -62,7 +74,10 @@ const ItemHistoryList = ({
   name,
   dataOverride,
   scope = 'all',
+  context,
 }: Props) => {
+  const [orderId, setOrderId] = useState<string | null>(null)
+
   const query = name
     ? trpc.warehouse.getHistoryByName.useQuery({ name })
     : trpc.warehouse.getHistory.useQuery({
@@ -71,7 +86,7 @@ const ItemHistoryList = ({
       })
 
   const { data, isLoading, isError } = query
-  const rows = dataOverride ?? data
+  const rows = dataOverride?.length ? dataOverride : data
 
   if (isLoading || !rows) return <Skeleton className="h-32 w-full" />
   if (isError || rows.length === 0)
@@ -81,6 +96,28 @@ const ItemHistoryList = ({
       </p>
     )
 
+  let whoHeader = 'Kto'
+  let whereHeader = 'Gdzie'
+
+  switch (context) {
+    case 'warehouse':
+    case 'technicians':
+      whoHeader = 'Kto'
+      whereHeader = 'Do kogo'
+      break
+    case 'orders':
+      whoHeader = 'Kto'
+      whereHeader = 'Zlecenie'
+      break
+    case 'returned':
+      whoHeader = 'Kto'
+      whereHeader = 'Od kogo'
+      break
+    default:
+      whoHeader = 'Kto'
+      whereHeader = 'Gdzie'
+  }
+
   return (
     <div className="border rounded-md overflow-auto">
       <Table>
@@ -88,8 +125,8 @@ const ItemHistoryList = ({
           <TableRow>
             <TableHead>Data</TableHead>
             <TableHead>Typ</TableHead>
-            <TableHead>Od</TableHead>
-            <TableHead>Do</TableHead>
+            <TableHead>{whoHeader}</TableHead>
+            <TableHead>{whereHeader}</TableHead>
             <TableHead>Ilość</TableHead>
             <TableHead>Uwagi</TableHead>
           </TableRow>
@@ -99,22 +136,31 @@ const ItemHistoryList = ({
             const { label, variant } = mapAction(h.action)
 
             const from = h.performedBy?.name ?? '—'
-            let to: string
+            let to: ReactNode = '—'
 
             if (h.assignedOrder?.orderNumber) {
-              to = `Zl: ${h.assignedOrder.orderNumber}`
+              to = (
+                <Button
+                  variant="link"
+                  className="p-0 h-auto"
+                  onClick={() => setOrderId(h.assignedOrderId!)}
+                >
+                  {h.assignedOrder.orderNumber}
+                </Button>
+              )
             } else if (h.action === 'TRANSFER') {
-              // Po przekazaniu „Do” = odbiorca
               to = h.assignedTo?.name ?? '—'
             } else if (h.action === 'RETURNED_TO_OPERATOR') {
               to = 'Operator'
-            } else if (h.action === 'RETURNED') {
-              to = 'Magazyn'
+            } else if (
+              h.action === 'RETURNED' ||
+              h.action === 'RETURNED_TO_TECHNICIAN'
+            ) {
+              to = h.assignedTo?.name ?? 'Magazyn/Technik'
             } else if (h.action === 'ISSUED') {
-              to = h.assignedTo?.name ?? 'Nieznane'
+              to = h.assignedTo?.name ?? 'Technik'
             } else {
-              // RECEIVED
-              to = h.assignedTo?.name ?? from
+              to = '—'
             }
 
             return (
@@ -139,6 +185,12 @@ const ItemHistoryList = ({
           })}
         </TableBody>
       </Table>
+
+      <OrderDetailsSheet
+        orderId={orderId}
+        open={!!orderId}
+        onClose={() => setOrderId(null)}
+      />
     </div>
   )
 }

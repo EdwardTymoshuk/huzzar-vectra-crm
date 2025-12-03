@@ -174,58 +174,89 @@ export const mutationsRouter = router({
             })
           }
 
-          // 1. Decrement from warehouse stock
+          // 1. Decrement main warehouse physical stock
           await prisma.warehouse.update({
             where: { id: item.id },
             data: { quantity: { decrement: item.quantity } },
           })
 
-          // 2. Look for existing technician stock
-          const existingTechMaterial = await prisma.warehouse.findFirst({
+          // 2. Check if technician has a virtual deficit for this material
+          const deficit = await prisma.technicianMaterialDeficit.findUnique({
             where: {
-              itemType: 'MATERIAL',
-              assignedToId: input.assignedToId,
-              materialDefinitionId: original.materialDefinitionId,
-              locationId: null, // technician stock has NO location
+              technicianId_materialDefinitionId: {
+                technicianId: input.assignedToId,
+                materialDefinitionId: original.materialDefinitionId!,
+              },
             },
           })
 
-          if (existingTechMaterial) {
-            // 3A. If exists → increment it
-            await prisma.warehouse.update({
-              where: { id: existingTechMaterial.id },
-              data: {
-                quantity: { increment: item.quantity },
-                status: 'ASSIGNED',
-              },
-            })
-          } else {
-            // 3B. If doesn't exist → create it ONCE
-            await prisma.warehouse.create({
-              data: {
+          const deficitQty = deficit?.quantity ?? 0
+          const usedToCoverDeficit = Math.min(deficitQty, item.quantity)
+          const remainingToAddToStock = item.quantity - usedToCoverDeficit
+
+          // 3. Reduce or clear the deficit
+          if (usedToCoverDeficit > 0) {
+            if (deficitQty - usedToCoverDeficit > 0) {
+              await prisma.technicianMaterialDeficit.update({
+                where: { id: deficit!.id },
+                data: { quantity: deficitQty - usedToCoverDeficit },
+              })
+            } else {
+              await prisma.technicianMaterialDeficit.delete({
+                where: { id: deficit!.id },
+              })
+            }
+          }
+
+          // 4. Add only the remaining quantity to technician stock
+          if (remainingToAddToStock > 0) {
+            const existingTechMaterial = await prisma.warehouse.findFirst({
+              where: {
                 itemType: 'MATERIAL',
-                name: original.name,
-                quantity: item.quantity,
-                unit: original.unit,
-                index: original.index,
-                price: original.price,
-                materialDefinitionId: original.materialDefinitionId,
                 assignedToId: input.assignedToId,
-                status: 'ASSIGNED',
+                materialDefinitionId: original.materialDefinitionId,
                 locationId: null,
               },
             })
+
+            if (existingTechMaterial) {
+              await prisma.warehouse.update({
+                where: { id: existingTechMaterial.id },
+                data: {
+                  quantity: { increment: remainingToAddToStock },
+                  status: 'ASSIGNED',
+                },
+              })
+            } else {
+              await prisma.warehouse.create({
+                data: {
+                  itemType: 'MATERIAL',
+                  name: original.name,
+                  quantity: remainingToAddToStock,
+                  unit: original.unit,
+                  index: original.index,
+                  price: original.price,
+                  materialDefinitionId: original.materialDefinitionId,
+                  assignedToId: input.assignedToId,
+                  status: 'ASSIGNED',
+                  locationId: null,
+                },
+              })
+            }
           }
 
-          // 4. History entry
+          // 5. History entry (we log the **full** issuance)
           await prisma.warehouseHistory.create({
             data: {
-              warehouseItemId: original.id,
+              warehouseItemId: item.id,
               action: 'ISSUED',
               quantity: item.quantity,
               performedById: userId,
               assignedToId: input.assignedToId,
-              notes: input.notes,
+              notes:
+                deficitQty > 0
+                  ? `Z ${item.quantity} szt., ${usedToCoverDeficit} pokryło wcześniejszy deficyt technika.`
+                  : input.notes,
             },
           })
         }
