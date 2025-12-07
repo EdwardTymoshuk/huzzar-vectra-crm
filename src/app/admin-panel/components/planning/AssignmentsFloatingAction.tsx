@@ -13,7 +13,7 @@ const AssignmentsFloatingAction = () => {
   if (!isAdmin && !isCoordinator) return null
 
   return (
-    <>
+    <div className="xl:hidden">
       <FloatingActionMenu
         actions={[
           {
@@ -28,7 +28,7 @@ const AssignmentsFloatingAction = () => {
         disableRotate
       />
       <ReportDialog open={isReportOpen} onClose={() => setReportOpen(false)} />
-    </>
+    </div>
   )
 }
 

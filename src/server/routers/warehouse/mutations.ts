@@ -9,11 +9,6 @@ import { addWarehouseHistory } from '../_helpers/addWarehouseHistory'
 import { getUserOrThrow } from '../_helpers/getUserOrThrow'
 import { resolveLocationId } from '../_helpers/resolveLocationId'
 
-const ImportDeviceItemSchema = z.object({
-  name: z.string().min(1), // exact DeviceDefinition.name resolved on client
-  identifier: z.string().min(1), // SN or MAC (normalized)
-})
-
 export const mutationsRouter = router({
   /** 📥 Add new items to warehouse */
   addItems: adminCoordOrWarehouse
@@ -547,52 +542,93 @@ export const mutationsRouter = router({
     })
   ),
 
-  /** 📥 Import devices batch with result report */
+  /**
+   * importDevices
+   * -----------------------------------------------------------------------------
+   * Secure batch import of device items:
+   *  - Server-side validation of inputs (length, allowed characters, limits)
+   *  - Prevents malformed identifiers and oversized uploads
+   *  - Skips items without valid definitions or duplicates
+   *  - Writes warehouse record + history entry inside a transaction
+   */
   importDevices: adminCoordOrWarehouse
     .input(
       z.object({
-        items: z.array(ImportDeviceItemSchema).min(1),
-        notes: z.string().optional(),
+        items: z
+          .array(
+            z.object({
+              /** DeviceDefinition name (resolved on client) */
+              name: z.string().min(1).max(100),
+
+              /** SN/MAC identifier validated before DB operations */
+              identifier: z
+                .string()
+                .min(1)
+                .max(64)
+                .regex(/^[A-Za-z0-9:-]+$/, 'Invalid identifier format'),
+            })
+          )
+          .min(1)
+          .max(5000), // Hard upper limit for batch size to prevent abuse
+
+        /** Optional note added to warehouse history */
+        notes: z.string().max(500).optional(),
+
+        /** Explicit or user-derived warehouse location */
         locationId: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
       const user = ctx.user
-      const userId = user?.id
-      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+      if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
+      const userId = user.id
 
-      // Resolve active location (reuse your helper if available)
+      // Resolve effective location (user default or explicit override)
       const activeLocationId =
-        input.locationId ?? user?.locations?.[0]?.id ?? 'gdansk'
+        input.locationId ?? user.locations?.[0]?.id ?? 'gdansk'
 
-      const skippedList: string[] = []
       let addedCount = 0
       let skippedCount = 0
+      const skippedList: string[] = []
 
       for (const item of input.items) {
-        // Find DeviceDefinition by exact name
-        const def = await prisma.deviceDefinition.findFirst({
-          where: { name: item.name },
-        })
-        if (!def || def.price === null) {
-          skippedCount += 1
+        /** Basic sanity checks for SN/MAC */
+        if (!item.identifier || item.identifier.trim().length < 3) {
+          skippedCount++
+          skippedList.push(`${item.name} → missing identifier`)
+          continue
+        }
+
+        /** Server-side allowlist for SN/MAC */
+        if (!/^[A-Za-z0-9:-]+$/.test(item.identifier)) {
+          skippedCount++
           skippedList.push(
-            `${item.name} | ${item.identifier} → brak definicji/ceny`
+            `${item.name} | ${item.identifier} → invalid characters`
           )
           continue
         }
 
-        // Try create Warehouse entry; handle duplicates by unique serialNumber
+        /** Find DeviceDefinition (required for category + pricing) */
+        const def = await prisma.deviceDefinition.findFirst({
+          where: { name: item.name },
+        })
+        if (!def || def.price == null) {
+          skippedCount++
+          skippedList.push(`${item.name} | ${item.identifier} → no definition`)
+          continue
+        }
+
+        /** Attempt to create warehouse entry */
         try {
           await prisma.$transaction(async (tx) => {
             const created = await tx.warehouse.create({
               data: {
                 itemType: 'DEVICE',
                 name: def.name,
-                category: def.category, // use category from definition
-                serialNumber: item.identifier, // SN or MAC
+                category: def.category,
+                serialNumber: item.identifier.toUpperCase(),
                 quantity: 1,
-                price: def.price ?? 0,
+                price: Number(def.price ?? 0),
                 warningAlert: def.warningAlert,
                 alarmAlert: def.alarmAlert,
                 status: 'AVAILABLE',
@@ -600,6 +636,7 @@ export const mutationsRouter = router({
               },
             })
 
+            /** Write initial warehouse history entry */
             await tx.warehouseHistory.create({
               data: {
                 warehouseItemId: created.id,
@@ -610,13 +647,20 @@ export const mutationsRouter = router({
               },
             })
           })
-          addedCount += 1
-        } catch (e) {
-          // Likely duplicate serialNumber (SN/MAC) or other constraint
-          skippedCount += 1
-          const reason = e instanceof Error ? e.message : 'Błąd zapisu'
+
+          addedCount++
+        } catch (err) {
+          // Handle duplicates or any DB constraint failures
+          skippedCount++
+
+          const reason =
+            err instanceof Error && err.message.includes('Unique constraint')
+              ? 'duplicate identifier'
+              : err instanceof Error
+              ? err.message
+              : 'write error'
+
           skippedList.push(`${item.name} | ${item.identifier} → ${reason}`)
-          continue
         }
       }
 

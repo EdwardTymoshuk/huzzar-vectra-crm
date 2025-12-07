@@ -14,10 +14,10 @@ import GenerateBillingReportDialog from '../components/billing/GenerateBillingRe
 /**
  * BillingsPage (Admin)
  * ------------------------------------------------------------
- * Main billing summary view for admins.
- * - Unified layout: header + scrollable content
- * - Header: title, report button, month picker
- * - Content: monthly summary table
+ * Billing summary dashboard:
+ * - Header (title + month picker + xl-only report button)
+ * - Table (scrollable)
+ * - FAB for mobile/tablet (<xl)
  */
 const BillingsPage = () => {
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
@@ -34,41 +34,44 @@ const BillingsPage = () => {
 
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
-      {/* ✅ Header bar */}
+      {/* Header with xl-only report button */}
       <BillingHeaderBar
         title="Rozliczenia techników"
         selectedMonth={month}
         onChangeMonth={setMonth}
+        onGenerateReport={() => setReportDialogOpen(true)}
       />
 
-      {/* ✅ Scrollable content */}
+      {/* Scrollable table */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         <BillingMonthlySummaryTable from={from} to={to} />
       </div>
 
-      {/* ✅ Floating Action Menu (Raport) */}
-      <FloatingActionMenu
-        mainTooltip="Raport"
-        mainIcon={<MdFileDownload className="text-2xl" />}
-        actions={[
-          {
-            label: 'Generuj raport',
-            icon: <MdFileDownload className="text-lg" />,
-            colorClass: 'bg-primary hover:bg-primary/90',
-            onClick: () => setReportDialogOpen(true),
-          },
-        ]}
-        disableRotate
-      />
+      {/* Floating action (mobile & tablet only) */}
+      <div className="xl:hidden">
+        <FloatingActionMenu
+          mainTooltip="Generuj raport"
+          mainIcon={<MdFileDownload className="text-2xl" />}
+          actions={[
+            {
+              label: 'Generuj raport',
+              icon: <MdFileDownload className="text-lg" />,
+              colorClass: 'bg-primary hover:bg-primary/90',
+              onClick: () => setReportDialogOpen(true),
+            },
+          ]}
+          disableRotate
+        />
+      </div>
 
-      {/* ✅ Report dialog */}
+      {/* Report dialog */}
       <GenerateBillingReportDialog
         open={reportDialogOpen}
         onClose={() => setReportDialogOpen(false)}
         onLoadingChange={setIsGenerating}
       />
 
-      {/* ✅ Overlay loader while generating */}
+      {/* Overlay loader while generating */}
       {isGenerating && (
         <div className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">

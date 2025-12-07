@@ -21,7 +21,6 @@ const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
 
-  // modal/sheet states
   const [isAddOpen, setAddOpen] = useState(false)
   const [isImportOpen, setImportOpen] = useState(false)
   const [isIssueOpen, setIssueOpen] = useState(false)
@@ -29,42 +28,56 @@ const WarehousePage = () => {
   const [isStockOpen, setStockOpen] = useState(false)
   const [isSerialOpen, setSerialOpen] = useState(false)
   const [isTransferOpen, setTransferOpen] = useState(false)
-
   const [isReportsOpen, setReportsOpen] = useState(false)
 
   const router = useRouter()
 
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
+      {/* Header */}
       <WarehouseHeaderBar
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         setCategoryFilter={setCategoryFilter}
+        onAddManual={() => setAddOpen(true)}
+        onImportExcel={() => setImportOpen(true)}
+        onIssue={() => setIssueOpen(true)}
+        onReturn={() => setReturnOpen(true)}
+        onStockCheck={() => setStockOpen(true)}
+        onSerialCheck={() => setSerialOpen(true)}
+        onTransfer={() => setTransferOpen(true)}
+        onHistory={() => router.push('/admin-panel/warehouse/history')}
+        onReports={() => setReportsOpen(true)}
       />
+
+      {/* Page content */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
         <WarehouseSummaryCard />
         <LocationTransfersTable />
         <ReturnedFromTechniciansSection />
+
         <WarehouseTabs
           searchTerm={searchTerm}
           categoryFilter={categoryFilter}
         />
 
-        {/* ✅ Floating action menu for warehouse management */}
-        <WarehouseFloatingActions
-          onAddManual={() => setAddOpen(true)}
-          onImportExcel={() => setImportOpen(true)}
-          onIssue={() => setIssueOpen(true)}
-          onReturn={() => setReturnOpen(true)}
-          onStockCheck={() => setStockOpen(true)}
-          onSerialCheck={() => setSerialOpen(true)}
-          onTransfer={() => setTransferOpen(true)}
-          onHistory={() => router.push('/admin-panel/warehouse/history')}
-          onReports={() => setReportsOpen(true)}
-        />
+        {/* FAB only for < xl */}
+        <div className="xl:hidden">
+          <WarehouseFloatingActions
+            onAddManual={() => setAddOpen(true)}
+            onImportExcel={() => setImportOpen(true)}
+            onIssue={() => setIssueOpen(true)}
+            onReturn={() => setReturnOpen(true)}
+            onStockCheck={() => setStockOpen(true)}
+            onSerialCheck={() => setSerialOpen(true)}
+            onTransfer={() => setTransferOpen(true)}
+            onHistory={() => router.push('/admin-panel/warehouse/history')}
+            onReports={() => setReportsOpen(true)}
+          />
+        </div>
       </div>
 
-      {/* Modals & Sheets */}
+      {/* All modals */}
       <AddModal open={isAddOpen} onCloseAction={() => setAddOpen(false)} />
       <ImportDevicesModal
         open={isImportOpen}

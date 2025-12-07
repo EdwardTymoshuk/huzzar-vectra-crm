@@ -2,28 +2,44 @@
 
 import PageControlBar from '@/app/components/shared/PageControlBar'
 import SearchInput from '@/app/components/shared/SearchInput'
+import { Button } from '@/app/components/ui/button'
+import { MdAdd } from 'react-icons/md'
 
 interface EmployeesHeaderBarProps {
-  /** Current search value */
   searchTerm: string
-  /** Handler to update search input */
   onSearch: (term: string) => void
+
+  /** Callback from parent */
+  onAdd: () => void
 }
 
 /**
  * EmployeesHeaderBar
  * --------------------------------------------------
- * Unified top bar for Employees management page.
- * - Left: back button
- * - Right: search input
+ * - Title on the left
+ * - Search input in the middle/right
+ * - "Add Employee" button on xl+ only
  */
 const EmployeesHeaderBar = ({
   searchTerm,
   onSearch,
+  onAdd,
 }: EmployeesHeaderBarProps) => {
+  const rightActions = (
+    <div className="hidden xl:flex items-center">
+      <Button
+        variant="success"
+        onClick={onAdd}
+        className="flex items-center gap-2"
+      >
+        <MdAdd className="text-lg" />
+        Dodaj pracownika
+      </Button>
+    </div>
+  )
+
   return (
-    <PageControlBar title="Pracownicy">
-      {/* Right: search */}
+    <PageControlBar title="Pracownicy" rightActions={rightActions}>
       <SearchInput
         placeholder="Szukaj pracownika"
         value={searchTerm}

@@ -18,9 +18,9 @@ import EmployeesTable from '../components/employees/EmployeesTable'
 /**
  * EmployeesPage (Admin)
  * --------------------------------------------------
- * - Full viewport layout (like PlanningPage)
- * - Unified header bar + floating add button
- * - Tabbed table view (active / archived)
+ * - xl+: header button to add employee
+ * - <xl: floating button
+ * - Tabs for active / archived workers
  */
 const EmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -32,10 +32,14 @@ const EmployeesPage = () => {
 
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
-      {/* ✅ Header bar */}
-      <EmployeesHeaderBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+      {/* Header */}
+      <EmployeesHeaderBar
+        searchTerm={searchTerm}
+        onSearch={setSearchTerm}
+        onAdd={() => setIsAddDialogOpen(true)}
+      />
 
-      {/* ✅ Main content */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto px-2 md:px-4">
         <Tabs defaultValue="active" className="w-full mt-2">
           <div className="w-full flex justify-center mb-2">
@@ -52,27 +56,30 @@ const EmployeesPage = () => {
           <TabsContent value="active" className="space-y-2">
             <EmployeesTable searchTerm={searchTerm} status="ACTIVE" />
           </TabsContent>
+
           <TabsContent value="archived" className="space-y-2">
             <EmployeesTable searchTerm={searchTerm} status="INACTIVE" />
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* ✅ Floating add button */}
-      <FloatingActionMenu
-        actions={[
-          {
-            label: 'Dodaj pracownika',
-            icon: <MdAdd className="text-xl" />,
-            colorClass: 'bg-success hover:bg-success/90',
-            onClick: () => setIsAddDialogOpen(true),
-          },
-        ]}
-        mainIcon={<MdAdd className="text-3xl" />}
-        mainTooltip="Dodaj pracownika"
-      />
+      {/* Floating button for <xl */}
+      <div className="xl:hidden">
+        <FloatingActionMenu
+          actions={[
+            {
+              label: 'Dodaj pracownika',
+              icon: <MdAdd className="text-xl" />,
+              colorClass: 'bg-success hover:bg-success/90',
+              onClick: () => setIsAddDialogOpen(true),
+            },
+          ]}
+          mainIcon={<MdAdd className="text-3xl" />}
+          mainTooltip="Dodaj pracownika"
+        />
+      </div>
 
-      {/* ✅ Add user dialog */}
+      {/* Dialog */}
       {isAddDialogOpen && (
         <AddUserDialog
           open={isAddDialogOpen}

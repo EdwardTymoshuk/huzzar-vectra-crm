@@ -56,12 +56,20 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // 🔐 1) Limit rozmiaru pliku
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Plik jest zbyt duży. Maksymalny rozmiar to 2 MB.')
+      return
+    }
+
     if (!isExcelFile(file)) {
       toast.error(
         'Nieobsługiwany format pliku. Akceptowane są tylko .xls/.xlsx.'
       )
       return
     }
+
     setSelectedFile(file)
     parseExcelFile(file)
   }
@@ -73,6 +81,12 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
 
     const file = e.dataTransfer.files?.[0]
     if (!file) return
+
+    // 🔐 1) Limit rozmiaru pliku
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Plik jest zbyt duży. Maksymalny rozmiar to 2 MB.')
+      return
+    }
 
     if (!isExcelFile(file)) {
       toast.error(

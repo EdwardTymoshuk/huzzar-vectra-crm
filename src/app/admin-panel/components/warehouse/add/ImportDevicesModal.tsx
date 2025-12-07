@@ -72,6 +72,12 @@ const ImportDevicesModal = ({ open, onClose }: Props) => {
   )
   const importMutation = trpc.warehouse.importDevices.useMutation()
 
+  const isRealXlsx = async (file: File): Promise<boolean> => {
+    const header = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+    // XLSX = ZIP → magic header: 50 4B 03 04
+    return header[0] === 0x50 && header[1] === 0x4b
+  }
+
   /** Validate if uploaded file is Excel format */
   const isExcelFile = (file: File): boolean => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -82,15 +88,28 @@ const ImportDevicesModal = ({ open, onClose }: Props) => {
   }
 
   /** Handle manual file selection */
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!isExcelFile(file)) {
-      toast.error(
-        'Nieobsługiwany format pliku. Akceptowane są tylko .xls/.xlsx.'
-      )
+
+    // 🔐 Limit rozmiaru
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Plik jest zbyt duży. Maksymalnie 2 MB.')
       return
     }
+
+    if (!isExcelFile(file)) {
+      toast.error('Nieobsługiwany format pliku. Tylko .xls/.xlsx.')
+      return
+    }
+
+    // 🔐 ZIP magic header
+    const real = await isRealXlsx(file)
+    if (!real) {
+      toast.error('Plik nie jest prawidłowym plikiem XLSX.')
+      return
+    }
+
     setSelectedFile(file)
     setFileName(file.name.toUpperCase())
   }

@@ -23,7 +23,7 @@ const PlanningFloatingAction = () => {
   if (!canManage) return null
 
   return (
-    <>
+    <div className="xl:hidden">
       <FloatingActionMenu
         actions={[
           {
@@ -51,7 +51,7 @@ const PlanningFloatingAction = () => {
         open={isImportModalOpen}
         onClose={() => setImportModalOpen(false)}
       />
-    </>
+    </div>
   )
 }
 
