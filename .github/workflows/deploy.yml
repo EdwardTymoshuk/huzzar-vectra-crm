@@ -26,10 +26,9 @@ jobs:
             set -e
             cd /var/www/huzzar-vectra-crm
 
-            export NVM_DIR="$HOME/.nvm"
-            . "$NVM_DIR/nvm.sh"
-
-            nvm use 20
+            # ❗ Używamy systemowego node, nie NVM
+            node -v
+            npm -v
 
             git pull origin main || true
 
@@ -42,4 +41,4 @@ jobs:
 
             npm run build
 
-            sudo systemctl restart huzzar
+            sudo systemctl restart huzzar.service
