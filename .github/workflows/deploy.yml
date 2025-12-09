@@ -23,6 +23,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 39222
           script: |
+          echo "${{ secrets.ENV_PRODUCTION }}" > /var/www/huzzar-vectra-crm/.env.production
             set -e
             cd /var/www/huzzar-vectra-crm
 
