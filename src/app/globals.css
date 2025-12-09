@@ -1,8 +1,9 @@
+/* nprogress baseline ---------- */
+@import 'nprogress/nprogress.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* nprogress baseline ---------- */
-@import 'nprogress/nprogress.css';
 
 @layer base {
   :root {
