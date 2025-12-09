@@ -24,13 +24,17 @@ jobs:
           port: 39222
           script: |
             set -e
+
+            # Write .env.production
             printf "%s" "${{ secrets.ENV_PRODUCTION }}" > /var/www/huzzar-vectra-crm/.env.production
+
             cd /var/www/huzzar-vectra-crm
 
             node -v
             npm -v
 
-            git pull origin main || true
+            # Use HTTPS pull to avoid GitHub SSH key issues
+            git pull https://github.com/EdwardTymoshuk/huzzar-vectra-crm.git main || true
 
             rm -rf node_modules .prisma
 
@@ -41,4 +45,6 @@ jobs:
 
             npm run build
 
-            sudo systemctl restart huzzar.service
+            # PM2 deploy
+            pm2 restart huzzar || pm2 start npm --name "huzzar" -- start
+            pm2 save
