@@ -21,12 +21,11 @@ jobs:
           host: 57.128.227.195
           username: debian
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          port: 39222
           script: |
             set -e
             cd /var/www/huzzar-vectra-crm
 
-            # ❗ Używamy systemowego node, nie NVM
             node -v
             npm -v
 
