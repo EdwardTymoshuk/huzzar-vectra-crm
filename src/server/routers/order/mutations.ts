@@ -501,8 +501,6 @@ export const mutationsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const prisma = ctx.prisma
-
       try {
         const existing = await prisma.order.findUnique({
           where: { id: input.id },
