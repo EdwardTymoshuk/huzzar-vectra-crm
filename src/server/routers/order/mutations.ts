@@ -21,6 +21,12 @@ import { reconcileOrderMaterials } from '../_helpers/reconcileOrderMaterials'
 
 type DbTx = Prisma.TransactionClient | PrismaClient
 
+function parseLocalDate(d: string): Date {
+  const [year, month, day] = d.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0)
+  // 12:00 = unikasz edge-case DST
+}
+
 async function canTechnicianAmend(
   tx: typeof prisma,
   orderId: string,
@@ -131,98 +137,98 @@ async function mapServicesWithDeviceTypes(
 }
 
 export const mutationsRouter = router({
-/** Bulk import of installation orders from Excel */
-bulkImport: adminOrCoord
-  .input(
-    z.array(
-      z.object({
-        operator: z.string(),
-        type: z.literal('INSTALATION'),
-        clientId: z.string().optional(),
-        orderNumber: z.string(),
-        date: z.string(),
-        timeSlot: z.nativeEnum(TimeSlot),
-        city: z.string(),
-        street: z.string(),
-        postalCode: z.string().optional(),
-        assignedToId: z.string().optional(),
-        notes: z.string().optional(),
-      })
+  /** Bulk import of installation orders from Excel */
+  bulkImport: adminOrCoord
+    .input(
+      z.array(
+        z.object({
+          operator: z.string(),
+          type: z.literal('INSTALATION'),
+          clientId: z.string().optional(),
+          orderNumber: z.string(),
+          date: z.string(),
+          timeSlot: z.nativeEnum(TimeSlot),
+          city: z.string(),
+          street: z.string(),
+          postalCode: z.string().optional(),
+          assignedToId: z.string().optional(),
+          notes: z.string().optional(),
+        })
+      )
     )
-  )
-  .mutation(async ({ input, ctx }) => {
-    const adminId = ctx.user!.id
+    .mutation(async ({ input, ctx }) => {
+      const adminId = ctx.user!.id
 
-    return await prisma.$transaction(async (tx) => {
-      const summary = {
-        added: 0,
-        skippedPendingOrAssigned: 0,
-        skippedCompleted: 0,
-        otherErrors: 0,
-      }
+      return await prisma.$transaction(async (tx) => {
+        const summary = {
+          added: 0,
+          skippedPendingOrAssigned: 0,
+          skippedCompleted: 0,
+          otherErrors: 0,
+        }
 
-      for (const o of input) {
-        try {
-          const normOrder = normalizeForSearch(o.orderNumber)
+        for (const o of input) {
+          try {
+            const normOrder = normalizeForSearch(o.orderNumber)
 
-          /** Check if an order with this number exists */
-          const existing = await tx.order.findFirst({
-            where: {
-              orderNumber: { equals: normOrder, mode: 'insensitive' },
-            },
-          })
-
-          /** Local attempt handling state */
-          let forcedAttempt = false
-          let forcedAttemptNumber: number | null = null
-          let forcedPreviousOrderId: string | null = null
-
-          if (existing) {
-            /** Skip active orders */
-            if (
-              existing.status === OrderStatus.PENDING ||
-              existing.status === OrderStatus.ASSIGNED
-            ) {
-              summary.skippedPendingOrAssigned++
-              continue
-            }
-
-            /** Skip completed */
-            if (existing.status === OrderStatus.COMPLETED) {
-              summary.skippedCompleted++
-              continue
-            }
-
-            /** NOT_COMPLETED → new attempt */
-            if (existing.status === OrderStatus.NOT_COMPLETED) {
-              forcedAttempt = true
-              forcedAttemptNumber = existing.attemptNumber + 1
-              forcedPreviousOrderId = existing.id
-            }
-          }
-
-          /** Resolve technician */
-          let assignedToId: string | null = null
-
-          if (o.assignedToId) {
-            const t = await tx.user.findUnique({
-              where: { id: o.assignedToId },
-              select: { id: true },
+            /** Check if an order with this number exists */
+            const existing = await tx.order.findFirst({
+              where: {
+                orderNumber: { equals: normOrder, mode: 'insensitive' },
+              },
             })
-            assignedToId = t?.id ?? null
-          }
 
-          /** Attempt chain */
-          let attemptNumber = 1
-          let previousOrderId: string | null = null
+            /** Local attempt handling state */
+            let forcedAttempt = false
+            let forcedAttemptNumber: number | null = null
+            let forcedPreviousOrderId: string | null = null
 
-          if (forcedAttempt && forcedAttemptNumber) {
-            attemptNumber = forcedAttemptNumber
-            previousOrderId = forcedPreviousOrderId
-          } else if (o.clientId) {
-            const last = await tx.$queryRaw<
-              { id: string; attemptNumber: number; status: OrderStatus }[]
-            >`
+            if (existing) {
+              /** Skip active orders */
+              if (
+                existing.status === OrderStatus.PENDING ||
+                existing.status === OrderStatus.ASSIGNED
+              ) {
+                summary.skippedPendingOrAssigned++
+                continue
+              }
+
+              /** Skip completed */
+              if (existing.status === OrderStatus.COMPLETED) {
+                summary.skippedCompleted++
+                continue
+              }
+
+              /** NOT_COMPLETED → new attempt */
+              if (existing.status === OrderStatus.NOT_COMPLETED) {
+                forcedAttempt = true
+                forcedAttemptNumber = existing.attemptNumber + 1
+                forcedPreviousOrderId = existing.id
+              }
+            }
+
+            /** Resolve technician */
+            let assignedToId: string | null = null
+
+            if (o.assignedToId) {
+              const t = await tx.user.findUnique({
+                where: { id: o.assignedToId },
+                select: { id: true },
+              })
+              assignedToId = t?.id ?? null
+            }
+
+            /** Attempt chain */
+            let attemptNumber = 1
+            let previousOrderId: string | null = null
+
+            if (forcedAttempt && forcedAttemptNumber) {
+              attemptNumber = forcedAttemptNumber
+              previousOrderId = forcedPreviousOrderId
+            } else if (o.clientId) {
+              const last = await tx.$queryRaw<
+                { id: string; attemptNumber: number; status: OrderStatus }[]
+              >`
               SELECT id, "attemptNumber", "status"
               FROM "Order"
               WHERE "clientId" = ${o.clientId}
@@ -232,61 +238,64 @@ bulkImport: adminOrCoord
               LIMIT 1;
             `
 
-            if (last.length > 0 && last[0].status === OrderStatus.NOT_COMPLETED) {
-              attemptNumber = last[0].attemptNumber + 1
-              previousOrderId = last[0].id
+              if (
+                last.length > 0 &&
+                last[0].status === OrderStatus.NOT_COMPLETED
+              ) {
+                attemptNumber = last[0].attemptNumber + 1
+                previousOrderId = last[0].id
+              }
             }
+
+            /** Status based on assignment */
+            const newStatus = assignedToId
+              ? OrderStatus.ASSIGNED
+              : OrderStatus.PENDING
+
+            /** Create new order */
+            const created = await tx.order.create({
+              data: {
+                clientId: o.clientId ?? null,
+                operator: o.operator,
+                type: o.type,
+                orderNumber: o.orderNumber.trim(),
+                date: new Date(o.date),
+                timeSlot: o.timeSlot,
+                city: o.city.trim(),
+                street: o.street.trim(),
+                postalCode: o.postalCode ?? null,
+                notes: o.notes ?? null,
+                assignedToId,
+                status: newStatus,
+                attemptNumber,
+                previousOrderId,
+                createdSource: 'PLANNER',
+              },
+              select: { id: true },
+            })
+
+            /** History */
+            await tx.orderHistory.create({
+              data: {
+                orderId: created.id,
+                changedById: adminId,
+                statusBefore: OrderStatus.PENDING,
+                statusAfter: newStatus,
+                notes: previousOrderId
+                  ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
+                  : 'Utworzono zlecenie (import).',
+              },
+            })
+
+            summary.added++
+          } catch {
+            summary.otherErrors++
           }
-
-          /** Status based on assignment */
-          const newStatus = assignedToId
-            ? OrderStatus.ASSIGNED
-            : OrderStatus.PENDING
-
-          /** Create new order */
-          const created = await tx.order.create({
-            data: {
-              clientId: o.clientId ?? null,
-              operator: o.operator,
-              type: o.type,
-              orderNumber: o.orderNumber.trim(),
-              date: new Date(o.date),
-              timeSlot: o.timeSlot,
-              city: o.city.trim(),
-              street: o.street.trim(),
-              postalCode: o.postalCode ?? null,
-              notes: o.notes ?? null,
-              assignedToId,
-              status: newStatus,
-              attemptNumber,
-              previousOrderId,
-              createdSource: 'PLANNER',
-            },
-            select: { id: true },
-          })
-
-          /** History */
-          await tx.orderHistory.create({
-            data: {
-              orderId: created.id,
-              changedById: adminId,
-              statusBefore: OrderStatus.PENDING,
-              statusAfter: newStatus,
-              notes: previousOrderId
-                ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
-                : 'Utworzono zlecenie (import).',
-            },
-          })
-
-          summary.added++
-        } catch {
-          summary.otherErrors++
         }
-      }
 
-      return summary
-    })
-  }),
+        return summary
+      })
+    }),
 
   /** ✅ Create new order (clientId-aware, preserves Polish letters but uses normalized comparisons) */
   createOrder: loggedInEveryone
@@ -438,7 +447,7 @@ bulkImport: adminOrCoord
           operator: input.operator,
           type: input.type,
           orderNumber: input.orderNumber.trim(),
-          date: new Date(input.date),
+          date: parseLocalDate(input.date),
           timeSlot: input.timeSlot,
           clientPhoneNumber: input.clientPhoneNumber ?? null,
           notes: input.notes ?? null,
@@ -605,7 +614,7 @@ bulkImport: adminOrCoord
             orderNumber: input.orderNumber.trim(),
             type: input.type,
             operator: input.operator,
-            date: new Date(input.date),
+            date: parseLocalDate(input.date),
             timeSlot: input.timeSlot,
             notes: input.notes,
             status: input.status,
