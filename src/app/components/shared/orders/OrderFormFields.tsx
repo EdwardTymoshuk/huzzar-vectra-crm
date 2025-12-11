@@ -26,6 +26,7 @@ import {
 import { Textarea } from '@/app/components/ui/textarea'
 import { timeSlotOptions } from '@/lib/constants'
 import { OrderFormData, TechnicianOrderFormData } from '@/types'
+import { toLocalDateOnly } from '@/utils/dates/formatDateTime'
 import { trpc } from '@/utils/trpc'
 import { OrderStatus } from '@prisma/client'
 import { format } from 'date-fns'
@@ -219,11 +220,7 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
                   mode="single"
                   selected={field.value ? new Date(field.value) : undefined}
                   onSelect={(date) => {
-                    if (date) {
-                      const local = date.toISOString().split('T')[0]
-                      field.onChange(local)
-                    }
-
+                    if (date) field.onChange(toLocalDateOnly(date))
                     setIsCalendarOpen(false)
                   }}
                   locale={pl}
