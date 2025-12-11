@@ -219,7 +219,11 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
                   mode="single"
                   selected={field.value ? new Date(field.value) : undefined}
                   onSelect={(date) => {
-                    field.onChange(date?.toISOString() ?? '')
+                    if (date) {
+                      const local = date.toISOString().split('T')[0]
+                      field.onChange(local)
+                    }
+
                     setIsCalendarOpen(false)
                   }}
                   locale={pl}
