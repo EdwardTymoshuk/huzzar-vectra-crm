@@ -385,7 +385,7 @@ export const mutationsRouter = router({
       }
 
       /* ------------------------------------------------------------
-       * 3️⃣ Determine attempt chain (based on clientId + address)
+       * 3️⃣ Determine attempt chain (based on orderNumber + address)
        * ---------------------------------------------------------- */
       let attemptNumber = 1
       let previousOrderId: string | null = null
@@ -393,26 +393,21 @@ export const mutationsRouter = router({
         ? OrderStatus.ASSIGNED
         : OrderStatus.PENDING
 
-      // 🔗 Find last NOT_COMPLETED order for same client and address (case + diacritics insensitive)
-      if (input.clientId) {
-        const lastOrder = await prisma.$queryRaw<
-          { id: string; attemptNumber: number }[]
-        >`
-    SELECT id, "attemptNumber"
-    FROM "Order"
-    WHERE "clientId" = ${input.clientId}
-      AND unaccent(lower("city")) = unaccent(lower(${input.city}))
-      AND unaccent(lower("street")) = unaccent(lower(${input.street}))
-      AND "status" = 'NOT_COMPLETED'
-    ORDER BY "createdAt" DESC
-    LIMIT 1;
-  `
+      const lastAttempt = await prisma.order.findFirst({
+        where: {
+          orderNumber: { equals: normOrder, mode: 'insensitive' },
+          city: { equals: input.city.trim(), mode: 'insensitive' },
+          street: { equals: input.street.trim(), mode: 'insensitive' },
+          status: OrderStatus.NOT_COMPLETED,
+        },
+        orderBy: { attemptNumber: 'desc' },
+      })
 
-        if (lastOrder.length > 0) {
-          attemptNumber = lastOrder[0].attemptNumber + 1
-          previousOrderId = lastOrder[0].id
-        }
+      if (lastAttempt) {
+        attemptNumber = lastAttempt.attemptNumber + 1
+        previousOrderId = lastAttempt.id
       }
+
       /* ------------------------------------------------------------
        * 4️⃣ Create new order (preserves Polish letters in DB)
        * ---------------------------------------------------------- */
@@ -521,30 +516,20 @@ export const mutationsRouter = router({
          * 1️⃣ Recalculate attempt chain if address changed
          * ---------------------------------------------------------- */
         if (addressChanged) {
-          const clientId = input.clientId ?? existing.clientId
-          if (clientId) {
-            const lastOrder = await prisma.$queryRaw<
-              { id: string; attemptNumber: number; status: OrderStatus }[]
-            >`
-              SELECT id, "attemptNumber", "status"
-              FROM "Order"
-              WHERE "clientId" = ${clientId}
-                AND unaccent(lower("city")) = unaccent(lower(${input.city}))
-                AND unaccent(lower("street")) = unaccent(lower(${input.street}))
-              ORDER BY "attemptNumber" DESC
-              LIMIT 1;
-            `
+          const lastAttempt = await prisma.order.findFirst({
+            where: {
+              orderNumber: { equals: normOrder, mode: 'insensitive' },
+              city: { equals: input.city.trim(), mode: 'insensitive' },
+              street: { equals: input.street.trim(), mode: 'insensitive' },
+              status: OrderStatus.NOT_COMPLETED,
+              NOT: { id: existing.id },
+            },
+            orderBy: { attemptNumber: 'desc' },
+          })
 
-            if (
-              lastOrder.length > 0 &&
-              lastOrder[0].status === 'NOT_COMPLETED'
-            ) {
-              attemptNumber = lastOrder[0].attemptNumber + 1
-              previousOrderId = lastOrder[0].id
-            } else {
-              attemptNumber = 1
-              previousOrderId = null
-            }
+          if (lastAttempt) {
+            attemptNumber = lastAttempt.attemptNumber + 1
+            previousOrderId = lastAttempt.id
           } else {
             attemptNumber = 1
             previousOrderId = null
