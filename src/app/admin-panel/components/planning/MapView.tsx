@@ -10,7 +10,7 @@
 
 import L, { Map as LeafletMap, TileLayer } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Marker = {
   id: string
@@ -49,6 +49,8 @@ function createColorIcon(color: string = '#3b82f6') {
 }
 
 const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
+  const [isMapReady, setIsMapReady] = useState(false)
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<LeafletMap | null>(null)
   const tileRef = useRef<TileLayer | null>(null)
@@ -78,6 +80,8 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
     tile.addTo(map)
     tileRef.current = tile
 
+    setIsMapReady(true)
+
     return () => {
       map.off()
       map.remove()
@@ -88,6 +92,7 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
 
   // Render markers
   useEffect(() => {
+    if (!isMapReady) return
     const map = mapRef.current
     if (!map) return
 
