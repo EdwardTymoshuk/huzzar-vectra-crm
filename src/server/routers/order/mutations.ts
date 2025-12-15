@@ -283,7 +283,8 @@ export const mutationsRouter = router({
             })
 
             summary.added++
-          } catch {
+          } catch (err) {
+            console.error("❌ Import error for order", o.orderNumber, err)
             summary.otherErrors++
           }
         }
