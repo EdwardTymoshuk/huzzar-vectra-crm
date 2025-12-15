@@ -284,13 +284,30 @@ export const mutationsRouter = router({
 
             summary.added++
           } catch (err) {
-            console.error("❌ Import error for order", o.orderNumber)
-            console.error("Error code:", err.code)
-            console.error("Meta:", err.meta)
-            console.error("Message:", err.message)
+            console.error(`❌ Import error for order ${o.orderNumber}`)
+
+            if (err instanceof Prisma.PrismaClientKnownRequestError) {
+              console.error('→ KnownRequestError (Prisma)')
+              console.error('Code:', err.code)
+              console.error('Message:', err.message)
+              console.error('Meta:', err.meta)
+            } else if (err instanceof Prisma.PrismaClientUnknownRequestError) {
+              console.error('→ UnknownRequestError (Prisma)')
+              console.error('Message:', err.message)
+            } else if (err instanceof Prisma.PrismaClientValidationError) {
+              console.error('→ ValidationError (Prisma)')
+              console.error('Message:', err.message)
+            } else if (err instanceof Error) {
+              console.error('→ Generic JS Error')
+              console.error('Name:', err.name)
+              console.error('Message:', err.message)
+              console.error('Stack:', err.stack)
+            } else {
+              console.error('→ Unknown thrown value:', err)
+            }
+
             summary.otherErrors++
           }
-          
         }
 
         return summary
