@@ -154,19 +154,24 @@ export const mutationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const adminId = ctx.user!.id
 
-      return await prisma.$transaction(async (tx) => {
-        const summary = {
-          added: 0,
-          skippedPendingOrAssigned: 0,
-          skippedCompleted: 0,
-          otherErrors: 0,
-        }
+      const summary = {
+        added: 0,
+        skippedPendingOrAssigned: 0,
+        skippedCompleted: 0,
+        otherErrors: 0,
+      }
 
-        for (const o of input) {
-          try {
+      // ------------------------------------------------------------
+      // IMPORTANT: No global transaction. Each row = separate TX.
+      // ------------------------------------------------------------
+      for (const o of input) {
+        try {
+          await prisma.$transaction(async (tx) => {
             const normOrder = normalizeForSearch(o.orderNumber)
 
-            /** Check if an order with this number exists */
+            /** -------------------------------------------------------
+             * 1. Load existing attempts for this order/location pair
+             * ------------------------------------------------------ */
             const existing = await tx.order.findFirst({
               where: {
                 orderNumber: { equals: normOrder, mode: 'insensitive' },
@@ -176,81 +181,52 @@ export const mutationsRouter = router({
               orderBy: { attemptNumber: 'desc' },
             })
 
-            /** Local attempt handling state */
-            let forcedAttempt = false
-            let forcedAttemptNumber: number | null = null
-            let forcedPreviousOrderId: string | null = null
+            /** -------------------------------------------------------
+             * 2. Decide what to do based on existing order status
+             * ------------------------------------------------------ */
+            let attemptNumber = 1
+            let previousOrderId: string | null = null
 
             if (existing) {
-              /** Skip active orders */
               if (
                 existing.status === OrderStatus.PENDING ||
                 existing.status === OrderStatus.ASSIGNED
               ) {
                 summary.skippedPendingOrAssigned++
-                continue
+                throw new Error('SKIP_ORDER_ACTIVE')
               }
 
-              /** Skip completed */
               if (existing.status === OrderStatus.COMPLETED) {
                 summary.skippedCompleted++
-                continue
+                throw new Error('SKIP_ORDER_COMPLETED')
               }
 
-              /** NOT_COMPLETED → new attempt */
               if (existing.status === OrderStatus.NOT_COMPLETED) {
-                forcedAttempt = true
-                forcedAttemptNumber = existing.attemptNumber + 1
-                forcedPreviousOrderId = existing.id
+                attemptNumber = existing.attemptNumber + 1
+                previousOrderId = existing.id
               }
             }
 
-            /** Resolve technician */
+            /** -------------------------------------------------------
+             * 3. Resolve technician (optional)
+             * ------------------------------------------------------ */
             let assignedToId: string | null = null
 
             if (o.assignedToId) {
-              const t = await tx.user.findUnique({
+              const tech = await tx.user.findUnique({
                 where: { id: o.assignedToId },
                 select: { id: true },
               })
-              assignedToId = t?.id ?? null
+              assignedToId = tech?.id ?? null
             }
 
-            /** Attempt chain */
-            let attemptNumber = 1
-            let previousOrderId: string | null = null
-
-            if (forcedAttempt && forcedAttemptNumber) {
-              attemptNumber = forcedAttemptNumber
-              previousOrderId = forcedPreviousOrderId
-            } else if (o.clientId) {
-              const last = await tx.$queryRaw<
-                { id: string; attemptNumber: number; status: OrderStatus }[]
-              >`
-              SELECT id, "attemptNumber", "status"
-              FROM "Order"
-              WHERE "clientId" = ${o.clientId}
-                AND unaccent(lower("city")) = unaccent(lower(${o.city}))
-                AND unaccent(lower("street")) = unaccent(lower(${o.street}))
-              ORDER BY "attemptNumber" DESC
-              LIMIT 1;
-            `
-
-              if (
-                last.length > 0 &&
-                last[0].status === OrderStatus.NOT_COMPLETED
-              ) {
-                attemptNumber = last[0].attemptNumber + 1
-                previousOrderId = last[0].id
-              }
-            }
-
-            /** Status based on assignment */
             const newStatus = assignedToId
               ? OrderStatus.ASSIGNED
               : OrderStatus.PENDING
 
-            /** Create new order */
+            /** -------------------------------------------------------
+             * 4. Create new attempt
+             * ------------------------------------------------------ */
             const created = await tx.order.create({
               data: {
                 clientId: o.clientId ?? null,
@@ -272,49 +248,39 @@ export const mutationsRouter = router({
               select: { id: true },
             })
 
-            /** History */
+            /** -------------------------------------------------------
+             * 5. History entry
+             * ------------------------------------------------------ */
+            const historyNote = previousOrderId
+              ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
+              : 'Utworzono zlecenie (import).'
+
             await tx.orderHistory.create({
               data: {
                 orderId: created.id,
                 changedById: adminId,
                 statusBefore: OrderStatus.PENDING,
                 statusAfter: newStatus,
-                notes: previousOrderId
-                  ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
-                  : 'Utworzono zlecenie (import).',
+                notes: historyNote,
               },
             })
+          })
 
-            summary.added++
-          } catch (err) {
-            console.error(`❌ Import error for order ${o.orderNumber}`)
+          summary.added++
+        } catch (err) {
+          // Orders intentionally skipped do not count as "errors"
+          if (err instanceof Error && err.message === 'SKIP_ORDER_ACTIVE')
+            continue
+          if (err instanceof Error && err.message === 'SKIP_ORDER_COMPLETED')
+            continue
 
-            if (err instanceof Prisma.PrismaClientKnownRequestError) {
-              console.error('→ KnownRequestError (Prisma)')
-              console.error('Code:', err.code)
-              console.error('Message:', err.message)
-              console.error('Meta:', err.meta)
-            } else if (err instanceof Prisma.PrismaClientUnknownRequestError) {
-              console.error('→ UnknownRequestError (Prisma)')
-              console.error('Message:', err.message)
-            } else if (err instanceof Prisma.PrismaClientValidationError) {
-              console.error('→ ValidationError (Prisma)')
-              console.error('Message:', err.message)
-            } else if (err instanceof Error) {
-              console.error('→ Generic JS Error')
-              console.error('Name:', err.name)
-              console.error('Message:', err.message)
-              console.error('Stack:', err.stack)
-            } else {
-              console.error('→ Unknown thrown value:', err)
-            }
-
-            summary.otherErrors++
-          }
+          console.error(`❌ Import error for order ${o.orderNumber}`)
+          console.error(err)
+          summary.otherErrors++
         }
+      }
 
-        return summary
-      })
+      return summary
     }),
 
   /** ✅ Create new order (clientId-aware, preserves Polish letters but uses normalized comparisons) */
@@ -358,23 +324,23 @@ export const mutationsRouter = router({
         },
       })
 
-      // 1️⃣ If completed or failed → SKIP during Excel import
       if (existingOrder) {
-        if (
-          existingOrder.status === OrderStatus.COMPLETED ||
-          existingOrder.status === OrderStatus.NOT_COMPLETED
-        ) {
+        if (existingOrder.status === OrderStatus.COMPLETED) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Zlecenie ${input.orderNumber} jest już wykonane — pominięto.`,
+            message: `Zlecenie ${input.orderNumber} jest już wykonane.`,
           })
         }
 
-        // 2️⃣ Exists but still active → normal duplicate error
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: `Zlecenie o numerze "${input.orderNumber}" już istnieje.`,
-        })
+        if (
+          existingOrder.status === OrderStatus.PENDING ||
+          existingOrder.status === OrderStatus.ASSIGNED
+        ) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: `Zlecenie ${input.orderNumber} już istnieje i oczekuje na realizację.`,
+          })
+        }
       }
 
       /* ------------------------------------------------------------
@@ -426,17 +392,6 @@ export const mutationsRouter = router({
       const status: OrderStatus = input.assignedToId
         ? OrderStatus.ASSIGNED
         : OrderStatus.PENDING
-
-      // 🔒 Enforce globally unique order number
-      const existingSameNumber = await prisma.order.findFirst({
-        where: { orderNumber: { equals: normOrder, mode: 'insensitive' } },
-      })
-      if (existingSameNumber) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: `Zlecenie o numerze "${input.orderNumber}" już istnieje.`,
-        })
-      }
 
       // 🔗 Find last NOT_COMPLETED order for same client and address (case + diacritics insensitive)
       if (input.clientId) {
