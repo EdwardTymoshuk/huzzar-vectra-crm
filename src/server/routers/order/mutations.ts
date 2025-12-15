@@ -170,7 +170,10 @@ export const mutationsRouter = router({
             const existing = await tx.order.findFirst({
               where: {
                 orderNumber: { equals: normOrder, mode: 'insensitive' },
+                city: { equals: o.city.trim(), mode: 'insensitive' },
+                street: { equals: o.street.trim(), mode: 'insensitive' },
               },
+              orderBy: { attemptNumber: 'desc' },
             })
 
             /** Local attempt handling state */
