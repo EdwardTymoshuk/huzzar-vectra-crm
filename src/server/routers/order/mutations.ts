@@ -284,9 +284,13 @@ export const mutationsRouter = router({
 
             summary.added++
           } catch (err) {
-            console.error("❌ Import error for order", o.orderNumber, err)
+            console.error("❌ Import error for order", o.orderNumber)
+            console.error("Error code:", err.code)
+            console.error("Meta:", err.meta)
+            console.error("Message:", err.message)
             summary.otherErrors++
           }
+          
         }
 
         return summary
