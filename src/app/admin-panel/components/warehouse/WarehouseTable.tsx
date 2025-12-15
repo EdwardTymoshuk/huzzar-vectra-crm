@@ -1,5 +1,6 @@
 'use client'
 
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
@@ -13,7 +14,6 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { devicesTypeMap } from '@/lib/constants'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { WarehouseItemType } from '@prisma/client'

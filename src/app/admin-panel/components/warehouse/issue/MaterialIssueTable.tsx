@@ -1,13 +1,13 @@
 'use client'
 
+import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import SearchInput from '@/app/components/shared/SearchInput'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { sumTechnicianMaterialStock } from '@/lib/warehouse'
 import { IssuedItemMaterial } from '@/types'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -40,7 +40,7 @@ const MaterialIssueTable = ({
     { technicianId }
   )
   const getDeficit = (defId: string) => {
-    return deficits.find(d => d.materialDefinitionId === defId)?.quantity ?? 0
+    return deficits.find((d) => d.materialDefinitionId === defId)?.quantity ?? 0
   }
 
   const materials = useMemo(() => {
@@ -160,22 +160,21 @@ const MaterialIssueTable = ({
                 autoEscape={true}
                 textToHighlight={item.name}
               />
-<div className="flex gap-2">
-  <Badge variant="secondary" className="w-fit">
-    Magazyn: {remaining}
-  </Badge>
+              <div className="flex gap-2">
+                <Badge variant="secondary" className="w-fit">
+                  Magazyn: {remaining}
+                </Badge>
 
-  <Badge variant="outline" className="w-fit">
-    Technik: {technicianQuantity}
-  </Badge>
+                <Badge variant="outline" className="w-fit">
+                  Technik: {technicianQuantity}
+                </Badge>
 
-  {getDeficit(item.materialDefinitionId!) > 0 && (
-    <Badge variant="destructive" className="w-fit">
-      Deficyt: {getDeficit(item.materialDefinitionId!)}
-    </Badge>
-  )}
-</div>
-
+                {getDeficit(item.materialDefinitionId!) > 0 && (
+                  <Badge variant="destructive" className="w-fit">
+                    Deficyt: {getDeficit(item.materialDefinitionId!)}
+                  </Badge>
+                )}
+              </div>
             </span>
 
             {expandedRows.includes(item.id) ? (

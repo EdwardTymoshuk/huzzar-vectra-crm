@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient, WarehouseAction } from '@prisma/client'
+import { Prisma, PrismaClient, VectraWarehouseAction } from '@prisma/client'
 
 /**
  * addHistory – creates a warehouse history record with optional location metadata.
@@ -19,7 +19,7 @@ export const addWarehouseHistory = async ({
   prisma: Prisma.TransactionClient | PrismaClient
   itemId: string
   userId: string
-  action: WarehouseAction
+  action: VectraWarehouseAction
   qty: number
   notes?: string | null
   fromLocationId?: string | null
@@ -27,12 +27,12 @@ export const addWarehouseHistory = async ({
   transferId?: string | null
   assignedToId?: string | null
 }) => {
-  const item = await prisma.warehouse.findUnique({
+  const item = await prisma.vectraWarehouse.findUnique({
     where: { id: itemId },
     select: { locationId: true },
   })
 
-  return prisma.warehouseHistory.create({
+  return prisma.vectraWarehouseHistory.create({
     data: {
       warehouseItemId: itemId,
       performedById: userId,

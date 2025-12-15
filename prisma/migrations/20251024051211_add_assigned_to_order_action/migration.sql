@@ -2,7 +2,7 @@
 CREATE TYPE "DeviceSource" AS ENUM ('WAREHOUSE', 'CLIENT');
 
 -- AlterEnum
-ALTER TYPE "WarehouseAction" ADD VALUE 'ASSIGNED_TO_ORDER';
+ALTER TYPE "VectraWarehouseAction" ADD VALUE 'ASSIGNED_TO_ORDER';
 
 -- AlterTable
 ALTER TABLE "OrderService" ADD COLUMN     "device2Source" "DeviceSource",

@@ -1,2 +1,2 @@
 -- AlterEnum
-ALTER TYPE "WarehouseAction" ADD VALUE 'ISSUED_TO_CLIENT';
+ALTER TYPE "VectraWarehouseAction" ADD VALUE 'ISSUED_TO_CLIENT';

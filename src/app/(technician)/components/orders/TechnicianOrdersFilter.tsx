@@ -13,15 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { OrderStatus, OrderType } from '@prisma/client'
+import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type FilterProps = {
-  statusValue: OrderStatus | null
-  typeValue: OrderType | null
-  setStatusFilterAction: (status: OrderStatus | null) => void
-  setOrderTypeFilterAction: (type: OrderType | null) => void
+  statusValue: VectraOrderStatus | null
+  typeValue: VectraOrderType | null
+  setStatusFilterAction: (status: VectraOrderStatus | null) => void
+  setOrderTypeFilterAction: (type: VectraOrderType | null) => void
   onClearAction: () => void
 }
 
@@ -72,7 +72,7 @@ export const TechnicianOrdersFilter = ({
             onValueChange={(value) =>
               handleChange(() =>
                 setStatusFilterAction(
-                  value === 'all' ? null : (value as OrderStatus)
+                  value === 'all' ? null : (value as VectraOrderStatus)
                 )
               )
             }
@@ -96,7 +96,7 @@ export const TechnicianOrdersFilter = ({
             onValueChange={(value) =>
               handleChange(() =>
                 setOrderTypeFilterAction(
-                  value === 'all' ? null : (value as OrderType)
+                  value === 'all' ? null : (value as VectraOrderType)
                 )
               )
             }

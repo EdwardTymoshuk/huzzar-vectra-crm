@@ -5,7 +5,7 @@ import PageControlBar from '@/app/components/shared/PageControlBar'
 import SearchInput from '@/app/components/shared/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import { useRole } from '@/utils/hooks/useRole'
-import { OrderStatus, OrderType } from '@prisma/client'
+import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useState } from 'react'
 import { MdAdd } from 'react-icons/md'
 import AddOrderModal from '../components/orders/AddOrderModal'
@@ -22,9 +22,12 @@ import OrdersTable from '../components/orders/OrdersTable'
  */
 const OrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
+  const [statusFilter, setStatusFilter] = useState<VectraOrderStatus | null>(
+    null
+  )
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
-  const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | null>(null)
+  const [orderTypeFilter, setOrderTypeFilter] =
+    useState<VectraOrderType | null>(null)
 
   const [isAddModalOpen, setAddModalOpen] = useState(false)
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { deviceSchema } from '@/app/(modules)/vectra-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -25,7 +26,6 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { devicesTypeMap } from '@/lib/constants'
-import { deviceSchema } from '@/lib/schema'
 import { DeviceDefinition, DeviceFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'

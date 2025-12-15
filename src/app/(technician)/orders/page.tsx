@@ -1,6 +1,6 @@
 'use client'
 
-import { OrderStatus, OrderType } from '@prisma/client'
+import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useCallback, useState } from 'react'
 import TechnicianOrdersHeaderBar from '../components/orders/TechnicianOrdersHeaderBar'
 import TechnicianOrdersTable from '../components/orders/TechnicianOrdersTable'
@@ -15,8 +15,10 @@ import TechnicianOrdersTable from '../components/orders/TechnicianOrdersTable'
 const TechnicianOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [autoOpenOrderId, setAutoOpenOrderId] = useState<string | undefined>()
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
-  const [typeFilter, setTypeFilter] = useState<OrderType | null>(null)
+  const [statusFilter, setStatusFilter] = useState<VectraOrderStatus | null>(
+    null
+  )
+  const [typeFilter, setTypeFilter] = useState<VectraOrderType | null>(null)
 
   const handleAutoOpen = useCallback(() => {
     setAutoOpenOrderId(undefined)

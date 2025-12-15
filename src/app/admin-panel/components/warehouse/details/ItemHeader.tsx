@@ -1,8 +1,8 @@
 'use client'
 
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
 import ItemStatsCard from '@/app/components/shared/warehouse/ItemStatsCard'
 import { devicesTypeMap } from '@/lib/constants'
-import { SlimWarehouseItem } from '@/utils/warehouse'
 import { useMemo } from 'react'
 
 type Props = {

@@ -1,40 +1,12 @@
-//sec/types/index.ts
+// src/types/index.ts (GLOBAL CORE TYPES)
 
-import {
-  adminEditCompletionSchema,
-  amendCompletionSchema,
-  collectedDeviceSchema,
-  completeOrderSchema,
-  deviceSchema,
-  materialSchema,
-  operatorSchema,
-  orderSchema,
-  serviceSchema,
-  technicianOrderSchema,
-  usedMaterialSchema,
-  warehouseFormSchema,
-  workCodeSchema,
-} from '@/lib/schema'
-import {
-  DeviceCategory,
-  Order,
-  OrderStatus,
-  OrderType,
-  Prisma,
-  PrismaClient,
-  Role,
-  TimeSlot,
-  User,
-  UserStatus,
-  Warehouse,
-  WarehouseAction,
-  WarehouseHistory,
-  WarehouseStatus,
-} from '@prisma/client'
+import { PrismaClient, Role, UserStatus } from '@prisma/client'
+import { ReactNode } from 'react'
 import { IconType } from 'react-icons'
-import { z } from 'zod'
 
-// context type trpc
+// -----------------------------
+// GLOBAL CONTEXT
+// -----------------------------
 export interface Context {
   user?: {
     id: string
@@ -49,28 +21,22 @@ export interface Context {
   prisma: PrismaClient
 }
 
-export interface TechnicianAssignment {
-  technicianName: string
-  technicianId: string | null
-  slots: {
-    timeSlot: TimeSlot
-    orders: {
-      id: string
-      orderNumber: string
-      address: string
-      lat?: number | null
-      lng?: number | null
-      date: Date
-      operator: string
-      status: string
-      notes?: string
-      assignedToId?: string
-    }[]
-  }[]
+// -----------------------------
+// GLOBAL USER TYPES
+// -----------------------------
+export type UserWithBasic = {
+  id: string
+  name: string
+  email: string
+  phoneNumber: string
+  identyficator: number | null
+  role: Role
+  status: UserStatus
 }
-/**
- * Interface for menu items to enforce correct data structure.
- */
+
+// -----------------------------
+// GLOBAL UI / LAYOUT TYPES
+// -----------------------------
 export interface MenuItem {
   key: string
   name: string
@@ -78,219 +44,7 @@ export interface MenuItem {
   href: string
 }
 
-export type UserWithBasic = Pick<
-  User,
-  'id' | 'email' | 'phoneNumber' | 'name' | 'role' | 'status' | 'identyficator'
->
-
-export type IssuedItemDevice = {
-  id: string
-  type: 'DEVICE'
-  name: string
-  serialNumber: string
-  category: DeviceCategory
-  status?: WarehouseStatus
-}
-
-export type IssuedItemMaterial = {
-  id: string
-  type: 'MATERIAL'
-  name: string
-  materialDefinitionId: string
-  quantity: number
-}
-
-export type IssuedItem = IssuedItemDevice | IssuedItemMaterial
-
-export type TechnicianStockItem = {
-  id: string
-  name: string
-  serialNumber?: string | null
-  quantity?: number
-}
-
-export type DeviceFormData = z.infer<typeof deviceSchema>
-export type MaterialFormData = z.infer<typeof materialSchema>
-export type OperatorFormData = z.infer<typeof operatorSchema>
-
-export type DeviceDefinition = {
-  id: string
-  category: DeviceCategory
-  price: number
-  name: string
-  warningAlert: number
-  alarmAlert: number
-}
-
-export type MaterialDefinition = {
-  id: string
-  name: string
-  index: string
-  unit: 'PIECE' | 'METER'
-  price: number
-  warningAlert: number
-  alarmAlert: number
-}
-
-export type OrderFormData = z.infer<typeof orderSchema>
-export type TechnicianOrderFormData = z.infer<typeof technicianOrderSchema>
-export type WarehouseFormData = z.infer<typeof warehouseFormSchema>
-
-export type WarehouseHistoryWithUser = WarehouseHistory & {
-  performedBy: User
-  assignedTo: User | null
-  assignedOrder: Order | null
-}
-
-export type WarehouseHistoryWithRelations = Prisma.WarehouseHistoryGetPayload<{
-  include: {
-    warehouseItem: {
-      include: { location: true }
-    }
-    performedBy: true
-    assignedTo: true
-    assignedOrder: true
-    fromLocation: true
-    toLocation: true
-  }
-}>
-
-export type GroupedWarehouseHistory = {
-  id: string
-  action: WarehouseAction
-  actionDate: Date
-  performedBy: User
-  notes?: string
-  entries: {
-    id: string
-    warehouseItem: Warehouse
-    assignedTo?: User | null
-    assignedOrder?: Order | null
-    quantity?: number
-  }[]
-}
-
-export type WarehouseWithRelations = Prisma.WarehouseGetPayload<{
-  include: {
-    assignedTo: true
-    orderAssignments: {
-      include: {
-        order: true
-      }
-    }
-    history: true
-  }
-}>
-
-export type SelectedCode = { code: string; quantity: number }
-
-export type ServiceType = 'DTV' | 'NET' | 'TEL' | 'ATV'
-
-export type ActivatedService = {
-  id: string
-  type: ServiceType
-
-  // Primary device (decoder/modem)
-  deviceSource?: DeviceSource
-  deviceId?: string
-  serialNumber?: string
-  /** Optional label when using client's device */
-  deviceName?: string
-  deviceType?: DeviceCategory
-
-  // Secondary device (router for HFC / special cases)
-  device2Source?: DeviceSource
-  deviceId2?: string
-  serialNumber2?: string
-  deviceName2?: string
-  deviceType2?: DeviceCategory
-
-  // NET-only: extra modems/routers that should count as sockets
-  extraDevices?: ActivatedServiceExtraDevice[]
-
-  // Measurements
-  speedTest?: string
-  usDbmDown?: number
-  usDbmUp?: number
-
-  // Free-form notes
-  notes?: string
-}
-
-export type BaseUser = Prisma.UserGetPayload<{
-  select: {
-    id: true
-    name: true
-    email: true
-    phoneNumber: true
-    role: true
-    status: true
-    identyficator: true
-  }
-}>
-
-export type UserWithLocations = Prisma.UserGetPayload<{
-  select: {
-    id: true
-    name: true
-    email: true
-    phoneNumber: true
-    role: true
-    status: true
-    identyficator: true
-    locations: { select: { id: true; name: true } }
-  }
-}>
-
-export type DeviceSource = 'WAREHOUSE' | 'CLIENT'
-
-export type ActivatedServiceExtraDevice = {
-  id: string
-  source: DeviceSource
-  deviceId?: string
-  category: DeviceCategory
-  name?: string
-  serialNumber: string
-}
-/**
- * OrderWithAttempts
- * ------------------------------------------------------------------
- * Represents an order together with its retry attempts and previous
- * attempt metadata. Used in order details view and timeline.
- */
-export type OrderWithAttempts = {
-  id: string
-  type: OrderType
-  orderNumber: string
-  attemptNumber: number
-  status: OrderStatus
-  failureReason?: string | null
-  notes?: string | null
-  date: Date
-  assignedTo?: { id: string; name: string } | null
-  previousOrder?: {
-    id: string
-    attemptNumber: number
-    status: OrderStatus
-    failureReason?: string | null
-    assignedTo?: { id: string; name: string } | null
-  } | null
-  attempts: {
-    id: string
-    attemptNumber: number
-    status: OrderStatus
-    failureReason?: string | null
-    notes?: string | null
-    date: Date
-    completedAt?: Date | null
-    closedAt?: Date | null
-    createdAt?: Date | null
-    assignedTo?: { id: string; name: string } | null
-  }[]
-}
-
-import { ReactNode } from 'react'
-
+// Timeline
 export type TimelineSize = 'sm' | 'md' | 'lg'
 export type TimelineStatus = 'completed' | 'in-progress' | 'pending'
 
@@ -316,28 +70,9 @@ export interface TimelineProps {
   className?: string
 }
 
-export const orderTimelineColorMap: Record<OrderStatus, string> = {
-  COMPLETED: 'bg-success',
-  NOT_COMPLETED: 'bg-danger',
-  ASSIGNED: 'bg-warning',
-  PENDING: 'bg-secondary',
-}
-
-export type ClientHistoryItem = {
-  id: string
-  orderNumber: string
-  date: Date
-  status: OrderStatus
-  type: OrderType
-  city: string
-  street: string
-  attemptNumber: number
-}
-export type WorkCodeInput = z.infer<typeof workCodeSchema>
-export type UsedMaterialInput = z.infer<typeof usedMaterialSchema>
-export type CollectedDeviceInput = z.infer<typeof collectedDeviceSchema>
-export type ServiceInput = z.infer<typeof serviceSchema>
-export type CompleteOrderInput = z.infer<typeof completeOrderSchema>
-export type AmendCompletionInput = z.infer<typeof amendCompletionSchema>
-export type AdminEditCompletionInput = z.infer<typeof adminEditCompletionSchema>
-export type DbTx = Prisma.TransactionClient | PrismaClient
+// -----------------------------
+// DB HELPERS
+// -----------------------------
+export type DbTx =
+  | PrismaClient
+  | import('@prisma/client').Prisma.TransactionClient

@@ -1,5 +1,6 @@
 'use client'
 
+import { materialSchema } from '@/app/(modules)/vectra-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -24,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { materialSchema } from '@/lib/schema'
 import { MaterialFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'

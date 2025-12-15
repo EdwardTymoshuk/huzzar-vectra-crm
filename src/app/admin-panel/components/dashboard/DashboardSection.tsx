@@ -1,6 +1,6 @@
 'use client'
 
-import { OrderType } from '@prisma/client'
+import { VectraOrderType } from '@prisma/client'
 import OrderStatsSection from './OrderStatsSection'
 import TechnicianEfficiencyTable from './TechnicianEfficiencyTable'
 
@@ -8,7 +8,7 @@ type Props = {
   label: string
   date: Date | undefined
   range: 'day' | 'month' | 'year'
-  orderType: OrderType
+  orderType: VectraOrderType
 }
 
 /**

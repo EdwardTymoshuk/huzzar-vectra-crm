@@ -8,13 +8,13 @@
  *  • Przekazane   – history of transfers (for materials)
  * ----------------------------------------------------------------*/
 
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { SlimWarehouseItem } from '@/utils/warehouse'
 import { useSession } from 'next-auth/react'
 import { useMemo } from 'react'
 import MaterialHistoryByTabs from './details/MaterialHistoryByTabs'

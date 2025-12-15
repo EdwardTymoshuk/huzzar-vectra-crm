@@ -1,0 +1,147 @@
+/// -------------------------------------------
+/// VECTRA ORDERS (schema: vectra)
+/// -------------------------------------------
+
+model VectraOrder {
+  id                String                   @id @default(uuid())
+  clientId          String?
+  orderNumber       String
+  date              DateTime
+  timeSlot          VectraTimeSlot
+  clientPhoneNumber String?
+  notes             String?
+  status            VectraOrderStatus        @default(PENDING)
+  county            String?
+  municipality      String?
+  city              String
+  street            String
+  postalCode        String?
+  lat               Float?
+  lng               Float?
+  assignedToId      String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  createdSource     VectraOrderCreatedSource @default(PLANNER)
+  operator          String
+  type              VectraOrderType
+  closedAt          DateTime?
+  failureReason     String?
+  transferPending   Boolean                  @default(false)
+  transferToId      String?
+  completedAt       DateTime?
+  attemptNumber     Int                      @default(1)
+  previousOrderId   String?
+
+  // Self-relations
+  previousOrder VectraOrder?  @relation("OrderAttempts", fields: [previousOrderId], references: [id])
+  attempts      VectraOrder[] @relation("OrderAttempts")
+
+  // Relations to VectraUser
+  assignedTo VectraUser? @relation("VectraOrderAssignedTo", fields: [assignedToId], references: [userId])
+  transferTo VectraUser? @relation("VectraOrderTransfer", fields: [transferToId], references: [userId])
+
+  // Order components
+  assignedEquipment VectraOrderEquipment[]       @relation("OrderToOrderEquipment")
+  history           VectraOrderHistory[]
+  usedMaterials     VectraOrderMaterial[]
+  services          VectraOrderService[]
+  settlementEntries VectraOrderSettlementEntry[]
+  warehouseHistory  VectraWarehouseHistory[]     @relation("OrderToWarehouseHistory")
+
+  @@unique([orderNumber, city, street, attemptNumber])
+}
+
+model VectraOrderMaterial {
+  id         String             @id @default(uuid())
+  orderId    String
+  materialId String
+  quantity   Int
+  unit       VectraMaterialUnit
+
+  material VectraMaterialDefinition @relation("MaterialToOrderMaterial", fields: [materialId], references: [id])
+  order    VectraOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model VectraOrderSettlementEntry {
+  id       String @id @default(uuid())
+  orderId  String
+  code     String
+  quantity Int
+
+  rate  VectraRateDefinition @relation("RateDefinitionToSettlement", fields: [code], references: [code])
+  order VectraOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model VectraOrderService {
+  id      String            @id @default(uuid())
+  orderId String
+  type    VectraServiceType
+
+  deviceId     String?
+  serialNumber String?
+  deviceType   VectraDeviceCategory?
+  deviceSource VectraDeviceSource?
+  deviceName   String?
+
+  deviceId2     String?
+  serialNumber2 String?
+  deviceType2   VectraDeviceCategory?
+  device2Source VectraDeviceSource?
+  deviceName2   String?
+
+  extraDevicesCount Int?                     @default(0)
+  extraDevices      VectraOrderExtraDevice[]
+
+  speedTest String?
+  usDbmDown Float?
+  usDbmUp   Float?
+
+  createdAt DateTime @default(now())
+  notes     String?
+
+  order VectraOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model VectraOrderHistory {
+  id            String            @id @default(uuid())
+  orderId       String
+  changedById   String
+  changeDate    DateTime          @default(now())
+  statusBefore  VectraOrderStatus
+  statusAfter   VectraOrderStatus
+  notes         String?
+  equipmentUsed String[]
+
+  changedBy VectraUser  @relation("VectraOrderHistoryByUser", fields: [changedById], references: [userId])
+  order     VectraOrder @relation(fields: [orderId], references: [id])
+}
+
+model VectraOrderEquipment {
+  id          String @id @default(uuid())
+  orderId     String
+  warehouseId String
+
+  order     VectraOrder     @relation("OrderToOrderEquipment", fields: [orderId], references: [id], onDelete: Cascade)
+  warehouse VectraWarehouse @relation("WarehouseToOrderEquipment", fields: [warehouseId], references: [id])
+
+  @@unique([orderId, warehouseId])
+  @@index([orderId])
+}
+
+model VectraOrderExtraDevice {
+  id           String                @id @default(uuid())
+  serviceId    String
+  warehouseId  String?
+  source       VectraDeviceSource
+  name         String
+  serialNumber String?
+  category     VectraDeviceCategory?
+
+  service VectraOrderService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}

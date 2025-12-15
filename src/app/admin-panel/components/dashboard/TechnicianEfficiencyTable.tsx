@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { trpc } from '@/utils/trpc'
-import { OrderType } from '@prisma/client'
+import { VectraOrderType } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import {
   TiArrowSortedDown,
@@ -23,7 +23,7 @@ import {
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
-  orderType: OrderType
+  orderType: VectraOrderType
 }
 
 type SortKey =

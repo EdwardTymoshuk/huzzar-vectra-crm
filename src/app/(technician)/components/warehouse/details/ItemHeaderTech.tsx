@@ -8,10 +8,10 @@
  * - number of items already used/issued on orders
  * ------------------------------------------------------------------- */
 
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
 import ItemStatsCard from '@/app/components/shared/warehouse/ItemStatsCard'
 import { devicesTypeMap } from '@/lib/constants'
-import { SlimWarehouseItem } from '@/utils/warehouse'
-import { WarehouseAction } from '@prisma/client'
+import { VectraWarehouseAction } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useMemo } from 'react'
 
@@ -65,7 +65,7 @@ const ItemHeaderTech = ({ items }: Props) => {
       return items.reduce((total, item) => {
         const hasUsedOnOrder = item.history.some(
           (h) =>
-            h.action === WarehouseAction.ASSIGNED_TO_ORDER &&
+            h.action === VectraWarehouseAction.ASSIGNED_TO_ORDER &&
             h.assignedOrderId !== null &&
             h.performedBy?.id === techId
         )
@@ -79,8 +79,8 @@ const ItemHeaderTech = ({ items }: Props) => {
       const usedForOrders = item.history
         .filter(
           (h) =>
-            h.action === WarehouseAction.ASSIGNED_TO_ORDER ||
-            (h.action === WarehouseAction.ISSUED &&
+            h.action === VectraWarehouseAction.ASSIGNED_TO_ORDER ||
+            (h.action === VectraWarehouseAction.ISSUED &&
               h.assignedOrderId !== null &&
               h.performedBy?.id === techId &&
               (h.quantity ?? 0) > 0)

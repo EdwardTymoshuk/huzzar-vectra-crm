@@ -2,17 +2,17 @@
 
 import PageControlBar from '@/app/components/shared/PageControlBar'
 import SearchInput from '@/app/components/shared/SearchInput'
-import { OrderStatus, OrderType } from '@prisma/client'
+import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { TechnicianOrdersFilter } from './TechnicianOrdersFilter'
 
 interface TechnicianOrdersHeaderBarProps {
   title: string
   searchTerm: string
   setSearchTerm: (v: string) => void
-  statusFilter: OrderStatus | null
-  typeFilter: OrderType | null
-  setStatusFilter: (v: OrderStatus | null) => void
-  setTypeFilter: (v: OrderType | null) => void
+  statusFilter: VectraOrderStatus | null
+  typeFilter: VectraOrderType | null
+  setStatusFilter: (v: VectraOrderStatus | null) => void
+  setTypeFilter: (v: VectraOrderType | null) => void
   onClearFilters: () => void
 }
 

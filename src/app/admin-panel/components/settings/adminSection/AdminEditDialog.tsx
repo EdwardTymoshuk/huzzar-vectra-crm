@@ -59,7 +59,7 @@ const adminEditSchema = z.object({
 
 type AdminEditFormData = z.infer<typeof adminEditSchema>
 
-type AdminUserData = Prisma.UserGetPayload<{
+type AdminUserData = Prisma.VectraUserGetPayload<{
   select: {
     id: true
     name: true

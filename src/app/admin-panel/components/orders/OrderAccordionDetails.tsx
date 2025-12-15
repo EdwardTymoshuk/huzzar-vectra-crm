@@ -9,7 +9,7 @@ import { Separator } from '@/app/components/ui/separator'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus } from '@prisma/client'
+import { VectraOrderStatus } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { IoCheckmarkDone } from 'react-icons/io5'
@@ -178,13 +178,13 @@ const OrderAccordionDetails = ({ order }: Props) => {
   const canApprove =
     (isAdmin || isCoordinator) &&
     (data.type === 'SERVICE' || data.type === 'OUTAGE') &&
-    data.status === OrderStatus.COMPLETED &&
+    data.status === VectraOrderStatus.COMPLETED &&
     !isConfirmed
 
   const canAdminEdit =
     isAdmin &&
-    (data.status === OrderStatus.COMPLETED ||
-      data.status === OrderStatus.NOT_COMPLETED)
+    (data.status === VectraOrderStatus.COMPLETED ||
+      data.status === VectraOrderStatus.NOT_COMPLETED)
 
   /* ---------------- Render ---------------- */
   return (

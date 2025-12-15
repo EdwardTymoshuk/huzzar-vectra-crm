@@ -17,6 +17,4 @@ export const t = initTRPC.context<Context>().create({
 export const router = t.router
 export const procedure = t.procedure
 export const mergeRouters = t.mergeRouters
-
-/** Public procedure (does not require authentication) */
 export const publicProcedure = t.procedure

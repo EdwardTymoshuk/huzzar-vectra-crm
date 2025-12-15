@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
-import { UserWithLocations } from '@/types'
+import { VectraUserWithLocations } from '@/types'
 import { generateStrongPassword } from '@/utils/passwordGenerator'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -67,7 +67,7 @@ const EmployeeEditDialog = ({
   employee,
   onClose,
 }: {
-  employee: UserWithLocations
+  employee: VectraUserWithLocations
   onClose: () => void
 }) => {
   const [isSpinning, setIsSpinning] = useState(false)

@@ -3,7 +3,7 @@
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
 import { ActivatedService, IssuedItemMaterial } from '@/types'
-import { MaterialUnit, OrderType } from '@prisma/client'
+import { MaterialUnit, VectraOrderType } from '@prisma/client'
 import { AlertCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -34,7 +34,7 @@ interface Props {
     install: { pion: number; listwa: number }
     materials: UsedMaterial[]
   }) => void
-  orderType?: OrderType
+  orderType?: VectraOrderType
 }
 
 /**

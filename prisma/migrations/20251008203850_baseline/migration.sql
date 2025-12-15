@@ -29,7 +29,7 @@ CREATE TYPE "MaterialUnit" AS ENUM ('PIECE', 'METER');
 CREATE TYPE "WarehouseStatus" AS ENUM ('AVAILABLE', 'ASSIGNED', 'RETURNED', 'ASSIGNED_TO_ORDER', 'RETURNED_TO_OPERATOR', 'TRANSFER', 'COLLECTED_FROM_CLIENT');
 
 -- CreateEnum
-CREATE TYPE "WarehouseAction" AS ENUM ('RECEIVED', 'ISSUED', 'RETURNED', 'RETURNED_TO_OPERATOR', 'TRANSFER', 'COLLECTED_FROM_CLIENT');
+CREATE TYPE "VectraWarehouseAction" AS ENUM ('RECEIVED', 'ISSUED', 'RETURNED', 'RETURNED_TO_OPERATOR', 'TRANSFER', 'COLLECTED_FROM_CLIENT');
 
 -- CreateEnum
 CREATE TYPE "ServiceType" AS ENUM ('DTV', 'NET', 'TEL', 'ATV');
@@ -178,7 +178,7 @@ CREATE TABLE "Warehouse" (
 CREATE TABLE "WarehouseHistory" (
     "id" TEXT NOT NULL,
     "warehouseItemId" TEXT NOT NULL,
-    "action" "WarehouseAction" NOT NULL,
+    "action" "VectraWarehouseAction" NOT NULL,
     "performedById" TEXT NOT NULL,
     "assignedToId" TEXT,
     "actionDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

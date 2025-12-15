@@ -1,3 +1,4 @@
+import { sortCodes } from '@/app/(modules)/vectra-crm/utils/sortCodes'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import { NavLink } from '@/app/components/shared/navigation-progress'
 import { Button } from '@/app/components/ui/button'
@@ -10,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { sortCodes } from '@/utils/sortCodes'
 import { trpc } from '@/utils/trpc'
 import { MdKeyboardArrowRight } from 'react-icons/md'
 

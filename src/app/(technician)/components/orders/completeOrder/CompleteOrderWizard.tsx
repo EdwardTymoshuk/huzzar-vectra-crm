@@ -14,10 +14,10 @@ import {
   DeviceCategory,
   MaterialDefinition,
   MaterialUnit,
-  OrderStatus,
-  OrderType,
   Prisma,
   RateDefinition,
+  VectraOrderStatus,
+  VectraOrderType,
 } from '@prisma/client'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -58,7 +58,7 @@ type FullOrder = Prisma.OrderGetPayload<{
 interface Props {
   open: boolean
   order: FullOrder
-  orderType: OrderType
+  orderType: VectraOrderType
   onCloseAction: () => void
   materialDefs: MaterialDefinition[]
   techMaterials: {
@@ -90,7 +90,7 @@ const CompleteOrderWizard = ({
   /** Step state */
   const [step, setStep] = useState(0)
   /** Core form states */
-  const [status, setStatus] = useState<OrderStatus>('COMPLETED')
+  const [status, setStatus] = useState<VectraOrderStatus>('COMPLETED')
   const [services, setServices] = useState<ActivatedService[]>([])
   const [install, setInstall] = useState({ pion: 0, listwa: 0 })
   const [materials, setMaterials] = useState<
@@ -230,7 +230,7 @@ const CompleteOrderWizard = ({
    * Selects appropriate mutation based on role and mode.
    */
   const handleSubmit = async (payload: {
-    status: OrderStatus
+    status: VectraOrderStatus
     notes?: string | null
     failureReason?: string
     workCodes?: { code: string; quantity: number }[]

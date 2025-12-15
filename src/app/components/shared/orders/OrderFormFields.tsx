@@ -27,7 +27,7 @@ import { Textarea } from '@/app/components/ui/textarea'
 import { timeSlotOptions } from '@/lib/constants'
 import { OrderFormData, TechnicianOrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus } from '@prisma/client'
+import { VectraOrderStatus } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { useEffect, useState } from 'react'
@@ -310,13 +310,13 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
                   // Automatically adjust status for admin
                   const currentStatus = getValues?.('status')
                   if (!currentStatus) return
-                  if (selected && currentStatus === OrderStatus.PENDING) {
-                    setValue?.('status', OrderStatus.ASSIGNED)
+                  if (selected && currentStatus === VectraOrderStatus.PENDING) {
+                    setValue?.('status', VectraOrderStatus.ASSIGNED)
                   } else if (
                     !selected &&
-                    currentStatus === OrderStatus.ASSIGNED
+                    currentStatus === VectraOrderStatus.ASSIGNED
                   ) {
-                    setValue?.('status', OrderStatus.PENDING)
+                    setValue?.('status', VectraOrderStatus.PENDING)
                   }
                 }}
                 value={field.value ?? 'none'}

@@ -1,5 +1,7 @@
 'use client'
 
+import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import SearchInput from '@/app/components/shared/SearchInput'
 import TechnicianSelector from '@/app/components/shared/TechnicianSelector'
 import { Badge } from '@/app/components/ui/badge'
@@ -12,9 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { sumTechnicianMaterialStock } from '@/lib/warehouse'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { WarehouseStatus } from '@prisma/client'
 import { useEffect, useMemo, useRef, useState } from 'react'

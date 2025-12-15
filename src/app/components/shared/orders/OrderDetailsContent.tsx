@@ -1,8 +1,8 @@
 'use client'
 
+import { collectOrderEquipment } from '@/app/(modules)/vectra-crm/utils/orders/collectOrderEquipment'
 import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
-import { collectOrderEquipment } from '@/utils/orders/collectOrderEquipment'
-import { DeviceCategory, OrderStatus, Prisma } from '@prisma/client'
+import { DeviceCategory, Prisma, VectraOrderStatus } from '@prisma/client'
 import React from 'react'
 
 /** Exact payload returned by getOrderById */
@@ -178,7 +178,7 @@ const OrderDetailsContent = ({ order }: Props) => {
       </section>
 
       {/* ===== Not completed reason ===== */}
-      {status === OrderStatus.NOT_COMPLETED && (
+      {status === VectraOrderStatus.NOT_COMPLETED && (
         <Section title="Powód niewykonania" list={[failureReason ?? '—']} />
       )}
 

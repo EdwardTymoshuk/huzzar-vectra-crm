@@ -1,4 +1,4 @@
-import { OrderStatus, Prisma } from '@prisma/client'
+import { Prisma, VectraOrderStatus } from '@prisma/client'
 
 /**
  * addOrderHistory – creates a single order history record inside current transaction.
@@ -15,11 +15,11 @@ export const addOrderHistory = async ({
   prisma: Prisma.TransactionClient
   orderId: string
   userId: string
-  before: OrderStatus
-  after: OrderStatus
+  before: VectraOrderStatus
+  after: VectraOrderStatus
   note?: string | null
 }) => {
-  return prisma.orderHistory.create({
+  return prisma.vectraOrderHistory.create({
     data: {
       orderId,
       changedById: userId,

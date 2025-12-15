@@ -1,4 +1,4 @@
-import { UserWithLocations } from '@/types'
+import { VectraUserWithLocations } from '@/types'
 import { TRPCError } from '@trpc/server'
 
 /**
@@ -14,7 +14,7 @@ import { TRPCError } from '@trpc/server'
  * @returns Resolved valid locationId string
  */
 export function resolveLocationId(
-  user: UserWithLocations,
+  user: VectraUserWithLocations,
   input?: { locationId?: string }
 ): string {
   // Admins and coordinators must specify location, fallback to first assigned

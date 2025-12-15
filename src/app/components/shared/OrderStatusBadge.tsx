@@ -2,7 +2,7 @@
 
 import { Badge } from '@/app/components/ui/badge'
 import { statusMap } from '@/lib/constants'
-import { OrderStatus } from '@prisma/client'
+import { VectraOrderStatus } from '@prisma/client'
 
 /**
  * OrderStatusBadge
@@ -18,14 +18,14 @@ import { OrderStatus } from '@prisma/client'
  * - className: optional extra styling
  */
 interface OrderStatusBadgeProps {
-  status: OrderStatus
+  status: VectraOrderStatus
   compact?: boolean
   className?: string
 }
 
-/** Maps OrderStatus to ShadCN badge variants */
+/** Maps VectraOrderStatus to ShadCN badge variants */
 const getVariant = (
-  status: OrderStatus
+  status: VectraOrderStatus
 ): 'success' | 'danger' | 'warning' | 'outline' => {
   switch (status) {
     case 'COMPLETED':
@@ -40,7 +40,7 @@ const getVariant = (
 }
 
 /** Short text versions for compact mode */
-const shortLabel: Record<OrderStatus, string> = {
+const shortLabel: Record<VectraOrderStatus, string> = {
   COMPLETED: 'W', // wykonane
   NOT_COMPLETED: 'NW', // niewykonane
   ASSIGNED: 'P', // przypisane

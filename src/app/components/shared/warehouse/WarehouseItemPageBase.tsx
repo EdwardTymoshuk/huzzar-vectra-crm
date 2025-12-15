@@ -1,10 +1,10 @@
 'use client'
 
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
 import WarehouseItemHeaderBar from '@/app/components/shared/warehouse/WarehouseItemHeaderBar'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { devicesTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
-import { SlimWarehouseItem } from '@/utils/warehouse'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'

@@ -1,9 +1,9 @@
 'use client'
 
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import ItemHeader from '@/app/admin-panel/components/warehouse/details/ItemHeader'
 import ItemTabs from '@/app/admin-panel/components/warehouse/details/ItemTabs'
 import WarehouseItemPageBase from '@/app/components/shared/warehouse/WarehouseItemPageBase'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 
 const WarehouseItemPage = () => {

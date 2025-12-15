@@ -1,5 +1,6 @@
 'use client'
 
+import { orderSchema } from '@/app/(modules)/vectra-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -8,11 +9,10 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { Form } from '@/app/components/ui/form'
-import { orderSchema } from '@/lib/schema'
 import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { OrderStatus, Prisma } from '@prisma/client'
+import { Prisma, VectraOrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -86,7 +86,7 @@ const EditOrderModal = ({
       postalCode: order.postalCode || '',
       notes: order.notes || '',
       assignedToId: order.assignedToId || 'none',
-      status: order.status || OrderStatus.PENDING,
+      status: order.status || VectraOrderStatus.PENDING,
     },
   })
 
@@ -103,8 +103,8 @@ const EditOrderModal = ({
 
       // Automatically set ASSIGNED if technician changed from none
       if (data.assignedToId !== order.assignedToId) {
-        if (order.status === OrderStatus.PENDING) {
-          finalStatus = OrderStatus.ASSIGNED
+        if (order.status === VectraOrderStatus.PENDING) {
+          finalStatus = VectraOrderStatus.ASSIGNED
         }
       }
 
@@ -131,9 +131,9 @@ const EditOrderModal = ({
     if (
       assignedToId &&
       assignedToId !== 'none' &&
-      currentStatus === OrderStatus.PENDING
+      currentStatus === VectraOrderStatus.PENDING
     ) {
-      form.setValue('status', OrderStatus.ASSIGNED)
+      form.setValue('status', VectraOrderStatus.ASSIGNED)
     }
   }, [assignedToId, form])
 

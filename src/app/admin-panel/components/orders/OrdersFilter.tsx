@@ -14,14 +14,14 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, OrderType } from '@prisma/client'
+import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type Props = {
-  setStatusFilter: (status: OrderStatus | null) => void
+  setStatusFilter: (status: VectraOrderStatus | null) => void
   setTechnicianFilter: (technician: string | null) => void
-  setOrderTypeFilter: (type: OrderType | null) => void
+  setOrderTypeFilter: (type: VectraOrderType | null) => void
 }
 
 /**
@@ -79,7 +79,7 @@ const OrdersFilter = ({
               handleChange(() => {
                 setTypeValue(value)
                 setOrderTypeFilter(
-                  value === 'all' ? null : (value as OrderType)
+                  value === 'all' ? null : (value as VectraOrderType)
                 )
               })
             }
@@ -104,7 +104,9 @@ const OrdersFilter = ({
             onValueChange={(value) =>
               handleChange(() => {
                 setStatusValue(value)
-                setStatusFilter(value === 'all' ? null : (value as OrderStatus))
+                setStatusFilter(
+                  value === 'all' ? null : (value as VectraOrderStatus)
+                )
               })
             }
           >

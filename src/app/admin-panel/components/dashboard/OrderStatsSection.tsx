@@ -5,7 +5,7 @@ import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { buildDateParam } from '@/utils/dates/buildDateParam'
 import { trpc } from '@/utils/trpc'
-import { OrderType } from '@prisma/client'
+import { VectraOrderType } from '@prisma/client'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import SuccessChart from './SuccessChart'
@@ -13,7 +13,7 @@ import SuccessChart from './SuccessChart'
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
-  orderType: OrderType
+  orderType: VectraOrderType
 }
 
 const COLORS = ['#16a34a', '#dc2626']

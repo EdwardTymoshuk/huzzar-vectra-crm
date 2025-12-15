@@ -14,7 +14,7 @@ import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap } from '@/lib/constants'
 import { IssuedItemDevice } from '@/types'
-import { DeviceCategory, OrderType } from '@prisma/client'
+import { DeviceCategory, VectraOrderType } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import DeviceCard from '../DeviceCard'
@@ -41,7 +41,7 @@ interface Props {
   setIssued: Setter<IssuedItemDevice[]>
 
   /** Order metadata */
-  orderType: OrderType
+  orderType: VectraOrderType
 
   /** Technician notes */
   notes: string

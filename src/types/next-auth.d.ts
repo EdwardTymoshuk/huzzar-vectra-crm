@@ -1,3 +1,5 @@
+//src/types/next-authOptions.d.ts
+
 import { Role, UserStatus } from '@prisma/client'
 import 'next-auth'
 
@@ -11,7 +13,7 @@ declare module 'next-auth' {
       identyficator: number | null
       role: Role
       status: UserStatus
-      locations: { id: string; name: string }[]
+      modules: string[]
     }
   }
 
@@ -23,7 +25,7 @@ declare module 'next-auth' {
     identyficator: number | null
     role: Role
     status: UserStatus
-    locations: { id: string; name: string }[]
+    modules: string[]
   }
 }
 
@@ -36,6 +38,6 @@ declare module 'next-auth/jwt' {
     identyficator: number | null
     role: Role
     status: UserStatus
-    locations: { id: string; name: string }[]
+    modules: string[]
   }
 }

@@ -1,0 +1,93 @@
+/// -------------------------------------------
+/// CORE MODELS (schema: public)
+/// -------------------------------------------
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  name          String
+  password      String
+  phoneNumber   String
+  identyficator Int?       @unique
+  role          Role       @default(TECHNICIAN)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  modules UserModule[]
+  settings GlobalUserSettings?
+
+  locations UserLocation[] @relation("UserLocations")
+  vectraProfile VectraUser? @relation("UserToVectraUser")
+}
+
+//Global user location
+model UserLocation {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Users who have access
+  users User[] @relation("UserLocations")
+
+  // VECTRA module connects via foreign key
+  vectraItems        VectraWarehouse[]
+  vectraHistoryFrom  VectraWarehouseHistory[] @relation("VectraFromLocationHistory")
+  vectraHistoryTo    VectraWarehouseHistory[] @relation("VectraToLocationHistory")
+  vectraTransfersFrom VectraLocationTransfer[] @relation("VectraTransfersFromLocation")
+  vectraTransfersTo   VectraLocationTransfer[] @relation("VectraTransfersToLocation")
+}
+
+
+model GlobalUserSettings {
+  userId    String   @id
+  language  String?
+  darkMode  Boolean? @default(false)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+/// -------------------------------------------
+/// Dynamic Module Definitions
+/// -------------------------------------------
+
+model Module {
+  id      String  @id @default(uuid())
+  name    String  @unique
+  code    String  @unique
+  enabled Boolean @default(true)
+
+  users UserModule[]
+}
+
+model UserModule {
+  id       String @id @default(uuid())
+  userId   String
+  moduleId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  module Module @relation(fields: [moduleId], references: [id])
+
+  @@unique([userId, moduleId])
+}
+
+/// -------------------------------------------
+/// CORE ENUMS
+/// -------------------------------------------
+
+enum Role {
+  TECHNICIAN
+  COORDINATOR
+  WAREHOUSEMAN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}

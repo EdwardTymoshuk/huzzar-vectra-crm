@@ -4,7 +4,7 @@ import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { polishMonthsNominative } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
-import { OrderType } from '@prisma/client'
+import { VectraOrderType } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
@@ -19,7 +19,7 @@ import {
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
-  orderType: OrderType
+  orderType: VectraOrderType
 }
 
 /** Strongly-typed result shapes returned by the tRPC endpoint. */
@@ -31,7 +31,7 @@ type YearPoint = { year: number; successRate: number }
  * SuccessChart
  * --------------------------------------------------------------
  * Renders company-wide success rate over time.
- * Supports filtering by OrderType:
+ * Supports filtering by VectraOrderType:
  *  - INSTALLATION
  *  - SERVICE
  *  - OUTAGE (LINES)

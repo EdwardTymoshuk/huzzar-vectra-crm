@@ -1,0 +1,47 @@
+/// -----------------------------------------
+/// VECTRA CORE (schema: vectra)
+/// -----------------------------------------
+
+model VectraUser {
+  userId    String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Bridge to global User
+  user User @relation("UserToVectraUser", fields: [userId], references: [id])
+
+  technicianSettings VectraTechnicianSettings?
+
+  // --- Relations used throughout the module ---
+  ordersAssigned    VectraOrder[]        @relation("VectraOrderAssignedTo")
+  ordersTransferred VectraOrder[]        @relation("VectraOrderTransfer")
+  orderHistory      VectraOrderHistory[] @relation("VectraOrderHistoryByUser")
+
+  warehouseItems   VectraWarehouse[] @relation("VectraWarehouseAssignedTo")
+  transferredItems VectraWarehouse[] @relation("VectraWarehouseTransfer")
+
+  warehouseHistoryAssigned  VectraWarehouseHistory[] @relation("VectraWHAssignedTo")
+  warehouseHistoryPerformed VectraWarehouseHistory[] @relation("VectraWHPerformedBy")
+
+  transfersRequested VectraLocationTransfer[] @relation("VectraRequestedTransfers")
+  transfersConfirmed VectraLocationTransfer[] @relation("VectraConfirmedTransfers")
+
+  materialDeficits VectraTechnicianMaterialDeficit[] @relation("VectraMaterialDeficitTechnician")
+}
+
+model VectraTechnicianSettings {
+  userId          String   @id
+  workingDaysGoal Int
+  revenueGoal     Float
+  updatedAt       DateTime @updatedAt
+
+  vectraUser VectraUser @relation(fields: [userId], references: [userId])
+}
+
+model VectraRateDefinition {
+  id     String @id @default(uuid())
+  code   String @unique
+  amount Float
+
+  settlements VectraOrderSettlementEntry[] @relation("RateDefinitionToSettlement")
+}

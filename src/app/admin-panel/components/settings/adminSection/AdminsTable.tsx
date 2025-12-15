@@ -23,7 +23,7 @@ import { toast } from 'sonner'
 import { userRoleMap } from '../../../../../lib/constants'
 import AdminEditDialog from './AdminEditDialog'
 
-type AdminUser = Prisma.UserGetPayload<{
+type AdminUser = Prisma.VectraUserGetPayload<{
   select: {
     id: true
     email: true

@@ -1,5 +1,11 @@
 'use client'
 
+import {
+  SlimWarehouseItem,
+  fmt,
+  getLastAction,
+  getLastActionDate,
+} from '@/app/(modules)/vectra-crm/utils/warehouse'
 import SearchInput from '@/app/components/shared/SearchInput'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
@@ -11,13 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import {
-  SlimWarehouseItem,
-  fmt,
-  getLastAction,
-  getLastActionDate,
-} from '@/utils/warehouse'
-import { WarehouseAction } from '@prisma/client'
+import { VectraWarehouseAction } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 
@@ -54,17 +54,17 @@ const TechItemTable = ({ items, mode }: Props) => {
   // Resolve the most relevant date depending on mode
   const pickDate = (it: SlimWarehouseItem): Date | null => {
     if (mode === 'warehouse') {
-      return getLastActionDate(it.history, WarehouseAction.ISSUED)
+      return getLastActionDate(it.history, VectraWarehouseAction.ISSUED)
     }
     if (mode === 'orders') {
       return (
-        getLastActionDate(it.history, WarehouseAction.ISSUED) ??
+        getLastActionDate(it.history, VectraWarehouseAction.ISSUED) ??
         it.orderAssignments[0]?.order?.createdAt ??
         null
       )
     }
     if (mode === 'transfer') {
-      return getLastActionDate(it.history, WarehouseAction.TRANSFER)
+      return getLastActionDate(it.history, VectraWarehouseAction.TRANSFER)
     }
     return null
   }
@@ -127,10 +127,13 @@ const TechItemTable = ({ items, mode }: Props) => {
             const date = pickDate(it)
             const order = it.orderAssignments[0]?.order
 
-            const lastIssued = getLastAction(it.history, WarehouseAction.ISSUED)
+            const lastIssued = getLastAction(
+              it.history,
+              VectraWarehouseAction.ISSUED
+            )
             const lastTransfer = getLastAction(
               it.history,
-              WarehouseAction.TRANSFER
+              VectraWarehouseAction.TRANSFER
             )
 
             const issuedBy = lastIssued?.performedBy?.name ?? '—'

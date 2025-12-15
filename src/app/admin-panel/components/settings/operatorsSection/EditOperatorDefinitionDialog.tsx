@@ -1,5 +1,6 @@
 'use client'
 
+import { operatorSchema } from '@/app/(modules)/vectra-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -17,7 +18,6 @@ import {
   FormMessage,
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
-import { operatorSchema } from '@/lib/schema'
 import { OperatorFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'

@@ -5,7 +5,7 @@ import PaginationControls from '@/app/admin-panel/components/warehouse/history/P
 import WarehouseHistoryHeaderBar from '@/app/admin-panel/components/warehouse/history/WarehouseHistoryHeaderBar'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import { trpc } from '@/utils/trpc'
-import { WarehouseAction } from '@prisma/client'
+import { VectraWarehouseAction } from '@prisma/client'
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
@@ -23,7 +23,7 @@ const WarehouseHistoryPage = () => {
   const [page, setPage] = useState(Number(searchParams.get('page') || 1))
   const [limit] = useState(30)
 
-  const [actions, setActions] = useState<WarehouseAction[] | undefined>()
+  const [actions, setActions] = useState<VectraWarehouseAction[] | undefined>()
   const [performerId, setPerformerId] = useState<string | undefined>()
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [endDate, setEndDate] = useState<Date | undefined>()

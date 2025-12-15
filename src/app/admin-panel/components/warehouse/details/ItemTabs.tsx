@@ -1,12 +1,12 @@
 'use client'
 
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { SlimWarehouseItem } from '@/utils/warehouse'
 import { useMemo } from 'react'
 import ItemModeTable from './ItemModeTable'
 import MaterialHistoryByTabs from './MaterialHistoryByTabs'

@@ -11,7 +11,7 @@ import {
 } from '@/app/components/ui/accordion'
 import { orderTypeMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, OrderType, Prisma } from '@prisma/client'
+import { Prisma, VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import {
@@ -48,8 +48,8 @@ type Props = {
   searchTerm: string
   autoOpenOrderId?: string
   onAutoOpenHandled?: () => void
-  statusFilter: OrderStatus | null
-  typeFilter: OrderType | null
+  statusFilter: VectraOrderStatus | null
+  typeFilter: VectraOrderType | null
 }
 
 const TechnicianOrdersTable = ({

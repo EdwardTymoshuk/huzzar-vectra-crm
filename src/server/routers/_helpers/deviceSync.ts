@@ -12,7 +12,7 @@ export async function validateDeviceOwnership(
   technicianId: string,
   isAdmin: boolean
 ) {
-  const device = await tx.warehouse.findUnique({
+  const device = await tx.vectraWarehouse.findUnique({
     where: { id: warehouseId },
     select: {
       id: true,
@@ -52,7 +52,7 @@ export async function syncDeviceOnAdd(
   performedById: string
 ) {
   // Create logical link device ↔ order
-  await tx.orderEquipment.create({
+  await tx.vectraOrderEquipment.create({
     data: {
       orderId,
       warehouseId,
@@ -60,7 +60,7 @@ export async function syncDeviceOnAdd(
   })
 
   // Update warehouse status to reflect device usage
-  await tx.warehouse.update({
+  await tx.vectraWarehouse.update({
     where: { id: warehouseId },
     data: {
       status: 'ASSIGNED_TO_ORDER',
@@ -90,7 +90,7 @@ export async function syncDeviceOnRemove(
 ) {
   if (device.assignedToId) {
     // Return to technician's personal stock
-    await tx.warehouse.update({
+    await tx.vectraWarehouse.update({
       where: { id: device.id },
       data: {
         status: 'ASSIGNED',
@@ -108,7 +108,7 @@ export async function syncDeviceOnRemove(
     })
   } else {
     // Return to warehouse stock
-    await tx.warehouse.update({
+    await tx.vectraWarehouse.update({
       where: { id: device.id },
       data: {
         status: 'AVAILABLE',

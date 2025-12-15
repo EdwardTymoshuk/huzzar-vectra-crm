@@ -1,0 +1,104 @@
+enum VectraOrderStatus {
+  PENDING
+  ASSIGNED
+  COMPLETED
+  NOT_COMPLETED
+}
+
+enum VectraOrderType {
+  INSTALATION
+  SERVICE
+  OUTAGE
+}
+
+enum VectraOrderCreatedSource {
+  PLANNER
+  MANUAL
+}
+
+enum VectraTimeSlot {
+  EIGHT_TEN          @map("8-10")
+  TEN_TWELVE         @map("10-12")
+  TWELVE_FOURTEEN    @map("12-14")
+  FOURTEEN_SIXTEEN   @map("14-16")
+  SIXTEEN_EIGHTEEN   @map("16-18")
+  EIGHTEEN_TWENTY    @map("18-20")
+  NINE_TWELVE        @map("9-12")
+  TWELVE_FIFTEEN     @map("12-15")
+  FIFTEEN_EIGHTEEN   @map("15-18")
+  EIGHTEEN_TWENTYONE @map("18-21")
+  EIGHT_NINE         @map("8-9")
+  NINE_TEN           @map("9-10")
+  TEN_ELEVEN         @map("10-11")
+  ELEVEN_TWELVE      @map("11-12")
+  TWELVE_THIRTEEN    @map("12-13")
+  THIRTEEN_FOURTEEN  @map("13-14")
+  FOURTEEN_FIFTEEN   @map("14-15")
+  FIFTEEN_SIXTEEN    @map("15-16")
+  SIXTEEN_SEVENTEEN  @map("16-17")
+  SEVENTEEN_EIGHTEEN @map("17-18")
+  EIGHTEEN_NINETEEN  @map("18-19")
+  NINETEEN_TWENTY    @map("19-20")
+  TWENTY_TWENTYONE   @map("20-21")
+}
+
+enum VectraWarehouseStatus {
+  AVAILABLE
+  ASSIGNED
+  RETURNED
+  ASSIGNED_TO_ORDER
+  RETURNED_TO_OPERATOR
+  TRANSFER
+  COLLECTED_FROM_CLIENT
+}
+
+enum VectraWarehouseItemType {
+  DEVICE
+  MATERIAL
+}
+
+enum VectraDeviceCategory {
+  MODEM_HFC
+  MODEM_GPON
+  DECODER_1_WAY
+  DECODER_2_WAY
+  NETWORK_DEVICE
+  OTHER
+}
+
+enum VectraMaterialUnit {
+  PIECE
+  METER
+}
+
+enum VectraWarehouseAction {
+  RECEIVED
+  ISSUED
+  RETURNED
+  RETURNED_TO_OPERATOR
+  RETURNED_TO_TECHNICIAN
+  TRANSFER
+  COLLECTED_FROM_CLIENT
+  ASSIGNED_TO_ORDER
+  ISSUED_TO_CLIENT
+}
+
+enum VectraServiceType {
+  DTV
+  NET
+  TEL
+  ATV
+}
+
+enum VectraLocationTransferStatus {
+  REQUESTED
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+  CANCELED
+}
+
+enum VectraDeviceSource {
+  WAREHOUSE
+  CLIENT
+}

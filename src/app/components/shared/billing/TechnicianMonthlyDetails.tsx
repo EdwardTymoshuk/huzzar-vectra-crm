@@ -1,5 +1,6 @@
 'use client'
 
+import { sortCodes } from '@/app/(modules)/vectra-crm/utils/sortCodes'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import TechnicianSummaryHeader from '@/app/components/shared/TechnicianSummaryHeader'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
@@ -19,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { sortCodes } from '@/utils/sortCodes'
 import { trpc } from '@/utils/trpc'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'

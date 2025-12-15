@@ -1,5 +1,6 @@
 'use client'
 
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import {
   Tabs,
   TabsContent,
@@ -7,7 +8,6 @@ import {
   TabsTrigger,
 } from '@/app/components/ui/tabs'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'

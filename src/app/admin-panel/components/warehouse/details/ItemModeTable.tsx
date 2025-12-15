@@ -1,5 +1,12 @@
 'use client'
 
+import {
+  SlimWarehouseItem,
+  fmt,
+  getActionDate,
+  getLastAction,
+  getLastActionDate,
+} from '@/app/(modules)/vectra-crm/utils/warehouse'
 import SearchInput from '@/app/components/shared/SearchInput'
 import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
@@ -13,14 +20,7 @@ import {
 } from '@/app/components/ui/table'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import {
-  SlimWarehouseItem,
-  fmt,
-  getActionDate,
-  getLastAction,
-  getLastActionDate,
-} from '@/utils/warehouse'
-import { WarehouseAction } from '@prisma/client'
+import { VectraWarehouseAction } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 
@@ -79,16 +79,16 @@ const ItemModeTable = ({ mode, items }: Props) => {
   const pickDate = (it: SlimWarehouseItem): Date | null => {
     if (mode === 'warehouse') {
       return (
-        getLastActionDate(it.history, WarehouseAction.RECEIVED) ??
+        getLastActionDate(it.history, VectraWarehouseAction.RECEIVED) ??
         new Date(it.createdAt)
       )
     }
     if (mode === 'technicians') {
-      return getLastActionDate(it.history, WarehouseAction.ISSUED)
+      return getLastActionDate(it.history, VectraWarehouseAction.ISSUED)
     }
     if (mode === 'orders') {
       return (
-        getActionDate(it.history, WarehouseAction.ISSUED) ??
+        getActionDate(it.history, VectraWarehouseAction.ISSUED) ??
         (it.orderAssignments[0]?.order?.createdAt
           ? new Date(it.orderAssignments[0].order.createdAt)
           : null)
@@ -96,8 +96,11 @@ const ItemModeTable = ({ mode, items }: Props) => {
     }
     if (mode === 'returned') {
       return (
-        getLastActionDate(it.history, WarehouseAction.RETURNED) ??
-        getLastActionDate(it.history, WarehouseAction.RETURNED_TO_OPERATOR)
+        getLastActionDate(it.history, VectraWarehouseAction.RETURNED) ??
+        getLastActionDate(
+          it.history,
+          VectraWarehouseAction.RETURNED_TO_OPERATOR
+        )
       )
     }
     return null
@@ -173,12 +176,18 @@ const ItemModeTable = ({ mode, items }: Props) => {
 
             const lastReceived = getLastAction(
               it.history,
-              WarehouseAction.RECEIVED
+              VectraWarehouseAction.RECEIVED
             )
-            const lastIssued = getLastAction(it.history, WarehouseAction.ISSUED)
+            const lastIssued = getLastAction(
+              it.history,
+              VectraWarehouseAction.ISSUED
+            )
             const lastReturned =
-              getLastAction(it.history, WarehouseAction.RETURNED) ??
-              getLastAction(it.history, WarehouseAction.RETURNED_TO_OPERATOR)
+              getLastAction(it.history, VectraWarehouseAction.RETURNED) ??
+              getLastAction(
+                it.history,
+                VectraWarehouseAction.RETURNED_TO_OPERATOR
+              )
 
             const receivedBy = lastReceived?.performedBy?.name ?? '—'
             const issuedToTech =

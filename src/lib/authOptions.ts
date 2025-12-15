@@ -1,7 +1,7 @@
 // src/lib/authOptions.ts
 import { prisma } from '@/utils/prisma'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { Role, UserStatus } from '@prisma/client'
+import { UserStatus } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
@@ -24,11 +24,16 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: { locations: { select: { id: true, name: true } } },
+          include: {
+            modules: {
+              include: { module: true },
+            },
+          },
         })
+
         if (!user) throw new Error('Użytkownik nie istnieje')
 
-        // status check
+        // Check status
         switch (user.status as UserStatus) {
           case 'ACTIVE':
             break
@@ -43,10 +48,8 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(credentials.password, user.password)
         if (!ok) throw new Error('Nieprawidłowe hasło')
 
-        const locations = await prisma.warehouseLocation.findMany({
-          where: { users: { some: { id: user.id } } },
-          select: { id: true, name: true },
-        })
+        // Convert modules to flat array
+        const moduleCodes = user.modules.map((m) => m.module.code)
 
         return {
           id: user.id,
@@ -54,9 +57,9 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           phoneNumber: user.phoneNumber,
           identyficator: user.identyficator ?? null,
-          role: user.role as Role,
-          status: user.status as UserStatus,
-          locations,
+          role: user.role,
+          status: user.status,
+          modules: moduleCodes,
         }
       },
     }),
@@ -72,7 +75,7 @@ export const authOptions: NextAuthOptions = {
         identyficator: token.identyficator,
         role: token.role,
         status: token.status,
-        locations: token.locations,
+        modules: token.modules as string[],
       }
       return session
     },

@@ -2,16 +2,16 @@
 
 import { Button } from '@/app/components/ui/button'
 import { Textarea } from '@/app/components/ui/textarea'
-import { OrderStatus } from '@prisma/client'
+import { VectraOrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import FailureReasonSelect from '../FailureReasonSelect'
 
 interface StepStatusProps {
-  status: OrderStatus
-  setStatus: (v: OrderStatus) => void
+  status: VectraOrderStatus
+  setStatus: (v: VectraOrderStatus) => void
   onNext: (data: {
-    status: OrderStatus
+    status: VectraOrderStatus
     failureReason?: string | null
     notes?: string | null
     finishImmediately?: boolean
@@ -41,7 +41,7 @@ const StepStatus = ({
   const [notes, setNotes] = useState<string>(initialNotes || '')
 
   /** Handles status selection change */
-  const handleSelect = (s: OrderStatus) => {
+  const handleSelect = (s: VectraOrderStatus) => {
     setStatus(s)
   }
 

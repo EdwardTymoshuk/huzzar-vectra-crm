@@ -26,7 +26,7 @@ import { orderTypeMap } from '@/lib/constants'
 import { useDebounce } from '@/utils/hooks/useDebounce'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, OrderType, Prisma } from '@prisma/client'
+import { Prisma, VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdDelete, MdEdit } from 'react-icons/md'
@@ -60,9 +60,9 @@ type SortOrder = null | 'asc' | 'desc'
 
 interface OrdersTableProps {
   searchTerm: string
-  statusFilter: OrderStatus | null
+  statusFilter: VectraOrderStatus | null
   technicianFilter: string | null
-  orderTypeFilter: OrderType | null
+  orderTypeFilter: VectraOrderType | null
 }
 
 /* =============================== MAIN COMPONENT =============================== */
@@ -99,9 +99,9 @@ const OrdersTableInner = ({
 }: {
   searchTerm: string
   readOnly: boolean
-  statusFilter: OrderStatus | null
+  statusFilter: VectraOrderStatus | null
   technicianFilter: string | null
-  orderTypeFilter: OrderType | null
+  orderTypeFilter: VectraOrderType | null
 }) => {
   /* -------------------------- Local state ------------------------- */
   const [currentPage, setCurrentPage] = useState(1)

@@ -1,12 +1,12 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { OrderCreatedSource, OrderStatus } from '@prisma/client'
+import { OrderCreatedSource, VectraOrderStatus } from '@prisma/client'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
-import { technicianOrderSchema } from '@/lib/schema'
+import { technicianOrderSchema } from '@/app/(modules)/vectra-crm/lib/schema'
 import { TechnicianOrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 
@@ -53,7 +53,7 @@ export const TechnicianAddOrderModal = ({
       city: '',
       street: '',
       notes: '',
-      status: OrderStatus.PENDING,
+      status: VectraOrderStatus.PENDING,
     },
   })
 

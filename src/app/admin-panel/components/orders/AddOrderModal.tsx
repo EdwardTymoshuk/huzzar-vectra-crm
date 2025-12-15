@@ -1,5 +1,6 @@
 'use client'
 
+import { orderSchema } from '@/app/(modules)/vectra-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -8,11 +9,10 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { Form } from '@/app/components/ui/form'
-import { orderSchema } from '@/lib/schema'
 import { OrderFormData } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { OrderCreatedSource, OrderStatus } from '@prisma/client'
+import { OrderCreatedSource, VectraOrderStatus } from '@prisma/client'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -49,7 +49,7 @@ export function AddOrderModal({
       postalCode: '',
       notes: '',
       assignedToId: 'none',
-      status: OrderStatus.PENDING,
+      status: VectraOrderStatus.PENDING,
     },
   })
 
@@ -107,9 +107,9 @@ export function AddOrderModal({
     if (
       assignedToId &&
       assignedToId !== 'none' &&
-      currentStatus === OrderStatus.PENDING
+      currentStatus === VectraOrderStatus.PENDING
     ) {
-      form.setValue('status', OrderStatus.ASSIGNED)
+      form.setValue('status', VectraOrderStatus.ASSIGNED)
     }
   }, [assignedToId, form])
 

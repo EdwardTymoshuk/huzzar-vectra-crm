@@ -1,5 +1,9 @@
 'use client'
 
+import {
+  parseOrdersFromExcel,
+  type ParsedOrderFromExcel,
+} from '@/app/(modules)/vectra-crm/utils/excelParsers/excelParsers'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -8,10 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import {
-  parseOrdersFromExcel,
-  type ParsedOrderFromExcel,
-} from '@/utils/excelParsers/excelParsers'
 import { normalizeName } from '@/utils/normalizeName'
 import { trpc } from '@/utils/trpc'
 import { DragEvent, useState } from 'react'

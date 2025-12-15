@@ -2,7 +2,7 @@
 
 import UnauthorizedPage from '@/app/components/shared/UnauthorizedPage'
 import { useRole } from '@/utils/hooks/useRole'
-import { OrderType } from '@prisma/client'
+import { VectraOrderType } from '@prisma/client'
 import { useState } from 'react'
 import DashboardHeaderBar from '../components/dashboard/DashboardHeaderBar'
 import DashboardSection from '../components/dashboard/DashboardSection'
@@ -59,21 +59,21 @@ const DashboardPage = () => {
           label="Instalacje"
           date={getSelectedDate()}
           range={range}
-          orderType={OrderType.INSTALATION}
+          orderType={VectraOrderType.INSTALATION}
         />
 
         <DashboardSection
           label="Serwisy"
           date={getSelectedDate()}
           range={range}
-          orderType={OrderType.SERVICE}
+          orderType={VectraOrderType.SERVICE}
         />
 
         <DashboardSection
           label="Linie"
           date={getSelectedDate()}
           range={range}
-          orderType={OrderType.OUTAGE}
+          orderType={VectraOrderType.OUTAGE}
         />
       </div>
     </div>

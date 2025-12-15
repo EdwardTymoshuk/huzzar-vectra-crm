@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import { UserWithLocations } from '@/types'
+import { VectraUserWithLocations } from '@/types'
 import { FaLock, FaLockOpen } from 'react-icons/fa6'
 import {
   MdDelete,
@@ -18,7 +18,7 @@ import {
 } from 'react-icons/md'
 
 type Props = {
-  user: UserWithLocations
+  user: VectraUserWithLocations
   onShowDetails: (user: Props['user']) => void
   onEdit: (user: Props['user']) => void
   onToggleStatus: (user: Props['user']) => void

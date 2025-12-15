@@ -2,14 +2,14 @@
 
 import { Button } from '@/app/components/ui/button'
 import { cn } from '@/lib/utils'
-import { WarehouseAction } from '@prisma/client'
+import { VectraWarehouseAction } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
 import WarehouseHistoryFilterPopover from './WarehouseHistoryFilterPopover'
 
 interface WarehouseHistoryHeaderBarProps {
-  actions: WarehouseAction[] | undefined
-  setActions: (v: WarehouseAction[] | undefined) => void
+  actions: VectraWarehouseAction[] | undefined
+  setActions: (v: VectraWarehouseAction[] | undefined) => void
   performerId: string | undefined
   setPerformerId: (v: string | undefined) => void
   startDate: Date | undefined

@@ -16,7 +16,7 @@ import {
   userStatusColorMap,
   userStatusNameMap,
 } from '@/lib/constants'
-import { UserWithLocations } from '@/types'
+import { VectraUserWithLocations } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { UserStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
@@ -32,13 +32,12 @@ type Props = {
 }
 
 const EmployeesTable = ({ searchTerm, status }: Props) => {
-  const [selectedUser, setSelectedUser] = useState<UserWithLocations | null>(
-    null
-  )
-  const [editingUser, setEditingUser] = useState<UserWithLocations | null>(null)
-  const [userToDelete, setUserToDelete] = useState<UserWithLocations | null>(
-    null
-  )
+  const [selectedUser, setSelectedUser] =
+    useState<VectraUserWithLocations | null>(null)
+  const [editingUser, setEditingUser] =
+    useState<VectraUserWithLocations | null>(null)
+  const [userToDelete, setUserToDelete] =
+    useState<VectraUserWithLocations | null>(null)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const utils = trpc.useUtils()
@@ -93,21 +92,22 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
       )
   }, [data, searchTerm, status])
 
-  const handleEdit = (user: UserWithLocations) => setEditingUser(user)
-  const handleShowDetails = (user: UserWithLocations) => setSelectedUser(user)
+  const handleEdit = (user: VectraUserWithLocations) => setEditingUser(user)
+  const handleShowDetails = (user: VectraUserWithLocations) =>
+    setSelectedUser(user)
 
-  const handleToggleStatus = (user: UserWithLocations) =>
+  const handleToggleStatus = (user: VectraUserWithLocations) =>
     toggleStatusMutation.mutate({ id: user.id })
 
-  const handleArchiveUser = (user: UserWithLocations) => {
+  const handleArchiveUser = (user: VectraUserWithLocations) => {
     archiveMutation.mutate({ id: user.id })
   }
 
-  const handleRestoreUser = (user: UserWithLocations) => {
+  const handleRestoreUser = (user: VectraUserWithLocations) => {
     restoreMutation.mutate({ id: user.id })
   }
 
-  const handleDelete = (user: UserWithLocations) => {
+  const handleDelete = (user: VectraUserWithLocations) => {
     setUserToDelete(user)
     setConfirmDeleteOpen(true)
   }

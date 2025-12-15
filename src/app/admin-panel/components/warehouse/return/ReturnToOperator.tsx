@@ -1,5 +1,6 @@
 'use client'
 
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import SearchInput from '@/app/components/shared/SearchInput'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
@@ -12,7 +13,6 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'

@@ -15,13 +15,13 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { WarehouseAction } from '@prisma/client'
+import { VectraWarehouseAction } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 interface WarehouseHistoryFilterPopoverProps {
-  actions: WarehouseAction[] | undefined
-  setActions: (v: WarehouseAction[] | undefined) => void
+  actions: VectraWarehouseAction[] | undefined
+  setActions: (v: VectraWarehouseAction[] | undefined) => void
   performerId: string | undefined
   setPerformerId: (v: string | undefined) => void
   startDate: Date | undefined
@@ -94,7 +94,9 @@ const WarehouseHistoryFilterPopover = ({
             value={selectedAction}
             onValueChange={(v) =>
               handleChange(() => {
-                setActions(v === 'all' ? undefined : [v as WarehouseAction])
+                setActions(
+                  v === 'all' ? undefined : [v as VectraWarehouseAction]
+                )
               })
             }
           >

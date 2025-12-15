@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus } from '@prisma/client'
+import { VectraOrderStatus } from '@prisma/client'
 import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { BsSendCheck } from 'react-icons/bs'
@@ -18,7 +18,7 @@ interface Props {
   orderId: string
   autoOpen?: boolean
   onAutoOpenHandled?: () => void
-  orderStatus: OrderStatus
+  orderStatus: VectraOrderStatus
   disableTransfer?: boolean
   incomingTransfer?: boolean
   pendingMessage?: string
@@ -121,7 +121,7 @@ const TechnicianPlanerOrderDetails = ({
       {/* Technician actions */}
       {!disableTransfer && !incomingTransfer && (
         <>
-          {orderStatus === OrderStatus.ASSIGNED ? (
+          {orderStatus === VectraOrderStatus.ASSIGNED ? (
             <div className="flex gap-2">
               <Button
                 variant="success"

@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
 import { ActivatedService, IssuedItemDevice } from '@/types'
-import { OrderType } from '@prisma/client'
+import { VectraOrderType } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import ServicesSection from '../ServicesSection'
@@ -30,7 +30,7 @@ interface StepServicesProps {
   operator: string
   /** Technician stock from backend */
   devices: IssuedItemDevice[]
-  orderType?: OrderType
+  orderType?: VectraOrderType
 }
 
 const StepServices = ({

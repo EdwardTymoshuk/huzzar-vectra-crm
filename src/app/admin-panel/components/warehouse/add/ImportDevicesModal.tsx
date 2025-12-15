@@ -1,5 +1,11 @@
 'use client'
 
+import {
+  applyMatchingToRows,
+  parseDevicesFromExcel,
+  type ParsedDeviceRow,
+} from '@/app/(modules)/vectra-crm/utils/excelParsers/parseDevicesFromExcel'
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import LoaderSpinner from '@/app/components/shared/LoaderSpinner'
 import { Button } from '@/app/components/ui/button'
 import { Checkbox } from '@/app/components/ui/checkbox'
@@ -20,12 +26,6 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { devicesStatusMap } from '@/lib/constants'
-import {
-  applyMatchingToRows,
-  parseDevicesFromExcel,
-  type ParsedDeviceRow,
-} from '@/utils/excelParsers/parseDevicesFromExcel'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
 import { MdFileUpload } from 'react-icons/md'

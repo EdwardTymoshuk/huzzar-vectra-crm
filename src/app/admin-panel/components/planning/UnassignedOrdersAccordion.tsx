@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { OrderStatus, User } from '@prisma/client'
+import { User, VectraOrderStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import {
@@ -37,7 +37,7 @@ type UnassignedOrder = {
   street: string
   assignedTo: User | null
   clientId: string | null
-  status: OrderStatus
+  status: VectraOrderStatus
 }
 
 type Props = {

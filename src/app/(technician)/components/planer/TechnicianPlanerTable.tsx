@@ -13,7 +13,12 @@ import { orderTypeMap } from '@/lib/constants'
 import { formatDate } from '@/utils/dates/formatDateTime'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
-import { OrderStatus, OrderType, Prisma, TimeSlot } from '@prisma/client'
+import {
+  Prisma,
+  VectraOrderStatus,
+  VectraOrderType,
+  VectraTimeSlot,
+} from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { BsSendCheck } from 'react-icons/bs'
@@ -50,13 +55,13 @@ type ActiveOrderRow = Prisma.OrderGetPayload<{
 type IncomingTransferRow = {
   id: string
   orderNumber: string
-  type: OrderType | null
+  type: VectraOrderType | null
   city: string
   street: string
   date: Date
-  timeSlot: TimeSlot
+  timeSlot: VectraTimeSlot
   operator: string | null
-  status: OrderStatus
+  status: VectraOrderStatus
   assignedTo: { id: string; name: string } | null
   transferToId: string | null
   transferPending: boolean
@@ -66,13 +71,13 @@ type IncomingTransferRow = {
 type PlannerRow = {
   id: string
   orderNumber: string
-  type: OrderType
+  type: VectraOrderType
   city: string
   street: string
   date: Date
-  timeSlot: TimeSlot
+  timeSlot: VectraTimeSlot
   operator: string
-  status: OrderStatus
+  status: VectraOrderStatus
   /** When true, row represents an incoming transfer waiting for acceptance. */
   incoming: boolean
 }
@@ -171,7 +176,7 @@ const TechnicianPlanerTable = ({
       (t) => ({
         id: t.id,
         orderNumber: t.orderNumber,
-        type: (t.type ?? 'SERVICE') as OrderType,
+        type: (t.type ?? 'SERVICE') as VectraOrderType,
         city: t.city,
         street: t.street,
         date: t.date,
@@ -325,7 +330,7 @@ const TechnicianPlanerTable = ({
               )}
 
               {/* Complete / Transfer for assigned, non-incoming */}
-              {!o.incoming && o.status === OrderStatus.ASSIGNED && (
+              {!o.incoming && o.status === VectraOrderStatus.ASSIGNED && (
                 <>
                   <Button
                     size="sm"

@@ -9,16 +9,16 @@ import { getSettlementWorkCodes } from '@/utils/getSettlementWorkCodes'
 import {
   DeviceCategory,
   MaterialDefinition,
-  OrderStatus,
-  OrderType,
   RateDefinition,
+  VectraOrderStatus,
+  VectraOrderType,
 } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 interface StepSummaryProps {
-  orderType: OrderType
-  status: OrderStatus
+  orderType: VectraOrderType
+  status: VectraOrderStatus
   services: ActivatedService[]
   install: { pion: number; listwa: number }
   materials: { id: string; quantity: number }[]
@@ -32,7 +32,7 @@ interface StepSummaryProps {
   failureReason?: string | null
   onBack: () => void
   onSubmit: (payload: {
-    status: OrderStatus
+    status: VectraOrderStatus
     notes?: string | null
     failureReason?: string
     workCodes?: { code: string; quantity: number }[]

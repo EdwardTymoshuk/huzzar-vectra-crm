@@ -8,7 +8,7 @@ import { Separator } from '@/app/components/ui/separator'
 import { IssuedItemDevice, IssuedItemMaterial } from '@/types'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { DeviceCategory, OrderStatus } from '@prisma/client'
+import { DeviceCategory, VectraOrderStatus } from '@prisma/client'
 import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { MdEdit } from 'react-icons/md'
@@ -18,7 +18,7 @@ interface Props {
   orderId: string
   autoOpen?: boolean
   onAutoOpenHandled?: () => void
-  orderStatus: OrderStatus
+  orderStatus: VectraOrderStatus
 }
 
 /**
@@ -64,8 +64,8 @@ const TechnicianCompletedOrderDetails = ({
   /* ---------------- Permissions ---------------- */
   const canShowAmendButton = useMemo(() => {
     const isEnded =
-      orderStatus === OrderStatus.COMPLETED ||
-      orderStatus === OrderStatus.NOT_COMPLETED
+      orderStatus === VectraOrderStatus.COMPLETED ||
+      orderStatus === VectraOrderStatus.NOT_COMPLETED
     if (!isEnded) return false
     if (isAdmin || isCoordinator) return true
 

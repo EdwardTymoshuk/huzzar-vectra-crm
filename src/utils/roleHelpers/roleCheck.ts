@@ -1,8 +1,12 @@
-import { Context } from '@/types'
+//src/utils/roleHelpers/roleCheck.ts
+
+import { User, VectraUser } from '@prisma/client'
 
 /**
- * Returns true if the current user is a technician.
+ * Returns true if the current vectra user is a technician.
  */
-export const isTechnician = (ctx: Context): boolean => {
-  return ctx.user?.role === 'TECHNICIAN'
+export const isVectraTechnician = (
+  vectraUser: VectraUser & { user: User }
+): boolean => {
+  return vectraUser.user.role === 'TECHNICIAN'
 }

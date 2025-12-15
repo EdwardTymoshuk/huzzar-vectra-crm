@@ -1,8 +1,6 @@
 // /server/routers/_helpers/reconcileOrderMaterials.ts
 
-import { MaterialUnit, Prisma } from '@prisma/client'
-
-type DbTx = Prisma.TransactionClient
+import { MaterialUnit } from '@prisma/client'
 
 export interface ReconcileMaterialInput {
   id: string
@@ -65,7 +63,7 @@ export async function reconcileOrderMaterials({
   // -----------------------------------------------------------
   for (const prev of previous) {
     // Technician stock for this material
-    const techItem = await tx.warehouse.findFirst({
+    const techItem = await tx.vectraWarehouse.findFirst({
       where: {
         materialDefinitionId: prev.materialId,
         assignedToId: technicianId,
@@ -107,7 +105,7 @@ export async function reconcileOrderMaterials({
 
       // Continue restoring the remaining quantity to stock
       if (techItem) {
-        await tx.warehouse.update({
+        await tx.vectraWarehouse.update({
           where: { id: techItem.id },
           data: { quantity: techItem.quantity + remainingToRestore },
         })
@@ -129,7 +127,7 @@ export async function reconcileOrderMaterials({
 
     // Case 2: No deficit → material should be restored directly to stock
     if (techItem) {
-      await tx.warehouse.update({
+      await tx.vectraWarehouse.update({
         where: { id: techItem.id },
         data: { quantity: techItem.quantity + prev.quantity },
       })
@@ -176,7 +174,7 @@ export async function reconcileOrderMaterials({
   // 5️⃣ Deduct NEW material usage from technician
   // -----------------------------------------------------------
   for (const item of newMaterials) {
-    const techItem = await tx.warehouse.findFirst({
+    const techItem = await tx.vectraWarehouse.findFirst({
       where: {
         materialDefinitionId: item.id,
         assignedToId: technicianId,
@@ -203,7 +201,7 @@ export async function reconcileOrderMaterials({
 
     // Decrease stock (coveredFromStock part)
     if (coveredFromStock > 0 && techItem) {
-      await tx.warehouse.update({
+      await tx.vectraWarehouse.update({
         where: { id: techItem.id },
         data: { quantity: available - coveredFromStock },
       })

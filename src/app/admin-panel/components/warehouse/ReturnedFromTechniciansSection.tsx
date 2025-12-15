@@ -11,6 +11,7 @@
  *      – final “Wyślij” button
  * ---------------------------------------------------------------------- */
 
+import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import {
   Accordion,
   AccordionContent,
@@ -29,7 +30,6 @@ import {
 } from '@/app/components/ui/dialog'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { Textarea } from '@/app/components/ui/textarea'
-import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { differenceInDays, format } from 'date-fns'
 import { useState } from 'react'
