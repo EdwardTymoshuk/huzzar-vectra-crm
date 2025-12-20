@@ -13,6 +13,8 @@ import {
   PrismaClient,
   ServiceType,
   TimeSlot,
+  WarehouseAction,
+  WarehouseStatus,
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { differenceInMinutes } from 'date-fns'
@@ -129,6 +131,176 @@ async function mapServicesWithDeviceTypes(
       }
     })
   )
+}
+
+/**
+ * Unified equipment delta processor for COMPLETE, AMEND, and ADMIN EDIT.
+ */
+
+export type EquipmentDeltaMode = 'COMPLETE' | 'AMEND' | 'ADMIN'
+
+export type TxContext =
+  | PrismaClient
+  | Omit<Prisma.TransactionClient, '$extends'>
+
+interface ProcessEquipmentDeltaParams {
+  tx: TxContext
+  orderId: string
+  newEquipmentIds: string[]
+  technicianId: string | null
+  editorId: string
+  mode: EquipmentDeltaMode
+}
+
+/**
+ * Shape returned by findMany for previous equipment.
+ */
+interface PreviousDevice {
+  id: string
+  status: WarehouseStatus
+  assignedToId: string | null
+}
+
+interface AddedDevice {
+  id: string
+  assignedToId: string | null
+  status: WarehouseStatus
+}
+
+export async function processEquipmentDelta({
+  tx,
+  orderId,
+  newEquipmentIds,
+  technicianId,
+  editorId,
+  mode,
+}: ProcessEquipmentDeltaParams): Promise<void> {
+  /**
+   * STEP 1 — Load previous assigned equipment (DEVICE only).
+   */
+  const previous: PreviousDevice[] = await tx.warehouse.findMany({
+    where: {
+      itemType: 'DEVICE',
+      orderAssignments: { some: { orderId } },
+      status: { not: WarehouseStatus.COLLECTED_FROM_CLIENT },
+    },
+    select: {
+      id: true,
+      status: true,
+      assignedToId: true,
+    },
+  })
+
+  const prevIds = new Set(previous.map((x: PreviousDevice) => x.id))
+  const newIds = new Set(newEquipmentIds)
+
+  const removed: string[] = [...prevIds].filter((id: string) => !newIds.has(id))
+  const added: string[] = [...newIds].filter((id: string) => !prevIds.has(id))
+
+  /**
+   * STEP 2 — Handle removed devices (rollback COMPLETE behavior).
+   */
+  for (const id of removed) {
+    const lastAssign = await tx.warehouseHistory.findFirst({
+      where: {
+        warehouseItemId: id,
+        action: WarehouseAction.ASSIGNED_TO_ORDER,
+        assignedOrderId: orderId,
+      },
+      orderBy: { actionDate: 'desc' },
+      select: { assignedToId: true },
+    })
+
+    const ownerId: string | null = lastAssign?.assignedToId ?? null
+
+    const returnStatus: WarehouseStatus =
+      ownerId !== null ? WarehouseStatus.ASSIGNED : WarehouseStatus.AVAILABLE
+
+    const returnAction: WarehouseAction =
+      ownerId !== null
+        ? WarehouseAction.RETURNED_TO_TECHNICIAN
+        : WarehouseAction.RETURNED
+
+    await tx.warehouse.update({
+      where: { id },
+      data: {
+        status: returnStatus,
+        assignedToId: ownerId,
+        locationId: ownerId ? null : undefined,
+        history: {
+          create: {
+            action: returnAction,
+            performedById: editorId,
+            assignedOrderId: orderId,
+            assignedToId: ownerId,
+          },
+        },
+      },
+    })
+
+    await tx.orderEquipment.deleteMany({
+      where: { orderId, warehouseId: id },
+    })
+  }
+
+  /**
+   * STEP 3 — Load devices to be added (with explicit typing).
+   */
+  const addedDevices: AddedDevice[] = await tx.warehouse.findMany({
+    where: { id: { in: added } },
+    select: {
+      id: true,
+      assignedToId: true,
+      status: true,
+    },
+  })
+
+  /**
+   * Validate rules for technicians (COMPLETE / AMEND).
+   */
+  for (const dev of addedDevices) {
+    if (mode === 'ADMIN') continue
+
+    if (!technicianId) {
+      throw new Error('TechnicianId missing for technician operation.')
+    }
+
+    if (dev.assignedToId !== technicianId) {
+      throw new Error(
+        `Technician attempted to use device not assigned to him. Device ID: ${dev.id}`
+      )
+    }
+  }
+
+  /**
+   * STEP 4 — Assign added devices to order.
+   */
+  if (addedDevices.length > 0) {
+    await tx.orderEquipment.createMany({
+      data: addedDevices.map((dev: AddedDevice) => ({
+        orderId,
+        warehouseId: dev.id,
+      })),
+    })
+
+    await tx.warehouse.updateMany({
+      where: { id: { in: addedDevices.map((d: AddedDevice) => d.id) } },
+      data: {
+        status: WarehouseStatus.ASSIGNED_TO_ORDER,
+        assignedToId: null,
+        locationId: null,
+      },
+    })
+
+    await tx.warehouseHistory.createMany({
+      data: addedDevices.map((dev: AddedDevice) => ({
+        warehouseItemId: dev.id,
+        action: WarehouseAction.ASSIGNED_TO_ORDER,
+        performedById: editorId,
+        assignedOrderId: orderId,
+      })),
+    })
+  }
 }
 
 export const mutationsRouter = router({
@@ -1099,37 +1271,93 @@ export const mutationsRouter = router({
         }
 
         /* -------------------------------------------------------------------
-         * 6️⃣  Save devices collected from client (added to technician stock)
+         * 6️⃣  Save devices collected from client (reuse existing if serial exists)
          * -------------------------------------------------------------------
-         * - Creates new collected devices as COLLECTED_FROM_CLIENT.
-         * - Assigns them to technician and links to the order.
-         * ------------------------------------------------------------------- */
+         */
         if (input.collectedDevices?.length) {
           for (const device of input.collectedDevices) {
-            const w = await tx.warehouse.create({
-              data: {
-                itemType: 'DEVICE',
-                name: device.name,
-                category: device.category,
-                serialNumber: device.serialNumber?.trim().toUpperCase(),
-                quantity: 1,
-                price: 0,
-                status: 'COLLECTED_FROM_CLIENT',
-                assignedToId: userId,
-              },
-            })
-            await tx.orderEquipment.create({
-              data: { orderId: input.orderId, warehouseId: w.id },
-            })
-            await tx.warehouseHistory.create({
-              data: {
-                warehouseItemId: w.id,
-                action: 'COLLECTED_FROM_CLIENT',
-                performedById: userId,
-                assignedToId: userId,
-                assignedOrderId: input.orderId,
-              },
-            })
+            const serial = device.serialNumber?.trim().toUpperCase() ?? null
+
+            const technicianId = order.assignedToId ?? userId
+
+            const existing = serial
+              ? await tx.warehouse.findFirst({
+                  where: {
+                    itemType: 'DEVICE',
+                    serialNumber: serial,
+                  },
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                  },
+                })
+              : null
+
+            if (existing) {
+              await tx.warehouse.update({
+                where: { id: existing.id },
+                data: {
+                  name: device.name || existing.name,
+                  category: device.category ?? existing.category,
+                  serialNumber: serial,
+                  status: 'COLLECTED_FROM_CLIENT',
+                  assignedToId: technicianId,
+                },
+              })
+              await tx.orderEquipment.upsert({
+                where: {
+                  orderId_warehouseId: {
+                    orderId: input.orderId,
+                    warehouseId: existing.id,
+                  },
+                },
+                create: {
+                  orderId: input.orderId,
+                  warehouseId: existing.id,
+                },
+                update: {},
+              })
+              await tx.warehouseHistory.create({
+                data: {
+                  warehouseItemId: existing.id,
+                  action: 'COLLECTED_FROM_CLIENT',
+                  performedById: userId,
+                  assignedToId: technicianId,
+                  assignedOrderId: input.orderId,
+                  actionDate: new Date(),
+                },
+              })
+            } else {
+              const created = await tx.warehouse.create({
+                data: {
+                  itemType: 'DEVICE',
+                  name: device.name,
+                  category: device.category,
+                  serialNumber: serial,
+                  quantity: 1,
+                  price: 0,
+                  status: 'COLLECTED_FROM_CLIENT',
+                  assignedToId: technicianId,
+                },
+                select: { id: true },
+              })
+
+              await tx.orderEquipment.create({
+                data: { orderId: input.orderId, warehouseId: created.id },
+              })
+
+              await tx.warehouseHistory.create({
+                data: {
+                  warehouseItemId: created.id,
+                  action: 'COLLECTED_FROM_CLIENT',
+                  performedById: userId,
+                  assignedToId: technicianId,
+                  assignedOrderId: input.orderId,
+                  actionDate: new Date(),
+                },
+              })
+            }
           }
         }
 
@@ -1294,35 +1522,25 @@ export const mutationsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      console.log('Edycja admian: ', input.services)
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-      // Enforce technician ownership and 15 minute rule
+      // ⏱ enforce 15-min window + technician ownership
       await canTechnicianAmend(prisma, input.orderId, userId)
 
       await prisma.$transaction(async (tx) => {
         /* -------------------------------------------------------------------
-         * Step 1️⃣ — Fetch previously assigned equipment
-         * Used later to detect removed devices.
-         * ------------------------------------------------------------------- */
-        const prevEquip = await tx.warehouse.findMany({
-          where: {
-            orderAssignments: { some: { orderId: input.orderId } },
-            itemType: 'DEVICE',
-          },
-          select: { id: true, assignedToId: true },
-        })
-
-        /* -------------------------------------------------------------------
-         * Step 2️⃣ — Clear previous work (materials, services, equipment)
+         * Step 1️⃣ — Clear previous non-collected equipment, services, work codes
          * ------------------------------------------------------------------- */
         await tx.orderEquipment.deleteMany({
           where: {
             orderId: input.orderId,
-            warehouse: { status: { not: 'COLLECTED_FROM_CLIENT' } },
+            warehouse: {
+              status: { not: WarehouseStatus.COLLECTED_FROM_CLIENT },
+            },
           },
         })
+
         await tx.orderService.deleteMany({ where: { orderId: input.orderId } })
         await tx.orderSettlementEntry.deleteMany({
           where: { orderId: input.orderId },
@@ -1334,7 +1552,7 @@ export const mutationsRouter = router({
         })
 
         /* -------------------------------------------------------------------
-         * Step 3️⃣ — Update main order info
+         * Step 2️⃣ — Update order fields
          * ------------------------------------------------------------------- */
         await tx.order.update({
           where: { id: input.orderId },
@@ -1349,7 +1567,7 @@ export const mutationsRouter = router({
         })
 
         /* -------------------------------------------------------------------
-         * Step 4️⃣ — Work codes rewrite
+         * Step 3️⃣ — Rewrite work codes
          * ------------------------------------------------------------------- */
         if (input.status === OrderStatus.COMPLETED && input.workCodes?.length) {
           await tx.orderSettlementEntry.createMany({
@@ -1362,10 +1580,8 @@ export const mutationsRouter = router({
         }
 
         /* -------------------------------------------------------------------
-         * Step 5️⃣ — Reconcile material usage
-         * -------------------------------------------------------------------
-         * */
-
+         * Step 4️⃣ — Material reconciliation
+         * ------------------------------------------------------------------- */
         await reconcileOrderMaterials({
           tx,
           orderId: input.orderId,
@@ -1375,193 +1591,208 @@ export const mutationsRouter = router({
         })
 
         /* -------------------------------------------------------------------
-         * Step 6️⃣ — DEVICE RESTORATION LOGIC
+         * Step 5️⃣ — Equipment delta (technician)
          * -------------------------------------------------------------------
-         * Detect devices removed from the order and restore them:
-         * - If originally from technician → ASSIGNED + assignedToId = tech
-         * - If from warehouse/admin → AVAILABLE + assignedToId = null
-         * Owner determined from warehouseHistory.
+         * Only change: technician cannot add devices not assigned to him.
+         * processEquipmentDelta enforces this automatically.
          * ------------------------------------------------------------------- */
-        const newSet = new Set(input.equipmentIds ?? [])
-
-        for (const old of prevEquip) {
-          if (newSet.has(old.id)) continue // still used, skip
-
-          // Always determine original owner from history
-          const lastAssign = await tx.warehouseHistory.findFirst({
-            where: {
-              warehouseItemId: old.id,
-              action: 'ASSIGNED_TO_ORDER',
-              assignedOrderId: input.orderId,
-            },
-            orderBy: { actionDate: 'desc' },
-            select: { assignedToId: true },
-          })
-
-          const ownerId = lastAssign?.assignedToId ?? null
-
-          const returnStatus = ownerId ? 'ASSIGNED' : 'AVAILABLE'
-          const returnAction = ownerId ? 'RETURNED_TO_TECHNICIAN' : 'RETURNED'
-
-          await tx.warehouse.update({
-            where: { id: old.id },
-            data: {
-              status: returnStatus,
-              assignedToId: ownerId,
-              history: {
-                create: {
-                  action: returnAction,
-                  actionDate: new Date(),
-                  performedById: userId,
-                  assignedOrderId: input.orderId,
-                  assignedToId: ownerId,
-                },
-              },
-            },
-          })
-        }
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: input.equipmentIds ?? [],
+          technicianId: userId,
+          editorId: userId,
+          mode: 'AMEND',
+        })
 
         /* -------------------------------------------------------------------
-         * Step 7️⃣ — Assign new equipment to order
+         * Step 6️⃣ — Collected devices rollback (identical to admin-edit)
+         * -------------------------------------------------------------------
+         * Technician must:
+         *   - remove wrongly collected devices
+         *   - add new collected devices
+         *   - rollback system state if he removes collected device
+         *
+         * EXACTLY the same logic as admin-edit.
          * ------------------------------------------------------------------- */
-        if (input.equipmentIds?.length) {
-          const assigned = await tx.warehouse.findMany({
-            where: { id: { in: input.equipmentIds }, assignedToId: userId },
-          })
 
-          await tx.orderEquipment.createMany({
-            data: assigned.map((d) => ({
-              orderId: input.orderId,
-              warehouseId: d.id,
-            })),
-          })
-
-          for (const eq of assigned) {
-            await tx.warehouse.update({
-              where: { id: eq.id },
-              data: {
-                status: 'ASSIGNED_TO_ORDER',
-                assignedToId: null,
-                history: {
-                  create: {
-                    action: 'ASSIGNED_TO_ORDER',
-                    actionDate: new Date(),
-                    performedById: userId,
-                    assignedOrderId: input.orderId,
-                  },
-                },
-              },
-            })
-          }
+        const normalizeSerial = (serial?: string | null): string | null => {
+          if (!serial) return null
+          const s = serial.trim().toUpperCase()
+          return s.length ? s : null
         }
-        /* -------------------------------------------------------------------
-         * Step 8️⃣ — Collected devices (mirror of completeOrder)
-         * ------------------------------------------------------------------- */
 
-        const prevCollectedTech = await tx.warehouse.findMany({
+        const prevCollected = await tx.warehouse.findMany({
           where: {
-            orderAssignments: { some: { orderId: input.orderId } },
-            status: 'COLLECTED_FROM_CLIENT',
             itemType: 'DEVICE',
+            status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+            orderAssignments: { some: { orderId: input.orderId } },
           },
           select: { id: true, serialNumber: true },
         })
 
-        const newCollectedTechSerials = (input.collectedDevices ?? [])
-          .map((d) => d.serialNumber?.trim().toUpperCase() ?? null)
-          .filter((s): s is string => typeof s === 'string' && s.length > 0)
+        const prevCollectedBySerial = new Map(
+          prevCollected
+            .map((d) => [normalizeSerial(d.serialNumber), d.id] as const)
+            .filter(([s]) => s !== null)
+        )
 
-        for (const old of prevCollectedTech) {
-          const stillExists = newCollectedTechSerials.includes(
-            old.serialNumber?.trim().toUpperCase() ?? ''
-          )
+        const newCollected = input.collectedDevices ?? []
+        const newSerials = new Set(
+          newCollected
+            .map((d) => normalizeSerial(d.serialNumber))
+            .filter((s): s is string => s !== null)
+        )
 
-          if (!stillExists) {
-            // 1️⃣ Remove from orderEquipment
-            await tx.orderEquipment.deleteMany({
-              where: {
-                orderId: input.orderId,
-                warehouseId: old.id,
-              },
-            })
+        // 🔥 removed collected devices
+        const removedCollectedIds = [...prevCollectedBySerial.entries()]
+          .filter(([serial]) => !newSerials.has(serial!))
+          .map(([, id]) => id)
 
-            // 2️⃣ Remove all history entries (constraint-safe)
+        for (const wid of removedCollectedIds) {
+          // unlink
+          await tx.orderEquipment.deleteMany({
+            where: { orderId: input.orderId, warehouseId: wid },
+          })
+
+          const lastCollected = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
+              assignedOrderId: input.orderId,
+            },
+            orderBy: { actionDate: 'desc' },
+          })
+
+          if (!lastCollected) continue
+
+          // remove history for this collection
+          await tx.warehouseHistory.deleteMany({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
+              assignedOrderId: input.orderId,
+              actionDate: lastCollected.actionDate,
+            },
+          })
+
+          const previousState = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              actionDate: { lt: lastCollected.actionDate },
+            },
+            orderBy: { actionDate: 'desc' },
+          })
+
+          if (!previousState) {
+            // delete temporary device
             await tx.warehouseHistory.deleteMany({
-              where: { warehouseItemId: old.id },
+              where: { warehouseItemId: wid },
             })
+            await tx.warehouse.delete({ where: { id: wid } })
+          } else {
+            let restoredStatus: WarehouseStatus
 
-            // 3️⃣ Remove device itself
-            await tx.warehouse.delete({
-              where: { id: old.id },
+            switch (previousState.action) {
+              case WarehouseAction.RETURNED_TO_TECHNICIAN:
+                restoredStatus = WarehouseStatus.ASSIGNED
+                break
+              case WarehouseAction.RETURNED:
+              case WarehouseAction.RECEIVED:
+                restoredStatus = WarehouseStatus.AVAILABLE
+                break
+              default:
+                restoredStatus = WarehouseStatus.ASSIGNED_TO_ORDER
+                break
+            }
+
+            await tx.warehouse.update({
+              where: { id: wid },
+              data: {
+                status: restoredStatus,
+                assignedToId: previousState.assignedToId ?? null,
+                ...(previousState.assignedToId ? { locationId: null } : {}),
+              },
             })
           }
         }
 
-        for (const d of input.collectedDevices ?? []) {
-          const serial = d.serialNumber?.trim().toUpperCase() ?? null
+        // 🔥 add/update collected devices
+        for (const d of newCollected) {
+          const serial = normalizeSerial(d.serialNumber)
+          let wid: string | null = null
 
-          const existing = serial
+          const exists = serial
             ? await tx.warehouse.findFirst({
-                where: {
-                  serialNumber: serial,
-                  status: 'COLLECTED_FROM_CLIENT',
-                  assignedToId: userId,
-                },
+                where: { serialNumber: serial },
                 select: { id: true },
               })
             : null
 
-          if (existing) {
-            await tx.orderEquipment.upsert({
-              where: {
-                orderId_warehouseId: {
-                  orderId: input.orderId,
-                  warehouseId: existing.id,
+          if (exists) {
+            wid = exists.id
+
+            await tx.warehouse.update({
+              where: { id: wid },
+              data: {
+                name: d.name,
+                category: d.category,
+                serialNumber: serial,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: userId,
+                locationId: null,
+                history: {
+                  create: {
+                    action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                    performedById: userId,
+                    assignedOrderId: input.orderId,
+                    assignedToId: userId,
+                  },
                 },
               },
-              create: {
-                orderId: input.orderId,
-                warehouseId: existing.id,
+            })
+          } else {
+            const created = await tx.warehouse.create({
+              data: {
+                itemType: 'DEVICE',
+                name: d.name,
+                category: d.category,
+                serialNumber: serial,
+                quantity: 1,
+                price: 0,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: userId,
               },
-              update: {},
+              select: { id: true },
             })
 
-            continue
+            wid = created.id
+
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: wid,
+                action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                performedById: userId,
+                assignedOrderId: input.orderId,
+                assignedToId: userId,
+              },
+            })
           }
 
-          const created = await tx.warehouse.create({
-            data: {
-              itemType: 'DEVICE',
-              name: d.name,
-              category: d.category,
-              serialNumber: serial,
-              quantity: 1,
-              price: 0,
-              status: 'COLLECTED_FROM_CLIENT',
-              assignedToId: userId,
+          await tx.orderEquipment.upsert({
+            where: {
+              orderId_warehouseId: {
+                orderId: input.orderId,
+                warehouseId: wid!,
+              },
             },
-            select: { id: true },
-          })
-
-          await tx.orderEquipment.create({
-            data: {
-              orderId: input.orderId,
-              warehouseId: created.id,
-            },
-          })
-
-          await tx.warehouseHistory.create({
-            data: {
-              warehouseItemId: created.id,
-              action: 'COLLECTED_FROM_CLIENT',
-              performedById: userId,
-              assignedOrderId: input.orderId,
-            },
+            create: { orderId: input.orderId, warehouseId: wid! },
+            update: {},
           })
         }
 
         /* -------------------------------------------------------------------
-         * Step 9️⃣ — Services and extra devices
+         * Step 7️⃣ — Services and extra devices
          * ------------------------------------------------------------------- */
         if (input.status === OrderStatus.COMPLETED && input.services.length) {
           const servicesData = await mapServicesWithDeviceTypes(
@@ -1571,7 +1802,7 @@ export const mutationsRouter = router({
           )
 
           for (const s of servicesData) {
-            const createdService = await tx.orderService.create({
+            const created = await tx.orderService.create({
               data: {
                 orderId: s.orderId,
                 type: s.type,
@@ -1594,61 +1825,20 @@ export const mutationsRouter = router({
             if (s.extraDevices?.length) {
               await tx.orderExtraDevice.createMany({
                 data: s.extraDevices.map((ex) => ({
-                  serviceId: createdService.id,
+                  serviceId: created.id,
                   warehouseId: ex.id,
                   source: ex.source,
                   name: ex.name ?? '',
                   serialNumber: ex.serialNumber ?? undefined,
-                  category: ex.category ?? undefined,
+                  category: ex.category,
                 })),
               })
-
-              // Extra devices from technician → mark as assigned to order
-              const usedSerials = s.extraDevices
-                .filter((ex) => ex.source === 'WAREHOUSE' && ex.serialNumber)
-                .map((ex) => ex.serialNumber!.trim().toUpperCase())
-
-              if (usedSerials.length > 0) {
-                const matched = await tx.warehouse.findMany({
-                  where: {
-                    assignedToId: userId,
-                    itemType: 'DEVICE',
-                    serialNumber: { in: usedSerials },
-                    status: { in: ['AVAILABLE', 'ASSIGNED'] },
-                  },
-                  select: { id: true },
-                })
-
-                if (matched.length) {
-                  await tx.warehouse.updateMany({
-                    where: {
-                      id: { in: matched.map((m) => m.id) },
-                      NOT: { status: 'COLLECTED_FROM_CLIENT' },
-                    },
-                    data: {
-                      status: 'ASSIGNED_TO_ORDER',
-                      assignedToId: null,
-                      locationId: null,
-                    },
-                  })
-
-                  await tx.warehouseHistory.createMany({
-                    data: matched.map((m) => ({
-                      warehouseItemId: m.id,
-                      action: 'ASSIGNED_TO_ORDER',
-                      performedById: userId,
-                      assignedOrderId: input.orderId,
-                      actionDate: new Date(),
-                    })),
-                  })
-                }
-              }
             }
           }
         }
 
         /* -------------------------------------------------------------------
-         * 🔟 Final audit history entry
+         * Step 8️⃣ — Log amendment
          * ------------------------------------------------------------------- */
         await tx.orderHistory.create({
           data: {
@@ -1804,189 +1994,237 @@ export const mutationsRouter = router({
          *  • removed equipment → returned to previous owner using WarehouseHistory
          * ------------------------------------------------------------------- */
 
-        const prevCollected = await tx.warehouse.findMany({
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: input.equipmentIds ?? [],
+          technicianId: assignedTechId,
+          editorId: adminId,
+          mode: 'ADMIN',
+        })
+        /* -------------------------------------------------------------------
+         * Step 7️⃣ — Sync collected devices (returned from client) — SAFE VERSION
+         * ------------------------------------------------------------------- */
+
+        // Helper to normalize serial numbers (consistent comparisons)
+        const normalizeSerial = (
+          serial: string | null | undefined
+        ): string | null => {
+          if (!serial) return null
+          const trimmed = serial.trim()
+          return trimmed.length === 0 ? null : trimmed.toUpperCase()
+        }
+
+        const assignedTechIdForCollected = previous?.assignedToId ?? null
+
+        // 1️⃣ Previously collected devices for this order
+        const prevCollectedDevices = await tx.warehouse.findMany({
           where: {
-            orderAssignments: { some: { orderId: input.orderId } },
-            status: 'COLLECTED_FROM_CLIENT',
             itemType: 'DEVICE',
+            status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+            orderAssignments: { some: { orderId: input.orderId } },
           },
-          select: { id: true, serialNumber: true },
+          select: {
+            id: true,
+            serialNumber: true,
+          },
         })
 
-        const newCollectedSerials = (input.collectedDevices ?? [])
-          .map((d) => d.serialNumber?.trim().toUpperCase() ?? null)
-          .filter((s): s is string => typeof s === 'string' && s.length > 0)
-
-        for (const old of prevCollected) {
-          const stillExists = newCollectedSerials.includes(
-            old.serialNumber?.trim().toUpperCase() ?? ''
-          )
-
-          if (!stillExists) {
-            await tx.orderEquipment.deleteMany({
-              where: {
-                orderId: input.orderId,
-                warehouseId: old.id,
-              },
-            })
-
-            await tx.warehouseHistory.deleteMany({
-              where: { warehouseItemId: old.id },
-            })
-
-            await tx.warehouse.delete({
-              where: { id: old.id },
-            })
+        const prevCollectedBySerial = new Map<string, string>() // serial → warehouseId
+        for (const dev of prevCollectedDevices) {
+          const normalized = normalizeSerial(dev.serialNumber)
+          if (normalized) {
+            prevCollectedBySerial.set(normalized, dev.id)
           }
         }
 
-        // Fetch previously assigned devices to detect removed ones
-        const prevDevices = await tx.warehouse.findMany({
-          where: {
-            orderAssignments: { some: { orderId: input.orderId } },
-            itemType: 'DEVICE',
-            status: { not: 'COLLECTED_FROM_CLIENT' },
-          },
-          select: { id: true },
-        })
+        // 2️⃣ Current list of collected devices from input
+        const collectedInput = input.collectedDevices ?? []
 
-        const prevIds = new Set(prevDevices.map((d) => d.id))
-        const newIds = new Set(input.equipmentIds ?? [])
+        const newSerials = collectedInput
+          .map((d) => normalizeSerial(d.serialNumber))
+          .filter((s): s is string => s !== null)
 
-        // 1️⃣ Return removed devices
-        for (const oldId of prevIds) {
-          if (newIds.has(oldId)) continue
+        const newSerialSet = new Set<string>(newSerials)
 
-          // Determine original owner via history
-          const lastAssign = await tx.warehouseHistory.findFirst({
+        // 3️⃣ Calculate which previously collected devices were REMOVED
+        const removedCollectedIds: string[] = []
+        for (const [serial, warehouseId] of prevCollectedBySerial.entries()) {
+          if (!newSerialSet.has(serial)) {
+            removedCollectedIds.push(warehouseId)
+          }
+        }
+
+        // 3a️⃣ Rollback for removed collected devices
+        for (const wid of removedCollectedIds) {
+          // a) Unlink device from current order
+          await tx.orderEquipment.deleteMany({
             where: {
-              warehouseItemId: oldId,
-              action: 'ASSIGNED_TO_ORDER',
+              orderId: input.orderId,
+              warehouseId: wid,
+            },
+          })
+
+          // b) Find last COLLECTED_FROM_CLIENT entry for THIS order
+          const lastCollected = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
               assignedOrderId: input.orderId,
             },
             orderBy: { actionDate: 'desc' },
-            select: { assignedToId: true },
           })
 
-          const ownerId = lastAssign?.assignedToId ?? null
-
-          const returnStatus = ownerId ? 'ASSIGNED' : 'AVAILABLE'
-          const returnAction = ownerId ? 'RETURNED_TO_TECHNICIAN' : 'RETURNED'
-
-          await tx.warehouse.update({
-            where: { id: oldId },
-            data: {
-              status: returnStatus,
-              assignedToId: ownerId,
-              history: {
-                create: {
-                  action: returnAction,
-                  actionDate: new Date(),
-                  performedById: adminId,
-                  assignedOrderId: input.orderId,
-                  assignedToId: ownerId,
-                },
-              },
-            },
-          })
-        }
-
-        // 2️⃣ Assign new selected devices
-        if (input.equipmentIds?.length) {
-          const equipmentItems = await tx.warehouse.findMany({
-            where: { id: { in: input.equipmentIds } },
-            select: { id: true },
-          })
-
-          // Create order-equipment links
-          await tx.orderEquipment.createMany({
-            data: equipmentItems.map((eq) => ({
-              orderId: input.orderId,
-              warehouseId: eq.id,
-            })),
-          })
-
-          // Set devices as bound to order
-          await tx.warehouse.updateMany({
-            where: { id: { in: input.equipmentIds } },
-            data: {
-              status: 'ASSIGNED_TO_ORDER',
-              assignedToId: null,
-              locationId: null,
-            },
-          })
-
-          await tx.warehouseHistory.createMany({
-            data: equipmentItems.map((eq) => ({
-              warehouseItemId: eq.id,
-              action: 'ASSIGNED_TO_ORDER',
-              performedById: adminId,
-              assignedOrderId: input.orderId,
-              actionDate: new Date(),
-            })),
-          })
-        }
-
-        /* -------------------------------------------------------------------
-         * Step 7️⃣ — Sync collected devices (returned from client)
-         * ------------------------------------------------------------------- */
-        for (const d of input.collectedDevices ?? []) {
-          const serial = d.serialNumber?.trim().toUpperCase() ?? null
-
-          const existing = serial
-            ? await tx.warehouse.findFirst({
-                where: {
-                  serialNumber: serial,
-                  status: 'COLLECTED_FROM_CLIENT',
-                  assignedToId: assignedTechId,
-                },
-                select: { id: true },
-              })
-            : null
-
-          if (existing) {
-            await tx.orderEquipment.upsert({
-              where: {
-                orderId_warehouseId: {
-                  orderId: input.orderId,
-                  warehouseId: existing.id,
-                },
-              },
-              create: {
-                orderId: input.orderId,
-                warehouseId: existing.id,
-              },
-              update: {},
-            })
-
+          if (!lastCollected) {
+            // No matching history → nothing more to rollback
             continue
           }
 
-          const created = await tx.warehouse.create({
-            data: {
-              itemType: 'DEVICE',
-              name: d.name,
-              category: d.category,
-              serialNumber: serial,
-              quantity: 1,
-              price: 0,
-              status: 'COLLECTED_FROM_CLIENT',
-              assignedToId: assignedTechId,
-            },
-            select: { id: true },
-          })
-
-          await tx.orderEquipment.create({
-            data: { orderId: input.orderId, warehouseId: created.id },
-          })
-
-          await tx.warehouseHistory.create({
-            data: {
-              warehouseItemId: created.id,
-              action: 'COLLECTED_FROM_CLIENT',
-              performedById: adminId,
+          // c) Remove COLLECTED_FROM_CLIENT history entry for this order
+          await tx.warehouseHistory.deleteMany({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
               assignedOrderId: input.orderId,
+              actionDate: lastCollected.actionDate,
             },
+          })
+
+          // d) Find history BEFORE this collection (previous state snapshot)
+          const previousHistory = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              actionDate: { lt: lastCollected.actionDate },
+            },
+            orderBy: { actionDate: 'desc' },
+          })
+
+          if (!previousHistory) {
+            // Device existed ONLY as collected on this order → safe to remove
+            await tx.warehouseHistory.deleteMany({
+              where: { warehouseItemId: wid },
+            })
+            await tx.warehouse.delete({
+              where: { id: wid },
+            })
+          } else {
+            // Device existed earlier (e.g. issued to client) → restore previous state
+
+            let restoredStatus: WarehouseStatus
+
+            switch (previousHistory.action) {
+              case WarehouseAction.RETURNED_TO_TECHNICIAN:
+                restoredStatus = WarehouseStatus.ASSIGNED
+                break
+              case WarehouseAction.RETURNED:
+              case WarehouseAction.RETURNED_TO_OPERATOR:
+              case WarehouseAction.RECEIVED:
+                restoredStatus = WarehouseStatus.AVAILABLE
+                break
+              case WarehouseAction.TRANSFER:
+                // After transfer we still treat device as assigned to someone/location
+                restoredStatus = WarehouseStatus.ASSIGNED
+                break
+              default:
+                // ASSIGNED_TO_ORDER / ISSUED / ISSUED_TO_CLIENT etc.
+                // For your domain this means "still at client (issued from previous order)".
+                restoredStatus = WarehouseStatus.ASSIGNED_TO_ORDER
+                break
+            }
+
+            await tx.warehouse.update({
+              where: { id: wid },
+              data: {
+                status: restoredStatus,
+                assignedToId: previousHistory.assignedToId ?? null,
+                // When assigning back to a user keep location null
+                ...(previousHistory.assignedToId ? { locationId: null } : {}),
+              },
+            })
+          }
+        }
+
+        // 4️⃣ Apply current collected devices from input (create / update)
+        for (const d of collectedInput) {
+          const normalizedSerial = normalizeSerial(d.serialNumber)
+          let warehouseId: string
+
+          // Try to reuse any existing device with this serial (system device)
+          let existing: { id: string } | null = null
+          if (normalizedSerial) {
+            existing = await tx.warehouse.findFirst({
+              where: {
+                itemType: 'DEVICE',
+                serialNumber: normalizedSerial,
+              },
+              select: { id: true },
+            })
+          }
+
+          if (existing) {
+            warehouseId = existing.id
+
+            await tx.warehouse.update({
+              where: { id: warehouseId },
+              data: {
+                name: d.name,
+                category: d.category,
+                serialNumber: normalizedSerial,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: assignedTechIdForCollected,
+                locationId: null,
+                history: {
+                  create: {
+                    action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                    performedById: adminId,
+                    assignedOrderId: input.orderId,
+                    assignedToId: assignedTechIdForCollected,
+                  },
+                },
+              },
+            })
+          } else {
+            // Client device not known before → create new collected device
+            const created = await tx.warehouse.create({
+              data: {
+                itemType: 'DEVICE',
+                name: d.name,
+                category: d.category,
+                serialNumber: normalizedSerial,
+                quantity: 1,
+                price: 0,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: assignedTechIdForCollected,
+              },
+              select: { id: true },
+            })
+
+            warehouseId = created.id
+
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: warehouseId,
+                action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                performedById: adminId,
+                assignedOrderId: input.orderId,
+                assignedToId: assignedTechIdForCollected,
+              },
+            })
+          }
+
+          // Always ensure relation with current order
+          await tx.orderEquipment.upsert({
+            where: {
+              orderId_warehouseId: {
+                orderId: input.orderId,
+                warehouseId,
+              },
+            },
+            create: {
+              orderId: input.orderId,
+              warehouseId,
+            },
+            update: {},
           })
         }
 

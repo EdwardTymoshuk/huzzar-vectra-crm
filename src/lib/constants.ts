@@ -288,6 +288,7 @@ export const devicesStatusMap: Record<string, string> = {
   RETURNED: 'ZWRÓCONY OD TECHNIKA',
   RETURNED_TO_OPERATOR: 'ZWRÓCONY DO OPERATORA',
   ASSIGNED_TO_ORDER: 'WYDANY NA ZLECENIU',
+  COLLECTED_FROM_CLIENT: 'ODEBRANY OD KLIENTA',
 }
 /**
  * Mapping of material units to Polish display names.
