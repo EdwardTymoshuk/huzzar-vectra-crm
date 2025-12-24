@@ -93,12 +93,12 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
                 <h4 className="font-semibold mb-2">Szczegóły urządzenia</h4>
                 <dl className="space-y-2">
                   <div>
-                    <dt className="font-medium">Nazwa</dt>
-                    <dd>{query.data.name}</dd>
+                    <dt className="font-medium">Nazwa:</dt>
+                    <dd className="font-normal">{query.data.name}</dd>
                   </div>
 
                   <div>
-                    <dt className="font-medium">Status</dt>
+                    <dt className="font-medium">Status:</dt>
                     <dd>
                       {query.data.status
                         ? devicesStatusMap[query.data.status]
@@ -107,7 +107,7 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
                   </div>
 
                   <div>
-                    <dt className="font-medium">Na stanie</dt>
+                    <dt className="font-medium">Na stanie:</dt>
                     <dd>
                       {query.data.assignedTo
                         ? query.data.assignedTo.name
@@ -119,12 +119,12 @@ const DeviceCheckSheet = ({ open, onClose }: Props) => {
 
                   {/* *** CLICKABLE ORDER NUMBER *** */}
                   <div>
-                    <dt className="font-medium">Przypisany do zlecenia</dt>
+                    <dt className="font-medium">Powiązane zlecenie:</dt>
                     <dd>
                       {query.data.assignedOrder ? (
                         <Button
                           variant="link"
-                          className="p-0"
+                          className="p-0 h-auto"
                           onClick={() =>
                             setOrderId(query?.data?.assignedOrder.id ?? '')
                           }

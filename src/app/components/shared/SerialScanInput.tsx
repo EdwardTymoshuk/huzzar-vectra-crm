@@ -416,7 +416,6 @@ const SerialScanInput = ({
           ))}
 
           {/* Global warehouse (admin/coordinator only, excluding duplicates) */}
-          {/* Global warehouse (admin/coordinator only, excluding duplicates) */}
           {(isAdmin || isCoordinator) &&
             searchDevices.data
               ?.filter((gd) => {

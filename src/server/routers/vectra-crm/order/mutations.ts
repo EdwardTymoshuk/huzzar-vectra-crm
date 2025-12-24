@@ -1,5 +1,6 @@
 import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
+import { parseLocalDate } from '@/utils/dates/parseLocalDate'
 import { getCoordinatesFromAddress } from '@/utils/geocode'
 import { normalizeAdressForSearch } from '@/utils/orders/normalizeAdressForSearch'
 import { prisma } from '@/utils/prisma'
@@ -8,9 +9,15 @@ import {
   OrderCreatedSource,
   Prisma,
   ServiceType,
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
   VectraOrderStatus,
   VectraOrderType,
   VectraTimeSlot,
+=======
+  TimeSlot,
+  WarehouseAction,
+  WarehouseStatus,
+>>>>>>> main:src/server/routers/order/mutations.ts
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { differenceInMinutes } from 'date-fns'
@@ -133,6 +140,179 @@ async function mapServicesWithDeviceTypes(
   )
 }
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
+=======
+/**
+ * Unified equipment delta processor for COMPLETE, AMEND, and ADMIN EDIT.
+ */
+
+export type EquipmentDeltaMode = 'COMPLETE' | 'AMEND' | 'ADMIN'
+
+export type TxContext =
+  | PrismaClient
+  | Omit<Prisma.TransactionClient, '$extends'>
+
+interface ProcessEquipmentDeltaParams {
+  tx: TxContext
+  orderId: string
+  newEquipmentIds: string[]
+  technicianId: string | null
+  editorId: string
+  mode: EquipmentDeltaMode
+}
+
+/**
+ * Shape returned by findMany for previous equipment.
+ */
+interface PreviousDevice {
+  id: string
+  status: WarehouseStatus
+  assignedToId: string | null
+}
+
+interface AddedDevice {
+  id: string
+  assignedToId: string | null
+  status: WarehouseStatus
+}
+
+export async function processEquipmentDelta({
+  tx,
+  orderId,
+  newEquipmentIds,
+  technicianId,
+  editorId,
+  mode,
+}: ProcessEquipmentDeltaParams): Promise<void> {
+  /**
+   * STEP 1 — Load previous assigned equipment (DEVICE only).
+   */
+  const previous: PreviousDevice[] = await tx.warehouse.findMany({
+    where: {
+      itemType: 'DEVICE',
+      orderAssignments: { some: { orderId } },
+      status: { not: WarehouseStatus.COLLECTED_FROM_CLIENT },
+    },
+    select: {
+      id: true,
+      status: true,
+      assignedToId: true,
+    },
+  })
+
+  const prevIds = new Set(previous.map((x: PreviousDevice) => x.id))
+  const newIds = new Set(newEquipmentIds)
+
+  const removed: string[] = [...prevIds].filter((id: string) => !newIds.has(id))
+  const added: string[] = [...newIds].filter((id: string) => !prevIds.has(id))
+
+  /**
+   * STEP 2 — Handle removed devices (rollback COMPLETE behavior).
+   */
+  for (const id of removed) {
+    const lastAssign = await tx.warehouseHistory.findFirst({
+      where: {
+        warehouseItemId: id,
+        action: WarehouseAction.ASSIGNED_TO_ORDER,
+        assignedOrderId: orderId,
+      },
+      orderBy: { actionDate: 'desc' },
+      select: { assignedToId: true },
+    })
+
+    const ownerId: string | null = lastAssign?.assignedToId ?? null
+
+    const returnStatus: WarehouseStatus =
+      ownerId !== null ? WarehouseStatus.ASSIGNED : WarehouseStatus.AVAILABLE
+
+    const returnAction: WarehouseAction =
+      ownerId !== null
+        ? WarehouseAction.RETURNED_TO_TECHNICIAN
+        : WarehouseAction.RETURNED
+
+    await tx.warehouse.update({
+      where: { id },
+      data: {
+        status: returnStatus,
+        assignedToId: ownerId,
+        locationId: ownerId ? null : undefined,
+        history: {
+          create: {
+            action: returnAction,
+            performedById: editorId,
+            assignedOrderId: orderId,
+            assignedToId: ownerId,
+          },
+        },
+      },
+    })
+
+    await tx.orderEquipment.deleteMany({
+      where: { orderId, warehouseId: id },
+    })
+  }
+
+  /**
+   * STEP 3 — Load devices to be added (with explicit typing).
+   */
+  const addedDevices: AddedDevice[] = await tx.warehouse.findMany({
+    where: { id: { in: added } },
+    select: {
+      id: true,
+      assignedToId: true,
+      status: true,
+    },
+  })
+
+  /**
+   * Validate rules for technicians (COMPLETE / AMEND).
+   */
+  for (const dev of addedDevices) {
+    if (mode === 'ADMIN') continue
+
+    if (!technicianId) {
+      throw new Error('TechnicianId missing for technician operation.')
+    }
+
+    if (dev.assignedToId !== technicianId) {
+      throw new Error(
+        `Technician attempted to use device not assigned to him. Device ID: ${dev.id}`
+      )
+    }
+  }
+
+  /**
+   * STEP 4 — Assign added devices to order.
+   */
+  if (addedDevices.length > 0) {
+    await tx.orderEquipment.createMany({
+      data: addedDevices.map((dev: AddedDevice) => ({
+        orderId,
+        warehouseId: dev.id,
+      })),
+    })
+
+    await tx.warehouse.updateMany({
+      where: { id: { in: addedDevices.map((d: AddedDevice) => d.id) } },
+      data: {
+        status: WarehouseStatus.ASSIGNED_TO_ORDER,
+        assignedToId: null,
+        locationId: null,
+      },
+    })
+
+    await tx.warehouseHistory.createMany({
+      data: addedDevices.map((dev: AddedDevice) => ({
+        warehouseItemId: dev.id,
+        action: WarehouseAction.ASSIGNED_TO_ORDER,
+        performedById: editorId,
+        assignedOrderId: orderId,
+      })),
+    })
+  }
+}
+
+>>>>>>> main:src/server/routers/order/mutations.ts
 export const mutationsRouter = router({
   /** Bulk import of installation orders from Excel */
   bulkImport: adminOrCoord
@@ -144,7 +324,11 @@ export const mutationsRouter = router({
           clientId: z.string().optional(),
           orderNumber: z.string(),
           date: z.string(),
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
           timeSlot: z.nativeEnum(VectraTimeSlot),
+=======
+          timeSlot: z.nativeEnum(TimeSlot),
+>>>>>>> main:src/server/routers/order/mutations.ts
           city: z.string(),
           street: z.string(),
           postalCode: z.string().optional(),
@@ -156,6 +340,7 @@ export const mutationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const adminId = ctx.user!.id
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
       return await prisma.$transaction(async (tx) => {
         const summary = {
           added: 0,
@@ -276,10 +461,114 @@ export const mutationsRouter = router({
             })
 
             /** History */
+=======
+      const summary = {
+        added: 0,
+        skippedPendingOrAssigned: 0,
+        skippedCompleted: 0,
+        otherErrors: 0,
+      }
+
+      // ------------------------------------------------------------
+      // IMPORTANT: No global transaction. Each row = separate TX.
+      // ------------------------------------------------------------
+      for (const o of input) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            const normOrder = normalizeForSearch(o.orderNumber)
+
+            /** -------------------------------------------------------
+             * 1. Load existing attempts for this order/location pair
+             * ------------------------------------------------------ */
+            const existing = await tx.order.findFirst({
+              where: {
+                orderNumber: { equals: normOrder, mode: 'insensitive' },
+                city: { equals: o.city.trim(), mode: 'insensitive' },
+                street: { equals: o.street.trim(), mode: 'insensitive' },
+              },
+              orderBy: { attemptNumber: 'desc' },
+            })
+
+            /** -------------------------------------------------------
+             * 2. Decide what to do based on existing order status
+             * ------------------------------------------------------ */
+            let attemptNumber = 1
+            let previousOrderId: string | null = null
+
+            if (existing) {
+              if (
+                existing.status === OrderStatus.PENDING ||
+                existing.status === OrderStatus.ASSIGNED
+              ) {
+                summary.skippedPendingOrAssigned++
+                throw new Error('SKIP_ORDER_ACTIVE')
+              }
+
+              if (existing.status === OrderStatus.COMPLETED) {
+                summary.skippedCompleted++
+                throw new Error('SKIP_ORDER_COMPLETED')
+              }
+
+              if (existing.status === OrderStatus.NOT_COMPLETED) {
+                attemptNumber = existing.attemptNumber + 1
+                previousOrderId = existing.id
+              }
+            }
+
+            /** -------------------------------------------------------
+             * 3. Resolve technician (optional)
+             * ------------------------------------------------------ */
+            let assignedToId: string | null = null
+
+            if (o.assignedToId) {
+              const tech = await tx.user.findUnique({
+                where: { id: o.assignedToId },
+                select: { id: true },
+              })
+              assignedToId = tech?.id ?? null
+            }
+
+            const newStatus = assignedToId
+              ? OrderStatus.ASSIGNED
+              : OrderStatus.PENDING
+
+            /** -------------------------------------------------------
+             * 4. Create new attempt
+             * ------------------------------------------------------ */
+            const created = await tx.order.create({
+              data: {
+                clientId: o.clientId ?? null,
+                operator: o.operator,
+                type: o.type,
+                orderNumber: o.orderNumber.trim(),
+                date: new Date(o.date),
+                timeSlot: o.timeSlot,
+                city: o.city.trim(),
+                street: o.street.trim(),
+                postalCode: o.postalCode ?? null,
+                notes: o.notes ?? null,
+                assignedToId,
+                status: newStatus,
+                attemptNumber,
+                previousOrderId,
+                createdSource: 'PLANNER',
+              },
+              select: { id: true },
+            })
+
+            /** -------------------------------------------------------
+             * 5. History entry
+             * ------------------------------------------------------ */
+            const historyNote = previousOrderId
+              ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
+              : 'Utworzono zlecenie (import).'
+
+>>>>>>> main:src/server/routers/order/mutations.ts
             await tx.orderHistory.create({
               data: {
                 orderId: created.id,
                 changedById: adminId,
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
                 statusBefore: VectraOrderStatus.PENDING,
                 statusAfter: newStatus,
                 notes: previousOrderId
@@ -292,10 +581,34 @@ export const mutationsRouter = router({
           } catch {
             summary.otherErrors++
           }
+=======
+                statusBefore: OrderStatus.PENDING,
+                statusAfter: newStatus,
+                notes: historyNote,
+              },
+            })
+          })
+
+          summary.added++
+        } catch (err) {
+          // Orders intentionally skipped do not count as "errors"
+          if (err instanceof Error && err.message === 'SKIP_ORDER_ACTIVE')
+            continue
+          if (err instanceof Error && err.message === 'SKIP_ORDER_COMPLETED')
+            continue
+
+          console.error(`❌ Import error for order ${o.orderNumber}`)
+          console.error(err)
+          summary.otherErrors++
+>>>>>>> main:src/server/routers/order/mutations.ts
         }
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         return summary
       })
+=======
+      return summary
+>>>>>>> main:src/server/routers/order/mutations.ts
     }),
 
   /** ✅ Create new order (clientId-aware, preserves Polish letters but uses normalized comparisons) */
@@ -339,23 +652,30 @@ export const mutationsRouter = router({
         },
       })
 
-      // 1️⃣ If completed or failed → SKIP during Excel import
       if (existingOrder) {
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         if (
           existingOrder.status === VectraOrderStatus.COMPLETED ||
           existingOrder.status === VectraOrderStatus.NOT_COMPLETED
         ) {
+=======
+        if (existingOrder.status === OrderStatus.COMPLETED) {
+>>>>>>> main:src/server/routers/order/mutations.ts
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Zlecenie ${input.orderNumber} jest już wykonane — pominięto.`,
+            message: `Zlecenie ${input.orderNumber} jest już wykonane.`,
           })
         }
 
-        // 2️⃣ Exists but still active → normal duplicate error
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: `Zlecenie o numerze "${input.orderNumber}" już istnieje.`,
-        })
+        if (
+          existingOrder.status === OrderStatus.PENDING ||
+          existingOrder.status === OrderStatus.ASSIGNED
+        ) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: `Zlecenie ${input.orderNumber} już istnieje i oczekuje na realizację.`,
+          })
+        }
       }
 
       /* ------------------------------------------------------------
@@ -400,7 +720,7 @@ export const mutationsRouter = router({
       }
 
       /* ------------------------------------------------------------
-       * 3️⃣ Determine attempt chain (based on clientId + address)
+       * 3️⃣ Determine attempt chain (based on orderNumber + address)
        * ---------------------------------------------------------- */
       let attemptNumber = 1
       let previousOrderId: string | null = null
@@ -408,37 +728,27 @@ export const mutationsRouter = router({
         ? VectraOrderStatus.ASSIGNED
         : VectraOrderStatus.PENDING
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
       // 🔒 Enforce globally unique order number
       const existingSameNumber = await prisma.vectraOrder.findFirst({
         where: { orderNumber: { equals: normOrder, mode: 'insensitive' } },
+=======
+      const lastAttempt = await prisma.order.findFirst({
+        where: {
+          orderNumber: { equals: normOrder, mode: 'insensitive' },
+          city: { equals: input.city.trim(), mode: 'insensitive' },
+          street: { equals: input.street.trim(), mode: 'insensitive' },
+          status: OrderStatus.NOT_COMPLETED,
+        },
+        orderBy: { attemptNumber: 'desc' },
+>>>>>>> main:src/server/routers/order/mutations.ts
       })
-      if (existingSameNumber) {
-        throw new TRPCError({
-          code: 'CONFLICT',
-          message: `Zlecenie o numerze "${input.orderNumber}" już istnieje.`,
-        })
+
+      if (lastAttempt) {
+        attemptNumber = lastAttempt.attemptNumber + 1
+        previousOrderId = lastAttempt.id
       }
 
-      // 🔗 Find last NOT_COMPLETED order for same client and address (case + diacritics insensitive)
-      if (input.clientId) {
-        const lastOrder = await prisma.$queryRaw<
-          { id: string; attemptNumber: number }[]
-        >`
-    SELECT id, "attemptNumber"
-    FROM "Order"
-    WHERE "clientId" = ${input.clientId}
-      AND unaccent(lower("city")) = unaccent(lower(${input.city}))
-      AND unaccent(lower("street")) = unaccent(lower(${input.street}))
-      AND "status" = 'NOT_COMPLETED'
-    ORDER BY "createdAt" DESC
-    LIMIT 1;
-  `
-
-        if (lastOrder.length > 0) {
-          attemptNumber = lastOrder[0].attemptNumber + 1
-          previousOrderId = lastOrder[0].id
-        }
-      }
       /* ------------------------------------------------------------
        * 4️⃣ Create new order (preserves Polish letters in DB)
        * ---------------------------------------------------------- */
@@ -507,8 +817,6 @@ export const mutationsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const prisma = ctx.prisma
-
       try {
         const existing = await prisma.vectraOrder.findUnique({
           where: { id: input.id },
@@ -549,6 +857,7 @@ export const mutationsRouter = router({
          * 1️⃣ Recalculate attempt chain if address changed
          * ---------------------------------------------------------- */
         if (addressChanged) {
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
           const clientId = input.clientId ?? existing.clientId
           if (clientId) {
             const lastOrder = await prisma.$queryRaw<
@@ -562,17 +871,22 @@ export const mutationsRouter = router({
               ORDER BY "attemptNumber" DESC
               LIMIT 1;
             `
+=======
+          const lastAttempt = await prisma.order.findFirst({
+            where: {
+              orderNumber: { equals: normOrder, mode: 'insensitive' },
+              city: { equals: input.city.trim(), mode: 'insensitive' },
+              street: { equals: input.street.trim(), mode: 'insensitive' },
+              status: OrderStatus.NOT_COMPLETED,
+              NOT: { id: existing.id },
+            },
+            orderBy: { attemptNumber: 'desc' },
+          })
+>>>>>>> main:src/server/routers/order/mutations.ts
 
-            if (
-              lastOrder.length > 0 &&
-              lastOrder[0].status === 'NOT_COMPLETED'
-            ) {
-              attemptNumber = lastOrder[0].attemptNumber + 1
-              previousOrderId = lastOrder[0].id
-            } else {
-              attemptNumber = 1
-              previousOrderId = null
-            }
+          if (lastAttempt) {
+            attemptNumber = lastAttempt.attemptNumber + 1
+            previousOrderId = lastAttempt.id
           } else {
             attemptNumber = 1
             previousOrderId = null
@@ -1149,13 +1463,12 @@ export const mutationsRouter = router({
         }
 
         /* -------------------------------------------------------------------
-         * 6️⃣  Save devices collected from client (added to technician stock)
+         * 6️⃣  Save devices collected from client (reuse existing if serial exists)
          * -------------------------------------------------------------------
-         * - Creates new collected devices as COLLECTED_FROM_CLIENT.
-         * - Assigns them to technician and links to the order.
-         * ------------------------------------------------------------------- */
+         */
         if (input.collectedDevices?.length) {
           for (const device of input.collectedDevices) {
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
             const w = await tx.vectraWarehouse.create({
               data: {
                 itemType: 'DEVICE',
@@ -1180,6 +1493,90 @@ export const mutationsRouter = router({
                 assignedOrderId: input.orderId,
               },
             })
+=======
+            const serial = device.serialNumber?.trim().toUpperCase() ?? null
+
+            const technicianId = order.assignedToId ?? userId
+
+            const existing = serial
+              ? await tx.warehouse.findFirst({
+                  where: {
+                    itemType: 'DEVICE',
+                    serialNumber: serial,
+                  },
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                  },
+                })
+              : null
+
+            if (existing) {
+              await tx.warehouse.update({
+                where: { id: existing.id },
+                data: {
+                  name: device.name || existing.name,
+                  category: device.category ?? existing.category,
+                  serialNumber: serial,
+                  status: 'COLLECTED_FROM_CLIENT',
+                  assignedToId: technicianId,
+                },
+              })
+              await tx.orderEquipment.upsert({
+                where: {
+                  orderId_warehouseId: {
+                    orderId: input.orderId,
+                    warehouseId: existing.id,
+                  },
+                },
+                create: {
+                  orderId: input.orderId,
+                  warehouseId: existing.id,
+                },
+                update: {},
+              })
+              await tx.warehouseHistory.create({
+                data: {
+                  warehouseItemId: existing.id,
+                  action: 'COLLECTED_FROM_CLIENT',
+                  performedById: userId,
+                  assignedToId: technicianId,
+                  assignedOrderId: input.orderId,
+                  actionDate: new Date(),
+                },
+              })
+            } else {
+              const created = await tx.warehouse.create({
+                data: {
+                  itemType: 'DEVICE',
+                  name: device.name,
+                  category: device.category,
+                  serialNumber: serial,
+                  quantity: 1,
+                  price: 0,
+                  status: 'COLLECTED_FROM_CLIENT',
+                  assignedToId: technicianId,
+                },
+                select: { id: true },
+              })
+
+              await tx.orderEquipment.create({
+                data: { orderId: input.orderId, warehouseId: created.id },
+              })
+
+              await tx.warehouseHistory.create({
+                data: {
+                  warehouseItemId: created.id,
+                  action: 'COLLECTED_FROM_CLIENT',
+                  performedById: userId,
+                  assignedToId: technicianId,
+                  assignedOrderId: input.orderId,
+                  actionDate: new Date(),
+                },
+              })
+            }
+>>>>>>> main:src/server/routers/order/mutations.ts
           }
         }
 
@@ -1347,11 +1744,12 @@ export const mutationsRouter = router({
       const userId = ctx.user?.id
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-      // Enforce technician ownership and 15 minute rule
+      // ⏱ enforce 15-min window + technician ownership
       await canTechnicianAmend(prisma, input.orderId, userId)
 
       await prisma.$transaction(async (tx) => {
         /* -------------------------------------------------------------------
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
          * Step 1️⃣ — Fetch previously assigned equipment
          * Used later to detect removed devices.
          * ------------------------------------------------------------------- */
@@ -1365,13 +1763,19 @@ export const mutationsRouter = router({
 
         /* -------------------------------------------------------------------
          * Step 2️⃣ — Clear previous work (materials, services, equipment)
+=======
+         * Step 1️⃣ — Clear previous non-collected equipment, services, work codes
+>>>>>>> main:src/server/routers/order/mutations.ts
          * ------------------------------------------------------------------- */
         await tx.orderEquipment.deleteMany({
           where: {
             orderId: input.orderId,
-            warehouse: { status: { not: 'COLLECTED_FROM_CLIENT' } },
+            warehouse: {
+              status: { not: WarehouseStatus.COLLECTED_FROM_CLIENT },
+            },
           },
         })
+
         await tx.orderService.deleteMany({ where: { orderId: input.orderId } })
         await tx.orderSettlementEntry.deleteMany({
           where: { orderId: input.orderId },
@@ -1383,7 +1787,7 @@ export const mutationsRouter = router({
         })
 
         /* -------------------------------------------------------------------
-         * Step 3️⃣ — Update main order info
+         * Step 2️⃣ — Update order fields
          * ------------------------------------------------------------------- */
         await tx.order.update({
           where: { id: input.orderId },
@@ -1398,7 +1802,7 @@ export const mutationsRouter = router({
         })
 
         /* -------------------------------------------------------------------
-         * Step 4️⃣ — Work codes rewrite
+         * Step 3️⃣ — Rewrite work codes
          * ------------------------------------------------------------------- */
         if (
           input.status === VectraOrderStatus.COMPLETED &&
@@ -1414,10 +1818,8 @@ export const mutationsRouter = router({
         }
 
         /* -------------------------------------------------------------------
-         * Step 5️⃣ — Reconcile material usage
-         * -------------------------------------------------------------------
-         * */
-
+         * Step 4️⃣ — Material reconciliation
+         * ------------------------------------------------------------------- */
         await reconcileOrderMaterials({
           tx,
           orderId: input.orderId,
@@ -1427,13 +1829,12 @@ export const mutationsRouter = router({
         })
 
         /* -------------------------------------------------------------------
-         * Step 6️⃣ — DEVICE RESTORATION LOGIC
+         * Step 5️⃣ — Equipment delta (technician)
          * -------------------------------------------------------------------
-         * Detect devices removed from the order and restore them:
-         * - If originally from technician → ASSIGNED + assignedToId = tech
-         * - If from warehouse/admin → AVAILABLE + assignedToId = null
-         * Owner determined from warehouseHistory.
+         * Only change: technician cannot add devices not assigned to him.
+         * processEquipmentDelta enforces this automatically.
          * ------------------------------------------------------------------- */
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         const newSet = new Set(input.equipmentIds ?? [])
 
         for (const old of prevEquip) {
@@ -1472,10 +1873,28 @@ export const mutationsRouter = router({
             },
           })
         }
+=======
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: input.equipmentIds ?? [],
+          technicianId: userId,
+          editorId: userId,
+          mode: 'AMEND',
+        })
+>>>>>>> main:src/server/routers/order/mutations.ts
 
         /* -------------------------------------------------------------------
-         * Step 7️⃣ — Assign new equipment to order
+         * Step 6️⃣ — Collected devices rollback (identical to admin-edit)
+         * -------------------------------------------------------------------
+         * Technician must:
+         *   - remove wrongly collected devices
+         *   - add new collected devices
+         *   - rollback system state if he removes collected device
+         *
+         * EXACTLY the same logic as admin-edit.
          * ------------------------------------------------------------------- */
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         if (input.equipmentIds?.length) {
           const assigned = await tx.vectraWarehouse.findMany({
             where: { id: { in: input.equipmentIds }, assignedToId: userId },
@@ -1505,53 +1924,126 @@ export const mutationsRouter = router({
               },
             })
           }
-        }
-        /* -------------------------------------------------------------------
-         * Step 8️⃣ — Collected devices (mirror of completeOrder)
-         * ------------------------------------------------------------------- */
+=======
 
+        const normalizeSerial = (serial?: string | null): string | null => {
+          if (!serial) return null
+          const s = serial.trim().toUpperCase()
+          return s.length ? s : null
+>>>>>>> main:src/server/routers/order/mutations.ts
+        }
+
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         const prevCollectedTech = await tx.vectraWarehouse.findMany({
+=======
+        const prevCollected = await tx.warehouse.findMany({
+>>>>>>> main:src/server/routers/order/mutations.ts
           where: {
-            orderAssignments: { some: { orderId: input.orderId } },
-            status: 'COLLECTED_FROM_CLIENT',
             itemType: 'DEVICE',
+            status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+            orderAssignments: { some: { orderId: input.orderId } },
           },
           select: { id: true, serialNumber: true },
         })
 
-        const newCollectedTechSerials = (input.collectedDevices ?? [])
-          .map((d) => d.serialNumber?.trim().toUpperCase() ?? null)
-          .filter((s): s is string => typeof s === 'string' && s.length > 0)
+        const prevCollectedBySerial = new Map(
+          prevCollected
+            .map((d) => [normalizeSerial(d.serialNumber), d.id] as const)
+            .filter(([s]) => s !== null)
+        )
 
-        for (const old of prevCollectedTech) {
-          const stillExists = newCollectedTechSerials.includes(
-            old.serialNumber?.trim().toUpperCase() ?? ''
-          )
+        const newCollected = input.collectedDevices ?? []
+        const newSerials = new Set(
+          newCollected
+            .map((d) => normalizeSerial(d.serialNumber))
+            .filter((s): s is string => s !== null)
+        )
 
-          if (!stillExists) {
-            // 1️⃣ Remove from orderEquipment
-            await tx.orderEquipment.deleteMany({
-              where: {
-                orderId: input.orderId,
-                warehouseId: old.id,
-              },
-            })
+        // 🔥 removed collected devices
+        const removedCollectedIds = [...prevCollectedBySerial.entries()]
+          .filter(([serial]) => !newSerials.has(serial!))
+          .map(([, id]) => id)
 
-            // 2️⃣ Remove all history entries (constraint-safe)
+        for (const wid of removedCollectedIds) {
+          // unlink
+          await tx.orderEquipment.deleteMany({
+            where: { orderId: input.orderId, warehouseId: wid },
+          })
+
+          const lastCollected = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
+              assignedOrderId: input.orderId,
+            },
+            orderBy: { actionDate: 'desc' },
+          })
+
+          if (!lastCollected) continue
+
+          // remove history for this collection
+          await tx.warehouseHistory.deleteMany({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
+              assignedOrderId: input.orderId,
+              actionDate: lastCollected.actionDate,
+            },
+          })
+
+          const previousState = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              actionDate: { lt: lastCollected.actionDate },
+            },
+            orderBy: { actionDate: 'desc' },
+          })
+
+          if (!previousState) {
+            // delete temporary device
             await tx.warehouseHistory.deleteMany({
-              where: { warehouseItemId: old.id },
+              where: { warehouseItemId: wid },
             })
+            await tx.warehouse.delete({ where: { id: wid } })
+          } else {
+            let restoredStatus: WarehouseStatus
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
             // 3️⃣ Remove device itself
             await tx.vectraWarehouse.delete({
               where: { id: old.id },
+=======
+            switch (previousState.action) {
+              case WarehouseAction.RETURNED_TO_TECHNICIAN:
+                restoredStatus = WarehouseStatus.ASSIGNED
+                break
+              case WarehouseAction.RETURNED:
+              case WarehouseAction.RECEIVED:
+                restoredStatus = WarehouseStatus.AVAILABLE
+                break
+              default:
+                restoredStatus = WarehouseStatus.ASSIGNED_TO_ORDER
+                break
+            }
+
+            await tx.warehouse.update({
+              where: { id: wid },
+              data: {
+                status: restoredStatus,
+                assignedToId: previousState.assignedToId ?? null,
+                ...(previousState.assignedToId ? { locationId: null } : {}),
+              },
+>>>>>>> main:src/server/routers/order/mutations.ts
             })
           }
         }
 
-        for (const d of input.collectedDevices ?? []) {
-          const serial = d.serialNumber?.trim().toUpperCase() ?? null
+        // 🔥 add/update collected devices
+        for (const d of newCollected) {
+          const serial = normalizeSerial(d.serialNumber)
+          let wid: string | null = null
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
           const existing = serial
             ? await tx.vectraWarehouse.findFirst({
                 where: {
@@ -1559,28 +2051,66 @@ export const mutationsRouter = router({
                   status: 'COLLECTED_FROM_CLIENT',
                   assignedToId: userId,
                 },
+=======
+          const exists = serial
+            ? await tx.warehouse.findFirst({
+                where: { serialNumber: serial },
+>>>>>>> main:src/server/routers/order/mutations.ts
                 select: { id: true },
               })
             : null
 
-          if (existing) {
-            await tx.orderEquipment.upsert({
-              where: {
-                orderId_warehouseId: {
-                  orderId: input.orderId,
-                  warehouseId: existing.id,
+          if (exists) {
+            wid = exists.id
+
+            await tx.warehouse.update({
+              where: { id: wid },
+              data: {
+                name: d.name,
+                category: d.category,
+                serialNumber: serial,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: userId,
+                locationId: null,
+                history: {
+                  create: {
+                    action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                    performedById: userId,
+                    assignedOrderId: input.orderId,
+                    assignedToId: userId,
+                  },
                 },
               },
-              create: {
-                orderId: input.orderId,
-                warehouseId: existing.id,
+            })
+          } else {
+            const created = await tx.warehouse.create({
+              data: {
+                itemType: 'DEVICE',
+                name: d.name,
+                category: d.category,
+                serialNumber: serial,
+                quantity: 1,
+                price: 0,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: userId,
               },
-              update: {},
+              select: { id: true },
             })
 
-            continue
+            wid = created.id
+
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: wid,
+                action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                performedById: userId,
+                assignedOrderId: input.orderId,
+                assignedToId: userId,
+              },
+            })
           }
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
           const created = await tx.vectraWarehouse.create({
             data: {
               itemType: 'DEVICE',
@@ -1608,12 +2138,22 @@ export const mutationsRouter = router({
               action: 'COLLECTED_FROM_CLIENT',
               performedById: userId,
               assignedOrderId: input.orderId,
+=======
+          await tx.orderEquipment.upsert({
+            where: {
+              orderId_warehouseId: {
+                orderId: input.orderId,
+                warehouseId: wid!,
+              },
+>>>>>>> main:src/server/routers/order/mutations.ts
             },
+            create: { orderId: input.orderId, warehouseId: wid! },
+            update: {},
           })
         }
 
         /* -------------------------------------------------------------------
-         * Step 9️⃣ — Services and extra devices
+         * Step 7️⃣ — Services and extra devices
          * ------------------------------------------------------------------- */
         if (
           input.status === VectraOrderStatus.COMPLETED &&
@@ -1626,7 +2166,7 @@ export const mutationsRouter = router({
           )
 
           for (const s of servicesData) {
-            const createdService = await tx.orderService.create({
+            const created = await tx.orderService.create({
               data: {
                 orderId: s.orderId,
                 type: s.type,
@@ -1649,14 +2189,15 @@ export const mutationsRouter = router({
             if (s.extraDevices?.length) {
               await tx.orderExtraDevice.createMany({
                 data: s.extraDevices.map((ex) => ({
-                  serviceId: createdService.id,
+                  serviceId: created.id,
                   warehouseId: ex.id,
                   source: ex.source,
                   name: ex.name ?? '',
                   serialNumber: ex.serialNumber ?? undefined,
-                  category: ex.category ?? undefined,
+                  category: ex.category,
                 })),
               })
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
 
               // Extra devices from technician → mark as assigned to order
               const usedSerials = s.extraDevices
@@ -1698,12 +2239,14 @@ export const mutationsRouter = router({
                   })
                 }
               }
+=======
+>>>>>>> main:src/server/routers/order/mutations.ts
             }
           }
         }
 
         /* -------------------------------------------------------------------
-         * 🔟 Final audit history entry
+         * Step 8️⃣ — Log amendment
          * ------------------------------------------------------------------- */
         await tx.orderHistory.create({
           data: {
@@ -1864,15 +2407,47 @@ export const mutationsRouter = router({
          *  • removed equipment → returned to previous owner using WarehouseHistory
          * ------------------------------------------------------------------- */
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         const prevCollected = await tx.vectraWarehouse.findMany({
+=======
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: input.equipmentIds ?? [],
+          technicianId: assignedTechId,
+          editorId: adminId,
+          mode: 'ADMIN',
+        })
+        /* -------------------------------------------------------------------
+         * Step 7️⃣ — Sync collected devices (returned from client) — SAFE VERSION
+         * ------------------------------------------------------------------- */
+
+        // Helper to normalize serial numbers (consistent comparisons)
+        const normalizeSerial = (
+          serial: string | null | undefined
+        ): string | null => {
+          if (!serial) return null
+          const trimmed = serial.trim()
+          return trimmed.length === 0 ? null : trimmed.toUpperCase()
+        }
+
+        const assignedTechIdForCollected = previous?.assignedToId ?? null
+
+        // 1️⃣ Previously collected devices for this order
+        const prevCollectedDevices = await tx.warehouse.findMany({
+>>>>>>> main:src/server/routers/order/mutations.ts
           where: {
-            orderAssignments: { some: { orderId: input.orderId } },
-            status: 'COLLECTED_FROM_CLIENT',
             itemType: 'DEVICE',
+            status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+            orderAssignments: { some: { orderId: input.orderId } },
           },
-          select: { id: true, serialNumber: true },
+          select: {
+            id: true,
+            serialNumber: true,
+          },
         })
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
         const newCollectedSerials = (input.collectedDevices ?? [])
           .map((d) => d.serialNumber?.trim().toUpperCase() ?? null)
           .filter((s): s is string => typeof s === 'string' && s.length > 0)
@@ -1909,25 +2484,54 @@ export const mutationsRouter = router({
           },
           select: { id: true },
         })
+=======
+        const prevCollectedBySerial = new Map<string, string>() // serial → warehouseId
+        for (const dev of prevCollectedDevices) {
+          const normalized = normalizeSerial(dev.serialNumber)
+          if (normalized) {
+            prevCollectedBySerial.set(normalized, dev.id)
+          }
+        }
 
-        const prevIds = new Set(prevDevices.map((d) => d.id))
-        const newIds = new Set(input.equipmentIds ?? [])
+        // 2️⃣ Current list of collected devices from input
+        const collectedInput = input.collectedDevices ?? []
+>>>>>>> main:src/server/routers/order/mutations.ts
 
-        // 1️⃣ Return removed devices
-        for (const oldId of prevIds) {
-          if (newIds.has(oldId)) continue
+        const newSerials = collectedInput
+          .map((d) => normalizeSerial(d.serialNumber))
+          .filter((s): s is string => s !== null)
 
-          // Determine original owner via history
-          const lastAssign = await tx.warehouseHistory.findFirst({
+        const newSerialSet = new Set<string>(newSerials)
+
+        // 3️⃣ Calculate which previously collected devices were REMOVED
+        const removedCollectedIds: string[] = []
+        for (const [serial, warehouseId] of prevCollectedBySerial.entries()) {
+          if (!newSerialSet.has(serial)) {
+            removedCollectedIds.push(warehouseId)
+          }
+        }
+
+        // 3a️⃣ Rollback for removed collected devices
+        for (const wid of removedCollectedIds) {
+          // a) Unlink device from current order
+          await tx.orderEquipment.deleteMany({
             where: {
-              warehouseItemId: oldId,
-              action: 'ASSIGNED_TO_ORDER',
+              orderId: input.orderId,
+              warehouseId: wid,
+            },
+          })
+
+          // b) Find last COLLECTED_FROM_CLIENT entry for THIS order
+          const lastCollected = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
               assignedOrderId: input.orderId,
             },
             orderBy: { actionDate: 'desc' },
-            select: { assignedToId: true },
           })
 
+<<<<<<< HEAD:src/server/routers/vectra-crm/order/mutations.ts
           const ownerId = lastAssign?.assignedToId ?? null
 
           const returnStatus = ownerId ? 'ASSIGNED' : 'AVAILABLE'
@@ -2045,8 +2649,158 @@ export const mutationsRouter = router({
               warehouseItemId: created.id,
               action: 'COLLECTED_FROM_CLIENT',
               performedById: adminId,
+=======
+          if (!lastCollected) {
+            // No matching history → nothing more to rollback
+            continue
+          }
+
+          // c) Remove COLLECTED_FROM_CLIENT history entry for this order
+          await tx.warehouseHistory.deleteMany({
+            where: {
+              warehouseItemId: wid,
+              action: WarehouseAction.COLLECTED_FROM_CLIENT,
+>>>>>>> main:src/server/routers/order/mutations.ts
               assignedOrderId: input.orderId,
+              actionDate: lastCollected.actionDate,
             },
+          })
+
+          // d) Find history BEFORE this collection (previous state snapshot)
+          const previousHistory = await tx.warehouseHistory.findFirst({
+            where: {
+              warehouseItemId: wid,
+              actionDate: { lt: lastCollected.actionDate },
+            },
+            orderBy: { actionDate: 'desc' },
+          })
+
+          if (!previousHistory) {
+            // Device existed ONLY as collected on this order → safe to remove
+            await tx.warehouseHistory.deleteMany({
+              where: { warehouseItemId: wid },
+            })
+            await tx.warehouse.delete({
+              where: { id: wid },
+            })
+          } else {
+            // Device existed earlier (e.g. issued to client) → restore previous state
+
+            let restoredStatus: WarehouseStatus
+
+            switch (previousHistory.action) {
+              case WarehouseAction.RETURNED_TO_TECHNICIAN:
+                restoredStatus = WarehouseStatus.ASSIGNED
+                break
+              case WarehouseAction.RETURNED:
+              case WarehouseAction.RETURNED_TO_OPERATOR:
+              case WarehouseAction.RECEIVED:
+                restoredStatus = WarehouseStatus.AVAILABLE
+                break
+              case WarehouseAction.TRANSFER:
+                // After transfer we still treat device as assigned to someone/location
+                restoredStatus = WarehouseStatus.ASSIGNED
+                break
+              default:
+                // ASSIGNED_TO_ORDER / ISSUED / ISSUED_TO_CLIENT etc.
+                // For your domain this means "still at client (issued from previous order)".
+                restoredStatus = WarehouseStatus.ASSIGNED_TO_ORDER
+                break
+            }
+
+            await tx.warehouse.update({
+              where: { id: wid },
+              data: {
+                status: restoredStatus,
+                assignedToId: previousHistory.assignedToId ?? null,
+                // When assigning back to a user keep location null
+                ...(previousHistory.assignedToId ? { locationId: null } : {}),
+              },
+            })
+          }
+        }
+
+        // 4️⃣ Apply current collected devices from input (create / update)
+        for (const d of collectedInput) {
+          const normalizedSerial = normalizeSerial(d.serialNumber)
+          let warehouseId: string
+
+          // Try to reuse any existing device with this serial (system device)
+          let existing: { id: string } | null = null
+          if (normalizedSerial) {
+            existing = await tx.warehouse.findFirst({
+              where: {
+                itemType: 'DEVICE',
+                serialNumber: normalizedSerial,
+              },
+              select: { id: true },
+            })
+          }
+
+          if (existing) {
+            warehouseId = existing.id
+
+            await tx.warehouse.update({
+              where: { id: warehouseId },
+              data: {
+                name: d.name,
+                category: d.category,
+                serialNumber: normalizedSerial,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: assignedTechIdForCollected,
+                locationId: null,
+                history: {
+                  create: {
+                    action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                    performedById: adminId,
+                    assignedOrderId: input.orderId,
+                    assignedToId: assignedTechIdForCollected,
+                  },
+                },
+              },
+            })
+          } else {
+            // Client device not known before → create new collected device
+            const created = await tx.warehouse.create({
+              data: {
+                itemType: 'DEVICE',
+                name: d.name,
+                category: d.category,
+                serialNumber: normalizedSerial,
+                quantity: 1,
+                price: 0,
+                status: WarehouseStatus.COLLECTED_FROM_CLIENT,
+                assignedToId: assignedTechIdForCollected,
+              },
+              select: { id: true },
+            })
+
+            warehouseId = created.id
+
+            await tx.warehouseHistory.create({
+              data: {
+                warehouseItemId: warehouseId,
+                action: WarehouseAction.COLLECTED_FROM_CLIENT,
+                performedById: adminId,
+                assignedOrderId: input.orderId,
+                assignedToId: assignedTechIdForCollected,
+              },
+            })
+          }
+
+          // Always ensure relation with current order
+          await tx.orderEquipment.upsert({
+            where: {
+              orderId_warehouseId: {
+                orderId: input.orderId,
+                warehouseId,
+              },
+            },
+            create: {
+              orderId: input.orderId,
+              warehouseId,
+            },
+            update: {},
           })
         }
 

@@ -18,6 +18,13 @@ import TechniciansList from './TechniciansList'
  */
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
+/** 🎨 Marker colors based on order status */
+const STATUS_COLORS: Record<string, string> = {
+  ASSIGNED: '#26303d',
+  COMPLETED: '#66b266',
+  NOT_COMPLETED: '#E6262D',
+}
+
 const PlanningBoard = () => {
   const { selectedDate } = usePlanningContext()
   const utils = trpc.useUtils()
@@ -64,7 +71,7 @@ const PlanningBoard = () => {
                 ? new Date(o.date).toLocaleDateString('pl-PL')
                 : undefined,
               operator: o.operator ?? '—',
-              color: '#66b266',
+              color: STATUS_COLORS[o.status] ?? '#26303d',
             }))
         )
       ) ?? []

@@ -60,7 +60,10 @@ const OrderDetailsContent = ({ order }: Props) => {
 
   // Collected = sprzęt odebrany od klienta
   const collected = assignedEquipment.filter((e) =>
-    e.warehouse.history.some((h) => h.action === 'COLLECTED_FROM_CLIENT')
+    e.warehouse.history.some(
+      (h) =>
+        h.action === 'COLLECTED_FROM_CLIENT' && h.assignedOrderId === order.id
+    )
   )
 
   return (
@@ -101,8 +104,7 @@ const OrderDetailsContent = ({ order }: Props) => {
 
                 return (
                   <li key={e.id} className="mt-1">
-                    {category}
-                    {e.name.toUpperCase()}
+                    {category} {e.name.toUpperCase()}
                     {e.serial && ` (SN: ${e.serial.toUpperCase()})`}
                     {e.client && ' [sprzęt klienta]'}
                   </li>

@@ -385,6 +385,25 @@ export const queriesRouter = router({
         orderBy: { timeSlot: 'asc' },
       })
 
+      // Auto-geocode assigned orders missing coordinates
+      for (const o of assigned) {
+        if (o.lat === null || o.lng === null) {
+          const address = `${o.street}, ${o.city}, Polska`
+          const coords = await getCoordinatesFromAddress(address)
+
+          if (coords) {
+            o.lat = coords.lat
+            o.lng = coords.lng
+
+            // Update DB so next time the order already has coords
+            await ctx.prisma.order.update({
+              where: { id: o.id },
+              data: { lat: coords.lat, lng: coords.lng },
+            })
+          }
+        }
+      }
+
       const push = (
         key: string,
         data: {
