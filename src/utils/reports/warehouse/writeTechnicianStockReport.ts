@@ -1,6 +1,6 @@
 import { BORDER, LIGHT_GRAY } from '@/lib/exelReportsConstants'
+import { prisma } from '@/utils/prisma'
 import ExcelJS from 'exceljs'
-import { prisma } from '../../prisma'
 
 /**
  * writeTechnicianStockReport

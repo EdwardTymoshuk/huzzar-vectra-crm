@@ -4,6 +4,7 @@ import { adminCoordOrWarehouse, adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { writeReturnToOperatorReport } from '@/utils/reports/warehouse/writeReturnToOperatorReport'
 import { writeTechnicianStockReport } from '@/utils/reports/warehouse/writeTechnicianStockReport'
+import { writeUsedMaterialsInstallationReport } from '@/utils/reports/warehouse/writeUsedMaterialsInstallationReport'
 import { writeWarehouseStockReport } from '@/utils/reports/warehouse/writeWarehouseStockReport'
 import { z } from 'zod'
 
@@ -34,6 +35,22 @@ export const reportsRouters = router({
     .input(z.object({ historyIds: z.array(z.string().uuid()) }))
     .mutation(async ({ input }) => {
       const buffer = await writeReturnToOperatorReport(input.historyIds)
+      return buffer.toString('base64')
+    }),
+
+  generateUsedMaterialsInstallationReport: adminOrCoord
+    .input(
+      z.object({
+        from: z.date(),
+        to: z.date(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await writeUsedMaterialsInstallationReport(
+        input.from,
+        input.to
+      )
+
       return buffer.toString('base64')
     }),
 })

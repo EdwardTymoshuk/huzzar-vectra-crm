@@ -29,7 +29,10 @@ type Props = {
   onClose: () => void
 }
 
-type ReportType = 'TECHNICIAN_STOCK' | 'WAREHOUSE_STOCK'
+type ReportType =
+  | 'TECHNICIAN_STOCK'
+  | 'WAREHOUSE_STOCK'
+  | 'USED_MATERIALS_INSTALLATIONS'
 
 const ReportsDialog = ({ open, onClose }: Props) => {
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null)
@@ -43,6 +46,8 @@ const ReportsDialog = ({ open, onClose }: Props) => {
   const reportTech = trpc.warehouse.generateTechnicianStockReport.useMutation()
   const reportWarehouse =
     trpc.warehouse.generateWarehouseStockReport.useMutation()
+  const reportUsedMaterials =
+    trpc.warehouse.generateUsedMaterialsInstallationReport.useMutation()
 
   /**
    * handleGenerate
@@ -106,6 +111,39 @@ const ReportsDialog = ({ open, onClose }: Props) => {
         toast.success('Raport magazynowy został wygenerowany.')
         onClose()
       }
+      if (selectedReport === 'USED_MATERIALS_INSTALLATIONS') {
+        const from = new Date(
+          new Date().getFullYear(),
+          new Date().getMonth(),
+          1
+        )
+        const to = new Date(
+          new Date().getFullYear(),
+          new Date().getMonth() + 1,
+          0
+        )
+
+        const base64 = await reportUsedMaterials.mutateAsync({ from, to })
+
+        const binaryString = atob(base64)
+        const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
+        const blob = new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        })
+
+        const monthName = from.toLocaleString('pl-PL', { month: 'long' })
+        const year = from.getFullYear()
+
+        const link = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = link
+        a.download = `Zuzyte-materialy-instalacje-${monthName}-${year}.xlsx`
+        a.click()
+        URL.revokeObjectURL(link)
+
+        toast.success('Raport został wygenerowany.')
+        onClose()
+      }
     } catch (err) {
       console.error(err)
       toast.error('Błąd podczas generowania raportu.')
@@ -136,6 +174,10 @@ const ReportsDialog = ({ open, onClose }: Props) => {
 
             <SelectItem value="WAREHOUSE_STOCK">
               Stan magazynu (urządzenia + materiały)
+            </SelectItem>
+
+            <SelectItem value="USED_MATERIALS_INSTALLATIONS">
+              Zużyte materiały – instalacje
             </SelectItem>
           </SelectContent>
         </Select>
