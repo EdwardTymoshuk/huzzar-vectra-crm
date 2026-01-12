@@ -41,16 +41,15 @@ export const reportsRouters = router({
   generateUsedMaterialsInstallationReport: adminOrCoord
     .input(
       z.object({
-        from: z.date(),
-        to: z.date(),
+        year: z.number(),
+        month: z.number(), // 0–11
       })
     )
     .mutation(async ({ input }) => {
       const buffer = await writeUsedMaterialsInstallationReport(
-        input.from,
-        input.to
+        input.year,
+        input.month
       )
-
       return buffer.toString('base64')
     }),
 })

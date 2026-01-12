@@ -1,5 +1,6 @@
 'use client'
 
+import MonthPicker from '@/app/components/shared/MonthPicker'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
+import { polishMonthsNominative } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -37,6 +39,7 @@ type ReportType =
 const ReportsDialog = ({ open, onClose }: Props) => {
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null)
   const [technicianId, setTechnicianId] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
   const [loading, setLoading] = useState(false)
 
   const { data: technicians = [] } = trpc.user.getTechnicians.useQuery({
@@ -58,9 +61,9 @@ const ReportsDialog = ({ open, onClose }: Props) => {
     try {
       setLoading(true)
 
-      // --------------------------
+      // --------------------------------------------------
       // TECHNICIAN STOCK REPORT
-      // --------------------------
+      // --------------------------------------------------
       if (selectedReport === 'TECHNICIAN_STOCK') {
         if (!technicianId) {
           toast.error('Wybierz technika')
@@ -69,83 +72,53 @@ const ReportsDialog = ({ open, onClose }: Props) => {
 
         const base64 = await reportTech.mutateAsync({ technicianId })
 
-        const binaryString = atob(base64)
-        const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
-        const blob = new Blob([bytes], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        })
-
-        const techName =
-          technicians.find((t) => t.id === technicianId)?.name || 'technician'
-
-        const link = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = link
-        a.download = `Stan-technika-${techName}.xlsx`
-        a.click()
-        URL.revokeObjectURL(link)
+        downloadExcel(
+          base64,
+          `Stan-technika-${
+            technicians.find((t) => t.id === technicianId)?.name ?? 'technik'
+          }.xlsx`
+        )
 
         toast.success('Raport został wygenerowany.')
         onClose()
       }
 
-      // --------------------------
+      // --------------------------------------------------
       // WAREHOUSE STOCK REPORT
-      // --------------------------
+      // --------------------------------------------------
       if (selectedReport === 'WAREHOUSE_STOCK') {
         const base64 = await reportWarehouse.mutateAsync()
 
-        const binaryString = atob(base64)
-        const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
-        const blob = new Blob([bytes], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        })
-
-        const link = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = link
-        a.download = `Stan-magazynu.xlsx`
-        a.click()
-        URL.revokeObjectURL(link)
+        downloadExcel(base64, 'Stan-magazynu.xlsx')
 
         toast.success('Raport magazynowy został wygenerowany.')
         onClose()
       }
+
+      // --------------------------------------------------
+      // USED MATERIALS – INSTALLATIONS (MONTHLY)
+      // --------------------------------------------------
       if (selectedReport === 'USED_MATERIALS_INSTALLATIONS') {
-        const from = new Date(
-          new Date().getFullYear(),
-          new Date().getMonth(),
-          1
-        )
-        const to = new Date(
-          new Date().getFullYear(),
-          new Date().getMonth() + 1,
-          0
-        )
+        const year = selectedMonth.getFullYear()
+        const month = selectedMonth.getMonth() // 0–11
 
-        const base64 = await reportUsedMaterials.mutateAsync({ from, to })
-
-        const binaryString = atob(base64)
-        const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
-        const blob = new Blob([bytes], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        const base64 = await reportUsedMaterials.mutateAsync({
+          year,
+          month,
         })
 
-        const monthName = from.toLocaleString('pl-PL', { month: 'long' })
-        const year = from.getFullYear()
+        const monthName = polishMonthsNominative[month]
 
-        const link = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = link
-        a.download = `Zuzyte-materialy-instalacje-${monthName}-${year}.xlsx`
-        a.click()
-        URL.revokeObjectURL(link)
+        downloadExcel(
+          base64,
+          `Zuzyte-materialy-instalacje-${monthName}-${year}.xlsx`
+        )
 
         toast.success('Raport został wygenerowany.')
         onClose()
       }
-    } catch (err) {
-      console.error(err)
+    } catch (error) {
+      console.error(error)
       toast.error('Błąd podczas generowania raportu.')
     } finally {
       setLoading(false)
@@ -162,7 +135,7 @@ const ReportsDialog = ({ open, onClose }: Props) => {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Select report */}
+        {/* REPORT TYPE */}
         <Select onValueChange={(v: ReportType) => setSelectedReport(v)}>
           <SelectTrigger>
             <SelectValue placeholder="Wybierz raport" />
@@ -177,12 +150,12 @@ const ReportsDialog = ({ open, onClose }: Props) => {
             </SelectItem>
 
             <SelectItem value="USED_MATERIALS_INSTALLATIONS">
-              Zużyte materiały – instalacje
+              Zużyte materiały – instalacje (miesięczne)
             </SelectItem>
           </SelectContent>
         </Select>
 
-        {/* Technician selector */}
+        {/* TECHNICIAN SELECT */}
         {selectedReport === 'TECHNICIAN_STOCK' && (
           <div className="mt-4">
             <Select onValueChange={setTechnicianId}>
@@ -200,6 +173,13 @@ const ReportsDialog = ({ open, onClose }: Props) => {
           </div>
         )}
 
+        {/* MONTH PICKER */}
+        {selectedReport === 'USED_MATERIALS_INSTALLATIONS' && (
+          <div className="mt-4">
+            <MonthPicker selected={selectedMonth} onChange={setSelectedMonth} />
+          </div>
+        )}
+
         <div className="flex justify-end mt-6">
           <Button
             disabled={loading || !selectedReport}
@@ -214,3 +194,24 @@ const ReportsDialog = ({ open, onClose }: Props) => {
 }
 
 export default ReportsDialog
+
+/**
+ * downloadExcel
+ * --------------------------------------------------------
+ * Helper for downloading base64 encoded Excel files.
+ */
+function downloadExcel(base64: string, filename: string): void {
+  const binary = atob(base64)
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+
+  const blob = new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+
+  const link = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = link
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(link)
+}
