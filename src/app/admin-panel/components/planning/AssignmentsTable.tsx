@@ -39,10 +39,11 @@ const AssignmentsTable = () => {
   const [from, setFrom] = useState<Date | undefined>()
   const [to, setTo] = useState<Date | undefined>()
 
-  const { data: unassigned = [], isLoading: isUnassignedLoading } =
-    trpc.order.getAllUnassigned.useQuery({
+  const { data: inProgress = [], isLoading: isInProgressLoading } =
+    trpc.order.getAllInProgress.useQuery({
       dateFrom: from,
       dateTo: to,
+      orderType: 'INSTALATION',
     })
 
   const utils = trpc.useUtils()
@@ -112,8 +113,8 @@ const AssignmentsTable = () => {
   return (
     <div className="space-y-6">
       <UnassignedOrdersAccordion
-        data={unassigned}
-        loading={isUnassignedLoading}
+        data={inProgress}
+        loading={isInProgressLoading}
         from={from}
         to={to}
         setFrom={setFrom}

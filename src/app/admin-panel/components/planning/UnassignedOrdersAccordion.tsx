@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { OrderStatus, User } from '@prisma/client'
+import { OrderStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import {
@@ -35,7 +35,10 @@ type UnassignedOrder = {
   orderNumber: string
   city: string
   street: string
-  assignedTo: User | null
+  assignedTo: {
+    id: string
+    name: string
+  } | null
   clientId: string | null
   status: OrderStatus
 }

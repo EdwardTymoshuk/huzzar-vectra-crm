@@ -660,24 +660,36 @@ export const queriesRouter = router({
       }
     }),
 
-  /** Fetches ALL Unassigned orders from all technitians and from all the time */
-  getAllUnassigned: adminOrCoord
+  /** Fetches ALL in progress orders from all technitians and from all the time */
+  getAllInProgress: adminOrCoord
     .input(
       z.object({
         dateFrom: z.date().optional(),
         dateTo: z.date().optional(),
+        orderType: z.nativeEnum(OrderType).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { dateFrom, dateTo } = input
+      const { dateFrom, dateTo, orderType } = input
 
       return ctx.prisma.order.findMany({
         where: {
           status: 'ASSIGNED',
+
+          /** Optional date range filter */
           ...(dateFrom && dateTo
-            ? { date: { gte: dateFrom, lte: dateTo } }
+            ? {
+                date: {
+                  gte: dateFrom,
+                  lte: dateTo,
+                },
+              }
             : {}),
+
+          /** Optional order type filter */
+          ...(orderType ? { orderType } : {}),
         },
+
         select: {
           id: true,
           orderNumber: true,
@@ -686,11 +698,21 @@ export const queriesRouter = router({
           date: true,
           operator: true,
           clientId: true,
-          assignedTo: true,
           status: true,
           timeSlot: true,
+
+          /** Assigned technician (basic info only) */
+          assignedTo: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
-        orderBy: { date: 'asc' },
+
+        orderBy: {
+          date: 'asc',
+        },
       })
     }),
 
