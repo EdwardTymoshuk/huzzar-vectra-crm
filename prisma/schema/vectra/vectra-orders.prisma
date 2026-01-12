@@ -1,8 +1,11 @@
+//prisma/schema/vectra/vectra-orders.prisma
+
 /// -------------------------------------------
 /// VECTRA ORDERS (schema: vectra)
 /// -------------------------------------------
 
 model VectraOrder {
+  @@schema("vectra")
   id                String                   @id @default(uuid())
   clientId          String?
   orderNumber       String
@@ -52,6 +55,7 @@ model VectraOrder {
 }
 
 model VectraOrderMaterial {
+  @@schema("vectra")
   id         String             @id @default(uuid())
   orderId    String
   materialId String
@@ -65,6 +69,7 @@ model VectraOrderMaterial {
 }
 
 model VectraOrderSettlementEntry {
+  @@schema("vectra")
   id       String @id @default(uuid())
   orderId  String
   code     String
@@ -77,6 +82,7 @@ model VectraOrderSettlementEntry {
 }
 
 model VectraOrderService {
+  @@schema("vectra")
   id      String            @id @default(uuid())
   orderId String
   type    VectraServiceType
@@ -109,6 +115,7 @@ model VectraOrderService {
 }
 
 model VectraOrderHistory {
+  @@schema("vectra")
   id            String            @id @default(uuid())
   orderId       String
   changedById   String
@@ -123,6 +130,7 @@ model VectraOrderHistory {
 }
 
 model VectraOrderEquipment {
+  @@schema("vectra")
   id          String @id @default(uuid())
   orderId     String
   warehouseId String
@@ -135,6 +143,7 @@ model VectraOrderEquipment {
 }
 
 model VectraOrderExtraDevice {
+  @@schema("vectra")
   id           String                @id @default(uuid())
   serviceId    String
   warehouseId  String?

@@ -1,4 +1,4 @@
-import { VectraWarehouseAction } from '@prisma/client'
+import { VectraDeviceCategory, VectraWarehouseAction } from '@prisma/client'
 
 /**
  * SlimHistory
@@ -24,7 +24,7 @@ export type SlimWarehouseItem = {
   id: string
   name: string
   itemType: 'DEVICE' | 'MATERIAL'
-  category?: string | null
+  category?: VectraDeviceCategory
   serialNumber: string | null
   index: string | null
   unit: string | null

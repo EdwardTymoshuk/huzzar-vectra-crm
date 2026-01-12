@@ -1,7 +1,7 @@
-import { createContext } from './middleware'
 //src/server/trpcHandler
 
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
+import { createContext } from './context'
 import { appRouter } from './routers'
 
 // Universal handler for both GET and POST requests

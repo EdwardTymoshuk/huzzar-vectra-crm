@@ -1,0 +1,2 @@
+-- This migration was applied manually to the legacy database.
+-- ALTER TABLE vectra."VectraUser" ADD COLUMN active, deactivatedAt.

@@ -16,7 +16,7 @@ import {
   pickFill,
 } from '@/app/(modules)/vectra-crm/lib/exelReportsConstants'
 import { prisma } from '@/utils/prisma'
-import { DeviceCategory } from '@prisma/client'
+import { VectraDeviceCategory } from '@prisma/client'
 import ExcelJS from 'exceljs'
 
 /* ───────────────────────── layout constants ───────────────────────── */
@@ -412,16 +412,16 @@ export async function writeInstallationTemplateFromDb(
       v !== null ? String(v) : null
 
     /** True when device category should be treated as modem-like (modem / SIM / extender). */
-    const isModemLikeCategory = (cat: DeviceCategory | null): boolean => {
+    const isModemLikeCategory = (cat: VectraDeviceCategory | null): boolean => {
       if (!cat) return false
       if (
-        cat === DeviceCategory.MODEM_HFC ||
-        cat === DeviceCategory.MODEM_GPON
+        cat === VectraDeviceCategory.MODEM_HFC ||
+        cat === VectraDeviceCategory.MODEM_GPON
       ) {
         return true
       }
       // SIM / EXTENDER are stored as OTHER.
-      return cat === DeviceCategory.OTHER
+      return cat === VectraDeviceCategory.OTHER
     }
 
     /** Returns label suffix for SIM/EXTENDER based on warehouse name. */
@@ -475,10 +475,10 @@ export async function writeInstallationTemplateFromDb(
       )
 
       const dec1Equip = issued.filter(
-        (e) => e.warehouse.category === DeviceCategory.DECODER_1_WAY
+        (e) => e.warehouse.category === VectraDeviceCategory.DECODER_1_WAY
       )
       const dec2Equip = issued.filter(
-        (e) => e.warehouse.category === DeviceCategory.DECODER_2_WAY
+        (e) => e.warehouse.category === VectraDeviceCategory.DECODER_2_WAY
       )
       const modemLikeEquip = issued.filter((e) =>
         isModemLikeCategory(e.warehouse.category)
@@ -575,7 +575,7 @@ export async function writeInstallationTemplateFromDb(
 
         const rawSerial = deviceSerial(mDev.warehouse.serialNumber)
         const label =
-          mDev.warehouse.category === DeviceCategory.OTHER
+          mDev.warehouse.category === VectraDeviceCategory.OTHER
             ? labelForOtherDevice(mDev.warehouse.name)
             : null
 
@@ -584,7 +584,7 @@ export async function writeInstallationTemplateFromDb(
           baseSerial = rawSerial.length > 0 ? `${rawSerial} ${label}` : label
         }
         const extraSerials =
-          mDev.warehouse.category === DeviceCategory.OTHER
+          mDev.warehouse.category === VectraDeviceCategory.OTHER
             ? []
             : related
                 .map((s) => deviceSerial(s.serialNumber))
@@ -609,7 +609,7 @@ export async function writeInstallationTemplateFromDb(
           us: usValues,
           ds: dsValues,
           speeds,
-          isOther: mDev.warehouse.category === DeviceCategory.OTHER,
+          isOther: mDev.warehouse.category === VectraDeviceCategory.OTHER,
           isClientDevice: false,
         })
       }
@@ -637,7 +637,7 @@ export async function writeInstallationTemplateFromDb(
         const usArr = usValues ? [usValues] : []
         const dsArr = dsValues ? [dsValues] : []
 
-        if (s.deviceType === DeviceCategory.DECODER_2_WAY) {
+        if (s.deviceType === VectraDeviceCategory.DECODER_2_WAY) {
           dec2Lines.push({
             serials: serialsWithTag,
             us: usArr,
@@ -645,7 +645,7 @@ export async function writeInstallationTemplateFromDb(
             isClientDevice: true,
             isTwoWay: true,
           })
-        } else if (s.deviceType === DeviceCategory.DECODER_1_WAY) {
+        } else if (s.deviceType === VectraDeviceCategory.DECODER_1_WAY) {
           dec1Lines.push({
             serials: serialsWithTag,
             us: usArr,
@@ -1126,13 +1126,16 @@ export async function writeInstallationTemplateForTechnicianMonth(
     v !== null ? String(v) : null
 
   /** True when device category should be treated as modem-like (modem / SIM / extender). */
-  const isModemLikeCategory = (cat: DeviceCategory | null): boolean => {
+  const isModemLikeCategory = (cat: VectraDeviceCategory | null): boolean => {
     if (!cat) return false
-    if (cat === DeviceCategory.MODEM_HFC || cat === DeviceCategory.MODEM_GPON) {
+    if (
+      cat === VectraDeviceCategory.MODEM_HFC ||
+      cat === VectraDeviceCategory.MODEM_GPON
+    ) {
       return true
     }
     // SIM / EXTENDER are stored as OTHER.
-    return cat === DeviceCategory.OTHER
+    return cat === VectraDeviceCategory.OTHER
   }
 
   /** Returns label suffix for SIM/EXTENDER based on warehouse name. */
@@ -1187,10 +1190,10 @@ export async function writeInstallationTemplateForTechnicianMonth(
     )
 
     const dec1Equip = issued.filter(
-      (e) => e.warehouse.category === DeviceCategory.DECODER_1_WAY
+      (e) => e.warehouse.category === VectraDeviceCategory.DECODER_1_WAY
     )
     const dec2Equip = issued.filter(
-      (e) => e.warehouse.category === DeviceCategory.DECODER_2_WAY
+      (e) => e.warehouse.category === VectraDeviceCategory.DECODER_2_WAY
     )
     const modemLikeEquip = issued.filter((e) =>
       isModemLikeCategory(e.warehouse.category)
@@ -1287,7 +1290,7 @@ export async function writeInstallationTemplateForTechnicianMonth(
 
       const rawSerial = deviceSerial(mDev.warehouse.serialNumber)
       const label =
-        mDev.warehouse.category === DeviceCategory.OTHER
+        mDev.warehouse.category === VectraDeviceCategory.OTHER
           ? labelForOtherDevice(mDev.warehouse.name)
           : null
 
@@ -1296,7 +1299,7 @@ export async function writeInstallationTemplateForTechnicianMonth(
         baseSerial = rawSerial.length > 0 ? `${rawSerial} ${label}` : label
       }
       const extraSerials =
-        mDev.warehouse.category === DeviceCategory.OTHER
+        mDev.warehouse.category === VectraDeviceCategory.OTHER
           ? []
           : related
               .map((s) => deviceSerial(s.serialNumber))
@@ -1321,7 +1324,7 @@ export async function writeInstallationTemplateForTechnicianMonth(
         us: usValues,
         ds: dsValues,
         speeds,
-        isOther: mDev.warehouse.category === DeviceCategory.OTHER,
+        isOther: mDev.warehouse.category === VectraDeviceCategory.OTHER,
         isClientDevice: false,
       })
     }
@@ -1349,7 +1352,7 @@ export async function writeInstallationTemplateForTechnicianMonth(
       const usArr = usValues ? [usValues] : []
       const dsArr = dsValues ? [dsValues] : []
 
-      if (s.deviceType === DeviceCategory.DECODER_2_WAY) {
+      if (s.deviceType === VectraDeviceCategory.DECODER_2_WAY) {
         dec2Lines.push({
           serials: serialsWithTag,
           us: usArr,
@@ -1357,7 +1360,7 @@ export async function writeInstallationTemplateForTechnicianMonth(
           isClientDevice: true,
           isTwoWay: true,
         })
-      } else if (s.deviceType === DeviceCategory.DECODER_1_WAY) {
+      } else if (s.deviceType === VectraDeviceCategory.DECODER_1_WAY) {
         dec1Lines.push({
           serials: serialsWithTag,
           us: usArr,

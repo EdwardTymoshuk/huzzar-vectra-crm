@@ -1,39 +1,37 @@
-// src/app/page.tsx
+//src/app/page.tsx
+
 'use client'
 
-import { useRole } from '@/utils/hooks/useRole'
-import { useRouter } from 'next/navigation'
-import ClientRoutingHandlerTechnician from './components/ClientRoutingHandlerTechnician'
-import LoaderLogo from './components/shared/LoaderLogo'
+import LoaderSpinner from '@/app/components/LoaderSpinner'
+import { useSession } from 'next-auth/react'
+import ModulesGrid from './components/root/ModulesGrid'
+import PlatformLayout from './components/root/PlatformLayout'
 
 /**
- * Home ("/"):
- * - If TECHNICIAN → render technician client routing handler (tabs via ?tab=...).
- * - If not logged → redirect to /login.
- * - If non-technician (ADMIN/COORD/WAREHOUSEMAN) → redirect to admin panel.
+ * HomePage
+ * --------------------------------------------------------------
+ * Platform entry page:
+ * - Not logged in → login
+ * - Logged in → module selection
  */
 export default function HomePage() {
-  const { role, isLoading } = useRole()
-  const router = useRouter()
+  const { status } = useSession()
 
-  if (typeof window === 'undefined') return null
-
-  if (isLoading) return <LoaderLogo show />
-
-  if (!role) {
-    // Not logged → go login
-    router.replace('/login')
-    return null
-  }
-
-  if (role === 'TECHNICIAN') {
-    // Technician stays on "/", we render the tabbed handler directly.
+  if (status === 'loading') {
     return (
-      <ClientRoutingHandlerTechnician>{null}</ClientRoutingHandlerTechnician>
+      <div className="h-screen flex items-center justify-center">
+        <LoaderSpinner />
+      </div>
     )
   }
 
-  // All non-technician roles go to the admin-panel entry
-  router.replace('/admin-panel?tab=dashboard')
-  return null
+  if (status !== 'authenticated') {
+    return null
+  }
+
+  return (
+    <PlatformLayout>
+      <ModulesGrid />
+    </PlatformLayout>
+  )
 }

@@ -86,5 +86,11 @@
     "ts-node": "^10.9.2",
     "typescript": "^5",
     "vitest": "^4.0.15"
+  },
+  "overrides": {
+    "rimraf": "3.0.2"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }

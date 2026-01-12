@@ -1,6 +1,6 @@
-import { mapServiceToCode } from '@/lib/constants'
-import { ActivatedService } from '@/types'
+import { VectraActivatedService } from '@/types/vectra-crm'
 import { VectraRateDefinition } from '@prisma/client'
+import { mapServiceToCode } from '../lib/constants'
 
 /**
  * Calculates the settlement work codes for a completed order.
@@ -17,7 +17,7 @@ import { VectraRateDefinition } from '@prisma/client'
  * @returns Array of { code, quantity } ready for settlement entries.
  */
 export const getSettlementWorkCodes = (
-  activatedServices: ActivatedService[],
+  activatedServices: VectraActivatedService[],
   rates: VectraRateDefinition[],
   install?: { pion: number; listwa: number }
 ): { code: string; quantity: number }[] => {

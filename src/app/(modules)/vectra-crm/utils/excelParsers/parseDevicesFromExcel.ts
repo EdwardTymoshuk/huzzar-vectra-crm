@@ -1,4 +1,4 @@
-import type { DeviceCategory } from '@prisma/client'
+import type { VectraDeviceCategory } from '@prisma/client'
 import { remove as removeDiacritics } from 'diacritics'
 import * as XLSX from 'xlsx'
 
@@ -24,7 +24,7 @@ export type ParsedDeviceRow = {
 export type DeviceDefLite = {
   id: string
   name: string
-  category: DeviceCategory
+  category: VectraDeviceCategory
 }
 
 /**

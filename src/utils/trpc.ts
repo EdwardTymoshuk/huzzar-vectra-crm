@@ -1,6 +1,6 @@
 // src/utils/trpc.ts
 
-import type { AppRouter } from '@/server/routers'
+import { AppRouter } from '@/server/routers'
 import { httpBatchLink } from '@trpc/client'
 import { createTRPCNext } from '@trpc/next'
 import { getSession } from 'next-auth/react'

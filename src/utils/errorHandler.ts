@@ -1,5 +1,6 @@
 // utils/errorHandler.ts
-import type { AppRouter } from '@/server/routers'
+
+import { AppRouter } from '@/server/routers'
 import { TRPCClientError } from '@trpc/client'
 
 type AppError = TRPCClientError<AppRouter>

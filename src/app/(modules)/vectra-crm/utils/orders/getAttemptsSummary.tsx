@@ -1,5 +1,5 @@
 import { statusMap } from '@/lib/constants'
-import { OrderWithAttempts } from '@/types'
+import { VectraOrderWithAttempts } from '@/types/vectra-crm'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { ReactNode } from 'react'
 
@@ -7,7 +7,7 @@ import { ReactNode } from 'react'
  * Generates clean timeline entries for technician attempts of a given order.
  * Each attempt = one event with date, status, technician, failure reason, notes.
  */
-export function getAttemptsSummary(order: OrderWithAttempts) {
+export function getAttemptsSummary(order: VectraOrderWithAttempts) {
   if (!order.attempts?.length) return []
 
   const events: {

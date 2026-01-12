@@ -11,13 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import { userRoleMap } from '@/lib/constants'
+import { VECTRA_PATH, userRoleMap } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Role } from '@prisma/client'
 import { signOut, useSession } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { CiLogout } from 'react-icons/ci'
-import { MdInfoOutline, MdOutlineSettings } from 'react-icons/md'
+import { MdInfoOutline, MdOutlineApps, MdOutlineSettings } from 'react-icons/md'
 
 /**
  * UserDropdown
@@ -87,7 +87,9 @@ const UserDropdown = () => {
         {/* --- Settings navigation --- */}
         <DropdownMenuItem
           onClick={() =>
-            router.push(isTechnician ? '/settings' : '/admin-panel/settings')
+            router.push(
+              isTechnician ? `/settings` : `${VECTRA_PATH}/admin-panel/settings`
+            )
           }
           className={cn(
             'cursor-pointer text-sm font-medium flex items-center gap-2 px-3 py-2 rounded-sm transition-colors',
@@ -129,16 +131,26 @@ const UserDropdown = () => {
           <MdInfoOutline className="w-5 h-5" />O aplikacji (wkrótce)
         </DropdownMenuItem>
 
+        
         <DropdownMenuSeparator /> */}
+
+        {/* --- Back to modules selection --- */}
+        <DropdownMenuItem
+          onClick={() => router.push('/')}
+          className="cursor-pointer text-sm font-medium flex items-center gap-2 px-3 py-2 rounded-sm transition-colors hover:bg-muted"
+        >
+          <MdOutlineApps className="w-5 h-5" />
+          Wybór modułu
+        </DropdownMenuItem>
 
         {/* --- Logout --- */}
         <DropdownMenuItem
-          className="text-danger hover:text-danger focus:text-danger cursor-pointer font-medium text-center"
+          className="text-danger hover:text-danger focus:text-danger gap-2 px-3 py-2 cursor-pointer font-medium text-center"
           onClick={() =>
             signOut({ callbackUrl: `${window.location.origin}/login` })
           }
         >
-          <CiLogout className="mr-2" /> Wyloguj
+          <CiLogout className="w-5 h-5" /> Wyloguj
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

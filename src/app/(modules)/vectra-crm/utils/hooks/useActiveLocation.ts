@@ -1,24 +1,22 @@
 // src/utils/useActiveLocation.ts
 'use client'
 
+import { useRole } from '@/utils/hooks/useRole'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
-import { useRole } from '../../../../../utils/hooks/useRole'
 
 /**
- * useActiveLocation:
- * - Admin/Coordinator: location comes from query param (?loc=)
- * - Warehouseman: first assigned location (or null if none)
- * - Others: null
+ * Reads currently active warehouse location from URL or user context.
+ * Never performs routing decisions.
  */
-export const useActiveLocation = () => {
-  const { data: session } = useSession()
+export const useActiveLocation = (): string | null => {
   const { isAdmin, isCoordinator, isWarehouseman } = useRole()
   const searchParams = useSearchParams()
+  const { data: session } = useSession()
 
   if (isAdmin || isCoordinator) {
     const loc = searchParams.get('loc')
-    return loc ?? null
+    return loc && loc.length > 0 ? loc : null
   }
 
   if (isWarehouseman) {

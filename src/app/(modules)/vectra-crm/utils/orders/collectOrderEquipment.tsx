@@ -1,5 +1,5 @@
-import { OrderWithDetails } from '@/app/components/shared/orders/OrderDetailsContent'
-import { devicesTypeMap } from '@/lib/constants'
+import { OrderWithDetails } from '@/app/(modules)/vectra-crm/components/orders/OrderDetailsContent'
+import { devicesTypeMap } from '../../lib/constants'
 
 /**
  * Builds a unified list of equipment used in an order.
@@ -62,7 +62,9 @@ export function collectOrderEquipment(order: OrderWithDetails) {
 
   const fromWarehouse =
     order.assignedEquipment
-      ?.filter((e) => e.warehouse.status === 'ASSIGNED_TO_ORDER')
+      ?.filter((e) =>
+        e.warehouse.history.some((h) => h.action === 'ASSIGNED_TO_ORDER')
+      )
       .map((item) => {
         const raw = item.warehouse.category ?? null
         return {

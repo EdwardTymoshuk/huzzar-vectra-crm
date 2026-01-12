@@ -1,8 +1,8 @@
-import { createContext } from './../../../../server/middleware'
 // src/app/api/trpc/[trpc]/route.ts
 
 import { appRouter } from '@/server/routers'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
+import { createContext } from './../../../../server/context'
 
 // Export API handler
 const handler = (req: Request) =>

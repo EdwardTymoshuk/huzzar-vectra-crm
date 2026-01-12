@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import Logo from './Logo'
-import MaxWidthWrapper from './shared/MaxWidthWrapper'
+import MaxWidthWrapper from './MaxWidthWrapper'
 
 // Zod validation schema
 const loginSchema = z.object({

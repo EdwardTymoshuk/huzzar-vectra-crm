@@ -1,4 +1,4 @@
-// utils/warehouse/getDeviceTimeline.ts
+// utils.vectra.warehouse/getDeviceTimeline.ts
 
 import { CleanTimelineItem } from '@/app/components/ui/timeline'
 import { formatDateTime } from '@/utils/dates/formatDateTime'

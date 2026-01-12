@@ -1,10 +1,13 @@
 import { VectraActivatedService } from '@/types/vectra-crm'
 import {
+  VectraDeviceCategory,
+  VectraOrderStatus,
   VectraRateDefinition,
   VectraTimeSlot,
   VectraWarehouseAction,
 } from '@prisma/client'
 
+import { CleanTimelineItem } from '@/app/components/ui/timeline'
 import { MenuItem } from '@/types'
 import {
   MdAssignment,
@@ -20,7 +23,7 @@ export const orderStatusToTimelineColor = {
   NOT_COMPLETED: 'danger',
   ASSIGNED: 'warning',
   PENDING: 'secondary',
-}
+} satisfies Record<VectraOrderStatus, CleanTimelineItem['color']>
 
 export const orderTypeMap = {
   INSTALATION: 'Instalacja',
@@ -41,39 +44,31 @@ export const timeSlotOptions = [
   { value: 'EIGHTEEN_TWENTYONE', label: '18:00 - 21:00' },
 ]
 
-export const timeSlotMap = {
+export const timeSlotMap: Record<VectraTimeSlot, string> = {
   EIGHT_TEN: '08:00 - 10:00',
   TEN_TWELVE: '10:00 - 12:00',
   TWELVE_FOURTEEN: '12:00 - 14:00',
   FOURTEEN_SIXTEEN: '14:00 - 16:00',
   SIXTEEN_EIGHTEEN: '16:00 - 18:00',
   EIGHTEEN_TWENTY: '18:00 - 20:00',
-  // ...
+
+  NINE_TWELVE: '09:00 - 12:00',
+  TWELVE_FIFTEEN: '12:00 - 15:00',
+  FIFTEEN_EIGHTEEN: '15:00 - 18:00',
+  EIGHTEEN_TWENTYONE: '18:00 - 21:00',
 }
 
 export const sortedTimeSlotsByHour: VectraTimeSlot[] = [
-  'EIGHT_NINE',
   'EIGHT_TEN',
-  'NINE_TEN',
   'NINE_TWELVE',
-  'TEN_ELEVEN',
   'TEN_TWELVE',
-  'ELEVEN_TWELVE',
-  'TWELVE_THIRTEEN',
   'TWELVE_FOURTEEN',
   'TWELVE_FIFTEEN',
-  'FOURTEEN_FIFTEEN',
   'FOURTEEN_SIXTEEN',
-  'FIFTEEN_SIXTEEN',
   'FIFTEEN_EIGHTEEN',
-  'SIXTEEN_SEVENTEEN',
   'SIXTEEN_EIGHTEEN',
-  'SEVENTEEN_EIGHTEEN',
-  'EIGHTEEN_NINETEEN',
   'EIGHTEEN_TWENTY',
   'EIGHTEEN_TWENTYONE',
-  'NINETEEN_TWENTY',
-  'TWENTY_TWENTYONE',
 ]
 
 export const timeSlotColorsV = {
@@ -110,7 +105,7 @@ export const operatorColorsMap = {
 
 export const warehouseActionMap: Record<
   VectraWarehouseAction,
-  { label: string; variant: string }
+  { label: string; variant: BadgeVariant }
 > = {
   RECEIVED: { label: 'Przyjęcie', variant: 'success' },
   ISSUED: { label: 'Wydanie', variant: 'warning' },
@@ -262,4 +257,20 @@ export const devicesTypeMap = {
   DECODER_2_WAY: 'DEKODER 2 WAY',
   NETWORK_DEVICE: 'SPRZĘT SIECIOWY',
   OTHER: 'INNE',
+} satisfies Record<VectraDeviceCategory, string>
+
+export const orderTimelineColorMap: Record<VectraOrderStatus, string> = {
+  COMPLETED: 'bg-success',
+  NOT_COMPLETED: 'bg-danger',
+  ASSIGNED: 'bg-warning',
+  PENDING: 'bg-secondary',
 }
+
+export type BadgeVariant =
+  | 'default'
+  | 'secondary'
+  | 'destructive'
+  | 'outline'
+  | 'success'
+  | 'warning'
+  | 'danger'

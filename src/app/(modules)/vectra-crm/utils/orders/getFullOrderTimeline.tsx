@@ -1,7 +1,7 @@
 import { statusMap } from '@/lib/constants'
-import { OrderWithAttempts } from '@/types'
+import { VectraOrderWithAttempts } from '@/types/vectra-crm'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
-import { Role, VectraOrderType } from '@prisma/client'
+import { Role, VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { ReactNode } from 'react'
 
 /**
@@ -14,14 +14,14 @@ import { ReactNode } from 'react'
  * - Creation/history events appear before attempts when sharing the same timestamp
  */
 export function getFullOrderTimeline(
-  order: OrderWithAttempts & {
+  order: VectraOrderWithAttempts & {
     type: VectraOrderType
     closedAt?: Date | null
     history?: {
       id: string
       changeDate: Date
-      statusBefore?: string | null
-      statusAfter?: string | null
+      statusBefore?: VectraOrderStatus
+      statusAfter?: VectraOrderStatus
       notes?: string | null
       changedBy?: { name: string } | null
     }[]

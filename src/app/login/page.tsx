@@ -1,10 +1,12 @@
+// src/app/login/page.tsx
+
 'use client'
 
 import { getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Suspense, useEffect } from 'react'
+import LoaderSpinner from '../components/LoaderSpinner'
 import LoginForm from '../components/LoginForm'
-import LoaderSpinner from '../components/shared/LoaderSpinner'
 
 export const dynamic = 'force-dynamic'
 

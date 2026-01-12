@@ -2,9 +2,10 @@ import {
   BORDER,
   LIGHT_GRAY,
 } from '@/app/(modules)/vectra-crm/lib/exelReportsConstants'
-import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
+import { materialUnitMap } from '@/lib/constants'
 import { prisma } from '@/utils/prisma'
 import ExcelJS from 'exceljs'
+import { devicesTypeMap } from '../../../lib/constants'
 
 /**
  * writeWarehouseStockReport

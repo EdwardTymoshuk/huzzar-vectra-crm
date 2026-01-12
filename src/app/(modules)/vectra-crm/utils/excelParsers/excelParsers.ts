@@ -373,21 +373,6 @@ function toTimeSlot(start: string, end: string): VectraTimeSlot {
 
 /** All legal ranges from your timeSlotOptions (must match Prisma enum). */
 const SLOT_BY_RANGE: Record<string, VectraTimeSlot> = {
-  // 1 hour
-  '08:00-09:00': 'EIGHT_NINE',
-  '09:00-10:00': 'NINE_TEN',
-  '10:00-11:00': 'TEN_ELEVEN',
-  '11:00-12:00': 'ELEVEN_TWELVE',
-  '12:00-13:00': 'TWELVE_THIRTEEN',
-  '13:00-14:00': 'THIRTEEN_FOURTEEN',
-  '14:00-15:00': 'FOURTEEN_FIFTEEN',
-  '15:00-16:00': 'FIFTEEN_SIXTEEN',
-  '16:00-17:00': 'SIXTEEN_SEVENTEEN',
-  '17:00-18:00': 'SEVENTEEN_EIGHTEEN',
-  '18:00-19:00': 'EIGHTEEN_NINETEEN',
-  '19:00-20:00': 'NINETEEN_TWENTY',
-  '20:00-21:00': 'TWENTY_TWENTYONE',
-
   // 2 hours
   '08:00-10:00': 'EIGHT_TEN',
   '10:00-12:00': 'TEN_TWELVE',

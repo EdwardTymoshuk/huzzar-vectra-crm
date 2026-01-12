@@ -2,9 +2,10 @@ import {
   BORDER,
   LIGHT_GRAY,
 } from '@/app/(modules)/vectra-crm/lib/exelReportsConstants'
-import { devicesTypeMap, materialUnitMap } from '@/lib/constants'
+import { materialUnitMap } from '@/lib/constants'
 import { prisma } from '@/utils/prisma'
 import ExcelJS from 'exceljs'
+import { devicesTypeMap } from '../../../lib/constants'
 
 /**
  * writeReturnToOperatorReport
@@ -16,7 +17,16 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
   const history = await prisma.vectraWarehouseHistory.findMany({
     where: { id: { in: historyIds } },
     include: {
-      performedBy: true,
+      performedBy: {
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
       warehouseItem: {
         include: { materialDefinition: true, location: true },
       },
@@ -47,7 +57,7 @@ export async function writeReturnToOperatorReport(historyIds: string[]) {
   // ---------------- META SECTION ----------------
   //
   const metaRows = [
-    ['Osoba wykonująca', meta.performedBy.name],
+    ['Osoba wykonująca', meta.performedBy.user.name],
     ['Data i godzina', meta.actionDate.toLocaleString('pl-PL')],
     ['Lokalizacja', meta.fromLocation?.name ?? '-'],
     ['Notatki', meta.notes ?? '-'],

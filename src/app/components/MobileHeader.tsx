@@ -2,8 +2,8 @@
 
 import Logo from '@/app/components/Logo'
 import { cn } from '@/lib/utils'
+import NotificationDropdown from './NotificationDropdown'
 import UserDropdown from './UserDropdown'
-import NotificationDropdown from './shared/NotificationDropdown'
 
 /**
  * MobileHeader

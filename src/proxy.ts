@@ -1,4 +1,4 @@
-// src/middleware.ts
+// src/proxy.ts
 import type { Role, UserStatus } from '@prisma/client'
 import { getToken, type JWT } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
@@ -12,17 +12,22 @@ type AppJwt = JWT & {
 }
 
 /**
- * Derive "secure cookie" mode from the real scheme:
- * - true only when we're effectively on HTTPS (public URL or proxy header)
- * - prevents "__Secure-" cookie lookup on plain HTTP
+ * Determines whether the request is effectively served over HTTPS.
+ * This is required to correctly resolve secure cookies when running
+ * behind a reverse proxy (e.g. VPS + Nginx).
  */
 function isHttps(req: NextRequest): boolean {
   const xfProto = req.headers.get('x-forwarded-proto')
   const publicUrl = process.env.NEXTAUTH_URL ?? ''
+
   return xfProto === 'https' || publicUrl.startsWith('https://')
 }
 
-export async function middleware(req: NextRequest): Promise<Response> {
+/**
+ * Global application proxy.
+ * Executed for every incoming request matched by `config.matcher`.
+ */
+export default async function proxy(req: NextRequest): Promise<Response> {
   const { pathname } = req.nextUrl
 
   const isPublic =
@@ -49,23 +54,30 @@ export async function middleware(req: NextRequest): Promise<Response> {
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }
-  if (!token) return NextResponse.next()
 
-  if (token.status !== 'ACTIVE') {
-    const blockedUrl = new URL('/account-blocked', req.url)
-    return NextResponse.redirect(blockedUrl)
+  if (!token) {
+    return NextResponse.next()
   }
 
-  //   if (pathname === '/') {
-  //     return NextResponse.redirect(new URL('/modules', req.url))
-  //   }
+  if (token.status !== 'ACTIVE') {
+    return NextResponse.redirect(new URL('/account-blocked', req.url))
+  }
 
-  if (pathname.startsWith('/vectra') && !token.modules?.includes('VECTRA')) {
+  if (
+    pathname.startsWith('/vectra-crm') &&
+    token.role !== 'ADMIN' &&
+    !token.modules?.includes('VECTRA_CRM')
+  ) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
   return NextResponse.next()
 }
+
+/**
+ * Proxy execution scope.
+ * Excludes static assets and Next.js internals.
+ */
 export const config = {
   matcher: ['/((?!_next|api/auth|favicon.ico|static|img).*)'],
 }

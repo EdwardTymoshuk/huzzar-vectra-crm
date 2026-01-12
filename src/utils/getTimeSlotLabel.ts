@@ -1,4 +1,4 @@
-import { timeSlotOptions } from '@/lib/constants'
+import { timeSlotOptions } from '@/app/(modules)/vectra-crm/lib/constants'
 import { VectraTimeSlot } from '@prisma/client'
 
 /**

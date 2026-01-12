@@ -1,23 +1,37 @@
-// src/types/index.ts (GLOBAL CORE TYPES)
+// src/types/index.ts
 
-import { PrismaClient, Role, UserStatus } from '@prisma/client'
+import { AppRouter } from '@/server/routers'
+import { Prisma, PrismaClient, Role, UserStatus } from '@prisma/client'
+import { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
 import { ReactNode } from 'react'
 import { IconType } from 'react-icons'
+
+// -----------------------------
+// CORE SESSION USER
+// -----------------------------
+export type CoreSessionUser = Prisma.UserGetPayload<{
+  select: {
+    id: true
+    name: true
+    email: true
+    phoneNumber: true
+    identyficator: true
+    role: true
+    status: true
+    locations: {
+      select: {
+        id: true
+        name: true
+      }
+    }
+  }
+}>
 
 // -----------------------------
 // GLOBAL CONTEXT
 // -----------------------------
 export interface Context {
-  user?: {
-    id: string
-    name: string
-    email: string
-    phoneNumber: string
-    identyficator: number | null
-    role: Role
-    status: UserStatus
-    locations: { id: string; name: string }[]
-  } | null
+  user: CoreSessionUser | null
   prisma: PrismaClient
 }
 
@@ -73,6 +87,17 @@ export interface TimelineProps {
 // -----------------------------
 // DB HELPERS
 // -----------------------------
-export type DbTx =
-  | PrismaClient
-  | import('@prisma/client').Prisma.TransactionClient
+export type DbTx = PrismaClient | Prisma.TransactionClient
+
+export type RouterOutputs = inferRouterOutputs<AppRouter>
+export type RouterInputs = inferRouterInputs<AppRouter>
+
+export type UserModule = {
+  code: string
+  name: string
+}
+
+export type UserLocation = {
+  id: string
+  name: string
+}

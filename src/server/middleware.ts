@@ -1,20 +1,7 @@
-import { authOptions } from '@/lib/authOptions'
-import { Context } from '@/types'
-import { prisma } from '@/utils/prisma'
-import { TRPCError } from '@trpc/server'
-import { getServerSession } from 'next-auth'
-import { t } from './trpc'
+//src/server/middleware
 
-/**
- * Creates a tRPC context containing the authenticated user and Prisma client.
- */
-export const createContext = async (): Promise<Context> => {
-  const session = await getServerSession(authOptions)
-  return {
-    user: session?.user ?? null,
-    prisma,
-  }
-}
+import { TRPCError } from '@trpc/server'
+import { t } from './trpc'
 
 /**
  * Middleware that ensures the user is authenticated and active.

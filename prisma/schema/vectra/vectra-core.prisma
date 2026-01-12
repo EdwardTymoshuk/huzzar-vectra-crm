@@ -1,11 +1,17 @@
+//prisma/schema/vectra/vectra-core.prisma
+
 /// -----------------------------------------
 /// VECTRA CORE (schema: vectra)
 /// -----------------------------------------
 
 model VectraUser {
+  @@schema("vectra")
   userId    String   @id
+  active         Boolean  @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deactivatedAt  DateTime?
 
   // Bridge to global User
   user User @relation("UserToVectraUser", fields: [userId], references: [id])
@@ -30,6 +36,7 @@ model VectraUser {
 }
 
 model VectraTechnicianSettings {
+  @@schema("vectra")
   userId          String   @id
   workingDaysGoal Int
   revenueGoal     Float
@@ -39,9 +46,15 @@ model VectraTechnicianSettings {
 }
 
 model VectraRateDefinition {
+  @@schema("vectra")
   id     String @id @default(uuid())
   code   String @unique
   amount Float
 
   settlements VectraOrderSettlementEntry[] @relation("RateDefinitionToSettlement")
+}
+
+model VectraOperatorDefinition {
+  @@schema("vectra")
+  operator String @unique
 }

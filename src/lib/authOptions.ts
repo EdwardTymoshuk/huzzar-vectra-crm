@@ -28,10 +28,24 @@ export const authOptions: NextAuthOptions = {
             modules: {
               include: { module: true },
             },
+            locations: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         })
 
         if (!user) throw new Error('Użytkownik nie istnieje')
+
+        const locations =
+          user.role === 'ADMIN' || user.role === 'COORDINATOR'
+            ? await prisma.vectraWarehouseLocation.findMany({
+                select: { id: true, name: true },
+                orderBy: { name: 'asc' },
+              })
+            : user.locations
 
         // Check status
         switch (user.status as UserStatus) {
@@ -49,7 +63,10 @@ export const authOptions: NextAuthOptions = {
         if (!ok) throw new Error('Nieprawidłowe hasło')
 
         // Convert modules to flat array
-        const moduleCodes = user.modules.map((m) => m.module.code)
+        const modules = user.modules.map((m) => ({
+          code: m.module.code,
+          name: m.module.name,
+        }))
 
         return {
           id: user.id,
@@ -59,7 +76,8 @@ export const authOptions: NextAuthOptions = {
           identyficator: user.identyficator ?? null,
           role: user.role,
           status: user.status,
-          modules: moduleCodes,
+          modules,
+          locations,
         }
       },
     }),
@@ -75,13 +93,47 @@ export const authOptions: NextAuthOptions = {
         identyficator: token.identyficator,
         role: token.role,
         status: token.status,
-        modules: token.modules as string[],
+        modules: token.modules,
+        locations: token.locations,
       }
       return session
     },
 
     async jwt({ token, user }) {
-      if (user) Object.assign(token, user)
+      if (user) {
+        token.id = user.id
+        token.email = user.email
+        token.name = user.name
+        token.phoneNumber = user.phoneNumber
+        token.identyficator = user.identyficator
+        token.role = user.role
+        token.status = user.status
+        token.modules = user.modules
+        token.locations = user.locations
+        return token
+      }
+
+      if (!token.locations && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          include: {
+            locations: {
+              select: { id: true, name: true },
+            },
+          },
+        })
+
+        if (dbUser) {
+          token.locations =
+            dbUser.role === 'ADMIN' || dbUser.role === 'COORDINATOR'
+              ? await prisma.vectraWarehouseLocation.findMany({
+                  select: { id: true, name: true },
+                  orderBy: { name: 'asc' },
+                })
+              : dbUser.locations
+        }
+      }
+
       return token
     },
   },
