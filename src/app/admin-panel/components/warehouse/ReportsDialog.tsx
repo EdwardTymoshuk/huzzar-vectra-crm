@@ -175,8 +175,13 @@ const ReportsDialog = ({ open, onClose }: Props) => {
 
         {/* MONTH PICKER */}
         {selectedReport === 'USED_MATERIALS_INSTALLATIONS' && (
-          <div className="mt-4">
-            <MonthPicker selected={selectedMonth} onChange={setSelectedMonth} />
+          <div className="w-full">
+            <div className="w-full [&>button]:w-full">
+              <MonthPicker
+                selected={selectedMonth}
+                onChange={setSelectedMonth}
+              />
+            </div>
           </div>
         )}
 
