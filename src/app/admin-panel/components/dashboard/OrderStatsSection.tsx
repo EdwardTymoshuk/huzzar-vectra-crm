@@ -6,6 +6,7 @@ import { Skeleton } from '@/app/components/ui/skeleton'
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
 import { buildDateParam } from '@/utils/dates/buildDateParam'
@@ -174,19 +175,21 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">W realizacji</p>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p
-                  className="text-xl font-bold text-primary cursor-pointer underline"
-                  onClick={() => setOpenDialog(true)}
-                >
-                  {inProgress}
-                </p>
-              </TooltipTrigger>
-              <TooltipContent>
-                Kliknij, aby zobaczyć zlecenia w realizacji
-              </TooltipContent>
-            </Tooltip>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p
+                    className="text-xl font-bold text-primary cursor-pointer underline"
+                    onClick={() => setOpenDialog(true)}
+                  >
+                    {inProgress}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Kliknij, aby zobaczyć zlecenia w realizacji
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             {formatChange(percentDiff(inProgress, prevInProgress))}
           </Card>
