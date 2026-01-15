@@ -1,4 +1,4 @@
-import SettingsSection from '../SettingsSection'
+import SettingsSection from '../../SettingsSection'
 import AddOperatorDefinitionDialog from './AddOperatorDefinitionDialog'
 import OperatorDefinitionsList from './OperatorDefinitionsList'
 

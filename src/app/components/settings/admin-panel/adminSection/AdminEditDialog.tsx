@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
-import { AdminUserVM } from '@/server/modules/vectra-crm/helpers/mappers/mapVectraAdminToVM'
+import { AdminUserVM } from '@/server/core/helpers/mappers/mapAdminToVM'
 import { generateStrongPassword } from '@/utils/passwordGenerator'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -35,7 +35,7 @@ const adminEditSchema = z.object({
   name: z.string().min(2, 'Imię i nazwisko jest wymagane'),
   email: z.string().email('Niepoprawny adres e-mail'),
   phoneNumber: z.string().min(9, 'Numer telefonu jest wymagany'),
-  role: z.enum(['ADMIN', 'COORDINATOR', 'WAREHOUSEMAN']).optional(),
+  role: z.enum(['ADMIN', 'COORDINATOR', 'WAREHOUSEMAN']),
   password: z
     .string()
     .transform((val) => (val.trim() === '' ? undefined : val))
@@ -54,6 +54,7 @@ const adminEditSchema = z.object({
       }
     )
     .optional(),
+  moduleIds: z.array(z.string()).min(1, 'Wybierz przynajmniej jeden moduł'),
   locationIds: z.array(z.string()).optional(),
 })
 
@@ -77,7 +78,10 @@ const AdminEditDialog = ({
   const { data: locations, isLoading: isLoadingLocations } =
     trpc.vectra.warehouse.getAllLocations.useQuery()
 
-  const updateAdminMutation = trpc.vectra.user.editUser.useMutation({
+  const { data: modules, isLoading: isLoadingModules } =
+    trpc.core.user.getModules.useQuery()
+
+  const updateAdminMutation = trpc.hr.user.updateUser.useMutation({
     onSuccess: () => {
       toast.success('Dane użytkownika zostały zaktualizowane.')
       trpcUtils.vectra.user.getAdmins.invalidate()
@@ -94,6 +98,7 @@ const AdminEditDialog = ({
       phoneNumber: admin.phoneNumber,
       role: admin.role,
       password: '',
+      moduleIds: admin.modules.map((m) => m.id),
       locationIds: admin.locations?.map((l) => l.id) ?? [],
     },
   })
@@ -110,7 +115,22 @@ const AdminEditDialog = ({
   }
 
   const handleSave = async (values: AdminEditFormData) => {
-    await updateAdminMutation.mutateAsync(values)
+    await updateAdminMutation.mutateAsync({
+      userId: admin.id,
+
+      name: values.name,
+      email: values.email,
+      phoneNumber: values.phoneNumber,
+
+      role: values.role,
+      status: admin.status,
+
+      moduleIds: values.moduleIds,
+
+      password: values.password,
+      locationIds: values.locationIds,
+    })
+
     onClose()
   }
 
@@ -195,6 +215,62 @@ const AdminEditDialog = ({
                       <option value="WAREHOUSEMAN">Magazynier</option>
                     </select>
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Modules */}
+            <FormField
+              control={form.control}
+              name="moduleIds"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Moduły</FormLabel>
+
+                  <div className="space-y-2">
+                    {isLoadingModules && (
+                      <p className="text-sm text-muted-foreground">
+                        Ładowanie modułów...
+                      </p>
+                    )}
+
+                    {modules?.map((module) => (
+                      <FormField
+                        key={module.id}
+                        control={form.control}
+                        name="moduleIds"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center space-x-3">
+                            <FormControl>
+                              <Checkbox
+                                checked={(field.value ?? []).includes(
+                                  module.id
+                                )}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    field.onChange([
+                                      ...(field.value ?? []),
+                                      module.id,
+                                    ])
+                                  } else {
+                                    field.onChange(
+                                      (field.value ?? []).filter(
+                                        (id) => id !== module.id
+                                      )
+                                    )
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal">
+                              {module.name}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+
                   <FormMessage />
                 </FormItem>
               )}

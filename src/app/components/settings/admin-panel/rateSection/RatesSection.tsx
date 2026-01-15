@@ -1,4 +1,4 @@
-import SettingsSection from '../SettingsSection'
+import SettingsSection from '../../SettingsSection'
 import AddRateDefinitionDialog from './AddRateDefinitionDialog'
 import RatesTable from './RatesTable'
 

@@ -7,7 +7,7 @@ import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { MdAdd, MdDelete } from 'react-icons/md'
 import { toast } from 'sonner'
-import SettingsSection from '../../../../(modules)/vectra-crm/admin-panel/components/settings/SettingsSection'
+import SettingsSection from '../../SettingsSection'
 import AddLocationDialog from './AddLocationDialog'
 
 /**

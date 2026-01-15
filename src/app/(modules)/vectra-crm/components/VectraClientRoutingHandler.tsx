@@ -26,9 +26,6 @@ const pages: Record<string, React.ComponentType> = {
   employees: dynamic(
     () => import('@/app/(modules)/vectra-crm/admin-panel/employees/page')
   ),
-  settings: dynamic(
-    () => import('@/app/(modules)/vectra-crm/admin-panel/settings/page')
-  ),
 }
 
 const ClientRoutingHandler = ({ children }: { children: React.ReactNode }) => {

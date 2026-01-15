@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from '@/app/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { useRouter } from 'next/navigation'

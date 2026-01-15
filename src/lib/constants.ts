@@ -1,3 +1,4 @@
+import { SettingsSectionConfig } from '@/types'
 import { Role, VectraMaterialUnit, VectraOrderStatus } from '@prisma/client'
 import { Briefcase } from 'lucide-react'
 import { BsTools } from 'react-icons/bs'
@@ -84,6 +85,14 @@ export interface PlatformModule {
   enabled: boolean
 }
 
+export const MODULE_CODES = {
+  VECTRA: 'VECTRA',
+  OPL: 'OPL',
+  HR: 'HR',
+  FLEET: 'FLEET',
+  TOOLS: 'TOOLS',
+} as const
+
 export const platformModules: PlatformModule[] = [
   {
     code: 'VECTRA',
@@ -124,5 +133,43 @@ export const platformModules: PlatformModule[] = [
     href: '/tools',
     icon: BsTools,
     enabled: true,
+  },
+]
+
+export const SETTINGS_SECTIONS: SettingsSectionConfig[] = [
+  {
+    key: 'CORE',
+    label: 'Ogólne',
+    roles: ['ADMIN', 'COORDINATOR', 'WAREHOUSEMAN'],
+  },
+  {
+    key: 'VECTRA',
+    label: 'Vectra',
+    roles: ['ADMIN', 'COORDINATOR', 'WAREHOUSEMAN'],
+    module: 'VECTRA',
+  },
+  {
+    key: 'OPL',
+    label: 'OPL',
+    roles: ['ADMIN', 'COORDINATOR'],
+    module: 'OPL',
+  },
+  {
+    key: 'HR',
+    label: 'Kadry',
+    roles: ['ADMIN', 'COORDINATOR'],
+    module: 'HR',
+  },
+  {
+    key: 'FLEET',
+    label: 'Flota',
+    roles: ['ADMIN', 'COORDINATOR'],
+    module: 'FLEET',
+  },
+  {
+    key: 'TOOLS',
+    label: 'Magazyn narzędzi',
+    roles: ['ADMIN', 'WAREHOUSEMAN'],
+    module: 'TOOLS',
   },
 ]

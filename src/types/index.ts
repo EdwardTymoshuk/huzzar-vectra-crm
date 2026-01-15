@@ -92,6 +92,7 @@ export type DbTx = PrismaClient | Prisma.TransactionClient
 export type RouterOutputs = inferRouterOutputs<AppRouter>
 export type RouterInputs = inferRouterInputs<AppRouter>
 
+// User settings types
 export type UserModule = {
   code: string
   name: string
@@ -100,4 +101,22 @@ export type UserModule = {
 export type UserLocation = {
   id: string
   name: string
+}
+
+export type ModuleCode = 'VECTRA' | 'OPL' | 'HR' | 'FLEET' | 'TOOLS'
+
+export type SettingsContext =
+  | 'CORE'
+  | 'VECTRA'
+  | 'OPL'
+  | 'HR'
+  | 'FLEET'
+  | 'TOOLS'
+  | 'PROFILE'
+
+export type SettingsSectionConfig = {
+  key: SettingsContext
+  label: string
+  roles: Role[]
+  module?: ModuleCode
 }

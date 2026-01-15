@@ -3,6 +3,7 @@
 import { platformModules } from '@/lib/constants'
 import { hasModule } from '@/utils/auth/permissions'
 import { useUser } from '@/utils/hooks/useUser'
+import MaxWidthWrapper from '../MaxWidthWrapper'
 import ModuleCard from './ModuleCard'
 
 const ModulesGrid = () => {
@@ -56,7 +57,8 @@ const ModulesGrid = () => {
   const layoutClass = getGridClass(count)
 
   return (
-    <>
+    // <div className="flex flex-col items-center justify-center">
+    <MaxWidthWrapper className="my-auto">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-semibold uppercase">
           Platforma HUZZAR CRM
@@ -71,7 +73,8 @@ const ModulesGrid = () => {
           <ModuleCard key={module.code} module={module} />
         ))}
       </div>
-    </>
+      {/* // </div> */}
+    </MaxWidthWrapper>
   )
 }
 

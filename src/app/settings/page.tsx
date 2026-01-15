@@ -1,43 +1,47 @@
-import { useSession } from 'next-auth/react'
+'use client'
+
+import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
+import UnauthorizedPage from '@/app/components/UnauthorizedPage'
+import PlatformLayout from '@/app/components/root/PlatformLayout'
+import { SettingsContext } from '@/types'
+import { useUser } from '@/utils/hooks/useUser'
 import { useState } from 'react'
-import MaxWidthWrapper from '../components/MaxWidthWrapper'
-import UnauthorizedPage from '../components/UnauthorizedPage'
-import { SettingsContent } from '../components/root/settings/SettingsContent'
-import { SettingsSidebar } from '../components/root/settings/SettingsSidebar'
-import { Skeleton } from '../components/ui/skeleton'
+import { SettingsContent } from '../components/settings/SettingsContent'
+import { SettingsSidebar } from '../components/settings/SettingsSidebar'
 
+const SIDEBAR_WIDTH = 256
+
+/**
+ * SettingsPage
+ * ------------------------------------------------------
+ * Single settings entry point for all roles.
+ * Layout and content are resolved based on user role.
+ */
 const SettingsPage = () => {
-  const { data: session } = useSession()
-  const role = session?.user.role
+  const { user, role, modules, isLoading } = useUser()
 
-  const [section, setSection] = useState<'CORE' | 'VECTRA' | 'OPL' | 'FLEET'>(
-    'CORE'
+  if (!user || !role) return <UnauthorizedPage />
+  if (isLoading) return null
+
+  const [section, setSection] = useState<SettingsContext>(
+    role === 'TECHNICIAN' ? 'PROFILE' : 'CORE'
   )
 
-  if (role === 'WAREHOUSEMAN') return <UnauthorizedPage />
-
-  if (status === 'loading') {
-    // Skeleton placeholder while session is being loaded
-    return (
-      <MaxWidthWrapper>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-        </div>
-      </MaxWidthWrapper>
-    )
-  }
-
   return (
-    <div className="flex gap-6">
-      <SettingsSidebar value={section} onChange={setSection} />
+    <PlatformLayout>
+      <SettingsSidebar
+        value={section}
+        onChange={setSection}
+        role={role}
+        modules={modules}
+      />
 
-      <SettingsContent section={section} role={role} />
-    </div>
+      <div className="flex-1 overflow-y-auto ml-64">
+        <MaxWidthWrapper className="px-4 pt-0">
+          <SettingsContent section={section} role={role} />
+        </MaxWidthWrapper>
+      </div>
+    </PlatformLayout>
   )
 }
 

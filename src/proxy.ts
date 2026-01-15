@@ -3,6 +3,7 @@ import type { Role, UserStatus } from '@prisma/client'
 import { getToken, type JWT } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { MODULE_CODES } from './lib/constants'
 
 type AppJwt = JWT & {
   id: string
@@ -66,7 +67,7 @@ export default async function proxy(req: NextRequest): Promise<Response> {
   if (
     pathname.startsWith('/vectra-crm') &&
     token.role !== 'ADMIN' &&
-    !token.modules?.includes('VECTRA_CRM')
+    !token.modules?.some((m) => m.code === MODULE_CODES.VECTRA)
   ) {
     return NextResponse.redirect(new URL('/', req.url))
   }

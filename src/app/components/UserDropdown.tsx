@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
-import { VECTRA_PATH, userRoleMap } from '@/lib/constants'
+import { userRoleMap } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Role } from '@prisma/client'
 import { signOut, useSession } from 'next-auth/react'
@@ -86,11 +86,7 @@ const UserDropdown = () => {
 
         {/* --- Settings navigation --- */}
         <DropdownMenuItem
-          onClick={() =>
-            router.push(
-              isTechnician ? `/settings` : `${VECTRA_PATH}/admin-panel/settings`
-            )
-          }
+          onClick={() => router.push(isTechnician ? `/settings` : `/settings`)}
           className={cn(
             'cursor-pointer text-sm font-medium flex items-center gap-2 px-3 py-2 rounded-sm transition-colors',
             isOnSettings

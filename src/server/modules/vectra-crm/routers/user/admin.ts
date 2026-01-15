@@ -4,7 +4,7 @@ import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-import { mapVectraAdminToVM } from '../../helpers/mappers/mapVectraAdminToVM'
+import { mapAdminToVM } from '../../../../core/helpers/mappers/mapAdminToVM'
 import { vectraAdminSelect } from '../../helpers/selects'
 
 export const adminUserRouter = router({
@@ -25,7 +25,7 @@ export const adminUserRouter = router({
         },
       },
     })
-    return users.map(mapVectraAdminToVM)
+    return users.map(mapAdminToVM)
   }),
   /** Single user details */
   getUserById: adminOnly

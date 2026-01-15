@@ -23,15 +23,12 @@ const pages: Record<string, React.ComponentType> = {
   billing: dynamic(
     () => import('@/app/(modules)/vectra-crm/(technician)/billing/page')
   ),
-  settings: dynamic(
-    () => import('@/app/(modules)/vectra-crm/(technician)/settings/page')
-  ),
 }
 
 const ClientRoutingHandlerTechnician = ({
   children,
 }: {
-  children: React.ReactNode
+  children?: React.ReactNode
 }) => {
   const pathname = usePathname()
   const searchParams = useSearchParams()

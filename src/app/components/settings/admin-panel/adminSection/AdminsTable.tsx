@@ -13,14 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { AdminUserVM } from '@/server/modules/vectra-crm/helpers/mappers/mapVectraAdminToVM'
+import { AdminUserVM } from '@/server/core/helpers/mappers/mapAdminToVM'
 import { trpc } from '@/utils/trpc'
 import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { IoMdLock, IoMdUnlock } from 'react-icons/io'
 import { MdDelete, MdEdit } from 'react-icons/md'
 import { toast } from 'sonner'
-import { userRoleMap } from '../../../../../../../lib/constants'
+import { userRoleMap } from '../../../../../lib/constants'
 import AdminEditDialog from './AdminEditDialog'
 
 const AdminsTable = () => {

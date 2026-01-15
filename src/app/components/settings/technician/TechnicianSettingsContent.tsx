@@ -1,21 +1,24 @@
 'use client'
 
-import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
-import PageControlBar from '@/app/components/PageControlBar'
 import { trpc } from '@/utils/trpc'
 import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import ChangePasswordDialog from '../components/settings/ChangePasswordDialog'
-import GoalsCard from '../components/settings/GoalsCard'
-import ProfileCard from '../components/settings/ProfileCard'
 
-const SettingsPage = () => {
-  // Extract current user's role from session for role-based access control
+import PageHeader from '@/app/components/PageHeader'
+import ChangePasswordDialog from './ChangePasswordDialog'
+import GoalsCard from './GoalsCard'
+import ProfileCard from './ProfileCard'
+
+/**
+ * TechnicianSettingsContent
+ * ------------------------------------------------------
+ * Self-service settings for technicians (no sidebar).
+ */
+const TechnicianSettingsContent = () => {
   const { data: session } = useSession()
   const user = session?.user
 
-  /* ---------- goals ---------- */
   const goalsQuery = trpc.vectra.user.getGoals.useQuery()
   const goalsMutation = trpc.vectra.user.saveGoals.useMutation({
     onSuccess: () => {
@@ -24,7 +27,6 @@ const SettingsPage = () => {
     },
   })
 
-  /* ---------- password ---------- */
   const [showDialog, setShowDialog] = useState(false)
 
   const passMutation = trpc.core.user.changePassword.useMutation({
@@ -32,16 +34,13 @@ const SettingsPage = () => {
       toast.success('Hasło zostało zmienione.')
       setShowDialog(false)
     },
-    onError: ({ message }) => {
-      toast.error(message || 'Nie udało się zmienić hasła.')
-    },
   })
 
   return (
-    <MaxWidthWrapper>
-      <PageControlBar title="Ustawienia"></PageControlBar>
+    <>
+      <PageHeader title="Ustawienia" />
 
-      <div className="flex flex-col space-y-6">
+      <div className="mt-6 space-y-6">
         <ProfileCard
           user={user ?? {}}
           onChangePass={() => setShowDialog(true)}
@@ -51,7 +50,10 @@ const SettingsPage = () => {
           initialDays={goalsQuery.data?.workingDaysGoal}
           initialRevenue={goalsQuery.data?.revenueGoal}
           onSave={(days, income) =>
-            goalsMutation.mutateAsync({ workDays: days, incomeGoal: income })
+            goalsMutation.mutateAsync({
+              workDays: days,
+              incomeGoal: income,
+            })
           }
         />
       </div>
@@ -60,12 +62,15 @@ const SettingsPage = () => {
         open={showDialog}
         onOpenChange={setShowDialog}
         onSubmit={(oldPwd, newPwd) =>
-          passMutation.mutate({ oldPassword: oldPwd, newPassword: newPwd })
+          passMutation.mutate({
+            oldPassword: oldPwd,
+            newPassword: newPwd,
+          })
         }
         loading={passMutation.isLoading}
       />
-    </MaxWidthWrapper>
+    </>
   )
 }
 
-export default SettingsPage
+export default TechnicianSettingsContent

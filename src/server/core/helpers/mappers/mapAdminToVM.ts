@@ -1,11 +1,11 @@
-import { Role, UserStatus } from '@prisma/client'
+import { Role, UserLocation, UserModule, UserStatus } from '@prisma/client'
 
 type AdminRole = 'ADMIN' | 'COORDINATOR' | 'WAREHOUSEMAN'
 
 /**
  * Exact shape returned by Prisma VectraUser query for admins
  */
-export interface VectraAdminSource {
+export interface AdminSource {
   userId: string
   user: {
     id: string
@@ -14,10 +14,8 @@ export interface VectraAdminSource {
     phoneNumber: string
     role: Role
     status: UserStatus
-    locations: {
-      id: string
-      name: string
-    }[]
+    locations: UserLocation[]
+    modules: UserModule[]
   }
 }
 
@@ -29,15 +27,11 @@ export interface AdminUserVM {
   role: AdminRole
   status: UserStatus
   locationIds: string[]
-  locations: {
-    id: string
-    name: string
-  }[]
+  locations: UserLocation[]
+  modules: UserModule[]
 }
 
-export const mapVectraAdminToVM = (
-  vectraUser: VectraAdminSource
-): AdminUserVM => {
+export const mapAdminToVM = (vectraUser: AdminSource): AdminUserVM => {
   const { user } = vectraUser
   return {
     id: user.id,
@@ -48,5 +42,6 @@ export const mapVectraAdminToVM = (
     status: user.status,
     locationIds: user.locations.map((l) => l.id),
     locations: user.locations,
+    modules: user.modules,
   }
 }

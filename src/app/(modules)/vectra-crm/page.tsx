@@ -1,3 +1,5 @@
+//scr/app/(modules)/vectra-crm/page.tsx
+
 'use client'
 
 import LoaderLogo from '@/app/components/LoaderLogo'
@@ -28,6 +30,7 @@ export default function VectraCrmEntryPage() {
     }
 
     if (role === 'TECHNICIAN') {
+      router.replace('/vectra-crm/dashboard')
       return
     }
 
