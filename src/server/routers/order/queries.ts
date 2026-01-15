@@ -687,7 +687,7 @@ export const queriesRouter = router({
             : {}),
 
           /** Optional order type filter */
-          ...(orderType ? { orderType } : {}),
+          ...(orderType ? { type: orderType } : {}),
         },
 
         select: {

@@ -1,5 +1,6 @@
 'use client'
 
+import OrderDetailsSheet from '@/app/components/shared/orders/OrderDetailsSheet'
 import { Badge } from '@/app/components/ui/badge'
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
@@ -38,6 +39,8 @@ const COLORS = ['#16a34a', '#dc2626']
  */
 const OrderStatsSection = ({ date, range, orderType }: Props) => {
   const [openDialog, setOpenDialog] = useState(false)
+  const [openOrderSheet, setOpenOrderSheet] = useState(false)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
 
   const router = useRouter()
 
@@ -64,6 +67,23 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
   const percentDiff = (current: number, prev: number) => {
     if (prev === 0) return current > 0 ? 100 : 0
     return Math.round(((current - prev) / prev) * 100)
+  }
+
+  /**
+   * Opens OrderDetailsSheet for selected order
+   */
+  const handleOpenOrder = (orderId: string): void => {
+    setSelectedOrderId(orderId)
+    setOpenDialog(false)
+    setOpenOrderSheet(true)
+  }
+
+  /**
+   * Closes OrderDetailsSheet
+   */
+  const handleCloseOrderSheet = (): void => {
+    setOpenOrderSheet(false)
+    setSelectedOrderId(null)
   }
 
   if (isLoading || !data) {
@@ -207,7 +227,13 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
         dateFrom={dateFrom}
         dateTo={dateTo}
         orderType={orderType}
-        onOpenOrder={(id) => router.push(`/admin-panel/orders/${id}`)}
+        onOpenOrder={handleOpenOrder}
+      />
+
+      <OrderDetailsSheet
+        open={openOrderSheet}
+        orderId={selectedOrderId}
+        onClose={handleCloseOrderSheet}
       />
     </div>
   )

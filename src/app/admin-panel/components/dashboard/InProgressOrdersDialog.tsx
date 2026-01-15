@@ -85,7 +85,7 @@ const InProgressOrdersDialog = ({
                 data?.map((o) => (
                   <TableRow
                     key={o.id}
-                    onDoubleClick={() => onOpenOrder(o.id)}
+                    onClick={() => onOpenOrder(o.id)}
                     className="cursor-pointer hover:bg-muted"
                   >
                     <TableCell className="text-center font-medium">
