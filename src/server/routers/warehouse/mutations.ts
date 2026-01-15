@@ -24,7 +24,7 @@ export const mutationsRouter = router({
           })
         ),
         notes: z.string().optional(),
-        locationId: z.string().optional(), // manual location selection
+        locationId: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -78,6 +78,7 @@ export const mutationsRouter = router({
           const def = await prisma.materialDefinition.findFirst({
             where: { name: item.name },
           })
+
           if (!def || def.price === null) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
@@ -85,11 +86,44 @@ export const mutationsRouter = router({
             })
           }
 
+          const existing = await prisma.warehouse.findFirst({
+            where: {
+              itemType: 'MATERIAL',
+              materialDefinitionId: def.id,
+              locationId: activeLocationId,
+            },
+          })
+
+          const qty = item.quantity ?? 1
+
+          if (existing) {
+            await prisma.warehouse.update({
+              where: { id: existing.id },
+              data: {
+                quantity: {
+                  increment: qty,
+                },
+              },
+            })
+
+            await addWarehouseHistory({
+              prisma,
+              itemId: existing.id,
+              userId,
+              action: 'RECEIVED',
+              qty,
+              notes: input.notes,
+              toLocationId: activeLocationId,
+            })
+
+            continue
+          }
+
           const created = await prisma.warehouse.create({
             data: {
               itemType: 'MATERIAL',
               name: item.name,
-              quantity: item.quantity ?? 1,
+              quantity: qty,
               unit: def.unit,
               index: def.index,
               price: def.price,
@@ -100,12 +134,13 @@ export const mutationsRouter = router({
               locationId: activeLocationId,
             },
           })
+
           await addWarehouseHistory({
             prisma,
             itemId: created.id,
             userId,
             action: 'RECEIVED',
-            qty: item.quantity ?? 1,
+            qty,
             notes: input.notes,
             toLocationId: activeLocationId,
           })

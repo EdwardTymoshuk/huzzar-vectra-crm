@@ -59,6 +59,8 @@ const AddItemForm = ({
 }) => {
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [materialOpen, setMaterialOpen] = useState(false)
+  const [materialSearch, setMaterialSearch] = useState('')
 
   const form = useForm<WarehouseFormData>({
     resolver: zodResolver(warehouseFormSchema),
@@ -185,7 +187,7 @@ const AddItemForm = ({
                           />
                           <CommandList
                             className="max-h-[280px] overflow-y-auto overscroll-contain scroll-smooth"
-                            onWheelCapture={(e) => e.stopPropagation()} // działa także przy PWA/Modal
+                            onWheelCapture={(e) => e.stopPropagation()}
                             onTouchMoveCapture={(e) => e.stopPropagation()}
                           >
                             <CommandEmpty>Brak wyników.</CommandEmpty>
@@ -263,19 +265,90 @@ const AddItemForm = ({
               name="name"
               render={({ field }) => (
                 <FormItem className="w-full">
-                  <FormLabel>Materiał</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz materiał" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {materials.map((m) => (
-                        <SelectItem key={m.id} value={m.name}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => {
+                      const filteredMaterials = materials.filter((m) =>
+                        m.name
+                          .toLowerCase()
+                          .includes(materialSearch.toLowerCase())
+                      )
+
+                      return (
+                        <FormItem className="w-full">
+                          <FormLabel>Materiał</FormLabel>
+
+                          <Popover
+                            open={materialOpen}
+                            onOpenChange={setMaterialOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                              >
+                                {field.value || 'Wybierz materiał'}
+                                <ChevronsUpDown className="opacity-50 h-4 w-4 shrink-0 ml-2" />
+                              </Button>
+                            </PopoverTrigger>
+
+                            <PopoverContent
+                              align="start"
+                              sideOffset={4}
+                              className="p-0 w-[var(--radix-popover-trigger-width)] max-h-[320px] border bg-background overflow-hidden pointer-events-auto"
+                              onWheelCapture={(e) => e.stopPropagation()}
+                            >
+                              <Command shouldFilter={false}>
+                                <CommandInput
+                                  placeholder="Szukaj materiał..."
+                                  value={materialSearch}
+                                  onValueChange={setMaterialSearch}
+                                  className="h-9"
+                                />
+
+                                <CommandList
+                                  className="max-h-[280px] overflow-y-auto overscroll-contain scroll-smooth"
+                                  onWheelCapture={(e) => e.stopPropagation()}
+                                  onTouchMoveCapture={(e) =>
+                                    e.stopPropagation()
+                                  }
+                                >
+                                  <CommandEmpty>Brak wyników.</CommandEmpty>
+
+                                  <CommandGroup heading="Materiały">
+                                    {filteredMaterials.map((m) => (
+                                      <CommandItem
+                                        key={m.id}
+                                        value={m.name}
+                                        onSelect={() => {
+                                          field.onChange(m.name)
+                                          setMaterialOpen(false)
+                                        }}
+                                        className="cursor-pointer text-sm"
+                                      >
+                                        <Highlight
+                                          searchWords={[materialSearch]}
+                                          textToHighlight={m.name}
+                                          highlightClassName="bg-yellow-200 dark:bg-yellow-700"
+                                          autoEscape
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
+                  />
+
                   <FormMessage />
                 </FormItem>
               )}
