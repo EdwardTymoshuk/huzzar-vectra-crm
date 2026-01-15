@@ -17,7 +17,7 @@ function isHttps(req: NextRequest): boolean {
   return xfProto === 'https' || publicUrl.startsWith('https://')
 }
 
-export async function middleware(req: NextRequest): Promise<Response> {
+export async function proxy(req: NextRequest): Promise<Response> {
   const token = (await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
