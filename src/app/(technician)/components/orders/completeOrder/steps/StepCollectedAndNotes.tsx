@@ -4,6 +4,11 @@ import SerialScanInput from '@/app/components/shared/SerialScanInput'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import {
+  InputGroup,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/app/components/ui/input-group'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -15,6 +20,7 @@ import { Textarea } from '@/app/components/ui/textarea'
 import { devicesTypeMap } from '@/lib/constants'
 import { IssuedItemDevice } from '@/types'
 import { DeviceCategory, OrderType } from '@prisma/client'
+import { ScanLine } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import DeviceCard from '../DeviceCard'
@@ -82,6 +88,7 @@ const StepCollectedAndNotes = ({
   const [name, setName] = useState('')
   const [sn, setSn] = useState('')
   const [touched, setTouched] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   /** Adds manually collected device */
   const addCollected = () => {
@@ -257,12 +264,25 @@ const StepCollectedAndNotes = ({
                 onChange={(e) => setName(e.target.value)}
                 className="flex-1"
               />
-              <Input
-                placeholder="Numer seryjny"
-                value={sn}
-                onChange={(e) => setSn(e.target.value)}
-                className="flex-1"
-              />
+              <InputGroup className="flex-1">
+                <InputGroupInput
+                  placeholder="Numer seryjny"
+                  value={sn}
+                  onChange={(e) => setSn(e.target.value)}
+                  className="[text-transform:uppercase] placeholder:normal-case"
+                />
+
+                <InputGroupButton
+                  type="button"
+                  onClick={() => setScannerOpen(true)}
+                  aria-label="Scan serial number"
+                  size="sm"
+                  className="h-full"
+                >
+                  <ScanLine className="h-4 w-4" />
+                </InputGroupButton>
+              </InputGroup>
+
               <Button onClick={addCollected} disabled={!sn.trim()}>
                 Dodaj
               </Button>

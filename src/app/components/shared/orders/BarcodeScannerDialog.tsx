@@ -27,23 +27,35 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
 
   useEffect(() => {
-    if (!open || !videoRef.current) return
+    if (!open) return
 
-    const reader = new BrowserMultiFormatReader()
-    readerRef.current = reader
+    let cancelled = false
 
-    reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-      if (!result) return
+    const startCamera = async (): Promise<void> => {
+      // Wait for Dialog content to be mounted in DOM
+      await new Promise((resolve) => requestAnimationFrame(resolve))
 
-      playBeep()
-      vibrate()
+      if (cancelled || !videoRef.current) return
 
-      onScan(result.getText())
-      stopCamera()
-      onClose()
-    })
+      const reader = new BrowserMultiFormatReader()
+      readerRef.current = reader
+
+      reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+        if (!result) return
+
+        playBeep()
+        vibrate()
+
+        onScan(result.getText())
+        stopCamera()
+        onClose()
+      })
+    }
+
+    startCamera()
 
     return () => {
+      cancelled = true
       stopCamera()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

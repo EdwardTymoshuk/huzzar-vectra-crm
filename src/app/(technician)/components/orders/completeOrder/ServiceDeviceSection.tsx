@@ -1,7 +1,13 @@
 'use client'
 
 import SerialScanInput from '@/app/components/shared/SerialScanInput'
+import BarcodeScannerDialog from '@/app/components/shared/orders/BarcodeScannerDialog'
 import { Input } from '@/app/components/ui/input'
+import {
+  InputGroup,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/app/components/ui/input-group'
 import {
   Select,
   SelectContent,
@@ -12,6 +18,8 @@ import {
 import { Switch } from '@/app/components/ui/switch'
 import { DeviceSource, IssuedItemDevice } from '@/types'
 import { DeviceCategory, ServiceType } from '@prisma/client'
+import { ScanLine } from 'lucide-react'
+import { useState } from 'react'
 
 /**
  * ServiceDeviceSection
@@ -59,6 +67,8 @@ const ServiceDeviceSection = ({
   primaryClientSn,
   setPrimaryClientSn,
 }: Props) => {
+  const [scannerOpen, setScannerOpen] = useState(false)
+
   // Allowed categories for CLIENT based on service type
   const clientCategories =
     type === 'DTV'
@@ -126,18 +136,37 @@ const ServiceDeviceSection = ({
           />
 
           {/* Serial number or MAC address depending on category */}
-          <Input
-            placeholder={
-              requiresMac(clientCategory ?? undefined)
-                ? 'Adres MAC'
-                : 'Numer seryjny'
-            }
-            value={primaryClientSn}
-            className="uppercase"
-            onChange={(e) => setPrimaryClientSn(e.target.value)}
-          />
+          <InputGroup>
+            <InputGroupInput
+              placeholder={
+                requiresMac(clientCategory ?? undefined)
+                  ? 'Adres MAC'
+                  : 'Numer seryjny'
+              }
+              value={primaryClientSn}
+              onChange={(e) => setPrimaryClientSn(e.target.value)}
+              className="[text-transform:uppercase] placeholder:normal-case"
+            />
+            <InputGroupButton
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              aria-label="Scan serial or MAC"
+              size="sm"
+              className="h-full"
+            >
+              <ScanLine className="h-6 w-6" size={30} />
+            </InputGroupButton>
+          </InputGroup>
         </div>
       )}
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          setPrimaryClientSn(code.trim().toUpperCase())
+        }}
+      />
     </div>
   )
 }

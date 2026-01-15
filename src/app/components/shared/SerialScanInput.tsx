@@ -363,7 +363,7 @@ const SerialScanInput = ({
                   tryAdd(value)
                 }
               }}
-              className="[text-transform:uppercase] placeholder:normal-case"
+              className="h-12 [text-transform:uppercase] placeholder:normal-case"
               placeholder="Wpisz lub zeskanuj numer seryjny"
               autoFocus
             />
@@ -404,7 +404,7 @@ const SerialScanInput = ({
                   tryAdd(value)
                 }
               }}
-              className="[text-transform:uppercase] placeholder:normal-case"
+              className="h-12 [text-transform:uppercase] placeholder:normal-case"
               placeholder="Wpisz lub zeskanuj numer seryjny"
               autoFocus
             />
@@ -414,6 +414,8 @@ const SerialScanInput = ({
                 type="button"
                 onClick={() => setScannerOpen(true)}
                 aria-label="Scan barcode"
+                size="sm"
+                className="h-full"
               >
                 <ScanLine className="h-4 w-4" />
               </InputGroupButton>

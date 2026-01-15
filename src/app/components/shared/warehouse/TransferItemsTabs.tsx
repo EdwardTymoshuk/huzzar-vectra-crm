@@ -103,13 +103,13 @@ const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="devices">
+      <Tabs defaultValue="devices" className="">
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="devices">Urządzenia</TabsTrigger>
           <TabsTrigger value="materials">Materiały</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="devices">
+        <TabsContent value="devices" className="pt-4">
           <SerialScanInput
             onAddDevice={addDevice}
             devices={deviceOptions}
