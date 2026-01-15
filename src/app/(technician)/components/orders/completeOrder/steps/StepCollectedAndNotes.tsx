@@ -1,6 +1,7 @@
 'use client'
 
 import SerialScanInput from '@/app/components/shared/SerialScanInput'
+import BarcodeScannerDialog from '@/app/components/shared/orders/BarcodeScannerDialog'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import {
@@ -351,6 +352,14 @@ const StepCollectedAndNotes = ({
           Dalej
         </Button>
       </div>
+
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          setSn(code.trim().toUpperCase())
+        }}
+      />
     </div>
   )
 }

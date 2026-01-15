@@ -66,6 +66,7 @@ const SerialScanInput = ({
   const [showDD, setShowDD] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [isScanAttempt, setIsScanAttempt] = useState(false)
 
   const utils = trpc.useUtils()
   const { data: session } = useSession()
@@ -241,6 +242,7 @@ const SerialScanInput = ({
         toast.success('Dodano urządzenie z lokalnego stanu technika.')
         setValue('')
         setShowDD(false)
+        setIsScanAttempt(false)
         setIsAdding(false)
         return
       }
@@ -250,6 +252,12 @@ const SerialScanInput = ({
         toast.error(
           'Nie możesz dodać urządzenia spoza swojego stanu. Skontaktuj się z magazynem.'
         )
+
+        if (isScanAttempt) {
+          setValue('')
+          setIsScanAttempt(false)
+        }
+
         setIsAdding(false)
         return
       }
@@ -497,8 +505,8 @@ const SerialScanInput = ({
         onClose={() => setScannerOpen(false)}
         onScan={(code) => {
           const normalized = code.trim().toUpperCase()
+          setIsScanAttempt(true)
           setValue(normalized)
-          tryAdd(normalized)
         }}
       />
     </div>
