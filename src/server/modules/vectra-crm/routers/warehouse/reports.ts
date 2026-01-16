@@ -2,6 +2,7 @@
 
 import { writeReturnToOperatorReport } from '@/app/(modules)/vectra-crm/utils/reports/warehouse/writeReturnToOperatorReport'
 import { writeTechnicianStockReport } from '@/app/(modules)/vectra-crm/utils/reports/warehouse/writeTechnicianStockReport'
+import { writeUsedMaterialsInstallationReport } from '@/app/(modules)/vectra-crm/utils/reports/warehouse/writeUsedMaterialsInstallationReport'
 import { writeWarehouseStockReport } from '@/app/(modules)/vectra-crm/utils/reports/warehouse/writeWarehouseStockReport'
 import { adminCoordOrWarehouse, adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
@@ -34,6 +35,20 @@ export const reportsRouters = router({
     .input(z.object({ historyIds: z.array(z.string().uuid()) }))
     .mutation(async ({ input }) => {
       const buffer = await writeReturnToOperatorReport(input.historyIds)
+      return buffer.toString('base64')
+    }),
+  generateUsedMaterialsInstallationReport: adminOrCoord
+    .input(
+      z.object({
+        year: z.number(),
+        month: z.number(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await writeUsedMaterialsInstallationReport(
+        input.year,
+        input.month
+      )
       return buffer.toString('base64')
     }),
 })

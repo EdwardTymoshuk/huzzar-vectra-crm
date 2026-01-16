@@ -2,8 +2,8 @@ import {
   BORDER,
   LIGHT_GRAY,
 } from '@/app/(modules)/vectra-crm/lib/exelReportsConstants'
+import { prisma } from '@/utils/prisma'
 import ExcelJS from 'exceljs'
-import { prisma } from '../../../../../../utils/prisma'
 
 /**
  * writeTechnicianStockReport
