@@ -239,7 +239,6 @@ const StepCollectedAndNotes = ({
             Odbiór urządzeń od klienta
           </label>
         </div>
-
         {collectEnabled && (
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row gap-2">
@@ -263,14 +262,22 @@ const StepCollectedAndNotes = ({
                 placeholder="Nazwa urządzenia"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="flex-1"
+                className="flex-1 h-10"
               />
-              <InputGroup className="flex-1">
+              <InputGroup
+                className="
+    flex-1 h-10
+    border border-input
+    rounded-md
+    overflow-hidden
+    bg-background
+  "
+              >
                 <InputGroupInput
                   placeholder="Numer seryjny"
                   value={sn}
                   onChange={(e) => setSn(e.target.value)}
-                  className="[text-transform:uppercase] placeholder:normal-case"
+                  className="h-10 [text-transform:uppercase] placeholder:normal-case"
                 />
 
                 <InputGroupButton
@@ -280,7 +287,7 @@ const StepCollectedAndNotes = ({
                   size="sm"
                   className="h-full"
                 >
-                  <ScanLine className="h-4 w-4" />
+                  <ScanLine className="h-5 w-5" />
                 </InputGroupButton>
               </InputGroup>
 

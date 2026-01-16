@@ -357,48 +357,15 @@ const SerialScanInput = ({
       {/* --- Input field and action button --- */}
       {variant === 'inline' ? (
         <div className="flex md:flex-row gap-2">
-          <InputGroup className="flex-1">
-            <InputGroupInput
-              value={value}
-              onChange={(e) => {
-                const v = e.target.value.trim()
-                setValue(e.target.value)
-                setShowDD(v.length >= 3 && devices.length > 0)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  tryAdd(value)
-                }
-              }}
-              className="h-12 [text-transform:uppercase] placeholder:normal-case"
-              placeholder="Wpisz lub zeskanuj numer seryjny"
-              autoFocus
-            />
-
-            {isTechnician && (
-              <InputGroupButton
-                type="button"
-                onClick={() => setScannerOpen(true)}
-                aria-label="Scan barcode"
-              >
-                <ScanLine className="h-4 w-4" />
-              </InputGroupButton>
-            )}
-          </InputGroup>
-
-          <Button
-            variant="default"
-            onClick={() => tryAdd(value)}
-            disabled={!value.trim() || isAdding}
-            className="md:w-fit"
+          <InputGroup
+            className="
+      flex-1 h-10
+      border border-input
+      rounded-md
+      overflow-hidden
+      bg-background
+    "
           >
-            {isAdding ? 'Dodawanie…' : 'Dodaj'}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col md:flex-row gap-2 w-full">
-          <InputGroup className="flex-1">
             <InputGroupInput
               value={value}
               onChange={(e) => {
@@ -412,9 +379,15 @@ const SerialScanInput = ({
                   tryAdd(value)
                 }
               }}
-              className="h-12 [text-transform:uppercase] placeholder:normal-case"
               placeholder="Wpisz lub zeskanuj numer seryjny"
               autoFocus
+              className="
+        h-full
+        border-0
+        bg-transparent
+        focus-visible:ring-0 focus-visible:ring-offset-0
+        [text-transform:uppercase] placeholder:normal-case
+      "
             />
 
             {isTechnician && (
@@ -423,16 +396,87 @@ const SerialScanInput = ({
                 onClick={() => setScannerOpen(true)}
                 aria-label="Scan barcode"
                 size="sm"
-                className="h-full"
+                className="
+          h-full
+          border-0
+          bg-transparent
+          px-3
+          text-muted-foreground
+          hover:bg-muted hover:text-foreground
+        "
               >
-                <ScanLine className="h-4 w-4" />
+                <ScanLine className="h-5 w-5" />
               </InputGroupButton>
             )}
           </InputGroup>
 
           <Button
             variant="default"
-            className="w-full md:w-fit"
+            onClick={() => tryAdd(value)}
+            disabled={!value.trim() || isAdding}
+            className="h-10 md:w-fit"
+          >
+            {isAdding ? 'Dodawanie…' : 'Dodaj'}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col md:flex-row gap-2 w-full">
+          <InputGroup
+            className="
+      flex-1 h-10
+      border border-input
+      rounded-md
+      overflow-hidden
+      bg-background
+    "
+          >
+            <InputGroupInput
+              value={value}
+              onChange={(e) => {
+                const v = e.target.value.trim()
+                setValue(e.target.value)
+                setShowDD(v.length >= 3 && devices.length > 0)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  tryAdd(value)
+                }
+              }}
+              placeholder="Wpisz lub zeskanuj numer seryjny"
+              autoFocus
+              className="
+        h-full
+        border-0
+        bg-transparent
+        focus-visible:ring-0 focus-visible:ring-offset-0
+        [text-transform:uppercase] placeholder:normal-case
+      "
+            />
+
+            {isTechnician && (
+              <InputGroupButton
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                aria-label="Scan barcode"
+                size="sm"
+                className="
+          h-full
+          border-0
+          bg-transparent
+          px-3
+          text-muted-foreground
+          hover:bg-muted hover:text-foreground
+        "
+              >
+                <ScanLine className="h-5 w-5" />
+              </InputGroupButton>
+            )}
+          </InputGroup>
+
+          <Button
+            variant="default"
+            className="h-10 w-full md:w-fit"
             onClick={() => tryAdd(value)}
             disabled={!value.trim() || isAdding}
           >
