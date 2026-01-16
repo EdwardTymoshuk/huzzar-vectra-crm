@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { BrowserMultiFormatReader } from '@zxing/browser'
+import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { useEffect, useRef } from 'react'
 
 interface Props {
@@ -19,65 +20,69 @@ interface Props {
 /**
  * BarcodeScannerDialog
  * ------------------------------------------------------
- * Camera-based barcode scanner for mobile technician workflows.
- * Properly starts and stops camera stream on open/close.
+ * Camera-based barcode scanner optimized for mobile devices.
+ * - Environment camera
+ * - Torch (if supported)
+ * - 2x zoom (if supported)
+ * - Single-scan lock
  */
 const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
+  const scanLockedRef = useRef(false)
 
-  useEffect(() => {
-    if (!open) return
+  /* ----------------------------- helpers ----------------------------- */
 
-    let cancelled = false
-
-    const startCamera = async (): Promise<void> => {
-      // Wait for Dialog content to be mounted in DOM
-      await new Promise((resolve) => requestAnimationFrame(resolve))
-
-      if (cancelled || !videoRef.current) return
-
-      const reader = new BrowserMultiFormatReader()
-      readerRef.current = reader
-
-      reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-        if (!result) return
-
-        playBeep()
-        vibrate()
-
-        onScan(result.getText())
-        stopCamera()
-        onClose()
-      })
-    }
-
-    startCamera()
-
-    return () => {
-      cancelled = true
-      stopCamera()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
-  /**
-   * Stops all active video tracks to release camera properly.
-   */
-  const stopCamera = (): void => {
+  const enableTorchAndZoom = async (): Promise<void> => {
     const video = videoRef.current
     if (!video) return
 
     const stream = video.srcObject
     if (!(stream instanceof MediaStream)) return
 
-    stream.getTracks().forEach((track) => track.stop())
+    const track = stream.getVideoTracks()[0]
+    if (!track) return
+
+    const capabilities = track.getCapabilities() as MediaTrackCapabilities & {
+      torch?: boolean
+      zoom?: { min: number; max: number }
+    }
+
+    const advancedConstraints: unknown[] = []
+
+    if (capabilities.torch) {
+      advancedConstraints.push({ torch: true })
+    }
+
+    if (capabilities.zoom) {
+      advancedConstraints.push({
+        zoom: Math.min(2, capabilities.zoom.max),
+      })
+    }
+
+    if (advancedConstraints.length === 0) return
+
+    try {
+      await track.applyConstraints({
+        advanced: advancedConstraints as MediaTrackConstraintSet[],
+      })
+    } catch {
+      // silently ignore unsupported constraints
+    }
+  }
+
+  const stopCamera = (): void => {
+    const video = videoRef.current
+    if (!video) return
+
+    const stream = video.srcObject
+    if (stream instanceof MediaStream) {
+      stream.getTracks().forEach((t) => t.stop())
+    }
+
     video.srcObject = null
   }
 
-  /**
-   * Plays a short confirmation beep using Web Audio API.
-   */
   const playBeep = (): void => {
     try {
       const AudioContext =
@@ -90,36 +95,91 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
 
       if (!AudioContext) return
 
-      const context = new AudioContext()
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
+      const ctx = new AudioContext()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
 
-      oscillator.type = 'sine'
-      oscillator.frequency.value = 880 // Hz – short confirmation tone
+      osc.frequency.value = 880
       gain.gain.value = 0.1
 
-      oscillator.connect(gain)
-      gain.connect(context.destination)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
 
-      oscillator.start()
-      oscillator.stop(context.currentTime + 0.12)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.12)
 
-      oscillator.onended = () => {
-        context.close()
-      }
+      osc.onended = () => ctx.close()
     } catch {
-      // Silently ignore audio errors (e.g. browser restrictions)
+      /* ignore */
     }
   }
 
-  /**
-   * Triggers short device vibration if supported.
-   */
   const vibrate = (): void => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(80)
-    }
+    if ('vibrate' in navigator) navigator.vibrate(80)
   }
+
+  /* ----------------------------- effect ----------------------------- */
+
+  useEffect(() => {
+    if (!open) return
+
+    scanLockedRef.current = false
+
+    const hints = new Map()
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.CODE_39,
+      BarcodeFormat.EAN_13,
+    ])
+
+    const reader = new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 120,
+    })
+
+    readerRef.current = reader
+    let cancelled = false
+
+    const start = async (): Promise<void> => {
+      await new Promise((r) => requestAnimationFrame(r))
+      if (cancelled || !videoRef.current) return
+
+      reader.decodeFromConstraints(
+        {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        },
+        videoRef.current,
+        async (result) => {
+          if (!result || scanLockedRef.current) return
+
+          scanLockedRef.current = true
+
+          playBeep()
+          vibrate()
+
+          onScan(result.getText())
+
+          stopCamera()
+          onClose()
+        }
+      )
+
+      await enableTorchAndZoom()
+    }
+
+    start()
+
+    return () => {
+      cancelled = true
+      stopCamera()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  /* ----------------------------- UI ----------------------------- */
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -128,11 +188,24 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
           <DialogTitle>Skanuj kod</DialogTitle>
         </DialogHeader>
 
-        <video
-          ref={videoRef}
-          className="w-full h-[320px] object-cover bg-black"
-          playsInline
-        />
+        <div className="relative">
+          <video
+            ref={videoRef}
+            className="w-full h-[320px] object-cover bg-black"
+            playsInline
+            muted
+          />
+
+          {/* Scanner frame */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="scanner-frame">
+              <span className="corner tl" />
+              <span className="corner tr" />
+              <span className="corner bl" />
+              <span className="corner br" />
+            </div>
+          </div>
+        </div>
 
         <div className="p-4">
           <Button variant="outline" className="w-full" onClick={onClose}>

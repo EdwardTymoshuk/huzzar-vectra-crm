@@ -119,6 +119,95 @@ body {
   background-color: rgba(120, 120, 120, 0.6);
 }
 
+/** SCANNER FRAME **/
+.scanner-frame {
+  position: relative;
+  width: 260px;
+  height: 140px;
+}
+
+.corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+}
+
+/* shared line style */
+.corner::before,
+.corner::after {
+  content: '';
+  position: absolute;
+  background-color: #22c55e; /* green-500 */
+}
+
+/* horizontal */
+.corner::before {
+  width: 24px;
+  height: 3px;
+}
+
+/* vertical */
+.corner::after {
+  width: 3px;
+  height: 24px;
+}
+
+/* top-left */
+.corner.tl {
+  top: 0;
+  left: 0;
+}
+.corner.tl::before {
+  top: 0;
+  left: 0;
+}
+.corner.tl::after {
+  top: 0;
+  left: 0;
+}
+
+/* top-right */
+.corner.tr {
+  top: 0;
+  right: 0;
+}
+.corner.tr::before {
+  top: 0;
+  right: 0;
+}
+.corner.tr::after {
+  top: 0;
+  right: 0;
+}
+
+/* bottom-left */
+.corner.bl {
+  bottom: 0;
+  left: 0;
+}
+.corner.bl::before {
+  bottom: 0;
+  left: 0;
+}
+.corner.bl::after {
+  bottom: 0;
+  left: 0;
+}
+
+/* bottom-right */
+.corner.br {
+  bottom: 0;
+  right: 0;
+}
+.corner.br::before {
+  bottom: 0;
+  right: 0;
+}
+.corner.br::after {
+  bottom: 0;
+  right: 0;
+}
+
 @supports (padding: max(0px)) {
   .ios-safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 16px);
