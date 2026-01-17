@@ -9,8 +9,6 @@ import { useState } from 'react'
 import { SettingsContent } from '../components/settings/SettingsContent'
 import { SettingsSidebar } from '../components/settings/SettingsSidebar'
 
-const SIDEBAR_WIDTH = 256
-
 /**
  * SettingsPage
  * ------------------------------------------------------
@@ -27,13 +25,15 @@ const SettingsPage = () => {
     role === 'TECHNICIAN' ? 'PROFILE' : 'CORE'
   )
 
+  const moduleCodes = modules.map((m) => m.code)
+
   return (
     <PlatformLayout>
       <SettingsSidebar
         value={section}
         onChange={setSection}
         role={role}
-        modules={modules}
+        modules={moduleCodes}
       />
 
       <div className="flex-1 overflow-y-auto ml-64">

@@ -1,7 +1,7 @@
 'use client'
 
-import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
 import { Badge } from '@/app/components/ui/badge'
+import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import {
   Table,
@@ -21,8 +21,7 @@ import { trpc } from '@/utils/trpc'
 import { UserStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
-import { toast } from 'sonner'
-import RowActionsDropdown from './RowActionsDropdown'
+import { MdVisibility } from 'react-icons/md'
 import SheetUserDetails from './SheetUserDetails'
 
 type Props = {
@@ -32,44 +31,10 @@ type Props = {
 
 const EmployeesTable = ({ searchTerm, status }: Props) => {
   const [selectedUser, setSelectedUser] = useState<EmployeeVM | null>(null)
-  const [userToDelete, setUserToDelete] = useState<EmployeeVM | null>(null)
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const utils = trpc.useUtils()
   const { data, isLoading } = trpc.vectra.user.getTechnicians.useQuery({
     status,
-  })
-
-  const toggleStatusMutation = trpc.vectra.user.toggleUserStatus.useMutation({
-    onSuccess: () => {
-      toast.success('Status użytkownika został zmieniony.')
-      utils.vectra.user.getTechnicians.invalidate()
-    },
-    onError: () => toast.error('Błąd przy zmianie statusu.'),
-  })
-
-  const deleteMutation = trpc.vectra.user.deleteUser.useMutation({
-    onSuccess: () => {
-      toast.success('Użytkownik został trwale usunięty.')
-      utils.vectra.user.getTechnicians.invalidate()
-    },
-    onError: () => toast.error('Błąd podczas usuwania.'),
-  })
-
-  const archiveMutation = trpc.vectra.user.archiveUser.useMutation({
-    onSuccess: () => {
-      toast.success('Użytkownik został zarchiwizowany.')
-      utils.vectra.user.getTechnicians.invalidate()
-    },
-    onError: () => toast.error('Błąd przy archiwizacji użytkownika.'),
-  })
-
-  const restoreMutation = trpc.vectra.user.restoreUser.useMutation({
-    onSuccess: () => {
-      toast.success('Użytkownik został przywrócony.')
-      utils.vectra.user.getTechnicians.invalidate()
-    },
-    onError: () => toast.error('Błąd przy przywracaniu użytkownika.'),
   })
 
   const filtered = useMemo(() => {
@@ -88,29 +53,6 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
   }, [data, searchTerm, status])
 
   const handleShowDetails = (user: EmployeeVM) => setSelectedUser(user)
-
-  const handleToggleStatus = (user: EmployeeVM) =>
-    toggleStatusMutation.mutate({ id: user.id })
-
-  const handleArchiveUser = (user: EmployeeVM) => {
-    archiveMutation.mutate({ id: user.id })
-  }
-
-  const handleRestoreUser = (user: EmployeeVM) => {
-    restoreMutation.mutate({ id: user.id })
-  }
-
-  const handleDelete = (user: EmployeeVM) => {
-    setUserToDelete(user)
-    setConfirmDeleteOpen(true)
-  }
-
-  const confirmDelete = () => {
-    if (!userToDelete) return
-    deleteMutation.mutate({ id: userToDelete.id })
-    setConfirmDeleteOpen(false)
-    setUserToDelete(null)
-  }
 
   if (isLoading) {
     return (
@@ -167,14 +109,13 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <RowActionsDropdown
-                      user={user}
-                      onShowDetails={handleShowDetails}
-                      onToggleStatus={handleToggleStatus}
-                      onArchive={handleArchiveUser}
-                      onRestore={handleRestoreUser}
-                      onDelete={handleDelete}
-                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleShowDetails(user)}
+                    >
+                      <MdVisibility className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -190,13 +131,6 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
           onClose={() => setSelectedUser(null)}
         />
       )}
-
-      <ConfirmDeleteDialog
-        open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
-        onConfirm={confirmDelete}
-        description={`Czy na pewno chcesz trwale usunąć użytkownika ${userToDelete?.name}?`}
-      />
     </>
   )
 }

@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { User, VectraOrderStatus } from '@prisma/client'
+import { VectraOrderStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import {
@@ -30,17 +30,16 @@ import {
  * Strong UI type for unassigned orders.
  */
 
-type AssignedTechnician = {
-  user: User
-}
-
 type UnassignedOrder = {
   id: string
   date: Date
   orderNumber: string
   city: string
   street: string
-  assignedTo: AssignedTechnician | null
+  assignedTo: {
+    id: string
+    name: string
+  } | null
   clientId: string | null
   status: VectraOrderStatus
 }
@@ -106,7 +105,7 @@ const UnassignedOrdersAccordion = ({
     const enriched = data.map((o) => ({
       ...o,
       address: `${o.city}, ${o.street}`,
-      technician: o.assignedTo?.user.name ?? 'Nieprzypisany',
+      technician: o.assignedTo?.name ?? 'Nieprzypisany',
     }))
 
     const term = searchTerm.toLowerCase()

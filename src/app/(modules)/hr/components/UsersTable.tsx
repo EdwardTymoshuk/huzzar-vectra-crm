@@ -1,5 +1,6 @@
 'use client'
 
+import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
 import { Badge } from '@/app/components/ui/badge'
 import {
   Table,
@@ -9,8 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import type { User } from '@prisma/client'
-import EditUserDialog from './EditUserDialog'
+import { trpc } from '@/utils/trpc'
+import type { User, UserStatus } from '@prisma/client'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import HrUserActionsDropdown from './HrUserActionsDropdown'
 
 type UserRow = User & {
   modules: {
@@ -31,78 +35,128 @@ interface Props {
 }
 
 /**
- * UsersTable (Kadry)
- * ------------------------------------------------------------------
- * Displays system users with assigned roles, modules and status.
- * Provides edit action per user.
+ * UsersTable (HR)
+ * ------------------------------------------------------
+ * Central HR table for managing system users.
+ * This is the ONLY place where user lifecycle actions are allowed.
  */
 export default function UsersTable({ users }: Props) {
+  const utils = trpc.useUtils()
+
+  const [userToDelete, setUserToDelete] = useState<UserRow | null>(null)
+
+  const updateStatus = trpc.hr.user.updateUserStatus.useMutation({
+    onSuccess: () => {
+      toast.success('Status użytkownika został zmieniony.')
+      utils.hr.user.getUsers.invalidate()
+    },
+  })
+
+  const archiveUser = trpc.hr.user.archiveUser.useMutation({
+    onSuccess: () => {
+      toast.success('Użytkownik został zarchiwizowany.')
+      utils.hr.user.getUsers.invalidate()
+    },
+  })
+
+  const restoreUser = trpc.hr.user.restoreUser.useMutation({
+    onSuccess: () => {
+      toast.success('Użytkownik został przywrócony.')
+      utils.hr.user.getUsers.invalidate()
+    },
+  })
+
+  const deleteUser = trpc.hr.user.deleteUser.useMutation({
+    onSuccess: () => {
+      toast.success('Użytkownik został usunięty.')
+      utils.hr.user.getUsers.invalidate()
+    },
+  })
+
+  const handleToggleStatus = (userId: string, status: UserStatus) => {
+    updateStatus.mutate({
+      userId,
+      status: status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE',
+    })
+  }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Email</TableHead>
-          <TableHead>Rola</TableHead>
-          <TableHead>Moduły</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Akcje</TableHead>
-        </TableRow>
-      </TableHeader>
-
-      <TableBody>
-        {users.length === 0 && (
+    <>
+      <Table>
+        <TableHeader>
           <TableRow>
-            <TableCell
-              colSpan={5}
-              className="text-center text-muted-foreground"
-            >
-              Brak użytkowników
-            </TableCell>
+            <TableHead>Email</TableHead>
+            <TableHead>Rola</TableHead>
+            <TableHead>Moduły</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Akcje</TableHead>
           </TableRow>
-        )}
+        </TableHeader>
 
-        {users.map((user) => (
-          <TableRow key={user.id}>
-            <TableCell className="font-medium">{user.email}</TableCell>
-
-            <TableCell>{user.role}</TableCell>
-
-            <TableCell>
-              <div className="flex flex-wrap gap-1">
-                {user.modules.map((m) => (
-                  <Badge key={m.module.id} variant="secondary">
-                    {m.module.name}
-                  </Badge>
-                ))}
-              </div>
-            </TableCell>
-
-            <TableCell>
-              <Badge
-                variant={user.status === 'ACTIVE' ? 'default' : 'destructive'}
+        <TableBody>
+          {users.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="text-center text-muted-foreground"
               >
-                {user.status}
-              </Badge>
-            </TableCell>
+                Brak użytkowników
+              </TableCell>
+            </TableRow>
+          )}
 
-            <TableCell className="text-right">
-              <EditUserDialog
-                user={{
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                  phoneNumber: user.phoneNumber,
-                  identyficator: user.identyficator,
-                  role: user.role,
-                  status: user.status,
-                  modules: user.modules,
-                  locations: user.locations,
-                }}
-              />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+          {users.map((user) => (
+            <TableRow key={user.id}>
+              <TableCell className="font-medium">{user.email}</TableCell>
+
+              <TableCell>{user.role}</TableCell>
+
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {user.modules.map((m) => (
+                    <Badge key={m.module.id} variant="secondary">
+                      {m.module.name}
+                    </Badge>
+                  ))}
+                </div>
+              </TableCell>
+
+              <TableCell>
+                <Badge
+                  variant={user.status === 'ACTIVE' ? 'default' : 'destructive'}
+                >
+                  {user.status}
+                </Badge>
+              </TableCell>
+
+              <TableCell className="text-right">
+                <HrUserActionsDropdown
+                  userId={user.id}
+                  status={user.status}
+                  onEdit={() => {}}
+                  onToggleStatus={() =>
+                    handleToggleStatus(user.id, user.status)
+                  }
+                  onArchive={() => archiveUser.mutate({ userId: user.id })}
+                  onRestore={() => restoreUser.mutate({ id: user.id })}
+                  onDelete={() => setUserToDelete(user)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <ConfirmDeleteDialog
+        open={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={() => {
+          if (!userToDelete) return
+          deleteUser.mutate({ id: userToDelete.id })
+          setUserToDelete(null)
+        }}
+        description={`Czy na pewno chcesz trwale usunąć użytkownika ${userToDelete?.email}?`}
+      />
+    </>
   )
 }

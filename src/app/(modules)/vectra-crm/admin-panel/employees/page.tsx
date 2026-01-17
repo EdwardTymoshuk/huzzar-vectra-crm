@@ -1,7 +1,5 @@
 'use client'
 
-import AddUserDialog from '@/app/(modules)/vectra-crm/admin-panel/components/users/AddUserDialog'
-import FloatingActionMenu from '@/app/components/FloatingActionMenu'
 import UnauthorizedPage from '@/app/components/UnauthorizedPage'
 import {
   Tabs,
@@ -11,7 +9,6 @@ import {
 } from '@/app/components/ui/tabs'
 import { useRole } from '@/utils/hooks/useRole'
 import { useState } from 'react'
-import { MdAdd } from 'react-icons/md'
 import EmployeesHeaderBar from '../components/employees/EmployeesHeaderBar'
 import EmployeesTable from '../components/employees/EmployeesTable'
 
@@ -24,7 +21,6 @@ import EmployeesTable from '../components/employees/EmployeesTable'
  */
 const EmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
   const { isWarehouseman, isLoading } = useRole()
   if (isLoading) return null
@@ -33,11 +29,7 @@ const EmployeesPage = () => {
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
       {/* Header */}
-      <EmployeesHeaderBar
-        searchTerm={searchTerm}
-        onSearch={setSearchTerm}
-        onAdd={() => setIsAddDialogOpen(true)}
-      />
+      <EmployeesHeaderBar searchTerm={searchTerm} onSearch={setSearchTerm} />
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-2 md:px-4">
@@ -62,31 +54,6 @@ const EmployeesPage = () => {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Floating button for <xl */}
-      <div className="xl:hidden">
-        <FloatingActionMenu
-          actions={[
-            {
-              label: 'Dodaj pracownika',
-              icon: <MdAdd className="text-xl" />,
-              colorClass: 'bg-success hover:bg-success/90',
-              onClick: () => setIsAddDialogOpen(true),
-            },
-          ]}
-          mainIcon={<MdAdd className="text-3xl" />}
-          mainTooltip="Dodaj pracownika"
-        />
-      </div>
-
-      {/* Dialog */}
-      {isAddDialogOpen && (
-        <AddUserDialog
-          open={isAddDialogOpen}
-          onClose={() => setIsAddDialogOpen(false)}
-          defaultRole="TECHNICIAN"
-        />
-      )}
     </div>
   )
 }

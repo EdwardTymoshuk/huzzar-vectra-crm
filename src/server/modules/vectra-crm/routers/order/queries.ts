@@ -28,6 +28,7 @@ import { z } from 'zod'
 import { mapVectraUserToVM } from '../../helpers/mappers/mapVectraUserToVM'
 import {
   vectraUserBasicSelect,
+  vectraUserSlimSelect,
   vectraUserWithCoreBasicSelect,
 } from '../../helpers/selects'
 import { vectraProcedure } from '../trpc'
@@ -656,23 +657,30 @@ export const queriesRouter = router({
       }
     }),
 
-  /** Fetches ALL Unassigned orders from all technitians and from all the time */
-  getAllUnassigned: adminOrCoord
+  /** Fetches ALL in progress orders from all technitians and from all the time */
+  getAllInProgress: adminOrCoord
     .input(
       z.object({
         dateFrom: z.date().optional(),
         dateTo: z.date().optional(),
+        orderType: z.nativeEnum(VectraOrderType).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { dateFrom, dateTo } = input
+      const { dateFrom, dateTo, orderType } = input
 
-      return ctx.prisma.vectraOrder.findMany({
+      const orders = await ctx.prisma.vectraOrder.findMany({
         where: {
           status: 'ASSIGNED',
           ...(dateFrom && dateTo
-            ? { date: { gte: dateFrom, lte: dateTo } }
+            ? {
+                date: {
+                  gte: dateFrom,
+                  lte: dateTo,
+                },
+              }
             : {}),
+          ...(orderType ? { type: orderType } : {}),
         },
         select: {
           id: true,
@@ -682,16 +690,26 @@ export const queriesRouter = router({
           date: true,
           operator: true,
           clientId: true,
-          assignedTo: {
-            include: {
-              user: true,
-            },
-          },
           status: true,
           timeSlot: true,
+          assignedTo: {
+            select: vectraUserSlimSelect,
+          },
         },
-        orderBy: { date: 'asc' },
+        orderBy: {
+          date: 'asc',
+        },
       })
+
+      return orders.map((o) => ({
+        ...o,
+        assignedTo: o.assignedTo
+          ? {
+              id: o.assignedTo.user.id,
+              name: o.assignedTo.user.name,
+            }
+          : null,
+      }))
     }),
 
   /** Accounting-level order breakdown */

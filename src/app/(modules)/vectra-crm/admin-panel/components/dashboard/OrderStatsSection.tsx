@@ -3,12 +3,22 @@
 import { Badge } from '@/app/components/ui/badge'
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/app/components/ui/tooltip'
 import { buildDateParam } from '@/utils/dates/buildDateParam'
+import { resolveDateRange } from '@/utils/dates/resolveDateRange'
 import { trpc } from '@/utils/trpc'
 import { VectraOrderType } from '@prisma/client'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import SuccessChart from './SuccessChart'
+import InProgressOrdersDialog from './src/app/admin-panel/components/dashboard/InProgressOrdersDialog'
 
 type Props = {
   date: Date | undefined
@@ -27,7 +37,12 @@ const COLORS = ['#16a34a', '#dc2626']
  *  - Success chart on the right side
  */
 const OrderStatsSection = ({ date, range, orderType }: Props) => {
+  const [openDialog, setOpenDialog] = useState(false)
+
+  const router = useRouter()
+
   const dateParam = buildDateParam(date, range)
+  const { dateFrom, dateTo } = resolveDateRange(date, range)
 
   const { data, isLoading, isError } = trpc.vectra.order.getOrderStats.useQuery(
     {
@@ -161,7 +176,23 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
           {/* In Progress (ASSIGNED) */}
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">W realizacji</p>
-            <p className="text-xl font-bold text-primary">{inProgress}</p>
+
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p
+                    className="text-xl font-bold text-primary cursor-pointer underline"
+                    onClick={() => setOpenDialog(true)}
+                  >
+                    {inProgress}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Kliknij, aby zobaczyć zlecenia w realizacji
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             {formatChange(percentDiff(inProgress, prevInProgress))}
           </Card>
         </div>
@@ -171,6 +202,15 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
       <div className="w-full lg:w-2/3 h-auto">
         <SuccessChart date={date} range={range} orderType={orderType} />
       </div>
+
+      <InProgressOrdersDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        orderType={orderType}
+        onOpenOrder={(id) => router.push(`/admin-panel/orders/${id}`)}
+      />
     </div>
   )
 }

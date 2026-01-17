@@ -1,3 +1,5 @@
+//src/app/(modules)/hr/components/CreateUserDialog.tsx
+
 'use client'
 
 import { Button } from '@/app/components/ui/button'
@@ -51,6 +53,9 @@ const createUserSchema = z.object({
     .regex(/\d/, 'Musi zawierać cyfrę')
     .regex(/[!@#$%^&*()_+{}[\]<>?]/, 'Musi zawierać znak specjalny'),
   moduleIds: z.array(z.string()).min(1, 'Przypisz przynajmniej jeden moduł'),
+  locationIds: z
+    .array(z.string())
+    .min(1, 'Przypisz przynajmniej jedną lokalizację'),
 })
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>
@@ -72,6 +77,9 @@ const CreateUserDialog = () => {
   const { data: modules, isLoading: isLoadingModules } =
     trpc.core.user.getModules.useQuery()
 
+  const { data: locations, isLoading: isLoadingLocations } =
+    trpc.core.user.getLocations.useQuery()
+
   const createUserMutation = trpc.hr.user.createUser.useMutation({
     onSuccess: () => {
       utils.hr.user.getUsers.invalidate().catch(() => {})
@@ -87,6 +95,7 @@ const CreateUserDialog = () => {
       role: 'TECHNICIAN',
       password: '',
       moduleIds: [],
+      locationIds: [],
     },
   })
 
@@ -207,7 +216,57 @@ const CreateUserDialog = () => {
                   </FormItem>
                 )}
               />
+              {/* Locations */}
+              <FormField
+                control={form.control}
+                name="locationIds"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Lokalizacje</FormLabel>
 
+                    <div className="space-y-2">
+                      {isLoadingLocations && (
+                        <p className="text-sm text-muted-foreground">
+                          Ładowanie lokalizacji...
+                        </p>
+                      )}
+
+                      {locations?.map((loc) => (
+                        <FormField
+                          key={loc.id}
+                          control={form.control}
+                          name="locationIds"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center gap-3">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value.includes(loc.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      field.onChange([...field.value, loc.id])
+                                    } else {
+                                      field.onChange(
+                                        field.value.filter(
+                                          (id) => id !== loc.id
+                                        )
+                                      )
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {loc.name}
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               {/* Modules */}
               <FormField
                 control={form.control}

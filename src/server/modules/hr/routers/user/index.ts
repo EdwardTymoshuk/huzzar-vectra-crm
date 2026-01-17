@@ -71,6 +71,7 @@ export const hrUserRouter = router({
         password: z.string().min(8),
         role: z.nativeEnum(Role),
         moduleIds: z.array(z.string()).min(1),
+        locationIds: z.array(z.string()).min(1),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -88,6 +89,32 @@ export const hrUserRouter = router({
       const passwordHash = await bcrypt.hash(input.password, 10)
 
       const user = await ctx.prisma.$transaction(async (tx) => {
+        const validLocations = await tx.userLocation.findMany({
+          where: { id: { in: input.locationIds } },
+          select: { id: true },
+        })
+
+        if (validLocations.length !== input.locationIds.length) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Wybrano nieprawidłowe lokalizacje.',
+          })
+        }
+
+        const modules = await tx.module.findMany({
+          where: { id: { in: input.moduleIds } },
+          select: { code: true },
+        })
+
+        if (modules.length !== input.moduleIds.length) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Wybrano nieprawidłowe moduły.',
+          })
+        }
+
+        const hasVectra = modules.some((m) => m.code === 'VECTRA')
+
         const createdUser = await tx.user.create({
           data: {
             email: input.email,
@@ -101,18 +128,16 @@ export const hrUserRouter = router({
                 moduleId,
               })),
             },
+            locations: {
+              connect: validLocations.map((l) => ({ id: l.id })),
+            },
           },
         })
-
         /**
          * Synchronize Vectra domain user with assigned modules.
          * Creates or activates VectraUser if VECTRA module is assigned.
          */
-        await syncVectraUser(
-          tx,
-          createdUser.id,
-          input.moduleIds.includes('VECTRA')
-        )
+        await syncVectraUser(tx, createdUser.id, hasVectra)
 
         return createdUser
       })
@@ -323,5 +348,55 @@ export const hrUserRouter = router({
           deletedAt: new Date(),
         },
       })
+    }),
+
+  restoreUser: adminOnly
+    .input(z.object({ id: z.string() }))
+    .mutation(({ ctx, input }) =>
+      ctx.prisma.user.update({
+        where: { id: input.id },
+        data: { status: 'ACTIVE' },
+      })
+    ),
+
+  /** Toggle active / suspended */
+  toggleUserStatus: adminOnly
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.prisma.user.findUnique({ where: { id: input.id } })
+      if (!user) throw new TRPCError({ code: 'NOT_FOUND' })
+      return ctx.prisma.user.update({
+        where: { id: input.id },
+        data: { status: user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' },
+      })
+    }),
+
+  /** Delete user */
+  deleteUser: adminOnly
+    .input(
+      z.object({
+        id: z.string(),
+        force: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.force) {
+        await ctx.prisma.user.delete({ where: { id: input.id } })
+        return { ok: true }
+      }
+
+      const anonEmail = `deleted-${input.id}@example.invalid`
+      await ctx.prisma.user.update({
+        where: { id: input.id },
+        data: {
+          name: 'Usunięty użytkownik',
+          email: anonEmail,
+          phoneNumber: '',
+          password: '',
+          status: 'DELETED',
+          deletedAt: new Date(),
+        },
+      })
+      return { ok: true }
     }),
 })
