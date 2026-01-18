@@ -112,7 +112,7 @@ const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
           <TabsTrigger value="materials">Materiały</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="devices">
+        <TabsContent value="devices" className="pt-4">
           <SerialScanInput
             onAddDevice={addDevice}
             devices={deviceOptions}

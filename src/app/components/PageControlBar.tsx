@@ -32,7 +32,7 @@ const PageControlBar = ({
       className={cn(
         'flex flex-row items-center lg:items-center',
         'justify-between',
-        'gap-2 lg:gap-4 w-full border-b bg-background py-2 mb-3 z-20',
+        'gap-1 lg:gap-4 w-full border-b bg-background py-2 mb-3 z-20',
         'px-1',
         className
       )}

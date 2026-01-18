@@ -1,6 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+
 import SerialScanInput from '@/app/(modules)/vectra-crm/components/SerialScanInput'
+import DeviceCard from '../DeviceCard'
+
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
@@ -13,11 +18,10 @@ import {
 } from '@/app/components/ui/select'
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
+
+import BarcodeScannerDialog from '@/app/(modules)/vectra-crm/components/orders/BarcodeScannerDialog'
 import { IssuedItemDevice } from '@/types/vectra-crm'
 import { VectraDeviceCategory, VectraOrderType } from '@prisma/client'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import DeviceCard from '../DeviceCard'
 
 type CollectedDevice = {
   id: string
@@ -36,7 +40,7 @@ interface Props {
   collected: CollectedDevice[]
   setCollected: (v: CollectedDevice[]) => void
 
-  /** Issued devices (to client) – only for SERVICE/OUTAGE */
+  /** Issued devices (to client) – only for SERVICE / OUTAGE */
   issued: IssuedItemDevice[]
   setIssued: Setter<IssuedItemDevice[]>
 
@@ -60,9 +64,10 @@ interface Props {
  * StepCollectedAndNotes
  * ------------------------------------------------------
  * Handles:
- *  - (SERVICE/OUTAGE) Issuing new devices to client
- *  - Collecting devices from client
- *  - Technician notes
+ * - Issuing devices to client (SERVICE / OUTAGE)
+ * - Collecting devices from client
+ * - Technician notes
+ * - Barcode scanning for serial numbers
  */
 const StepCollectedAndNotes = ({
   devices,
@@ -78,56 +83,82 @@ const StepCollectedAndNotes = ({
 }: Props) => {
   const [collectEnabled, setCollectEnabled] = useState(false)
   const [issueEnabled, setIssueEnabled] = useState(false)
+
   const [category, setCategory] = useState<VectraDeviceCategory>('OTHER')
   const [name, setName] = useState('')
   const [sn, setSn] = useState('')
+
   const [touched, setTouched] = useState(false)
 
+  /** Barcode scanner state */
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanTarget, setScanTarget] = useState<'collected' | 'issued'>(
+    'collected'
+  )
+
+  /**
+   * Handles scanned barcode value.
+   * Applies serial number to correct input.
+   */
+  const handleScan = (value: string): void => {
+    const normalized = value.trim().toUpperCase()
+
+    if (!normalized) return
+
+    if (scanTarget === 'collected') {
+      setSn(normalized)
+      toast.success('Numer seryjny zeskanowany')
+    }
+
+    setScannerOpen(false)
+  }
+
   /** Adds manually collected device */
-  const addCollected = () => {
+  const addCollected = (): void => {
     if (name.trim().length < 2) {
       toast.error('Podaj nazwę urządzenia.')
       return
     }
+
     if (sn.trim().length < 3) {
       toast.error('Podaj numer seryjny.')
       return
     }
+
     const newDevice: CollectedDevice = {
       id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
       name: name.trim(),
       category,
       serialNumber: sn.trim().toUpperCase(),
     }
+
     setCollected([...collected, newDevice])
     setName('')
     setSn('')
   }
 
   /** Removes collected device */
-  const removeCollected = (id: string) => {
+  const removeCollected = (id: string): void => {
     setCollected(collected.filter((d) => d.id !== id))
   }
 
   /** Removes issued device */
-  const removeIssued = (id: string) => {
+  const removeIssued = (id: string): void => {
     setIssued(issued.filter((d) => d.id !== id))
   }
 
   useEffect(() => {
-    // Enable collecting section if there are any collected devices
     if (collected.length > 0) {
       setCollectEnabled(true)
     }
 
-    // Enable issuing section if there are any issued devices (SERVICE/OUTAGE)
     if (issued.length > 0 && orderType !== 'INSTALATION') {
       setIssueEnabled(true)
     }
   }, [collected.length, issued.length, orderType])
 
   /** Handles step validation + next */
-  const handleNext = () => {
+  const handleNext = (): void => {
     setTouched(true)
 
     if (collectEnabled && collected.length === 0) {
@@ -145,13 +176,12 @@ const StepCollectedAndNotes = ({
     }
 
     onNext({
-      collected: collectEnabled || collected.length > 0 ? collected : [],
-      issued: issueEnabled || issued.length > 0 ? [...issued] : [],
+      collected: collectEnabled ? collected : [],
+      issued: issueEnabled ? [...issued] : [],
       notes,
     })
   }
 
-  /** Determines if issue section should be visible (SERVICE / OUTAGE only) */
   const canIssue = orderType !== 'INSTALATION'
 
   return (
@@ -162,21 +192,18 @@ const StepCollectedAndNotes = ({
           Sprzęt klienta i uwagi
         </h3>
 
-        {/* === Issued section (only for SERVICE / OUTAGE) === */}
+        {/* === Issued section === */}
         {canIssue && (
           <>
             <div className="flex items-center gap-3 mb-3">
               <Switch
-                id="issue-switch"
                 checked={issueEnabled}
                 onCheckedChange={(checked) => {
                   setIssueEnabled(checked)
                   if (!checked) setIssued([])
                 }}
               />
-              <label htmlFor="issue-switch" className="font-semibold">
-                Wydanie sprzętu klientowi
-              </label>
+              <span className="font-semibold">Wydanie sprzętu klientowi</span>
             </div>
 
             {issueEnabled && (
@@ -184,9 +211,7 @@ const StepCollectedAndNotes = ({
                 <SerialScanInput
                   devices={devices.filter(
                     (d) =>
-                      !issued.some((ex) => ex.id === d.id) &&
-                      d.serialNumber &&
-                      d.serialNumber.length > 0
+                      !issued.some((ex) => ex.id === d.id) && !!d.serialNumber
                   )}
                   onAddDevice={(dev) => {
                     setIssued((prev) => [...prev, dev])
@@ -195,7 +220,7 @@ const StepCollectedAndNotes = ({
                 />
 
                 {issued.length > 0 && (
-                  <div className="grid gap-3 mt-2">
+                  <div className="grid gap-3">
                     {issued.map((d) => (
                       <DeviceCard
                         key={d.id}
@@ -211,25 +236,22 @@ const StepCollectedAndNotes = ({
           </>
         )}
 
-        {/* === Collected section (always visible) === */}
+        {/* === Collected section === */}
         <div className="flex items-center gap-3 mb-3">
           <Switch
-            id="collect-switch"
             checked={collectEnabled}
             onCheckedChange={(checked) => {
               if (!checked && collected.length > 0) {
-                const confirm = window.confirm(
-                  'Masz już odebrane urządzenia. Wyłączenie spowoduje ich usunięcie. Chcesz kontyunować ?'
+                const confirmed = window.confirm(
+                  'Masz już odebrane urządzenia. Wyłączenie spowoduje ich usunięcie. Kontynuować?'
                 )
-                if (!confirm) return
+                if (!confirmed) return
                 setCollected([])
               }
               setCollectEnabled(checked)
             }}
           />
-          <label htmlFor="collect-switch" className="font-semibold">
-            Odbiór urządzeń od klienta
-          </label>
+          <span className="font-semibold">Odbiór urządzeń od klienta</span>
         </div>
 
         {collectEnabled && (
@@ -239,8 +261,8 @@ const StepCollectedAndNotes = ({
                 value={category}
                 onValueChange={(v) => setCategory(v as VectraDeviceCategory)}
               >
-                <SelectTrigger className="w-full md:w-36">
-                  <SelectValue placeholder="Typ urządzenia" />
+                <SelectTrigger className="md:w-36">
+                  <SelectValue placeholder="Typ" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(VectraDeviceCategory).map((c) => (
@@ -257,20 +279,33 @@ const StepCollectedAndNotes = ({
                 onChange={(e) => setName(e.target.value)}
                 className="flex-1"
               />
-              <Input
-                placeholder="Numer seryjny"
-                value={sn}
-                onChange={(e) => setSn(e.target.value)}
-                className="flex-1"
-              />
+
+              <div className="flex flex-1 gap-2">
+                <Input
+                  placeholder="Numer seryjny"
+                  value={sn}
+                  onChange={(e) => setSn(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setScanTarget('collected')
+                    setScannerOpen(true)
+                  }}
+                >
+                  Skanuj
+                </Button>
+              </div>
+
               <Button onClick={addCollected} disabled={!sn.trim()}>
                 Dodaj
               </Button>
             </div>
 
-            <h4 className="font-semibold mt-3">Odebrane urządzenia</h4>
             {collected.length > 0 ? (
-              <div className="grid gap-3 mt-2">
+              <div className="grid gap-3">
                 {collected.map((d) => (
                   <DeviceCard
                     key={d.id}
@@ -287,7 +322,7 @@ const StepCollectedAndNotes = ({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-2">
+              <p className="text-xs text-muted-foreground text-center">
                 Brak dodanych urządzeń.
               </p>
             )}
@@ -298,32 +333,16 @@ const StepCollectedAndNotes = ({
         <div className="mt-8">
           <h4 className="font-semibold mb-2">Uwagi technika</h4>
           <Textarea
-            placeholder="Wpisz uwagi dotyczące wykonania zlecenia..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            placeholder="Wpisz uwagi dotyczące wykonania zlecenia..."
             className="min-h-[100px]"
           />
         </div>
-
-        {/* Validation */}
-        {touched && (
-          <>
-            {collectEnabled && collected.length === 0 && (
-              <p className="text-danger text-sm text-center mt-3">
-                Dodaj przynajmniej jedno odebrane urządzenie lub wyłącz odbiór.
-              </p>
-            )}
-            {canIssue && issueEnabled && issued.length === 0 && (
-              <p className="text-danger text-sm text-center mt-3">
-                Dodaj przynajmniej jedno wydane urządzenie lub wyłącz wydanie.
-              </p>
-            )}
-          </>
-        )}
       </div>
 
-      {/* Bottom navigation */}
-      <div className="sticky bottom-0 bg-background flex gap-3">
+      {/* Navigation */}
+      <div className="sticky bottom-0 bg-background flex gap-3 p-4">
         <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
           Wstecz
         </Button>
@@ -331,6 +350,13 @@ const StepCollectedAndNotes = ({
           Dalej
         </Button>
       </div>
+
+      {/* Barcode scanner dialog */}
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onScan={handleScan}
+        onClose={() => setScannerOpen(false)}
+      />
     </div>
   )
 }

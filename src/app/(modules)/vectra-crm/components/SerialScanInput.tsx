@@ -1,15 +1,21 @@
 'use client'
 
 import { Button } from '@/app/components/ui/button'
-import { Input } from '@/app/components/ui/input'
+import {
+  InputGroup,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/app/components/ui/input-group'
 import { devicesStatusMap } from '@/lib/constants'
 import { IssuedItemDevice } from '@/types/vectra-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { VectraDeviceCategory, VectraWarehouseStatus } from '@prisma/client'
+import { ScanLine } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import BarcodeScannerDialog from './orders/BarcodeScannerDialog'
 
 /**
  * DeviceBasic – local device definition used for technician stock.
@@ -59,10 +65,11 @@ const SerialScanInput = ({
   const [value, setValue] = useState('')
   const [showDD, setShowDD] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   const utils = trpc.useUtils()
   const { data: session } = useSession()
-  const { isAdmin, isCoordinator } = useRole()
+  const { isTechnician, isAdmin, isCoordinator } = useRole()
   const myId = session?.user.id
 
   /**
@@ -343,23 +350,36 @@ const SerialScanInput = ({
       {/* --- Input field and action button --- */}
       {variant === 'inline' ? (
         <div className="flex md:flex-row gap-2">
-          <Input
-            value={value}
-            onChange={(e) => {
-              const v = e.target.value.trim()
-              setValue(e.target.value)
-              setShowDD(v.length >= 3 && devices.length > 0)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                tryAdd(value)
-              }
-            }}
-            className="[text-transform:uppercase] placeholder:normal-case"
-            placeholder="Wpisz lub zeskanuj numer seryjny"
-            autoFocus
-          />
+          <InputGroup className="flex-1">
+            <InputGroupInput
+              value={value}
+              onChange={(e) => {
+                const v = e.target.value.trim()
+                setValue(e.target.value)
+                setShowDD(v.length >= 3 && devices.length > 0)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  tryAdd(value)
+                }
+              }}
+              className="[text-transform:uppercase] placeholder:normal-case"
+              placeholder="Wpisz lub zeskanuj numer seryjny"
+              autoFocus
+            />
+
+            {isTechnician && (
+              <InputGroupButton
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                aria-label="Scan barcode"
+              >
+                <ScanLine className="h-4 w-4" />
+              </InputGroupButton>
+            )}
+          </InputGroup>
+
           <Button
             variant="default"
             onClick={() => tryAdd(value)}
@@ -371,23 +391,36 @@ const SerialScanInput = ({
         </div>
       ) : (
         <div className="flex flex-col md:flex-row gap-2 w-full">
-          <Input
-            value={value}
-            onChange={(e) => {
-              const v = e.target.value.trim()
-              setValue(e.target.value)
-              setShowDD(v.length >= 3 && devices.length > 0)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                tryAdd(value)
-              }
-            }}
-            className="[text-transform:uppercase] placeholder:normal-case"
-            placeholder="Wpisz lub zeskanuj numer seryjny"
-            autoFocus
-          />
+          <InputGroup className="flex-1">
+            <InputGroupInput
+              value={value}
+              onChange={(e) => {
+                const v = e.target.value.trim()
+                setValue(e.target.value)
+                setShowDD(v.length >= 3 && devices.length > 0)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  tryAdd(value)
+                }
+              }}
+              className="[text-transform:uppercase] placeholder:normal-case"
+              placeholder="Wpisz lub zeskanuj numer seryjny"
+              autoFocus
+            />
+
+            {isTechnician && (
+              <InputGroupButton
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                aria-label="Scan barcode"
+              >
+                <ScanLine className="h-4 w-4" />
+              </InputGroupButton>
+            )}
+          </InputGroup>
+
           <Button
             variant="default"
             className="w-full md:w-fit"
@@ -422,6 +455,7 @@ const SerialScanInput = ({
               ?.filter((gd) => {
                 const category: VectraDeviceCategory | undefined =
                   gd.category ?? undefined
+
                 return (
                   isAllowedForService({ name: gd.name, category }) &&
                   !suggestions.some(
@@ -455,6 +489,17 @@ const SerialScanInput = ({
             )}
         </div>
       )}
+
+      {/* --- Barcode scanner dialog --- */}
+      <BarcodeScannerDialog
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          const normalized = code.trim().toUpperCase()
+          setValue(normalized)
+          tryAdd(normalized)
+        }}
+      />
     </div>
   )
 }

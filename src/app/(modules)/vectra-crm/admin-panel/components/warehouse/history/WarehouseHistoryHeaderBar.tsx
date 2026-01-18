@@ -84,39 +84,32 @@ const WarehouseHistoryHeaderBar = ({
       </div>
 
       {/* --- Mobile layout (<md) --- */}
-      <div className="flex flex-col md:hidden gap-2">
-        {/* Top row: back + title */}
-        <div className="flex items-center justify-between w-full">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="flex items-center gap-1"
-          >
-            <MdKeyboardArrowLeft className="w-5 h-5" />
-            <span>Powrót</span>
-          </Button>
+      <div className="flex justify-between items-center md:hidden gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+          className="flex items-center gap-1"
+        >
+          <MdKeyboardArrowLeft className="w-5 h-5" />
+          <span>Powrót</span>
+        </Button>
 
-          <h1 className="text-sm font-semibold text-primary whitespace-nowrap">
-            Historia magazynu
-          </h1>
-        </div>
-
-        {/* Bottom row: centered filter */}
-        <div className="flex justify-center">
-          <WarehouseHistoryFilterPopover
-            actions={actions}
-            setActions={setActions}
-            performerId={performerId}
-            setPerformerId={setPerformerId}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            locationId={locationId}
-            setLocationId={setLocationId}
-          />
-        </div>
+        <h1 className="text-sm font-semibold text-primary whitespace-nowrap">
+          Historia magazynu
+        </h1>
+        <WarehouseHistoryFilterPopover
+          actions={actions}
+          setActions={setActions}
+          performerId={performerId}
+          setPerformerId={setPerformerId}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          locationId={locationId}
+          setLocationId={setLocationId}
+        />
       </div>
     </header>
   )

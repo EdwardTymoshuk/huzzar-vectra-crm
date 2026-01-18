@@ -42,7 +42,7 @@ const BillingHeaderBar = ({
 
   return (
     <PageControlBar title={title} rightActions={rightActions}>
-      <div className="flex items-center justify-center md:justify-end gap-3 w-full">
+      <div className="w-full">
         <MonthPicker selected={selectedMonth} onChange={onChangeMonth} />
       </div>
     </PageControlBar>

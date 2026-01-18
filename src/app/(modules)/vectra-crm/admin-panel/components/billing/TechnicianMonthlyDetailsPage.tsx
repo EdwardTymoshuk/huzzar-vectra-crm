@@ -1,6 +1,7 @@
 'use client'
 
 import TechnicianMonthlyDetails from '@/app/(modules)/vectra-crm/components/billing/TechnicianMonthlyDetails'
+import { VECTRA_PATH } from '@/lib/constants'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -30,7 +31,7 @@ const TechnicianMonthlyDetailsPage = ({ technicianId }: Props) => {
 
   useEffect(() => {
     router.replace(
-      `/admin-panel/billing/technician/${technicianId}?from=${from}&to=${to}`,
+      `${VECTRA_PATH}/admin-panel/billing/technician/${technicianId}?from=${from}&to=${to}`,
       { scroll: false }
     )
   }, [from, to, router, selectedMonth, technicianId])
