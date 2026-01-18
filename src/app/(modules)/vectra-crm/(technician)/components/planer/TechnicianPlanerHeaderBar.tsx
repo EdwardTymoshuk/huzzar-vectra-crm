@@ -11,12 +11,6 @@ interface TechnicianPlanerHeaderBarProps {
 
 /**
  * TechnicianPlanerHeaderBar
- * -------------------------------------------------------------
- * Unified top bar for technician planner page.
- * Includes:
- *  - title ("Zlecenia do wykonania")
- *  - date navigation (previous/next day)
- *  - search input
  */
 const TechnicianPlanerHeaderBar = ({
   title,
@@ -30,7 +24,7 @@ const TechnicianPlanerHeaderBar = ({
         placeholder="Szukaj po adresie lub numerze zlecenia..."
         value={searchTerm}
         onChange={setSearchTerm}
-        className="w-64"
+        className="max-w-64 w-fit"
       />
     </PageControlBar>
   )

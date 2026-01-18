@@ -2,6 +2,7 @@
 
 import TechnicianMonthlyDetails from '@/app/(modules)/vectra-crm/components/billing/TechnicianMonthlyDetails'
 import LoaderSpinner from '@/app/components/LoaderSpinner'
+import { VECTRA_PATH } from '@/lib/constants'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -28,7 +29,9 @@ const TechnicianBillingContent = ({ selectedMonth }: Props) => {
 
   // Keep URL synced with date (optional)
   useEffect(() => {
-    router.replace(`/?tab=billing&from=${from}&to=${to}`, { scroll: false })
+    router.replace(`${VECTRA_PATH}/?tab=billing&from=${from}&to=${to}`, {
+      scroll: false,
+    })
   }, [from, to, router, selectedMonth])
 
   if (status === 'loading')

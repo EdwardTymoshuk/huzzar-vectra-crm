@@ -154,7 +154,7 @@ const WarehouseHeaderBar = ({
           placeholder="Szukaj urządzenia lub materiału..."
           value={searchTerm}
           onChange={setSearchTerm}
-          className="w-60"
+          className="max-w-60"
         />
       </div>
     </PageControlBar>

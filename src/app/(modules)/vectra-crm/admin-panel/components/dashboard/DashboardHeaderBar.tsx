@@ -29,35 +29,62 @@ const DashboardHeaderBar = ({
       <div
         className="
           flex flex-row
-          items-center sm:items-center
-          justify-center sm:justify-end
+          items-center
+          justify-end
           w-full gap-2 sm:gap-3
           px-0 sm:px-0
         "
       >
         {/* Tabs for selecting range */}
-        <div className="flex w-auto justify-between sm:justify-end">
+        <div className="flex justify-end sm:justify-start ">
           <Tabs
             value={range}
             onValueChange={(val) => onChangeRange(val as typeof range)}
             className="flex-1 sm:flex-none"
           >
-            <TabsList className="flex w-full sm:w-auto justify-between">
-              <TabsTrigger value="day" className="flex-1">
-                Dzień
+            <TabsList
+              className="
+    w-full
+    min-w-0
+    overflow-hidden
+    grid grid-cols-3 mb-0
+  "
+            >
+              <TabsTrigger
+                value="day"
+                className="min-w-0 overflow-hidden flex justify-center"
+              >
+                <span className="truncate">
+                  <span className="hidden xs:inline">Dzień</span>
+                  <span className="xs:hidden">D</span>
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="month" className="flex-1">
-                Miesiąc
+
+              <TabsTrigger
+                value="month"
+                className="min-w-0 overflow-hidden flex justify-center"
+              >
+                <span className="truncate">
+                  <span className="hidden xs:inline">Miesiąc</span>
+                  <span className="xs:hidden">M</span>
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="year" className="flex-1">
-                Rok
+
+              <TabsTrigger
+                value="year"
+                className="min-w-0 overflow-hidden flex justify-center"
+              >
+                <span className="truncate">
+                  <span className="hidden xs:inline">Rok</span>
+                  <span className="xs:hidden">R</span>
+                </span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
         {/* DatePicker */}
-        <div className="flex w-full sm:max-w-[180px] justify-end">
+        <div className="flex justify-end sm:justify-start">
           <DatePicker
             selected={selectedDate}
             onChange={onChangeDate}

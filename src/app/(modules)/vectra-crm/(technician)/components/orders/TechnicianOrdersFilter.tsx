@@ -59,7 +59,8 @@ export const TechnicianOrdersFilter = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline">
-          <MdFilterList className="mr-2" /> Filtruj
+          <MdFilterList className="" />{' '}
+          <span className="hidden sm:block">Filtruj</span>
         </Button>
       </PopoverTrigger>
 

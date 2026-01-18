@@ -52,7 +52,7 @@ const TechnicianOrdersHeaderBar = ({
           placeholder="Szukaj po nr zlecenia lub adresie"
           value={searchTerm}
           onChange={setSearchTerm}
-          className="w-full sm:max-w-64"
+          className="w-full max-w-64"
         />
       </div>
     </PageControlBar>

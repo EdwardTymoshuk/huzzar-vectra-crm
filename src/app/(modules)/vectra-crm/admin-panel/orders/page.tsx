@@ -46,7 +46,7 @@ const OrdersPage = () => {
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
       {/* Header: now with xl-only actions */}
       <PageControlBar title="Zlecenia" rightActions={headerActions}>
-        <div className="flex flex-row items-center justify-end gap-2 w-full">
+        <div className="flex flex-row items-center justify-between gap-2 min-w-0">
           <OrdersFilter
             setStatusFilter={setStatusFilter}
             setTechnicianFilter={setTechnicianFilter}

@@ -78,11 +78,13 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
             name: item.name,
             category: item.category,
             quantity: 0,
-            price: item.price ?? 0, // 🔥 KLUCZ
+            price: item.price ?? 0,
           }
         }
 
-        acc[item.name].quantity += item.quantity ?? 0
+        acc[item.name].quantity +=
+          item.itemType === 'DEVICE' ? 1 : item.quantity ?? 0
+
         return acc
       }, {})
     )
@@ -119,6 +121,8 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
       if (sortOrder === 'desc') setSortField(null)
     }
   }
+
+  console.log(sorted)
 
   /* ------------------------------ ui ------------------------------- */
   if (isLoading)

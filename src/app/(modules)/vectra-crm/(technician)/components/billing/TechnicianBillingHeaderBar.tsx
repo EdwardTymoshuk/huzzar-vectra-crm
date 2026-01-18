@@ -23,8 +23,8 @@ const TechnicianBillingHeaderBar = ({
   onChangeMonth,
 }: TechnicianBillingHeaderBarProps) => {
   return (
-    <PageControlBar title={title} className="justify-center md:justify-between">
-      <div className="flex items-center gap-2">
+    <PageControlBar title={title} className="justify-between">
+      <div className="flex items-center gap-2 self-end">
         <MonthPicker selected={selectedMonth} onChange={onChangeMonth} />
       </div>
     </PageControlBar>

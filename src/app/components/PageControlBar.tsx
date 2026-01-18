@@ -31,14 +31,14 @@ const PageControlBar = ({
     <header
       className={cn(
         'flex flex-row items-center lg:items-center',
-        'justify-start lg:justify-between',
+        'justify-between',
         'gap-2 lg:gap-4 w-full border-b bg-background py-2 mb-3 z-20',
         'px-1',
         className
       )}
     >
       {/* LEFT SIDE: title + actions */}
-      <div className="flex items-center gap-2 w-full lg:w-auto">
+      <div className="flex items-center gap-2 w-fit lg:w-auto">
         <h1 className="text-lg font-semibold text-primary whitespace-nowrap">
           {title}
         </h1>
@@ -47,7 +47,7 @@ const PageControlBar = ({
 
         {/* Desktop-only left actions */}
         {rightActions && (
-          <div className="hidden lg:flex items-center gap-2 ml-4">
+          <div className="hidden xl:flex items-center gap-2 ml-4">
             {rightActions}
           </div>
         )}
@@ -55,7 +55,7 @@ const PageControlBar = ({
 
       {/* RIGHT SIDE: main controls (tabs/date/search) */}
       {children && (
-        <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-2 items-center lg:justify-end">
+        <div className="flex flex-col sm:flex-row w-auto gap-2 items-center justify-end">
           {children}
         </div>
       )}

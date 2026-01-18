@@ -11,7 +11,7 @@ import { polishMonthsNominative } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { format, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FaClockRotateLeft, FaRegClock } from 'react-icons/fa6'
 import { MdCalendarToday } from 'react-icons/md'
 
@@ -21,6 +21,7 @@ type Props = {
   range: 'day' | 'month' | 'year'
   fullWidth?: boolean
   allowFuture?: boolean // allows future dates if true
+  compact?: boolean
 }
 
 /** * DatePicker with smart mode switching (day, month, year). * Uses custom month/year grid instead of default dropdowns. */
@@ -31,10 +32,12 @@ const DatePicker = ({
   range,
   fullWidth,
   allowFuture = false,
+  compact = false,
 }: Props) => {
   const today = new Date()
   const [open, setOpen] = useState(false)
   const [yearViewOffset, setYearViewOffset] = useState(0)
+  const [monthYearOffset, setMonthYearOffset] = useState(0)
 
   // Returns true if given date is after today and future is disallowed
   const isDisabled = (date: Date) => !allowFuture && date > today
@@ -47,31 +50,52 @@ const DatePicker = ({
     return date
   }
 
-  const handleSelect = (date: Date) => {
-    const normalized = normalize(date)
-    if (isDisabled(normalized)) return
-    onChange(normalized)
-    setOpen(false)
-  }
-
   // Renders 12 months of current year
   const renderMonthGrid = () => {
+    const baseYear = today.getFullYear() + monthYearOffset
+
     const months = Array.from(
       { length: 12 },
-      (_, i) => new Date(today.getFullYear(), i, 1)
+      (_, i) => new Date(baseYear, i, 1)
     )
+
     return (
-      <div className="grid grid-cols-3 gap-2">
-        {months.map((month) => (
+      <div className="space-y-2">
+        {/* Header with year navigation */}
+        <div className="flex justify-between items-center px-1">
           <Button
-            key={month.toISOString()}
-            variant="outline"
-            onClick={() => handleSelect(month)}
-            disabled={isDisabled(month)}
+            variant="ghost"
+            size="icon"
+            onClick={() => setMonthYearOffset((v) => v - 1)}
           >
-            {format(month, 'LLLL', { locale: pl })}
+            ‹
           </Button>
-        ))}
+
+          <p className="text-sm text-muted-foreground">{baseYear}</p>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMonthYearOffset((v) => v + 1)}
+            disabled={!allowFuture && baseYear >= today.getFullYear()}
+          >
+            ›
+          </Button>
+        </div>
+
+        {/* Month grid */}
+        <div className="grid grid-cols-3 gap-2">
+          {months.map((month) => (
+            <Button
+              key={month.toISOString()}
+              variant="outline"
+              onClick={() => handleSelect(month)}
+              disabled={isDisabled(month)}
+            >
+              {format(month, 'LLLL', { locale: pl })}
+            </Button>
+          ))}
+        </div>
       </div>
     )
   }
@@ -117,6 +141,17 @@ const DatePicker = ({
       </div>
     )
   }
+
+  const handleSelect = (date: Date) => {
+    const normalized = normalize(date)
+    if (isDisabled(normalized)) return
+    onChange(normalized)
+    setOpen(false)
+  }
+
+  useEffect(() => {
+    if (range !== 'month') setMonthYearOffset(0)
+  }, [range])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
