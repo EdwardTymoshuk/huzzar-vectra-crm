@@ -6,11 +6,11 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { TechnicianStockItem } from '@/types/vectra-crm'
+import { VectraTechnicianStockItem } from '@/types/vectra-crm'
 import TechnicianStockTable from './TechnicianStockTable'
 
 type Props = {
-  items: TechnicianStockItem[]
+  items: VectraTechnicianStockItem[]
   searchTerm: string
 }
 

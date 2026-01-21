@@ -8,7 +8,10 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { IssuedItemDevice, IssuedItemMaterial } from '@/types/vectra-crm'
+import {
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -25,8 +28,8 @@ interface Props {
  * – calls `warehouse.transfer.requestTransfer` once confirmed
  */
 const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
-  const [devices, setDevices] = useState<IssuedItemDevice[]>([])
-  const [materials, setMaterials] = useState<IssuedItemMaterial[]>([])
+  const [devices, setDevices] = useState<VectraIssuedItemDevice[]>([])
+  const [materials, setMaterials] = useState<VectraIssuedItemMaterial[]>([])
   const [notes, setNotes] = useState('')
 
   const utils = trpc.useUtils()
@@ -62,12 +65,12 @@ const TransferItemsTabs = ({ technicianId, onClose }: Props) => {
   }))
 
   /* ---------- add / remove helpers (same logic as IssueItemsTabs) ---------- */
-  const addDevice = (d: IssuedItemDevice) =>
+  const addDevice = (d: VectraIssuedItemDevice) =>
     setDevices((prev) =>
       prev.find((x) => x.id === d.id) ? prev : [...prev, d]
     )
 
-  const addMaterial = (m: IssuedItemMaterial) =>
+  const addMaterial = (m: VectraIssuedItemMaterial) =>
     setMaterials((prev) => {
       const ex = prev.find((x) => x.id === m.id)
       return ex

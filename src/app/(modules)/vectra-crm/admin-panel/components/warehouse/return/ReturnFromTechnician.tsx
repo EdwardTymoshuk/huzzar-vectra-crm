@@ -1,7 +1,6 @@
 'use client'
 
 import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import SearchInput from '@/app/components/SearchInput'
 import TechnicianSelector from '@/app/components/TechnicianSelector'
 import { Badge } from '@/app/components/ui/badge'
@@ -14,7 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { IssuedItemDevice, IssuedItemMaterial } from '@/types/vectra-crm'
+import {
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { VectraWarehouseStatus } from '@prisma/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -43,10 +46,12 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   >({})
   const [loading, setLoading] = useState(false)
 
-  const [issuedDevices, setIssuedDevices] = useState<IssuedItemDevice[]>([])
-  const [issuedMaterials, setIssuedMaterials] = useState<IssuedItemMaterial[]>(
+  const [issuedDevices, setIssuedDevices] = useState<VectraIssuedItemDevice[]>(
     []
   )
+  const [issuedMaterials, setIssuedMaterials] = useState<
+    VectraIssuedItemMaterial[]
+  >([])
   const [notes, setNotes] = useState('')
 
   const { data: technicians = [] } = trpc.vectra.user.getTechnicians.useQuery({
@@ -142,7 +147,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
      * ============================================================= */
 
     let remaining = qty
-    const additions: IssuedItemMaterial[] = []
+    const additions: VectraIssuedItemMaterial[] = []
 
     for (const rec of availableRecords) {
       if (remaining <= 0) break

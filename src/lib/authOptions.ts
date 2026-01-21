@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
 
         const locations =
           user.role === 'ADMIN' || user.role === 'COORDINATOR'
-            ? await prisma.vectraWarehouseLocation.findMany({
+            ? await prisma.location.findMany({
                 select: { id: true, name: true },
                 orderBy: { name: 'asc' },
               })
@@ -126,7 +126,7 @@ export const authOptions: NextAuthOptions = {
         if (dbUser) {
           token.locations =
             dbUser.role === 'ADMIN' || dbUser.role === 'COORDINATOR'
-              ? await prisma.vectraWarehouseLocation.findMany({
+              ? await prisma.location.findMany({
                   select: { id: true, name: true },
                   orderBy: { name: 'asc' },
                 })

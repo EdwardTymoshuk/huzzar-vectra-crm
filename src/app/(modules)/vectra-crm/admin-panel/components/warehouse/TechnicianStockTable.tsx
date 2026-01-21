@@ -10,12 +10,12 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { materialUnitMap } from '@/lib/constants'
-import { TechnicianStockItem } from '@/types/vectra-crm'
+import { VectraTechnicianStockItem } from '@/types/vectra-crm'
 import Highlight from 'react-highlight-words'
 import { devicesTypeMap } from '../../../lib/constants'
 
 type Props = {
-  items: TechnicianStockItem[]
+  items: VectraTechnicianStockItem[]
   itemType: 'DEVICE' | 'MATERIAL'
   searchTerm: string
 }

@@ -30,18 +30,9 @@ export const adminUserRouter = router({
   getUserById: adminOnly
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: input.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phoneNumber: true,
-          role: true,
-          status: true,
-          identyficator: true,
-          locations: { select: { id: true, name: true } },
-        },
+      const user = await ctx.prisma.vectraUser.findUnique({
+        where: { userId: input.id },
+        select: vectraAdminSelect,
       })
       if (!user)
         throw new TRPCError({

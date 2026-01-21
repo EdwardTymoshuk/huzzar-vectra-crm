@@ -1,15 +1,16 @@
+//src/server/modules/vectra-crm/routers/warehosue/queries.ts
+
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import {
   adminCoordOrWarehouse,
-  adminOnly,
   adminOrCoord,
   loggedInEveryone,
 } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import {
-  TechnicianStockItem,
-  WarehouseDeviceDefinitionVM,
-  WarehouseMaterialDefinitionVM,
+  VectraTechnicianStockItem,
+  VectraWarehouseDeviceDefinitionVM,
+  VectraWarehouseMaterialDefinitionVM,
 } from '@/types/vectra-crm'
 import { prisma } from '@/utils/prisma'
 import {
@@ -125,7 +126,7 @@ export const queriesRouter = router({
         }
 
         return Array.from(map.values()).map(
-          (row): WarehouseDeviceDefinitionVM => ({
+          (row): VectraWarehouseDeviceDefinitionVM => ({
             itemType: 'DEVICE',
             name: row.name,
             category: row.category,
@@ -195,7 +196,7 @@ export const queriesRouter = router({
         }
 
         return Array.from(map.values()).map(
-          (row): WarehouseMaterialDefinitionVM => ({
+          (row): VectraWarehouseMaterialDefinitionVM => ({
             itemType: 'MATERIAL',
             name: row.name,
             index: row.index,
@@ -442,9 +443,9 @@ export const queriesRouter = router({
       })
 
       /**
-       * Map Prisma rows to UI-safe TechnicianStockItem VM.
+       * Map Prisma rows to UI-safe VectraTechnicianStockItem VM.
        */
-      return rows.map<TechnicianStockItem>((item) => {
+      return rows.map<VectraTechnicianStockItem>((item) => {
         if (item.itemType === 'MATERIAL') {
           return {
             id: item.id,
@@ -675,109 +676,6 @@ export const queriesRouter = router({
       orderBy: { updatedAt: 'asc' },
     })
   }),
-
-  /** 📍 Get warehouse locations depending on role */
-  getAllLocations: adminCoordOrWarehouse.query(async ({ ctx }) => {
-    const { user } = ctx
-    if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
-
-    switch (user.role) {
-      case 'ADMIN':
-      case 'COORDINATOR':
-      case 'WAREHOUSEMAN':
-        return ctx.prisma.vectraWarehouseLocation.findMany({
-          orderBy: { name: 'asc' },
-          select: { id: true, name: true },
-        })
-      default:
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Technicians cannot access locations',
-        })
-    }
-  }),
-
-  /** 📍 Only user-assigned locations (for sidebar menu) */
-  getUserLocations: adminCoordOrWarehouse.query(async ({ ctx }) => {
-    const { user } = ctx
-    if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
-
-    if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
-      return ctx.prisma.vectraWarehouseLocation.findMany({
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true },
-      })
-    }
-
-    if (user.role === 'WAREHOUSEMAN') {
-      return user.locations
-    }
-
-    throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'Technicians cannot access locations',
-    })
-  }),
-
-  /** ➕ Create new warehouse location */
-  createLocation: adminOnly
-    .input(z.object({ id: z.string().min(2), name: z.string().min(2) }))
-    .mutation(async ({ input, ctx }) => {
-      try {
-        return await ctx.prisma.vectraWarehouseLocation.create({
-          data: { id: input.id.trim().toLowerCase(), name: input.name.trim() },
-        })
-      } catch (err) {
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2002'
-        ) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Identyfikator lub nazwa lokalizacji już istnieje.',
-          })
-        }
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Nie udało się dodać lokalizacji.',
-        })
-      }
-    }),
-
-  /** 🗑️ Delete warehouse location */
-  deleteLocation: adminOnly
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      try {
-        return await ctx.prisma.vectraWarehouseLocation.delete({
-          where: { id: input.id },
-        })
-      } catch (err) {
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2025'
-        ) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Lokalizacja już nie istnieje.',
-          })
-        }
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Nie udało się usunąć lokalizacji.',
-        })
-      }
-    }),
-
-  /** ✏️ Update warehouse location */
-  updateLocation: adminOnly
-    .input(z.object({ id: z.string(), name: z.string().min(2) }))
-    .mutation(({ input, ctx }) =>
-      ctx.prisma.vectraWarehouseLocation.update({
-        where: { id: input.id },
-        data: { name: input.name },
-      })
-    ),
 
   /** Get technichian stock for return */
   getItemsForReturn: adminCoordOrWarehouse

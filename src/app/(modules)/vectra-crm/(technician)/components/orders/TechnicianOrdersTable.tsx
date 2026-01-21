@@ -1,8 +1,8 @@
 'use client'
 
-import PaginationControls from '@/app/(modules)/vectra-crm/admin-panel/components/warehouse/history/PaginationControls'
 import OrderStatusBadge from '@/app/(modules)/vectra-crm/components/orders/OrderStatusBadge'
 import LoaderSpinner from '@/app/components/LoaderSpinner'
+import PaginationControls from '@/app/components/navigation/PaginationControls'
 import {
   Accordion,
   AccordionContent,

@@ -1,9 +1,9 @@
 'use client'
 
 import HistoryTable from '@/app/(modules)/vectra-crm/admin-panel/components/warehouse/history/HistoryTable'
-import PaginationControls from '@/app/(modules)/vectra-crm/admin-panel/components/warehouse/history/PaginationControls'
 import WarehouseHistoryHeaderBar from '@/app/(modules)/vectra-crm/admin-panel/components/warehouse/history/WarehouseHistoryHeaderBar'
 import LoaderSpinner from '@/app/components/LoaderSpinner'
+import PaginationControls from '@/app/components/navigation/PaginationControls'
 import { trpc } from '@/utils/trpc'
 import { VectraWarehouseAction } from '@prisma/client'
 import { useSearchParams } from 'next/navigation'

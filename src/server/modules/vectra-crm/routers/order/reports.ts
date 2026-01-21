@@ -21,7 +21,7 @@ export const reportsRouter = router({
 
       const orders = await prisma.vectraOrder.findMany({
         where: {
-          type: 'INSTALATION',
+          type: 'INSTALLATION',
           date: { gte: new Date(input.from), lte: new Date(input.to) },
           ...(input.operator && { operator: input.operator }),
           status: { in: ['COMPLETED', 'NOT_COMPLETED'] },

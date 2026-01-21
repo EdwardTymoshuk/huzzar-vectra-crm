@@ -11,7 +11,7 @@ import { getCoreUserOrThrow } from '../../services/getCoreUserOrThrow'
  * authUserRouter – handles authentication-related actions for logged-in users.
  * Includes self info and password change functionality.
  */
-export const authCoreuserRouter = router({
+export const authCoreUserRouter = router({
   /** 👤 Basic data of the currently logged-in user */
   me: loggedInEveryone.query(({ ctx }) => {
     const user = getCoreUserOrThrow(ctx)

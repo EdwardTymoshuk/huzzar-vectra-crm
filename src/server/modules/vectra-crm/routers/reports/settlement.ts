@@ -97,7 +97,7 @@ export const settlementRouter = router({
        */
       const orders = await prisma.vectraOrder.findMany({
         where: {
-          type: 'INSTALATION',
+          type: 'INSTALLATION',
           date: { gte: start, lte: end },
           status: { in: ['ASSIGNED', 'COMPLETED', 'NOT_COMPLETED'] },
         },
@@ -233,7 +233,7 @@ export const settlementRouter = router({
       const orders = await prisma.vectraOrder.findMany({
         where: {
           assignedToId: input.technicianId,
-          type: { in: ['INSTALATION'] },
+          type: { in: ['INSTALLATION'] },
           date: { gte: new Date(input.from), lte: new Date(input.to) },
         },
         include: { settlementEntries: { include: { rate: true } } },
@@ -311,7 +311,7 @@ export const settlementRouter = router({
       const orders = await prisma.vectraOrder.findMany({
         where: {
           assignedToId: technicianId,
-          type: 'INSTALATION',
+          type: 'INSTALLATION',
           date: { gte: start, lte: end },
         },
         include: { settlementEntries: { include: { rate: true } } },
@@ -402,7 +402,7 @@ export const settlementRouter = router({
 
       const orders = await prisma.vectraOrder.findMany({
         where: {
-          type: 'INSTALATION',
+          type: 'INSTALLATION',
           date: { gte: start, lte: end },
           assignedToId: { not: null },
           status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
@@ -510,7 +510,7 @@ export const settlementRouter = router({
       // Fetch all COMPLETED installation orders in the month
       const orders = await prisma.vectraOrder.findMany({
         where: {
-          type: 'INSTALATION',
+          type: 'INSTALLATION',
           status: 'COMPLETED',
           date: { gte: start, lte: end },
         },

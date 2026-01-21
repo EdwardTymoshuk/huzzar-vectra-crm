@@ -3,8 +3,18 @@
 import { Role, UserStatus } from '@prisma/client'
 import 'next-auth'
 
+/**
+ * Lightweight module representation stored in session/JWT.
+ */
 type SessionModule = {
   code: string
+  name: string
+}
+/**
+ * Lightweight location representation stored in session/JWT.
+ */
+type SessionLocation = {
+  id: string
   name: string
 }
 
@@ -19,7 +29,7 @@ declare module 'next-auth' {
       role: Role
       status: UserStatus
       modules: SessionModule[]
-      locations?: UserLocation[]
+      locations?: SessionLocation[]
     }
   }
 
@@ -32,7 +42,7 @@ declare module 'next-auth' {
     role: Role
     status: UserStatus
     modules: SessionModule[]
-    locations?: UserLocation[]
+    locations?: SessionLocation[]
   }
 }
 
@@ -46,6 +56,6 @@ declare module 'next-auth/jwt' {
     role: Role
     status: UserStatus
     modules: SessionModule[]
-    locations?: UserLocation[]
+    locations?: SessionLocation[]
   }
 }

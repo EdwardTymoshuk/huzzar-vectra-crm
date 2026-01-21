@@ -59,7 +59,7 @@ const DashboardPage = () => {
           label="Instalacje"
           date={getSelectedDate()}
           range={range}
-          orderType={VectraOrderType.INSTALATION}
+          orderType={VectraOrderType.INSTALLATION}
         />
 
         <DashboardSection

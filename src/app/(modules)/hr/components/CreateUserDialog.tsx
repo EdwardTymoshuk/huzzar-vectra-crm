@@ -78,7 +78,7 @@ const CreateUserDialog = () => {
     trpc.core.user.getModules.useQuery()
 
   const { data: locations, isLoading: isLoadingLocations } =
-    trpc.core.user.getLocations.useQuery()
+    trpc.core.user.getUserLocations.useQuery()
 
   const createUserMutation = trpc.hr.user.createUser.useMutation({
     onSuccess: () => {

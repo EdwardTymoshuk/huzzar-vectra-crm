@@ -3,14 +3,14 @@
 import DeviceSummaryRow from '@/app/(modules)/vectra-crm/(technician)/components/orders/completeOrder/DeviceSummaryRow'
 import SerialScanInput from '@/app/(modules)/vectra-crm/components/SerialScanInput'
 import { Switch } from '@/app/components/ui/switch'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 
 type Props = {
   enabled: boolean
   onToggle: (on: boolean) => void
-  deviceOptions: IssuedItemDevice[]
-  selected: IssuedItemDevice[]
-  onAdd: (d: IssuedItemDevice) => void
+  deviceOptions: VectraIssuedItemDevice[]
+  selected: VectraIssuedItemDevice[]
+  onAdd: (d: VectraIssuedItemDevice) => void
   onRemove: (id: string) => void
 }
 

@@ -1,0 +1,174 @@
+//prisma/schema/opl/opl-enums.prisma
+
+//ORDER
+enum OplOrderStatus {
+  PENDING
+  ASSIGNED
+  COMPLETED
+  NOT_COMPLETED
+
+  @@schema("opl")
+}
+
+enum OplOrderType {
+  INSTALLATION
+  SERVICE
+  OUTAGE
+
+  @@schema("opl")
+}
+
+enum OplOrderCreatedSource {
+  PLANNER
+  MANUAL
+
+  @@schema("opl")
+}
+
+enum OplTimeSlot {
+  // 1h
+  EIGHT_NINE         @map("8-9")
+  NINE_TEN           @map("9-10")
+  TEN_ELEVEN         @map("10-11")
+  ELEVEN_TWELVE      @map("11-12")
+  TWELVE_THIRTEEN    @map("12-13")
+  THIRTEEN_FOURTEEN  @map("13-14")
+  FOURTEEN_FIFTEEN   @map("14-15")
+  FIFTEEN_SIXTEEN    @map("15-16")
+  SIXTEEN_SEVENTEEN  @map("16-17")
+  SEVENTEEN_EIGHTEEN @map("17-18")
+  EIGHTEEN_NINETEEN  @map("18-19")
+  NINETEEN_TWENTY    @map("19-20")
+
+  // 2h
+  EIGHT_TEN        @map("8-10")
+  TEN_TWELVE       @map("10-12")
+  TWELVE_FOURTEEN  @map("12-14")
+  FOURTEEN_SIXTEEN @map("14-16")
+  SIXTEEN_EIGHTEEN @map("16-18")
+  EIGHTEEN_TWENTY  @map("18-20")
+
+  // 3h
+  EIGHT_ELEVEN       @map("8-11")
+  ELEVEN_FOURTEEN    @map("11-14")
+  FOURTEEN_SEVENTEEN @map("14-17")
+  SEVENTEEN_TWENTY   @map("17-20")
+
+  // 4h
+  EIGHT_TWELVE   @map("8-12")
+  TWELVE_SIXTEEN @map("12-16")
+  SIXTEEN_TWENTY @map("16-20")
+
+  // 6h
+  EIGHT_FOURTEEN  @map("8-14")
+  FOURTEEN_TWENTY @map("14-20")
+
+  @@schema("opl")
+}
+
+//WAREHOUSE
+enum OplWarehouseStatus {
+  AVAILABLE
+  ASSIGNED
+  RETURNED
+  ASSIGNED_TO_ORDER
+  RETURNED_TO_OPERATOR
+  TRANSFER
+  COLLECTED_FROM_CLIENT
+
+  @@schema("opl")
+}
+
+enum OplWarehouseItemType {
+  DEVICE
+  MATERIAL
+
+  @@schema("opl")
+}
+
+enum OplDeviceCategory {
+  MODEM
+  DECODER
+  ONT
+  WIFI_BOX
+  PPOE_SPLITTER
+  PPOE_INJECTOR
+  SIM_CARD
+  OTHER
+
+  @@schema("opl")
+}
+
+enum OplMaterialUnit {
+  PIECE
+  METER
+
+  @@schema("opl")
+}
+
+enum OplWarehouseAction {
+  RECEIVED
+  ISSUED
+  RETURNED
+  RETURNED_TO_OPERATOR
+  RETURNED_TO_TECHNICIAN
+  TRANSFER
+  COLLECTED_FROM_CLIENT
+  ASSIGNED_TO_ORDER
+  ISSUED_TO_CLIENT
+
+  @@schema("opl")
+}
+
+enum OplInstallationType {
+  I_1P @map("1P")
+  I_2P @map("2P")
+  I_3P @map("3P")
+  UTD
+  MR
+  UMZ
+  P1P
+  P2P
+  P3P
+  DSD
+  DU
+  DTV
+  DMR
+  DDSD
+  DMOD
+  DAFP
+  DAFN
+
+  @@schema("opl")
+}
+
+enum OplServisType {
+  UF
+  UZA
+  UPRE
+  UPRO
+  USTA
+  UFP
+  UPREP
+  UPROP
+  USTAP
+
+  @@schema("opl")
+}
+
+enum OplLocationTransferStatus {
+  REQUESTED
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+  CANCELED
+
+  @@schema("opl")
+}
+
+enum OplDeviceSource {
+  WAREHOUSE
+  CLIENT
+
+  @@schema("opl")
+}

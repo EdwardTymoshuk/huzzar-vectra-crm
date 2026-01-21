@@ -1,15 +1,6 @@
 'use client'
 
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
-/**
- * LocationTransfersTable (ADMIN/WAREHOUSE)
- * -------------------------------------------------------------------------
- * • Displays all pending location-to-location transfers.
- * • Each transfer is an accordion item, listing all lines (devices/materials).
- * • Allows confirmation (incoming), rejection, or cancellation (outgoing).
- * • Uses ShadCN components for consistency and clarity.
- * ---------------------------------------------------------------------- */
-
 import {
   Accordion,
   AccordionContent,
@@ -53,6 +44,15 @@ type TransferRow = {
   incoming: boolean
   createdAt: Date
 }
+
+/**
+ * LocationTransfersTable (ADMIN/WAREHOUSE)
+ * -------------------------------------------------------------------------
+ * • Displays all pending location-to-location transfers.
+ * • Each transfer is an accordion item, listing all lines (devices/materials).
+ * • Allows confirmation (incoming), rejection, or cancellation (outgoing).
+ * • Uses ShadCN components for consistency and clarity.
+ * ---------------------------------------------------------------------- */
 
 const LocationTransfersTable = () => {
   const [loadingId, setLoadingId] = useState<string | null>(null)

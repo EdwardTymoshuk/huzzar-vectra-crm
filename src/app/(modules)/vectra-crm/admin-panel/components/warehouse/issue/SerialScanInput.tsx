@@ -2,13 +2,13 @@
 
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 type Props = {
-  onAddDevice: (device: IssuedItemDevice) => void
+  onAddDevice: (device: VectraIssuedItemDevice) => void
 }
 
 /**

@@ -1,6 +1,5 @@
 'use client'
 
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import {
   Dialog,
   DialogContent,
@@ -8,6 +7,7 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { WarehouseFormData } from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'

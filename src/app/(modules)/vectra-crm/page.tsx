@@ -30,7 +30,7 @@ export default function VectraCrmEntryPage() {
     }
 
     if (role === 'TECHNICIAN') {
-      router.replace('/vectra-crm/dashboard')
+      router.replace('/vectra-crm?tab=dashboard')
       return
     }
 

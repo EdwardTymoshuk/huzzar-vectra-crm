@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import { UserWithBasic } from '@/types'
+import { TechnicianLiteVM } from '@/server/core/helpers/mappers/mapTechnicianToVM'
 import { useState } from 'react'
 import { CgArrowsExchange } from 'react-icons/cg'
 import IssueItemsTabs from './IssueItemsTabs'
@@ -27,7 +27,7 @@ type Props = {
  */
 const IssueModal = ({ open, onCloseAction }: Props) => {
   const [selectedTechnician, setSelectedTechnician] =
-    useState<UserWithBasic | null>(null)
+    useState<TechnicianLiteVM | null>(null)
   const [editMode, setEditMode] = useState(false)
 
   const handleClose = () => {

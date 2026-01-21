@@ -5,7 +5,10 @@ import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
-import { getDateRange, getPreviousBaseDate } from '../../services/dateRanges'
+import {
+  getDateRange,
+  getPreviousBaseDate,
+} from '../../../../core/services/dateRanges'
 
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { z } from 'zod'

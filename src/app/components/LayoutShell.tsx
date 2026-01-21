@@ -1,6 +1,5 @@
 'use client'
 
-import ResponsiveNavigation from './../(modules)/vectra-crm/components/navigation/ResponsiveNavigation'
 import MainContainer from './MainContainer'
 import MobileHeader from './MobileHeader'
 import {
@@ -10,6 +9,7 @@ import {
 
 interface LayoutShellProps {
   children: React.ReactNode
+  navigation: React.ReactNode
 }
 
 /**
@@ -20,7 +20,7 @@ interface LayoutShellProps {
  * - Displays ResponsiveNavigation (bottom nav or top nav).
  * - Adds top padding on mobile to prevent content overlap.
  */
-const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
+const LayoutShell: React.FC<LayoutShellProps> = ({ children, navigation }) => {
   return (
     <>
       <NavigationProgressProvider>
@@ -29,7 +29,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         {/* ✅ Mobile header appears only on small screens */}
         <MobileHeader />
         {/* ✅ ResponsiveNavigation (bottom on mobile, top on desktop) */}
-        <ResponsiveNavigation />
+        {navigation}
         {/* ✅ Main content area with top padding for header space */}
         <div className="flex flex-col h-full md:pt-[57px] pb-[72px] md:pb-0">
           <MainContainer>{children}</MainContainer>

@@ -1,7 +1,6 @@
 'use client'
 
 import LocationSelector from '@/app/(modules)/vectra-crm/components/warehouse/LocationSelector'
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -9,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { CgArrowsExchange } from 'react-icons/cg'

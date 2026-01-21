@@ -89,7 +89,7 @@ export const hrUserRouter = router({
       const passwordHash = await bcrypt.hash(input.password, 10)
 
       const user = await ctx.prisma.$transaction(async (tx) => {
-        const validLocations = await tx.userLocation.findMany({
+        const validLocations = await tx.location.findMany({
           where: { id: { in: input.locationIds } },
           select: { id: true },
         })
@@ -286,7 +286,7 @@ export const hrUserRouter = router({
          * If HR does not manage locations, you can remove this block entirely.
          */
         if (input.locationIds) {
-          const validLocations = await tx.userLocation.findMany({
+          const validLocations = await tx.location.findMany({
             where: { id: { in: input.locationIds } },
             select: { id: true },
           })

@@ -7,7 +7,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
-import { IssuedItemDevice, VectraActivatedService } from '@/types/vectra-crm'
+import {
+  VectraActivatedService,
+  VectraIssuedItemDevice,
+} from '@/types/vectra-crm'
 import { VectraOrderType } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -29,7 +32,7 @@ interface StepServicesProps {
   onBack: () => void
   operator: string
   /** Technician stock from backend */
-  devices: IssuedItemDevice[]
+  devices: VectraIssuedItemDevice[]
   orderType?: VectraOrderType
 }
 
@@ -42,13 +45,13 @@ const StepServices = ({
   devices,
 }: StepServicesProps) => {
   /** Locally tracked freed devices so they can be reused again */
-  const [freedDevices, setFreedDevices] = useState<IssuedItemDevice[]>([])
+  const [freedDevices, setFreedDevices] = useState<VectraIssuedItemDevice[]>([])
 
   /**
    * Merge backend devices with locally freed ones,
    * so dialogs (SerialScanInput, ServiceConfigDialog) can see them again.
    */
-  const mergedDevices = useMemo<IssuedItemDevice[]>(() => {
+  const mergedDevices = useMemo<VectraIssuedItemDevice[]>(() => {
     const out = [...devices]
     freedDevices.forEach((fd) => {
       if (!out.some((d) => d.id === fd.id)) out.push(fd)
@@ -57,7 +60,7 @@ const StepServices = ({
   }, [devices, freedDevices])
 
   /** Called from ServicesSection when devices are released */
-  const handleDevicesFreed = (released: IssuedItemDevice[]) => {
+  const handleDevicesFreed = (released: VectraIssuedItemDevice[]) => {
     setFreedDevices((prev) => {
       const next = [...prev]
       released.forEach((dev) => {

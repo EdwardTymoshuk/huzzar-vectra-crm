@@ -41,12 +41,14 @@ const ItemModeTable = ({ mode, items }: Props) => {
   const [orderId, setOrderId] = useState<string | null>(null)
 
   const { isAdmin, isCoordinator, isWarehouseman } = useRole()
-  const { data: userLocations = [] } =
-    trpc.vectra.warehouse.getUserLocations.useQuery(undefined, {
+  const { data: Locations = [] } = trpc.core.user.getUserLocations.useQuery(
+    undefined,
+    {
       enabled: isAdmin || isCoordinator || isWarehouseman,
-    })
+    }
+  )
 
-  const locations = userLocations.map((loc) => ({
+  const locations = Locations.map((loc) => ({
     id: loc.id,
     name: loc.name,
   }))

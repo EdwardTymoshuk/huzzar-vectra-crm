@@ -30,7 +30,7 @@ export const mutationsRouter = router({
       z.array(
         z.object({
           operator: z.string(),
-          type: z.literal('INSTALATION'),
+          type: z.literal('INSTALLATION'),
           clientId: z.string().optional(),
           orderNumber: z.string(),
           date: z.string(),
@@ -751,7 +751,7 @@ export const mutationsRouter = router({
         })
       if (
         input.status === VectraOrderStatus.COMPLETED &&
-        order.type === VectraOrderType.INSTALATION &&
+        order.type === VectraOrderType.INSTALLATION &&
         (!input.workCodes || input.workCodes.length === 0)
       ) {
         throw new TRPCError({
@@ -1684,7 +1684,7 @@ export const mutationsRouter = router({
                 ? input.failureReason ?? null
                 : null,
             closedAt:
-              previous?.type === VectraOrderType.INSTALATION
+              previous?.type === VectraOrderType.INSTALLATION
                 ? undefined
                 : new Date(),
           },

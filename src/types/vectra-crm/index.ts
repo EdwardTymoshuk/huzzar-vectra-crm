@@ -5,17 +5,14 @@
 // -----------------------------
 
 import {
-  User,
   VectraDeviceCategory,
   VectraDeviceSource,
   VectraMaterialUnit,
-  VectraOrder,
   VectraOrderStatus,
   VectraOrderType,
   VectraServiceType,
   VectraTimeSlot,
   VectraWarehouseAction,
-  VectraWarehouseHistory,
   VectraWarehouseItemType,
   VectraWarehouseStatus,
 } from '@prisma/client'
@@ -66,7 +63,7 @@ export type AdminEditCompletionInput = z.infer<typeof adminEditCompletionSchema>
 // VectraWarehouse types
 // -----------------------------
 
-export type IssuedItemDevice = {
+export type VectraIssuedItemDevice = {
   id: string
   type: 'DEVICE'
   name: string
@@ -75,7 +72,7 @@ export type IssuedItemDevice = {
   status?: VectraWarehouseStatus
 }
 
-export type IssuedItemMaterial = {
+export type VectraIssuedItemMaterial = {
   id: string
   type: 'MATERIAL'
   name: string
@@ -83,9 +80,7 @@ export type IssuedItemMaterial = {
   quantity: number
 }
 
-export type IssuedItem = IssuedItemDevice | IssuedItemMaterial
-
-export type ActivatedServiceExtraDevice = {
+export type VectraActivatedServiceExtraDevice = {
   id: string
   source: VectraDeviceSource
   deviceId?: string
@@ -95,7 +90,7 @@ export type ActivatedServiceExtraDevice = {
 }
 
 // Full warehouse history with relations
-export type WarehouseHistoryWithRelations =
+export type VectraWarehouseHistoryWithRelations =
   Prisma.VectraWarehouseHistoryGetPayload<{
     select: {
       id: true
@@ -161,12 +156,6 @@ export type WarehouseHistoryWithRelations =
     }
   }>
 
-export type WarehouseHistoryWithUser = VectraWarehouseHistory & {
-  performedBy: User
-  assignedTo: User | null
-  assignedOrder: VectraOrder | null
-}
-
 export type VectraActivatedService = {
   id: string
   type: VectraServiceType
@@ -187,7 +176,7 @@ export type VectraActivatedService = {
   deviceType2?: VectraDeviceCategory
 
   // NET-only: extra modems/routers that should count as sockets
-  extraDevices?: ActivatedServiceExtraDevice[]
+  extraDevices?: VectraActivatedServiceExtraDevice[]
 
   // Measurements
   speedTest?: string
@@ -202,7 +191,7 @@ export type VectraActivatedService = {
 // Order related
 // -----------------------------
 
-export interface TechnicianAssignment {
+export interface VectraTechnicianAssignment {
   technicianName: string
   technicianId: string | null
   slots: {
@@ -266,11 +255,10 @@ export type VectraUserWithLocations = Prisma.VectraUserGetPayload<{
         locations: true
       }
     }
-    technicianSettings: true
   }
 }>
 
-export type ClientHistoryItem = {
+export type VectraClientHistoryItem = {
   id: string
   orderNumber: string
   date: Date
@@ -281,7 +269,7 @@ export type ClientHistoryItem = {
   attemptNumber: number
 }
 
-export type PreviousOrderPrismaResult = {
+export type VectraPreviousOrderPrismaResult = {
   id: string
   attemptNumber: number
   date: Date
@@ -301,7 +289,7 @@ export type PreviousOrderPrismaResult = {
   } | null
 }
 
-export interface OrderAttemptVM {
+export interface VectraOrderAttemptVM {
   id: string
   attemptNumber: number
   date: Date
@@ -315,7 +303,7 @@ export interface OrderAttemptVM {
   assignedTo: { id: string; name: string } | null
 }
 
-export type WarehouseHistoryRowVM = {
+export type VectraWarehouseHistoryRowVM = {
   id: string
   action: VectraWarehouseAction
   actionDate: Date
@@ -339,7 +327,7 @@ export type WarehouseHistoryRowVM = {
   } | null
 }
 
-export type WarehouseDeviceDefinitionVM = {
+export type VectraWarehouseDeviceDefinitionVM = {
   itemType: 'DEVICE'
   name: string
   category: VectraDeviceCategory
@@ -347,7 +335,7 @@ export type WarehouseDeviceDefinitionVM = {
   price: number
 }
 
-export type WarehouseMaterialDefinitionVM = {
+export type VectraWarehouseMaterialDefinitionVM = {
   itemType: 'MATERIAL'
   name: string
   index: string | null
@@ -356,11 +344,11 @@ export type WarehouseMaterialDefinitionVM = {
   price: number
 }
 
-export type WarehouseDefinitionWithStockVM =
-  | WarehouseDeviceDefinitionVM
-  | WarehouseMaterialDefinitionVM
+export type VectraWarehouseDefinitionWithStockVM =
+  | VectraWarehouseDeviceDefinitionVM
+  | VectraWarehouseMaterialDefinitionVM
 
-type TechnicianStockBase = {
+type VectraTechnicianStockBase = {
   id: string
   name: string
   itemType: VectraWarehouseItemType
@@ -369,7 +357,7 @@ type TechnicianStockBase = {
 }
 
 /** DEVICE */
-export type TechnicianStockDeviceItem = TechnicianStockBase & {
+export type VectraTechnicianStockDeviceItem = VectraTechnicianStockBase & {
   itemType: 'DEVICE'
   category: VectraDeviceCategory
   serialNumber: string | null
@@ -383,7 +371,7 @@ export type TechnicianStockDeviceItem = TechnicianStockBase & {
 }
 
 /** MATERIAL */
-export type TechnicianStockMaterialItem = TechnicianStockBase & {
+export type VectraTechnicianStockMaterialItem = VectraTechnicianStockBase & {
   itemType: 'MATERIAL'
   quantity: number
   unit: VectraMaterialUnit
@@ -396,21 +384,6 @@ export type TechnicianStockMaterialItem = TechnicianStockBase & {
   serialNumber: null
 }
 
-export type TechnicianStockItem =
-  | TechnicianStockDeviceItem
-  | TechnicianStockMaterialItem
-
-export type OrderAssignedUserVM = {
-  id: string
-  name: string
-}
-
-export type OrderWithAssignedToVM = {
-  id: string
-  orderNumber: string
-  status: VectraOrderStatus
-  date: Date
-  timeSlot: VectraTimeSlot
-  assignedToId: string | null
-  assignedTo: OrderAssignedUserVM | null
-}
+export type VectraTechnicianStockItem =
+  | VectraTechnicianStockDeviceItem
+  | VectraTechnicianStockMaterialItem

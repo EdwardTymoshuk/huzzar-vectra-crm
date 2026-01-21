@@ -99,9 +99,12 @@ const EditUserDialog = ({ user }: { user: UserForEditDialog }) => {
     staleTime: 60_000,
   })
 
-  const { data: locations } = trpc.core.user.getLocations.useQuery(undefined, {
-    staleTime: 60_000,
-  })
+  const { data: locations } = trpc.core.user.getUserLocations.useQuery(
+    undefined,
+    {
+      staleTime: 60_000,
+    }
+  )
 
   const updateUserMutation = trpc.hr.user.updateUser.useMutation({
     onSuccess: () => {

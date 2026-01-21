@@ -3,7 +3,7 @@
 
 import LoaderLogo from '@/app/components/LoaderLogo'
 import { Suspense } from 'react'
-import ClientRoutingHandler from '../components/VectraClientRoutingHandler'
+import VectraClientRoutingHandler from '../components/VectraClientRoutingHandler'
 
 /**
  * Admin panel layout:
@@ -13,7 +13,7 @@ import ClientRoutingHandler from '../components/VectraClientRoutingHandler'
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <Suspense fallback={<LoaderLogo show />}>
-      <ClientRoutingHandler>{children}</ClientRoutingHandler>
+      <VectraClientRoutingHandler>{children}</VectraClientRoutingHandler>
     </Suspense>
   )
 }

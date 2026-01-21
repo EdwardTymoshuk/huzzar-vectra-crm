@@ -46,7 +46,7 @@ export const TechnicianAddOrderModal = ({
   const form = useForm<TechnicianVectraOrderFormData>({
     resolver: zodResolver(technicianOrderSchema),
     defaultValues: {
-      type: 'INSTALATION',
+      type: 'INSTALLATION',
       orderNumber: '',
       date: new Date().toISOString().split('T')[0],
       timeSlot: 'EIGHT_TEN',

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import { UserWithBasic } from '@/types'
+import { TechnicianLiteVM } from '@/server/core/helpers/mappers/mapTechnicianToVM'
 import { useState } from 'react'
 import { CgArrowsExchange } from 'react-icons/cg'
 
@@ -20,7 +20,7 @@ type Props = { open: boolean; onClose: () => void }
  * – lets Technician A choose Technician B and pick items to send
  */
 const TransferModal = ({ open, onClose }: Props) => {
-  const [tech, setTech] = useState<UserWithBasic | null>(null)
+  const [tech, setTech] = useState<TechnicianLiteVM | null>(null)
   const [edit, setEdit] = useState(false)
 
   const resetAndClose = () => {

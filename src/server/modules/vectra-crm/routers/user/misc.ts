@@ -1,41 +1,60 @@
-// server/routers/user/misc.ts
+// src/server/modules/vectra-crm/routers/user/misc.ts
+import { mapTechnicianToEmployeeVM } from '@/server/core/helpers/mappers/mapTechnicianToEmployeeVM'
+import { mapTechnicianToVM } from '@/server/core/helpers/mappers/mapTechnicianToVM'
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
-import { prisma } from '@/utils/prisma'
 import { z } from 'zod'
 
 /**
- * miscUserRouter – provides auxiliary user queries (e.g., technician listings).
+ * miscUserRouter
+ * ------------------------------------------------------
+ * Auxiliary user-related queries scoped strictly
+ * to the VECTRA CRM domain.
  */
 export const miscUserRouter = router({
-  /** 👥 Returns all technicians except the currently logged-in user (for transfers) */
+  /**
+   * Returns all active VECTRA technicians except
+   * the currently logged-in user (used for transfers).
+   */
   getOtherTechnicians: loggedInEveryone
-    .input(z.object({ excludeId: z.string().optional() }))
-    .query(({ ctx, input }) => {
-      const user = getCoreUserOrThrow(ctx)
+    .input(
+      z.object({
+        excludeId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const currentUser = getCoreUserOrThrow(ctx)
 
-      return prisma.user.findMany({
+      const users = await ctx.prisma.vectraUser.findMany({
         where: {
-          role: 'TECHNICIAN',
-          id: { not: input.excludeId ?? user.id },
-          status: 'ACTIVE',
+          active: true,
+          user: {
+            role: 'TECHNICIAN',
+            status: 'ACTIVE',
+            id: {
+              not: input.excludeId ?? currentUser.id,
+            },
+          },
         },
-        orderBy: { name: 'asc' },
+        orderBy: {
+          user: { name: 'asc' },
+        },
         select: {
-          id: true,
-          name: true,
-          email: true,
-          phoneNumber: true,
-          role: true,
-          status: true,
-          identyficator: true,
-          locations: { select: { id: true, name: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              identyficator: true,
+              status: true,
+            },
+          },
         },
       })
+
+      return users.map(mapTechnicianToVM)
     }),
 
-  /** 📋 Returns list of all technicians, optionally filtered by status */
   getTechnicians: adminCoordOrWarehouse
     .input(
       z.object({
@@ -44,27 +63,45 @@ export const miscUserRouter = router({
           .optional(),
       })
     )
-    .query(({ input }) =>
-      prisma.user.findMany({
+    .query(async ({ ctx, input }) => {
+      const technicians = await ctx.prisma.vectraUser.findMany({
         where: {
-          role: 'TECHNICIAN',
-          ...(input.status ? { status: input.status } : {}),
+          active: true,
+          user: {
+            role: 'TECHNICIAN',
+            ...(input.status ? { status: input.status } : {}),
+          },
+        },
+        orderBy: {
+          user: { name: 'asc' },
         },
         select: {
-          id: true,
-          email: true,
-          phoneNumber: true,
-          name: true,
-          role: true,
-          status: true,
-          identyficator: true,
-          locations: { select: { id: true, name: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phoneNumber: true,
+              role: true,
+              status: true,
+              identyficator: true,
+              locations: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
-        orderBy: { name: 'asc' },
       })
-    ),
 
-  /** 🔍 Search technicians by name (case-insensitive and normalized) */
+      return technicians.map(mapTechnicianToEmployeeVM)
+    }),
+  /**
+   * Searches VECTRA technicians by name
+   * using a normalized, case-insensitive query.
+   */
   searchTechniciansByName: adminCoordOrWarehouse
     .input(
       z.object({
@@ -72,30 +109,49 @@ export const miscUserRouter = router({
         limit: z.number().min(1).max(50).optional().default(10),
       })
     )
-    .query(async ({ input }) => {
-      // Normalize query: trim spaces and remove trailing parentheses
+    .query(({ ctx, input }) => {
+      /**
+       * Normalize query:
+       * - trim whitespace
+       * - collapse multiple spaces
+       * - remove trailing parentheses
+       */
       const cleaned = input.query
         .trim()
         .replace(/\s+/g, ' ')
         .replace(/\([^)]*\)\s*$/, '')
 
-      return prisma.user.findMany({
+      return ctx.prisma.vectraUser.findMany({
         where: {
-          role: 'TECHNICIAN',
-          name: {
-            contains: cleaned,
-            mode: 'insensitive',
+          active: true,
+          user: {
+            role: 'TECHNICIAN',
+            name: {
+              contains: cleaned,
+              mode: 'insensitive',
+            },
           },
         },
-        orderBy: { name: 'asc' },
+        orderBy: {
+          user: { name: 'asc' },
+        },
         take: input.limit,
         select: {
-          id: true,
-          name: true,
-          status: true,
-          phoneNumber: true,
-          email: true,
-          locations: { select: { id: true, name: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              phoneNumber: true,
+              email: true,
+              locations: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       })
     }),

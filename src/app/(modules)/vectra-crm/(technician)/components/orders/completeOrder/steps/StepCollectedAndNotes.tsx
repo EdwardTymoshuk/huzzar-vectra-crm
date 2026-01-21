@@ -20,7 +20,7 @@ import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 
 import BarcodeScannerDialog from '@/app/(modules)/vectra-crm/components/orders/BarcodeScannerDialog'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import { VectraDeviceCategory, VectraOrderType } from '@prisma/client'
 
 type CollectedDevice = {
@@ -34,15 +34,15 @@ type Setter<T> = React.Dispatch<React.SetStateAction<T>>
 
 interface Props {
   /** All devices available in technician's stock */
-  devices: IssuedItemDevice[]
+  devices: VectraIssuedItemDevice[]
 
   /** Already collected (from client) devices */
   collected: CollectedDevice[]
   setCollected: (v: CollectedDevice[]) => void
 
   /** Issued devices (to client) – only for SERVICE / OUTAGE */
-  issued: IssuedItemDevice[]
-  setIssued: Setter<IssuedItemDevice[]>
+  issued: VectraIssuedItemDevice[]
+  setIssued: Setter<VectraIssuedItemDevice[]>
 
   /** Order metadata */
   orderType: VectraOrderType
@@ -55,7 +55,7 @@ interface Props {
   onBack: () => void
   onNext: (data: {
     collected: CollectedDevice[]
-    issued: IssuedItemDevice[]
+    issued: VectraIssuedItemDevice[]
     notes: string
   }) => void
 }
@@ -152,7 +152,7 @@ const StepCollectedAndNotes = ({
       setCollectEnabled(true)
     }
 
-    if (issued.length > 0 && orderType !== 'INSTALATION') {
+    if (issued.length > 0 && orderType !== 'INSTALLATION') {
       setIssueEnabled(true)
     }
   }, [collected.length, issued.length, orderType])
@@ -168,7 +168,7 @@ const StepCollectedAndNotes = ({
       return
     }
 
-    if (orderType !== 'INSTALATION' && issueEnabled && issued.length === 0) {
+    if (orderType !== 'INSTALLATION' && issueEnabled && issued.length === 0) {
       toast.error(
         'Dodaj przynajmniej jedno wydane urządzenie lub wyłącz wydanie.'
       )
@@ -182,7 +182,7 @@ const StepCollectedAndNotes = ({
     })
   }
 
-  const canIssue = orderType !== 'INSTALATION'
+  const canIssue = orderType !== 'INSTALLATION'
 
   return (
     <div className="flex flex-col h-full justify-between">

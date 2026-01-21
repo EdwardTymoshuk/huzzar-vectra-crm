@@ -5,18 +5,15 @@
 /// -----------------------------------------
 
 model VectraUser {
-  @@schema("vectra")
-  userId    String   @id
-  active         Boolean  @default(true)
+  userId String  @id
+  active Boolean @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deactivatedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deactivatedAt DateTime?
 
   // Bridge to global User
   user User @relation("UserToVectraUser", fields: [userId], references: [id])
-
-  technicianSettings VectraTechnicianSettings?
 
   // --- Relations used throughout the module ---
   ordersAssigned    VectraOrder[]        @relation("VectraOrderAssignedTo")
@@ -32,29 +29,49 @@ model VectraUser {
   transfersRequested VectraLocationTransfer[] @relation("VectraRequestedTransfers")
   transfersConfirmed VectraLocationTransfer[] @relation("VectraConfirmedTransfers")
 
-  materialDeficits VectraTechnicianMaterialDeficit[] @relation("VectraMaterialDeficitTechnician")
-}
+  materialDeficits               VectraTechnicianMaterialDeficit[] @relation("VectraMaterialDeficitTechnician")
+  VectraTechnicianSettingsLegacy VectraTechnicianSettingsLegacy[]
 
-model VectraTechnicianSettings {
   @@schema("vectra")
-  userId          String   @id
-  workingDaysGoal Int
-  revenueGoal     Float
-  updatedAt       DateTime @updatedAt
-
-  vectraUser VectraUser @relation(fields: [userId], references: [userId])
 }
 
 model VectraRateDefinition {
-  @@schema("vectra")
   id     String @id @default(uuid())
   code   String @unique
   amount Float
 
   settlements VectraOrderSettlementEntry[] @relation("RateDefinitionToSettlement")
+
+  @@schema("vectra")
 }
 
 model VectraOperatorDefinition {
-  @@schema("vectra")
   operator String @unique
+
+  @@schema("vectra")
+}
+
+model VectraTechnicianSettingsLegacy {
+
+  userId          String   @id
+  workingDaysGoal Int
+  revenueGoal     Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user VectraUser @relation(fields: [userId], references: [userId])
+
+  @@map("VectraTechnicianSettings")
+  @@schema("vectra")
+}
+
+model VectraWarehouseLocationLegacy {
+
+  id        String   @id
+  name      String
+  createdAt DateTime
+  updatedAt DateTime
+
+  @@map("VectraWarehouseLocation")
+  @@schema("vectra")
 }

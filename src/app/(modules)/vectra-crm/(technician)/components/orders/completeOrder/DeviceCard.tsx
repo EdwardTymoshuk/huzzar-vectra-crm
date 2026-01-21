@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/app/components/ui/button'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 
 /**
  * DeviceCard
@@ -10,7 +10,7 @@ import { IssuedItemDevice } from '@/types/vectra-crm'
  */
 interface Props {
   label: string
-  device: IssuedItemDevice
+  device: VectraIssuedItemDevice
   onRemove?: () => void
 }
 

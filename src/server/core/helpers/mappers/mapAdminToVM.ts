@@ -1,3 +1,5 @@
+//src/server/core/helpers/mappers/mapAdminToVM
+
 import { Role, UserStatus } from '@prisma/client'
 
 type AdminRole = 'ADMIN' | 'COORDINATOR' | 'WAREHOUSEMAN'

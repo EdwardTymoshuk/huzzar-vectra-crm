@@ -5,7 +5,10 @@ import { getSettlementWorkCodes } from '@/app/(modules)/vectra-crm/utils/getSett
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent } from '@/app/components/ui/card'
 import { materialUnitMap } from '@/lib/constants'
-import { IssuedItemDevice, VectraActivatedService } from '@/types/vectra-crm'
+import {
+  VectraActivatedService,
+  VectraIssuedItemDevice,
+} from '@/types/vectra-crm'
 
 import { getErrMessage } from '@/utils/errorHandler'
 import {
@@ -50,7 +53,7 @@ interface StepSummaryProps {
   }) => Promise<void>
   materialDefs: VectraMaterialDefinition[]
   workCodeDefs: VectraRateDefinition[]
-  issued?: IssuedItemDevice[]
+  issued?: VectraIssuedItemDevice[]
 }
 
 /**
@@ -78,7 +81,7 @@ const StepSummary = ({
   const [isSaving, setIsSaving] = useState(false)
 
   const isCompleted = status === 'COMPLETED'
-  const isInstallation = orderType === 'INSTALATION'
+  const isInstallation = orderType === 'INSTALLATION'
 
   /** Submit handler */
   const handleFinish = async () => {

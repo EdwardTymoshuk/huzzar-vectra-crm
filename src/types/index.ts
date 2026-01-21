@@ -98,7 +98,7 @@ export type UserModule = {
   name: string
 }
 
-export type UserLocation = {
+export type Location = {
   id: string
   name: string
 }
@@ -119,4 +119,18 @@ export type SettingsSectionConfig = {
   label: string
   roles: Role[]
   module?: ModuleCode
+}
+
+export interface EmployeeVM {
+  id: string
+  name: string
+  email: string
+  phoneNumber: string
+  role: Role
+  status: UserStatus
+  identyficator: number | null
+  locations: {
+    id: string
+    name: string
+  }[]
 }

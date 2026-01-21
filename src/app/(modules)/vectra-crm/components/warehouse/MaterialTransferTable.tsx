@@ -5,7 +5,7 @@ import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { IssuedItemMaterial } from '@/types/vectra-crm'
+import { VectraIssuedItemMaterial } from '@/types/vectra-crm'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -17,8 +17,8 @@ type Props = {
    * If not provided, fallback to technician mode (self stock).
    */
   fromLocationId?: string
-  onAdd: (material: IssuedItemMaterial) => void
-  picked: IssuedItemMaterial[]
+  onAdd: (material: VectraIssuedItemMaterial) => void
+  picked: VectraIssuedItemMaterial[]
 }
 
 type MaterialRow = {

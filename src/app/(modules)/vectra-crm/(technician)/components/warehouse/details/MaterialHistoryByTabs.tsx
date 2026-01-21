@@ -2,7 +2,7 @@
 
 import ItemHistoryList from '@/app/(modules)/vectra-crm/components/warehouse/ItemHistoryList'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { WarehouseHistoryRowVM } from '@/types/vectra-crm'
+import { VectraWarehouseHistoryRowVM } from '@/types/vectra-crm'
 import { trpc } from '@/utils/trpc'
 
 type Props = {
@@ -18,7 +18,7 @@ const MaterialHistoryByTabs = ({ name, tab }: Props) => {
 
   if (isLoading || !data) return <Skeleton className="h-32 w-full" />
 
-  let filtered: WarehouseHistoryRowVM[] = []
+  let filtered: VectraWarehouseHistoryRowVM[] = []
 
   switch (tab) {
     case 'warehouse':

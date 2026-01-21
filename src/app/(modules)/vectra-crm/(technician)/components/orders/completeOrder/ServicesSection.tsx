@@ -7,7 +7,10 @@ import { Button } from '@/app/components/ui/button'
 import { Label } from '@/app/components/ui/label'
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
-import { IssuedItemDevice, VectraActivatedService } from '@/types/vectra-crm'
+import {
+  VectraActivatedService,
+  VectraIssuedItemDevice,
+} from '@/types/vectra-crm'
 import { VectraDeviceCategory, VectraServiceType } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import { GrPowerReset } from 'react-icons/gr'
@@ -18,7 +21,7 @@ import ServiceConfigDialog from './ServiceConfigDialog'
 interface ServicesSectionProps {
   operator: string
   /** merged list from parent (backend + freed) */
-  devices: IssuedItemDevice[]
+  devices: VectraIssuedItemDevice[]
   /** current activated services */
   value: VectraActivatedService[]
   /** setter from parent wizard */
@@ -27,7 +30,7 @@ interface ServicesSectionProps {
    * Called when user deletes a service that had devices.
    * Parent must store those devices so they can be reused.
    */
-  onDevicesFreed?: (devices: IssuedItemDevice[]) => void
+  onDevicesFreed?: (devices: VectraIssuedItemDevice[]) => void
 }
 
 const ServicesSection = ({
@@ -73,7 +76,7 @@ const ServicesSection = ({
    */
   const removeService = (id: string) => {
     const removed = value.find((v) => v.id === id)
-    const freed: IssuedItemDevice[] = []
+    const freed: VectraIssuedItemDevice[] = []
 
     if (removed) {
       // primary
@@ -124,7 +127,7 @@ const ServicesSection = ({
   }
 
   const resetAll = () => {
-    const freed: IssuedItemDevice[] = []
+    const freed: VectraIssuedItemDevice[] = []
     value.forEach((svc) => {
       if (svc.deviceId)
         freed.push({
@@ -391,7 +394,7 @@ export default ServicesSection
 
 type TelRowProps = {
   service: VectraActivatedService
-  devices: IssuedItemDevice[]
+  devices: VectraIssuedItemDevice[]
   onChange: (s: VectraActivatedService) => void
   /** Cała lista usług, by wykryć kolejność TEL */
   allServices?: VectraActivatedService[]
@@ -420,7 +423,7 @@ const TelRow = ({ service, devices, onChange, allServices }: TelRowProps) => {
   }, [isAdditionalTel])
 
   /** Handle device selection */
-  const handleSelectSim = (device: IssuedItemDevice) => {
+  const handleSelectSim = (device: VectraIssuedItemDevice) => {
     onChange({
       ...service,
       deviceId: device.id,

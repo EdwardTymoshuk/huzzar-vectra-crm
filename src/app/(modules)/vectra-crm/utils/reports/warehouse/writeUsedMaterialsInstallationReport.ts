@@ -20,7 +20,7 @@ export async function writeUsedMaterialsInstallationReport(
     by: ['materialId', 'unit'],
     where: {
       order: {
-        type: 'INSTALATION',
+        type: 'INSTALLATION',
         status: 'COMPLETED',
         completedAt: {
           gte: from,

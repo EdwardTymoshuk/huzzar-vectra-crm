@@ -1,10 +1,10 @@
-//src/app/admin-panel/components/warehouse/warehouseSummaryCard.tsx
+//src/app/(modules)/vectra-crm/admin-panel/components/warehouse/warehouseSummaryCard.tsx
 
 'use client'
 
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 

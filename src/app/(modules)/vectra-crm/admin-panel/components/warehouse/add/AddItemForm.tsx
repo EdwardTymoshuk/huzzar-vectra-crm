@@ -2,7 +2,6 @@
 
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
 import { warehouseFormSchema } from '@/app/(modules)/vectra-crm/lib/schema'
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import { Button } from '@/app/components/ui/button'
 import {
   Command,
@@ -35,6 +34,7 @@ import {
 } from '@/app/components/ui/select'
 import { devicesStatusMap } from '@/lib/constants'
 import { WarehouseFormData } from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { VectraDeviceCategory } from '@prisma/client'

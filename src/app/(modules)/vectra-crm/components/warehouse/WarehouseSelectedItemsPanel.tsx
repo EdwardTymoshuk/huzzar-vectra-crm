@@ -14,8 +14,8 @@ import {
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import {
-  IssuedItemDevice,
-  IssuedItemMaterial,
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
   WarehouseFormData,
 } from '@/types/vectra-crm'
 
@@ -64,7 +64,7 @@ const WarehouseSelectedItemsPanel = ({
 
           <ul className="space-y-2">
             {devices.map((item, idx) => {
-              const d = item as IssuedItemDevice
+              const d = item as VectraIssuedItemDevice
               return (
                 <li
                   key={`device-${idx}`}
@@ -106,7 +106,7 @@ const WarehouseSelectedItemsPanel = ({
 
           <ul className="space-y-2">
             {materials.map((item, idx) => {
-              const m = item as IssuedItemMaterial
+              const m = item as VectraIssuedItemMaterial
               return (
                 <li
                   key={`material-${idx}`}

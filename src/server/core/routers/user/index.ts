@@ -1,8 +1,12 @@
 import { mergeRouters } from '@/server/trpc'
-import { authCoreuserRouter } from './auth'
+import { authCoreUserRouter } from './auth'
+import { locationRouter } from './location'
 import { queriesCoreRouter } from './queries'
+import { settingsRouter } from './settings'
 
 export const userCoreRouter = mergeRouters(
-  authCoreuserRouter,
-  queriesCoreRouter
+  authCoreUserRouter,
+  queriesCoreRouter,
+  settingsRouter,
+  locationRouter
 )

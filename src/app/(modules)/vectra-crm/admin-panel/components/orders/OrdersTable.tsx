@@ -36,8 +36,8 @@ import {
   TiArrowUnsorted,
 } from 'react-icons/ti'
 import { toast } from 'sonner'
+import PaginationControls from '../../../../../components/navigation/PaginationControls'
 import { orderTypeMap } from '../../../lib/constants'
-import PaginationControls from '../warehouse/history/PaginationControls'
 import EditOrderModal from './EditOrderModal'
 import OrderAccordionDetails from './OrderAccordionDetails'
 

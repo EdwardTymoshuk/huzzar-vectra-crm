@@ -1,13 +1,13 @@
 'use client'
 
 import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import SearchInput from '@/app/components/SearchInput'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { IssuedItemMaterial } from '@/types/vectra-crm'
+import { VectraIssuedItemMaterial } from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -16,8 +16,8 @@ import { toast } from 'sonner'
 
 type Props = {
   technicianId: string
-  onAddMaterial: (material: IssuedItemMaterial) => void
-  issuedMaterials: IssuedItemMaterial[]
+  onAddMaterial: (material: VectraIssuedItemMaterial) => void
+  issuedMaterials: VectraIssuedItemMaterial[]
 }
 
 const MaterialIssueTable = ({

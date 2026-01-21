@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { Switch } from '@/app/components/ui/switch'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import {
   VectraDeviceCategory,
   VectraDeviceSource,
@@ -38,9 +38,9 @@ interface Props {
   type: VectraServiceType
   primarySource: VectraDeviceSource
   onChangeSource: (src: VectraDeviceSource) => void
-  primaryDevice: IssuedItemDevice | null
-  setPrimaryDevice: (d: IssuedItemDevice | null) => void
-  primaryOptions: IssuedItemDevice[]
+  primaryDevice: VectraIssuedItemDevice | null
+  setPrimaryDevice: (d: VectraIssuedItemDevice | null) => void
+  primaryOptions: VectraIssuedItemDevice[]
   clientCategory: VectraDeviceCategory | null
   onChangeClientCategory: (c: VectraDeviceCategory | null) => void
   primaryClientName: string

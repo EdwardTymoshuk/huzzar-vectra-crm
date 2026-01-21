@@ -10,9 +10,9 @@ import {
 import { Progress } from '@/app/components/ui/progress'
 import { RouterOutputs } from '@/types'
 import {
-  IssuedItemDevice,
-  IssuedItemMaterial,
   VectraActivatedService,
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
 } from '@/types/vectra-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -58,7 +58,7 @@ interface Props {
     materialDefinitionId: string
     quantity: number
   }[]
-  devices?: IssuedItemDevice[]
+  devices?: VectraIssuedItemDevice[]
   mode?: 'complete' | 'amend' | 'adminEdit'
   workCodeDefs: VectraRateDefinition[] | undefined
 }
@@ -97,13 +97,13 @@ const CompleteOrderWizard = ({
   >([])
   const [notes, setNotes] = useState('')
   const [failureReason, setFailureReason] = useState<string>('')
-  const [issued, setIssued] = useState<IssuedItemDevice[]>([])
+  const [issued, setIssued] = useState<VectraIssuedItemDevice[]>([])
 
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
 
   const STEPS =
-    order.type === 'INSTALATION' ? STEPS_INSTALLATION : STEPS_SERVICE
+    order.type === 'INSTALLATION' ? STEPS_INSTALLATION : STEPS_SERVICE
 
   /**
    * Prefill data for "amend" or "adminEdit" mode.
@@ -195,10 +195,12 @@ const CompleteOrderWizard = ({
   }, [mode, order])
 
   /** Technician stock typing */
-  const techMaterialsTyped: IssuedItemMaterial[] = techMaterials.map((m) => ({
-    ...m,
-    type: 'MATERIAL',
-  }))
+  const techMaterialsTyped: VectraIssuedItemMaterial[] = techMaterials.map(
+    (m) => ({
+      ...m,
+      type: 'MATERIAL',
+    })
+  )
   const materialDefsTyped = materialDefs.map((m) => ({
     ...m,
     unit: m.unit as VectraMaterialUnit,
@@ -332,7 +334,7 @@ const CompleteOrderWizard = ({
           )}
 
           {/* Installation flow */}
-          {orderType === 'INSTALATION' && (
+          {orderType === 'INSTALLATION' && (
             <>
               {step === 1 && (
                 <StepServices
@@ -396,7 +398,7 @@ const CompleteOrderWizard = ({
           )}
 
           {/* Service / Outage flow */}
-          {orderType !== 'INSTALATION' && (
+          {orderType !== 'INSTALLATION' && (
             <>
               {step === 1 && (
                 <StepCollectedAndNotes

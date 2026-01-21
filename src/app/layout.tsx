@@ -11,8 +11,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'V-CRM HUZZAR',
-  description: 'System zarządzania technikami i zleceniami V-CRM HUZZAR',
+  title: 'HUZZAR CRM PLATFORM',
+  description: 'System zarządzania firmy HUZZAR',
 }
 
 /**

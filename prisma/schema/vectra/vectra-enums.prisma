@@ -1,28 +1,31 @@
 //prisma/schema/vectra/vectra-enums.prisma
 
 enum VectraOrderStatus {
-   @@schema("vectra")
   PENDING
   ASSIGNED
   COMPLETED
   NOT_COMPLETED
+
+  @@schema("vectra")
 }
 
 enum VectraOrderType {
-   @@schema("vectra")
+  INSTALLATION
   INSTALATION
   SERVICE
   OUTAGE
+
+  @@schema("vectra")
 }
 
 enum VectraOrderCreatedSource {
-   @@schema("vectra")
   PLANNER
   MANUAL
+
+  @@schema("vectra")
 }
 
 enum VectraTimeSlot {
-   @@schema("vectra")
   EIGHT_TEN          @map("8-10")
   TEN_TWELVE         @map("10-12")
   TWELVE_FOURTEEN    @map("12-14")
@@ -33,10 +36,11 @@ enum VectraTimeSlot {
   TWELVE_FIFTEEN     @map("12-15")
   FIFTEEN_EIGHTEEN   @map("15-18")
   EIGHTEEN_TWENTYONE @map("18-21")
+
+  @@schema("vectra")
 }
 
 enum VectraWarehouseStatus {
-   @@schema("vectra")
   AVAILABLE
   ASSIGNED
   RETURNED
@@ -44,32 +48,36 @@ enum VectraWarehouseStatus {
   RETURNED_TO_OPERATOR
   TRANSFER
   COLLECTED_FROM_CLIENT
+
+  @@schema("vectra")
 }
 
 enum VectraWarehouseItemType {
-   @@schema("vectra")
   DEVICE
   MATERIAL
+
+  @@schema("vectra")
 }
 
 enum VectraDeviceCategory {
-   @@schema("vectra")
   MODEM_HFC
   MODEM_GPON
   DECODER_1_WAY
   DECODER_2_WAY
   NETWORK_DEVICE
   OTHER
+
+  @@schema("vectra")
 }
 
 enum VectraMaterialUnit {
-   @@schema("vectra")
   PIECE
   METER
+
+  @@schema("vectra")
 }
 
 enum VectraWarehouseAction {
-   @@schema("vectra")
   RECEIVED
   ISSUED
   RETURNED
@@ -79,27 +87,32 @@ enum VectraWarehouseAction {
   COLLECTED_FROM_CLIENT
   ASSIGNED_TO_ORDER
   ISSUED_TO_CLIENT
+
+  @@schema("vectra")
 }
 
 enum VectraServiceType {
-   @@schema("vectra")
   DTV
   NET
   TEL
   ATV
+
+  @@schema("vectra")
 }
 
 enum VectraLocationTransferStatus {
-   @@schema("vectra")
   REQUESTED
   IN_TRANSIT
   RECEIVED
   REJECTED
   CANCELED
+
+  @@schema("vectra")
 }
 
 enum VectraDeviceSource {
-   @@schema("vectra")
   WAREHOUSE
   CLIENT
+
+  @@schema("vectra")
 }

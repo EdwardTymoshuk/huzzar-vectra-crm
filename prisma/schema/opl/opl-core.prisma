@@ -1,0 +1,51 @@
+//prisma/schema/opl/opl-core.prisma
+
+/// -----------------------------------------
+/// OPL CORE (schema: opl)
+/// -----------------------------------------
+
+model OplUser {
+  userId String  @id
+  active Boolean @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deactivatedAt DateTime?
+
+  // Bridge to global User
+  user User @relation("UserToOplUser", fields: [userId], references: [id])
+
+  // --- Relations used throughout the module ---
+  ordersAssigned    OplOrder[]        @relation("OplOrderAssignedTo")
+  ordersTransferred OplOrder[]        @relation("OplOrderTransfer")
+  orderHistory      OplOrderHistory[] @relation("OplOrderHistoryByUser")
+
+  warehouseItems   OplWarehouse[] @relation("OplWarehouseAssignedTo")
+  transferredItems OplWarehouse[] @relation("OplWarehouseTransfer")
+
+  warehouseHistoryAssigned  OplWarehouseHistory[] @relation("OplWHAssignedTo")
+  warehouseHistoryPerformed OplWarehouseHistory[] @relation("OplWHPerformedBy")
+
+  transfersRequested OplLocationTransfer[] @relation("OplRequestedTransfers")
+  transfersConfirmed OplLocationTransfer[] @relation("OplConfirmedTransfers")
+
+  materialDeficits OplTechnicianMaterialDeficit[] @relation("OplMaterialDeficitTechnician")
+
+  @@schema("opl")
+}
+
+model OplRateDefinition {
+  id     String @id @default(uuid())
+  code   String @unique
+  amount Float
+
+  settlements OplOrderSettlementEntry[] @relation("RateDefinitionToSettlement")
+
+  @@schema("opl")
+}
+
+model OplOperatorDefinition {
+  operator String @unique
+
+  @@schema("opl")
+}

@@ -3,7 +3,7 @@
 import ItemHeader from '@/app/(modules)/vectra-crm/admin-panel/components/warehouse/details/ItemHeader'
 import ItemTabs from '@/app/(modules)/vectra-crm/admin-panel/components/warehouse/details/ItemTabs'
 import WarehouseItemPageBase from '@/app/(modules)/vectra-crm/components/warehouse/WarehouseItemPageBase'
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 
 const WarehouseItemPage = () => {

@@ -110,7 +110,7 @@ export const OrderFormFields = ({ form, isAdmin = false }: Props) => {
                 <SelectValue placeholder="Wybierz typ zlecenia" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="INSTALATION">Instalacja</SelectItem>
+                <SelectItem value="INSTALLATION">Instalacja</SelectItem>
                 <SelectItem value="SERVICE">Serwis</SelectItem>
                 <SelectItem value="OUTAGE">Linia</SelectItem>
               </SelectContent>

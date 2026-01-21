@@ -18,7 +18,7 @@ const EarningsBadgeWithBar = ({
   className = '',
 }: Props) => {
   // Get monthly goal (default 8000 PLN)
-  const { data: goals } = trpc.vectra.user.getGoals.useQuery()
+  const { data: goals } = trpc.core.user.getGoals.useQuery()
   const monthlyGoal = goals?.revenueGoal ?? 8000
 
   // Progress bar color

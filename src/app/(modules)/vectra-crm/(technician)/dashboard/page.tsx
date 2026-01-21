@@ -41,7 +41,7 @@ const TechnicianDashboardPage = () => {
     range,
   })
 
-  const goals = trpc.vectra.user.getGoals.useQuery()
+  const goals = trpc.core.user.getGoals.useQuery()
 
   const handleChangeDate = (date: Date | undefined) => {
     if (!date) return

@@ -1,6 +1,6 @@
 // src/server/modules/vectra-crm/helpers/mapWarehouseHistoryToRelationsVM.ts
 
-import { WarehouseHistoryWithRelations } from '@/types/vectra-crm'
+import { VectraWarehouseHistoryWithRelations } from '@/types/vectra-crm'
 import { Prisma } from '@prisma/client'
 
 type HistoryRow = Prisma.VectraWarehouseHistoryGetPayload<{
@@ -47,7 +47,7 @@ type HistoryRow = Prisma.VectraWarehouseHistoryGetPayload<{
  */
 export const mapWarehouseHistoryToRelationsVM = (
   rows: HistoryRow[]
-): WarehouseHistoryWithRelations[] =>
+): VectraWarehouseHistoryWithRelations[] =>
   rows.map((h) => ({
     id: h.id,
     action: h.action,

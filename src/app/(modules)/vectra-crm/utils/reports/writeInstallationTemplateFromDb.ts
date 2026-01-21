@@ -349,7 +349,7 @@ export async function writeInstallationTemplateFromDb(
 
   const orders = await prisma.vectraOrder.findMany({
     where: {
-      type: 'INSTALATION',
+      type: 'INSTALLATION',
       date: { gte: start, lte: end },
       status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
     },
@@ -1095,7 +1095,7 @@ export async function writeInstallationTemplateForTechnicianMonth(
   const rows = await prisma.vectraOrder.findMany({
     where: {
       assignedToId: technicianId,
-      type: 'INSTALATION',
+      type: 'INSTALLATION',
       date: { gte: start, lt: end },
       status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
     },

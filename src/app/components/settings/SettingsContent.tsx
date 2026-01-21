@@ -1,12 +1,13 @@
-import AdminsSection from '@/app/components/settings/admin-panel/adminSection/AdminsSection'
+import OplAdminsSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/adminSection/OplAdminsSection'
+import VectraAdminsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/adminSection/VectraAdminsSection'
+import DeviceDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/deviceDefinition/VectraDeviceDefinitionsSection'
+import MaterialDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/materialDefinition/VectraMaterialDefinitionsSection'
+import OperatorsDefinitionSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/operatorsSection/VectraOperatorsDefinitionSection'
+import RatesSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/rateSection/VectraRatesSection'
 import { SettingsContext } from '@/types'
 import type { Role } from '@prisma/client'
-import DeviceDefinitionsSection from './admin-panel/deviceDefinition/DeviceDefinitionsSection'
-import LocationsSection from './admin-panel/location/LocationsSection'
-import MaterialDefinitionsSection from './admin-panel/materialDefinition/MaterialDefinitionsSection'
-import OperatorsDefinitionSection from './admin-panel/operatorsSection/OperatorsDefinitionSection'
-import RatesSection from './admin-panel/rateSection/RatesSection'
-import TechnicianProfileSettings from './technician/TechnicianProfileSettings'
+import TechnicianProfileSettings from '../../(modules)/vectra-crm/components/settings/technician/TechnicianProfileSettings'
+import LocationsSection from './location/LocationsSection'
 
 interface Props {
   section: SettingsContext
@@ -21,17 +22,13 @@ interface Props {
  */
 export const SettingsContent = ({ section, role }: Props) => {
   if (section === 'CORE') {
-    return (
-      <>
-        {role === 'ADMIN' && <AdminsSection title="Administratorzy" />}
-        {role === 'ADMIN' && <LocationsSection title="Lokalizacje" />}
-      </>
-    )
+    return <>{role === 'ADMIN' && <LocationsSection title="Lokalizacje" />}</>
   }
 
   if (section === 'VECTRA') {
     return (
       <>
+        {role === 'ADMIN' && <VectraAdminsSection title="Administratorzy" />}
         {role === 'ADMIN' && <RatesSection title="Stawki" />}
 
         <DeviceDefinitionsSection title="Urządzenia" />
@@ -43,9 +40,14 @@ export const SettingsContent = ({ section, role }: Props) => {
 
   if (section === 'OPL') {
     return (
-      <div className="pt-8 text-muted-foreground">
-        Moduł OPL – w przygotowaniu
-      </div>
+      <>
+        {role === 'ADMIN' && <OplAdminsSection title="Administratorzy" />}
+        {role === 'ADMIN' && <RatesSection title="Stawki" />}
+
+        <DeviceDefinitionsSection title="Urządzenia" />
+        <MaterialDefinitionsSection title="Materiał" />
+        <OperatorsDefinitionSection title="Operatorzy" />
+      </>
     )
   }
 

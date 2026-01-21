@@ -26,8 +26,7 @@ const LocationSelector = ({
   excludeCurrent,
   currentLocationId,
 }: Props) => {
-  const { data: locations = [] } =
-    trpc.vectra.warehouse.getAllLocations.useQuery()
+  const { data: locations = [] } = trpc.core.user.getAllLocations.useQuery()
 
   const filtered =
     excludeCurrent && currentLocationId

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { WarehouseHistoryRowVM } from '@/types/vectra-crm'
+import { VectraWarehouseHistoryRowVM } from '@/types/vectra-crm'
 import { trpc } from '@/utils/trpc'
 import { format } from 'date-fns'
 import { ReactNode, useState } from 'react'
@@ -37,12 +37,12 @@ type Props =
   | (BaseProps & {
       name: string
       warehouseItemId?: never
-      dataOverride?: WarehouseHistoryRowVM[]
+      dataOverride?: VectraWarehouseHistoryRowVM[]
     })
 
 /* -------- badge label + colour ------------------------------------ */
 const mapAction = (
-  action: WarehouseHistoryRowVM['action']
+  action: VectraWarehouseHistoryRowVM['action']
 ): {
   label: string
   variant: 'success' | 'warning' | 'danger' | 'destructive' | 'secondary'

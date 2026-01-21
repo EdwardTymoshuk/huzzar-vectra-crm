@@ -34,7 +34,7 @@ const ModuleCard = ({ module }: Props) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => !isLoading && setIsHovered(false)}
       className={cn(
-        'relative mx-auto flex h-64 min-w-48 md:max-w-60 flex-col items-center justify-center overflow-hidden border-2 transition-all',
+        'relative mx-auto flex h-64 w-60 flex-col items-center justify-center overflow-hidden border-2 transition-all',
         module.enabled
           ? 'cursor-pointer'
           : 'cursor-not-allowed opacity-60 grayscale',

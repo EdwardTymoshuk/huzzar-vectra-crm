@@ -2,12 +2,14 @@
 
 import { coreRouter } from '../core/routers'
 import { hrRouter } from '../modules/hr/routers'
+import { oplRouter } from '../modules/opl-crm/routers'
 import { vectraRouter } from '../modules/vectra-crm/routers'
 import { router } from '../trpc'
 
 export const appRouter = router({
-  vectra: vectraRouter,
   core: coreRouter,
+  vectra: vectraRouter,
+  opl: oplRouter,
   hr: hrRouter,
 })
 

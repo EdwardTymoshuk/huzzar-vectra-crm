@@ -5,7 +5,10 @@ import OrderTimeline from '@/app/(modules)/vectra-crm/components/orders/OrderTim
 import LoaderSpinner from '@/app/components/LoaderSpinner'
 import { Button } from '@/app/components/ui/button'
 import { Separator } from '@/app/components/ui/separator'
-import { IssuedItemDevice, IssuedItemMaterial } from '@/types/vectra-crm'
+import {
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { VectraDeviceCategory, VectraOrderStatus } from '@prisma/client'
@@ -99,7 +102,7 @@ const TechnicianCompletedOrderDetails = ({
     )
 
   /* ---------------- Prepare technician stock ---------------- */
-  const techMaterials: IssuedItemMaterial[] = rawMaterials
+  const techMaterials: VectraIssuedItemMaterial[] = rawMaterials
     .filter((m) => !!m.materialDefinitionId)
     .map((m) => ({
       id: m.id,
@@ -109,7 +112,7 @@ const TechnicianCompletedOrderDetails = ({
       type: 'MATERIAL',
     }))
 
-  const devices: IssuedItemDevice[] = (rawDevices ?? [])
+  const devices: VectraIssuedItemDevice[] = (rawDevices ?? [])
     .filter((d) => !!d.serialNumber)
     .map((d) => ({
       id: d.id,

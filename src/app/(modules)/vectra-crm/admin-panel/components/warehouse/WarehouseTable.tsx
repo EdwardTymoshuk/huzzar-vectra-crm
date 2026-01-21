@@ -1,7 +1,6 @@
 'use client'
 
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import { NavLink } from '@/app/components/navigation-progress'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
@@ -16,10 +15,11 @@ import {
 } from '@/app/components/ui/table'
 import { VECTRA_PATH } from '@/lib/constants'
 import {
-  WarehouseDefinitionWithStockVM,
-  WarehouseDeviceDefinitionVM,
-  WarehouseMaterialDefinitionVM,
+  VectraWarehouseDefinitionWithStockVM,
+  VectraWarehouseDeviceDefinitionVM,
+  VectraWarehouseMaterialDefinitionVM,
 } from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { VectraWarehouseItemType } from '@prisma/client'
@@ -31,7 +31,7 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
-import PaginationControls from './history/PaginationControls'
+import PaginationControls from '../../../../../components/navigation/PaginationControls'
 
 type Props = {
   itemType: VectraWarehouseItemType
@@ -43,15 +43,15 @@ type Props = {
  * Type guard for DEVICE definitions
  */
 const isDevice = (
-  item: WarehouseDefinitionWithStockVM
-): item is WarehouseDeviceDefinitionVM => item.itemType === 'DEVICE'
+  item: VectraWarehouseDefinitionWithStockVM
+): item is VectraWarehouseDeviceDefinitionVM => item.itemType === 'DEVICE'
 
 /**
  * Type guard for MATERIAL definitions
  */
 const isMaterial = (
-  item: WarehouseDefinitionWithStockVM
-): item is WarehouseMaterialDefinitionVM => item.itemType === 'MATERIAL'
+  item: VectraWarehouseDefinitionWithStockVM
+): item is VectraWarehouseMaterialDefinitionVM => item.itemType === 'MATERIAL'
 
 /**
  * WarehouseTable
@@ -88,14 +88,14 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
     if (!data) return []
 
     if (itemType === 'DEVICE') {
-      const devices = data as WarehouseDeviceDefinitionVM[]
+      const devices = data as VectraWarehouseDeviceDefinitionVM[]
 
       return devices.filter(
         (item) => !categoryFilter || item.category === categoryFilter
       )
     }
 
-    const materials = data as WarehouseMaterialDefinitionVM[]
+    const materials = data as VectraWarehouseMaterialDefinitionVM[]
     return materials
   }, [data, itemType, categoryFilter])
 
@@ -107,14 +107,14 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
     if (!data) return []
 
     if (itemType === 'DEVICE') {
-      const devices = data as WarehouseDeviceDefinitionVM[]
+      const devices = data as VectraWarehouseDeviceDefinitionVM[]
 
       return devices
         .filter((item) => !categoryFilter || item.category === categoryFilter)
         .filter((item) => !q || item.name.toLowerCase().includes(q))
     }
 
-    const materials = data as WarehouseMaterialDefinitionVM[]
+    const materials = data as VectraWarehouseMaterialDefinitionVM[]
 
     return materials.filter((item) => !q || item.name.toLowerCase().includes(q))
   }, [data, itemType, categoryFilter, searchTerm])

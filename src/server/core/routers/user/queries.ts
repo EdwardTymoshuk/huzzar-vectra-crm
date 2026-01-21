@@ -19,9 +19,4 @@ export const queriesCoreRouter = router({
       },
     })
   }),
-  getLocations: adminOnly.query(({ ctx }) => {
-    return ctx.prisma.userLocation.findMany({
-      orderBy: { name: 'asc' },
-    })
-  }),
 })

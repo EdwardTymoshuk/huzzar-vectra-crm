@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { UserWithBasic } from '@/types'
+import { TechnicianLiteVM } from '@/server/core/helpers/mappers/mapTechnicianToVM'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSession } from 'next-auth/react'
@@ -30,8 +30,8 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>
 
 interface Props {
-  value: UserWithBasic | null
-  onChange: (tech: UserWithBasic | null) => void
+  value: TechnicianLiteVM | null
+  onChange: (tech: TechnicianLiteVM | null) => void
   /** mode: "all" → show all technicians (admin/coord/warehouse),
    *         "others" → show other technicians excluding myself (for transfers) */
   mode?: 'all' | 'others'

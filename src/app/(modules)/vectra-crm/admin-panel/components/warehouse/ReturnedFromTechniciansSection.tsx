@@ -1,17 +1,5 @@
 'use client'
 
-/* -------------------------------------------------------------------------
- * ReturnedFromTechniciansSection   (ADMIN PANEL)
- * -------------------------------------------------------------------------
- * • Lists all devices with status = RETURNED   (i.e. collected → warehouse)
- * • Admin can tick several rows and press “Wyślij do operatora”.
- * • A confirmation modal appears:
- *      – shows the selected devices
- *      – optional notes textarea
- *      – final “Wyślij” button
- * ---------------------------------------------------------------------- */
-
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import {
   Accordion,
   AccordionContent,
@@ -30,11 +18,16 @@ import {
 } from '@/app/components/ui/dialog'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { Textarea } from '@/app/components/ui/textarea'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { differenceInDays, format } from 'date-fns'
 import { useState } from 'react'
 import { MdAssignmentReturn } from 'react-icons/md'
 import { toast } from 'sonner'
+
+/* -------------------------------------------------------------------------
+ * ReturnedFromTechniciansSection   (ADMIN PANEL)
+ * ---------------------------------------------------------------------- */
 
 const ReturnedFromTechniciansSection = () => {
   /* ───── queries & utils ─────────────────────────────────────────── */

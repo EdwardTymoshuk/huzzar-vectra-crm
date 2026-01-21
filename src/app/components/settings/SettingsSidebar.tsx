@@ -37,10 +37,13 @@ interface Props {
  */
 export const SettingsSidebar = ({ value, onChange, role, modules }: Props) => {
   const visibleSections = SETTINGS_SECTIONS.filter((section) => {
+    if (role === 'ADMIN') return true
     if (!section.roles.includes(role)) return false
     if (section.module && !modules.includes(section.module)) return false
     return true
   })
+
+  console.log(role, visibleSections, modules)
 
   return (
     <aside

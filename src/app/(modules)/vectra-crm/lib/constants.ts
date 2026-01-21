@@ -8,15 +8,6 @@ import {
 } from '@prisma/client'
 
 import { CleanTimelineItem } from '@/app/components/ui/timeline'
-import { MenuItem } from '@/types'
-import {
-  MdAssignment,
-  MdOutlineListAlt,
-  MdPeopleAlt,
-  MdReceiptLong,
-  MdSpaceDashboard,
-  MdWarehouse,
-} from 'react-icons/md'
 
 export const orderStatusToTimelineColor = {
   COMPLETED: 'success',
@@ -26,7 +17,7 @@ export const orderStatusToTimelineColor = {
 } satisfies Record<VectraOrderStatus, CleanTimelineItem['color']>
 
 export const orderTypeMap = {
-  INSTALATION: 'Instalacja',
+  INSTALLATION: 'Instalacja',
   SERVICE: 'Serwis',
   OUTAGE: 'Linia',
 }
@@ -191,65 +182,6 @@ export const mapInstallToCode = (
 
   return null
 }
-
-/**
- * Menu items for admin users.
- */
-export const adminsMenuItems: MenuItem[] = [
-  {
-    key: 'dashboard',
-    name: 'Pulpit',
-    icon: MdSpaceDashboard,
-    href: '/admin-panel',
-  },
-  {
-    key: 'planning',
-    name: 'Planer',
-    icon: MdAssignment,
-    href: '/admin-panel/planning',
-  },
-  {
-    key: 'orders',
-    name: 'Zlecenia',
-    icon: MdOutlineListAlt,
-    href: '/admin-panel/orders',
-  },
-  {
-    key: 'warehouse',
-    name: 'Magazyn',
-    icon: MdWarehouse,
-    href: '/admin-panel/warehouse',
-  },
-  {
-    key: 'billing',
-    name: 'Rozliczenia',
-    icon: MdReceiptLong,
-    href: '/admin-panel/billing',
-  },
-  {
-    key: 'employees',
-    name: 'Pracownicy',
-    icon: MdPeopleAlt,
-    href: '/admin-panel/employees',
-  },
-]
-
-/**
- * Menu items for technician users.
- */
-export const techniciansMenuItems: MenuItem[] = [
-  { key: 'dashboard', name: 'Pulpit', icon: MdSpaceDashboard, href: '/' },
-  { key: 'planer', name: 'Planer', icon: MdAssignment, href: '/planer' },
-  { key: 'orders', name: 'Zlecenia', icon: MdOutlineListAlt, href: '/orders' },
-  { key: 'warehouse', name: 'Magazyn', icon: MdWarehouse, href: '/warehouse' },
-  {
-    key: 'billing',
-    name: 'Rozliczenia',
-    icon: MdReceiptLong,
-    href: '/billing',
-  },
-]
-
 export const devicesTypeMap = {
   MODEM_HFC: 'MODEM HFC',
   MODEM_GPON: 'MODEM GPON',

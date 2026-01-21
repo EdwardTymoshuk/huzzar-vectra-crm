@@ -4,7 +4,7 @@ import {
   orderStatusToTimelineColor,
   orderTypeMap,
 } from '@/app/(modules)/vectra-crm/lib/constants'
-import { ClientHistoryItem } from '@/types/vectra-crm'
+import { VectraClientHistoryItem } from '@/types/vectra-crm'
 import { format } from 'date-fns'
 import { Timeline } from '../../../../components/ui/timeline'
 
@@ -16,7 +16,7 @@ import { Timeline } from '../../../../components/ui/timeline'
  * Works similarly to OrderTimeline but aggregates all client orders.
  */
 interface ClientTimelineProps {
-  clientOrders: ClientHistoryItem[]
+  clientOrders: VectraClientHistoryItem[]
 }
 
 export default function ClientTimeline({ clientOrders }: ClientTimelineProps) {

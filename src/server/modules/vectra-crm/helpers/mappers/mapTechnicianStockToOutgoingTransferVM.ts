@@ -1,9 +1,9 @@
-import { TechnicianStockItem } from '@/types/vectra-crm'
+import { VectraTechnicianStockItem } from '@/types/vectra-crm'
 import { VectraMaterialUnit } from '@prisma/client'
 import { TechnicianTransferRowVM } from './TechnicianTransferRowVM'
 
 export const mapTechnicianStockToOutgoingTransferVM = (
-  item: TechnicianStockItem
+  item: VectraTechnicianStockItem
 ): TechnicianTransferRowVM => ({
   id: item.id,
   name: item.name,

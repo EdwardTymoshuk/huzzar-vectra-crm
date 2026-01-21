@@ -12,7 +12,7 @@ import { normalizeName } from '../../../../../utils/normalizeName'
 export type ParsedOrderFromExcel = {
   operator: string
   orderNumber: string
-  type: 'INSTALATION' // keep current domain naming
+  type: 'INSTALLATION' // keep current domain naming
   clientId?: string
   city: string
   street: string
@@ -106,7 +106,7 @@ export async function parseOrdersFromExcel(
      * - fallback → INSTALLATION
      */
 
-    const type = 'INSTALATION' as const
+    const type = 'INSTALLATION' as const
     let extraNoteFromTaskType = ''
     const isPrzeniesienie = parsedTypeRaw.includes('przenies')
 

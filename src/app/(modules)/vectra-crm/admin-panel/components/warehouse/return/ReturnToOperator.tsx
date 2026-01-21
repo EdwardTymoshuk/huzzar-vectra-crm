@@ -1,6 +1,5 @@
 'use client'
 
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import SearchInput from '@/app/components/SearchInput'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
@@ -12,7 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { IssuedItemDevice, IssuedItemMaterial } from '@/types/vectra-crm'
+import {
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -38,10 +41,12 @@ const ReturnToOperator = ({ onClose }: Props) => {
 
   const [loading, setLoading] = useState(false)
 
-  const [issuedDevices, setIssuedDevices] = useState<IssuedItemDevice[]>([])
-  const [issuedMaterials, setIssuedMaterials] = useState<IssuedItemMaterial[]>(
+  const [issuedDevices, setIssuedDevices] = useState<VectraIssuedItemDevice[]>(
     []
   )
+  const [issuedMaterials, setIssuedMaterials] = useState<
+    VectraIssuedItemMaterial[]
+  >([])
   const [notes, setNotes] = useState('')
 
   const activeLocationId = useActiveLocation() ?? ''

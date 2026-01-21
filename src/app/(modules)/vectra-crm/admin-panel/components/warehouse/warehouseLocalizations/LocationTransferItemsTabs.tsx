@@ -11,7 +11,10 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { IssuedItemDevice, IssuedItemMaterial } from '@/types/vectra-crm'
+import {
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -46,8 +49,8 @@ const LocationTransferItemsTabs = ({
   onConfirm,
   loading,
 }: Props) => {
-  const [devices, setDevices] = useState<IssuedItemDevice[]>([])
-  const [materials, setMaterials] = useState<IssuedItemMaterial[]>([])
+  const [devices, setDevices] = useState<VectraIssuedItemDevice[]>([])
+  const [materials, setMaterials] = useState<VectraIssuedItemMaterial[]>([])
   const [notes, setNotes] = useState('')
 
   /** Load available devices from the source warehouse */
@@ -68,13 +71,13 @@ const LocationTransferItemsTabs = ({
     }))
 
   /** Add a new device to the transfer list */
-  const addDevice = (d: IssuedItemDevice) =>
+  const addDevice = (d: VectraIssuedItemDevice) =>
     setDevices((prev) =>
       prev.find((x) => x.id === d.id) ? prev : [...prev, d]
     )
 
   /** Add material (with quantity merge if already picked) */
-  const addMaterial = (m: IssuedItemMaterial) =>
+  const addMaterial = (m: VectraIssuedItemMaterial) =>
     setMaterials((prev) => {
       const ex = prev.find((x) => x.id === m.id)
       return ex

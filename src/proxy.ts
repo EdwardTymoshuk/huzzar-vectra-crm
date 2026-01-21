@@ -5,6 +5,9 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { MODULE_CODES } from './lib/constants'
 
+/**
+ * Extended JWT payload used by the application.
+ */
 type AppJwt = JWT & {
   id: string
   role: Role
@@ -14,8 +17,7 @@ type AppJwt = JWT & {
 
 /**
  * Determines whether the request is effectively served over HTTPS.
- * This is required to correctly resolve secure cookies when running
- * behind a reverse proxy (e.g. VPS + Nginx).
+ * Required when running behind a reverse proxy (e.g. Nginx).
  */
 function isHttps(req: NextRequest): boolean {
   const xfProto = req.headers.get('x-forwarded-proto')
@@ -25,12 +27,25 @@ function isHttps(req: NextRequest): boolean {
 }
 
 /**
+ * Mapping of URL prefixes to required module codes.
+ * Adding a new module requires only one entry here.
+ */
+const MODULE_PATH_MAP: Record<string, string> = {
+  '/vectra-crm': MODULE_CODES.VECTRA,
+  '/opl-crm': MODULE_CODES.OPL,
+  '/hr': MODULE_CODES.HR,
+}
+
+/**
  * Global application proxy.
  * Executed for every incoming request matched by `config.matcher`.
  */
 export default async function proxy(req: NextRequest): Promise<Response> {
   const { pathname } = req.nextUrl
 
+  /**
+   * Publicly accessible paths.
+   */
   const isPublic =
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/login') ||
@@ -44,12 +59,18 @@ export default async function proxy(req: NextRequest): Promise<Response> {
     return NextResponse.next()
   }
 
+  /**
+   * Resolve session token.
+   */
   const token = (await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie: isHttps(req),
   })) as AppJwt | null
 
+  /**
+   * Unauthenticated user → redirect to login.
+   */
   if (!token && pathname !== '/login') {
     const loginUrl = new URL('/login', req.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
@@ -60,16 +81,27 @@ export default async function proxy(req: NextRequest): Promise<Response> {
     return NextResponse.next()
   }
 
+  /**
+   * Block inactive / suspended users.
+   */
   if (token.status !== 'ACTIVE') {
     return NextResponse.redirect(new URL('/account-blocked', req.url))
   }
 
-  if (
-    pathname.startsWith('/vectra-crm') &&
-    token.role !== 'ADMIN' &&
-    !token.modules?.some((m) => m.code === MODULE_CODES.VECTRA)
-  ) {
-    return NextResponse.redirect(new URL('/', req.url))
+  /**
+   * Module access control.
+   * ADMIN has access to all modules.
+   */
+  const matchedModuleEntry = Object.entries(MODULE_PATH_MAP).find(([path]) =>
+    pathname.startsWith(path)
+  )
+
+  if (matchedModuleEntry) {
+    const [, requiredModule] = matchedModuleEntry
+
+    if (token.role !== 'ADMIN' && !token.modules?.includes(requiredModule)) {
+      return NextResponse.redirect(new URL('/', req.url))
+    }
   }
 
   return NextResponse.next()

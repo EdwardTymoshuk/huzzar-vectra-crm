@@ -3,11 +3,11 @@
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent } from '@/app/components/ui/card'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import { MdDelete } from 'react-icons/md'
 
 type Props = {
-  device: IssuedItemDevice
+  device: VectraIssuedItemDevice
   label?: string // e.g., "NET", "DTV", "Router"
   onRemove?: (id: string) => void
   className?: string

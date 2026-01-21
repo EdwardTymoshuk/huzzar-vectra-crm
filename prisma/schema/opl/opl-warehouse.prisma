@@ -1,0 +1,185 @@
+//prisma/schema/opl/opl-warehouse.prisma
+
+/// -------------------------------------------
+/// VECTRA WAREHOUSE (schema: opl)
+/// -------------------------------------------
+
+model OplWarehouse {
+  id                   String               @id @default(uuid())
+  itemType             OplWarehouseItemType
+  name                 String
+  category             OplDeviceCategory?
+  serialNumber         String?              @unique
+  quantity             Int
+  unit                 OplMaterialUnit      @default(PIECE)
+  price                Float
+  status               OplWarehouseStatus
+  assignedToId         String?
+  transferToId         String?
+  transferPending      Boolean              @default(false)
+  materialDefinitionId String?
+  locationId           String?
+  index                String?
+  alarmAlert           Int?                 @default(5)
+  warningAlert         Int?                 @default(10)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  assignedTo OplUser?  @relation("OplWarehouseAssignedTo", fields: [assignedToId], references: [userId])
+  transferTo OplUser?  @relation("OplWarehouseTransfer", fields: [transferToId], references: [userId])
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  materialDefinition OplMaterialDefinition? @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
+
+  transferLines    OplLocationTransferLine[] @relation("WarehouseToTransferLines")
+  orderAssignments OplOrderEquipment[]       @relation("WarehouseToOrderEquipment")
+  history          OplWarehouseHistory[]
+
+  @@index([itemType])
+  @@index([locationId])
+  @@index([assignedToId])
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// WAREHOUSE HISTORY
+/// -------------------------------------------
+
+model OplWarehouseHistory {
+  id                 String             @id @default(uuid())
+  warehouseItemId    String
+  action             OplWarehouseAction
+  performedById      String
+  assignedToId       String?
+  assignedOrderId    String?
+  fromLocationId     String?
+  toLocationId       String?
+  locationTransferId String?
+  quantity           Int?
+  notes              String?
+  actionDate         DateTime           @default(now())
+
+  warehouseItem    OplWarehouse         @relation(fields: [warehouseItemId], references: [id])
+  assignedOrder    OplOrder?            @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
+  fromLocation     Location?            @relation("OplFromLocationHistory", fields: [fromLocationId], references: [id])
+  toLocation       Location?            @relation("OplToLocationHistory", fields: [toLocationId], references: [id])
+  locationTransfer OplLocationTransfer? @relation("LocationTransferToHistory", fields: [locationTransferId], references: [id])
+
+  assignedTo  OplUser? @relation("OplWHAssignedTo", fields: [assignedToId], references: [userId])
+  performedBy OplUser  @relation("OplWHPerformedBy", fields: [performedById], references: [userId])
+
+  @@index([warehouseItemId])
+  @@index([action])
+  @@index([actionDate])
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// LOCATION TRANSFER
+/// -------------------------------------------
+
+model OplLocationTransfer {
+  id             String                    @id @default(uuid())
+  fromLocationId String
+  toLocationId   String
+  status         OplLocationTransferStatus @default(REQUESTED)
+  requestedById  String
+  confirmedById  String?
+  confirmedAt    DateTime?
+  notes          String?
+  createdAt      DateTime                  @default(now())
+
+  fromLocation Location @relation("OplTransfersFromLocation", fields: [fromLocationId], references: [id])
+  toLocation   Location @relation("OplTransfersToLocation", fields: [toLocationId], references: [id])
+
+  requestedBy OplUser  @relation("OplRequestedTransfers", fields: [requestedById], references: [userId])
+  confirmedBy OplUser? @relation("OplConfirmedTransfers", fields: [confirmedById], references: [userId])
+
+  lines     OplLocationTransferLine[]
+  histories OplWarehouseHistory[]     @relation("LocationTransferToHistory")
+
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([status])
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// LOCATION TRANSFER LINE
+/// -------------------------------------------
+
+model OplLocationTransferLine {
+  id                   String               @id @default(uuid())
+  transferId           String
+  itemType             OplWarehouseItemType
+  warehouseItemId      String?
+  materialDefinitionId String?
+  quantity             Int?
+  unit                 OplMaterialUnit?
+  nameSnapshot         String?
+  indexSnapshot        String?
+  category             OplDeviceCategory?
+
+  transfer           OplLocationTransfer    @relation(fields: [transferId], references: [id])
+  warehouseItem      OplWarehouse?          @relation("WarehouseToTransferLines", fields: [warehouseItemId], references: [id])
+  materialDefinition OplMaterialDefinition? @relation("MaterialDefinitionToTransferLines", fields: [materialDefinitionId], references: [id])
+
+  @@index([transferId])
+  @@index([warehouseItemId])
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// MATERIAL DEFINITION
+/// -------------------------------------------
+
+model OplMaterialDefinition {
+  id           String          @id @default(uuid())
+  name         String          @unique
+  index        String?
+  unit         OplMaterialUnit @default(PIECE)
+  price        Float?          @default(0)
+  alarmAlert   Int?            @default(5)
+  warningAlert Int?            @default(10)
+
+  warehouseItems   OplWarehouse[]                 @relation("MaterialDefinitionToWarehouse")
+  transferLines    OplLocationTransferLine[]      @relation("MaterialDefinitionToTransferLines")
+  orderMaterials   OplOrderMaterial[]             @relation("MaterialToOrderMaterial")
+  materialDeficits OplTechnicianMaterialDeficit[]
+
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// DEVICE DEFINITION
+/// -------------------------------------------
+
+model OplDeviceDefinition {
+  id           String            @id @default(uuid())
+  category     OplDeviceCategory
+  name         String
+  price        Float?            @default(0)
+  alarmAlert   Int?              @default(5)
+  warningAlert Int?              @default(10)
+
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// TECHNICIAN MATERIAL DEFICIT
+/// -------------------------------------------
+
+model OplTechnicianMaterialDeficit {
+  id                   String   @id @default(uuid())
+  technicianId         String
+  materialDefinitionId String
+  quantity             Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  technician         OplUser               @relation("OplMaterialDeficitTechnician", fields: [technicianId], references: [userId])
+  materialDefinition OplMaterialDefinition @relation(fields: [materialDefinitionId], references: [id])
+
+  @@unique([technicianId, materialDefinitionId])
+  @@schema("opl")
+}

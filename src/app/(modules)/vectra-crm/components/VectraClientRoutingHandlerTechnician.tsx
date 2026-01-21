@@ -2,9 +2,13 @@
 
 import LayoutShell from '@/app/components/LayoutShell'
 import LoaderSpinner from '@/app/components/LoaderSpinner'
+import ResponsiveNavigation from '@/app/components/navigation/ResponsiveNavigation'
+import { adminMenu, platformModules, technicianMenu } from '@/lib/constants'
 import { useRole } from '@/utils/hooks/useRole'
 import dynamic from 'next/dynamic'
 import { redirect, usePathname, useSearchParams } from 'next/navigation'
+
+const module = platformModules.find((m) => m.code === 'VECTRA')!
 
 // Technician pages
 const pages: Record<string, React.ComponentType> = {
@@ -25,7 +29,7 @@ const pages: Record<string, React.ComponentType> = {
   ),
 }
 
-const ClientRoutingHandlerTechnician = ({
+const VectraClientRoutingHandlerTechnician = ({
   children,
 }: {
   children?: React.ReactNode
@@ -67,10 +71,19 @@ const ClientRoutingHandlerTechnician = ({
   const ActivePage = pages[activeTab] || pages.dashboard
 
   return (
-    <LayoutShell>
+    <LayoutShell
+      navigation={
+        <ResponsiveNavigation
+          basePath={module.href}
+          moduleLabel={module.name}
+          adminMenu={adminMenu}
+          technicianMenu={technicianMenu}
+        />
+      }
+    >
       {isSubPage ? children : <ActivePage key={activeTab} />}
     </LayoutShell>
   )
 }
 
-export default ClientRoutingHandlerTechnician
+export default VectraClientRoutingHandlerTechnician

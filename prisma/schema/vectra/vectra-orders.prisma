@@ -5,7 +5,6 @@
 /// -------------------------------------------
 
 model VectraOrder {
-  @@schema("vectra")
   id                String                   @id @default(uuid())
   clientId          String?
   orderNumber       String
@@ -52,10 +51,10 @@ model VectraOrder {
   warehouseHistory  VectraWarehouseHistory[]     @relation("OrderToWarehouseHistory")
 
   @@unique([orderNumber, city, street, attemptNumber])
+  @@schema("vectra")
 }
 
 model VectraOrderMaterial {
-  @@schema("vectra")
   id         String             @id @default(uuid())
   orderId    String
   materialId String
@@ -66,10 +65,10 @@ model VectraOrderMaterial {
   order    VectraOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@schema("vectra")
 }
 
 model VectraOrderSettlementEntry {
-  @@schema("vectra")
   id       String @id @default(uuid())
   orderId  String
   code     String
@@ -79,10 +78,10 @@ model VectraOrderSettlementEntry {
   order VectraOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@schema("vectra")
 }
 
 model VectraOrderService {
-  @@schema("vectra")
   id      String            @id @default(uuid())
   orderId String
   type    VectraServiceType
@@ -112,10 +111,10 @@ model VectraOrderService {
   order VectraOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@schema("vectra")
 }
 
 model VectraOrderHistory {
-  @@schema("vectra")
   id            String            @id @default(uuid())
   orderId       String
   changedById   String
@@ -127,10 +126,11 @@ model VectraOrderHistory {
 
   changedBy VectraUser  @relation("VectraOrderHistoryByUser", fields: [changedById], references: [userId])
   order     VectraOrder @relation(fields: [orderId], references: [id])
+
+  @@schema("vectra")
 }
 
 model VectraOrderEquipment {
-  @@schema("vectra")
   id          String @id @default(uuid())
   orderId     String
   warehouseId String
@@ -140,10 +140,10 @@ model VectraOrderEquipment {
 
   @@unique([orderId, warehouseId])
   @@index([orderId])
+  @@schema("vectra")
 }
 
 model VectraOrderExtraDevice {
-  @@schema("vectra")
   id           String                @id @default(uuid())
   serviceId    String
   warehouseId  String?
@@ -153,4 +153,6 @@ model VectraOrderExtraDevice {
   category     VectraDeviceCategory?
 
   service VectraOrderService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@schema("vectra")
 }

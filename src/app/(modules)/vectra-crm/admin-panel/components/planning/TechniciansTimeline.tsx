@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { TechnicianAssignment } from '@/types/vectra-crm'
+import { VectraTechnicianAssignment } from '@/types/vectra-crm'
 import { matchSearch } from '@/utils/searchUtils'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
 import { useMemo, useState } from 'react'
@@ -19,7 +19,7 @@ import { MdClose } from 'react-icons/md'
 import { operatorColorsMap } from '../../../lib/constants'
 
 type Props = {
-  assignments: TechnicianAssignment[]
+  assignments: VectraTechnicianAssignment[]
   onUnassign: (orderId: string) => void
   searchTerm?: string
 }
@@ -59,7 +59,7 @@ function parseSlot(slot: string) {
 /**
  * Prepares technician orders into positioned "lanes" for timeline layout.
  */
-function layoutOrders(tech: TechnicianAssignment, searchTerm?: string) {
+function layoutOrders(tech: VectraTechnicianAssignment, searchTerm?: string) {
   const flat: {
     id: string
     label: string

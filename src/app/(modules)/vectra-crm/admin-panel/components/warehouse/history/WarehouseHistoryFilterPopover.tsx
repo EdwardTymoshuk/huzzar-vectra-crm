@@ -55,7 +55,7 @@ const WarehouseHistoryFilterPopover = ({
   const { data: performers } = trpc.vectra.user.getTechnicians.useQuery({
     status: 'ACTIVE',
   })
-  const { data: locations } = trpc.vectra.warehouse.getAllLocations.useQuery()
+  const { data: locations } = trpc.core.user.getAllLocations.useQuery()
 
   /** Clear all filters and close popover */
   const clearFilters = () => {

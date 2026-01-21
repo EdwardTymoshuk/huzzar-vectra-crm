@@ -1,13 +1,16 @@
 'use client'
 
-import { useActiveLocation } from '@/app/(modules)/vectra-crm/utils/hooks/useActiveLocation'
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { IssuedItemDevice, IssuedItemMaterial } from '@/types/vectra-crm'
+import {
+  VectraIssuedItemDevice,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
+import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -29,8 +32,8 @@ type Props = {
  * - Performs issue mutation on confirmation.
  */
 const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
-  const [devices, setDevices] = useState<IssuedItemDevice[]>([])
-  const [materials, setMaterials] = useState<IssuedItemMaterial[]>([])
+  const [devices, setDevices] = useState<VectraIssuedItemDevice[]>([])
+  const [materials, setMaterials] = useState<VectraIssuedItemMaterial[]>([])
   const [notes, setNotes] = useState('')
 
   const utils = trpc.useUtils()
@@ -67,13 +70,13 @@ const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
       category: d.category ?? 'OTHER',
     }))
 
-  const handleAddDevice = (device: IssuedItemDevice) => {
+  const handleAddDevice = (device: VectraIssuedItemDevice) => {
     if (!devices.find((d) => d.id === device.id)) {
       setDevices((prev) => [...prev, device])
     }
   }
 
-  const handleAddMaterial = (newMaterial: IssuedItemMaterial) => {
+  const handleAddMaterial = (newMaterial: VectraIssuedItemMaterial) => {
     setMaterials((prev) => {
       const existing = prev.find((m) => m.id === newMaterial.id)
       if (existing) {

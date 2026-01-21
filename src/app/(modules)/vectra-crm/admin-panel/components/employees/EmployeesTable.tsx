@@ -16,7 +16,7 @@ import {
   userStatusColorMap,
   userStatusNameMap,
 } from '@/lib/constants'
-import { EmployeeVM } from '@/server/modules/vectra-crm/helpers/mappers/mapVectraUserToEmployeeVM'
+import { EmployeeVM } from '@/types'
 import { trpc } from '@/utils/trpc'
 import { UserStatus } from '@prisma/client'
 import { useMemo, useState } from 'react'

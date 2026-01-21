@@ -39,7 +39,7 @@ export function AddOrderModal({
   const form = useForm<VectraOrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
-      type: 'INSTALATION',
+      type: 'INSTALLATION',
       operator: 'VECTRA',
       orderNumber: '',
       date: '',

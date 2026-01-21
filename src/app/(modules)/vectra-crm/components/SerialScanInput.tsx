@@ -7,7 +7,7 @@ import {
   InputGroupInput,
 } from '@/app/components/ui/input-group'
 import { devicesStatusMap } from '@/lib/constants'
-import { IssuedItemDevice } from '@/types/vectra-crm'
+import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { VectraDeviceCategory, VectraWarehouseStatus } from '@prisma/client'
@@ -30,7 +30,7 @@ export type DeviceBasic = {
 
 interface Props {
   /** Callback triggered after successful device addition */
-  onAddDevice: (device: IssuedItemDevice) => void
+  onAddDevice: (device: VectraIssuedItemDevice) => void
   /** Technician's current stock (local suggestions) */
   devices?: DeviceBasic[]
   /** Allowed warehouse statuses for adding device */

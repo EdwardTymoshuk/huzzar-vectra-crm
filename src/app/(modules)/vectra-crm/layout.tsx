@@ -1,9 +1,11 @@
+//scr/app/(modules)/vectra-crm/layout.tsx
+
 import LoaderLogo from '@/app/components/LoaderLogo'
 import Providers from '@/app/components/Providers'
 import { authOptions } from '@/lib/authOptions'
 import { getServerSession } from 'next-auth'
 import { Suspense } from 'react'
-import ClientRoutingHandlerTechnician from './components/VectraClientRoutingHandlerTechnician'
+import VectraClientRoutingHandlerTechnician from './components/VectraClientRoutingHandlerTechnician'
 
 /**
  * Vectra CRM layout
@@ -23,9 +25,9 @@ export default async function VectraCrmLayout({
     <Providers>
       <Suspense fallback={<LoaderLogo show />}>
         {role === 'TECHNICIAN' ? (
-          <ClientRoutingHandlerTechnician>
+          <VectraClientRoutingHandlerTechnician>
             {children}
-          </ClientRoutingHandlerTechnician>
+          </VectraClientRoutingHandlerTechnician>
         ) : (
           children
         )}

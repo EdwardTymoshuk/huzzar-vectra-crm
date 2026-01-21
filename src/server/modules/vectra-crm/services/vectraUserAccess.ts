@@ -1,3 +1,4 @@
+import { VectraUserWithLocations } from '@/types/vectra-crm'
 import { PrismaClient } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 
@@ -8,7 +9,7 @@ import { TRPCError } from '@trpc/server'
 export const getVectraUserOrThrow = async (
   prisma: PrismaClient,
   coreUserId: string
-) => {
+): Promise<VectraUserWithLocations> => {
   const vectraUser = await prisma.vectraUser.findUnique({
     where: { userId: coreUserId },
     include: {
@@ -17,7 +18,6 @@ export const getVectraUserOrThrow = async (
           locations: true,
         },
       },
-      technicianSettings: true,
     },
   })
 

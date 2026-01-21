@@ -18,7 +18,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
-import { IssuedItemDevice, VectraActivatedService } from '@/types/vectra-crm'
+import {
+  VectraActivatedService,
+  VectraIssuedItemDevice,
+} from '@/types/vectra-crm'
 import {
   VectraDeviceCategory,
   VectraDeviceSource,
@@ -33,7 +36,7 @@ interface Props {
   open: boolean
   type: VectraServiceType
   operator: string
-  devices: IssuedItemDevice[]
+  devices: VectraIssuedItemDevice[]
   usedDeviceIds: string[]
   onConfirmAction: (service: VectraActivatedService) => void
   onCloseAction: () => void
@@ -58,18 +61,17 @@ const ServiceConfigDialog = ({
 }: Props) => {
   const [primarySource, setPrimarySource] =
     useState<VectraDeviceSource>('WAREHOUSE')
-  const [primaryDevice, setPrimaryDevice] = useState<IssuedItemDevice | null>(
-    null
-  )
+  const [primaryDevice, setPrimaryDevice] =
+    useState<VectraIssuedItemDevice | null>(null)
   const [clientCategory, setClientCategory] =
     useState<VectraDeviceCategory | null>(null)
   const [primaryClientName, setPrimaryClientName] = useState('')
   const [primaryClientSn, setPrimaryClientSn] = useState('')
 
   const [secondaryDevice, setSecondaryDevice] =
-    useState<IssuedItemDevice | null>(null)
+    useState<VectraIssuedItemDevice | null>(null)
 
-  const [extras, setExtras] = useState<IssuedItemDevice[]>([])
+  const [extras, setExtras] = useState<VectraIssuedItemDevice[]>([])
   const [addExtras, setAddExtras] = useState(false)
 
   const [ds, setDs] = useState('')
@@ -235,7 +237,7 @@ const ServiceConfigDialog = ({
   }
 
   /** Add unique extra */
-  const handleAddExtra = (device: IssuedItemDevice) => {
+  const handleAddExtra = (device: VectraIssuedItemDevice) => {
     const duplicate =
       extras.some((ex) => ex.id === device.id) ||
       primaryDevice?.id === device.id ||

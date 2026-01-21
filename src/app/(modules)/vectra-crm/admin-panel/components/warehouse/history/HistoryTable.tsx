@@ -20,12 +20,12 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { materialUnitMap } from '@/lib/constants'
-import { WarehouseHistoryWithRelations } from '@/types/vectra-crm'
+import { VectraWarehouseHistoryWithRelations } from '@/types/vectra-crm'
 
 import { format } from 'date-fns'
 
 type Props = {
-  entries: WarehouseHistoryWithRelations[]
+  entries: VectraWarehouseHistoryWithRelations[]
 }
 
 /**
@@ -45,7 +45,7 @@ const HistoryTable = ({ entries }: Props) => {
 
   // Group records by “operation” (≈5s window, performer, action, notes)
   const groups = entries.reduce<
-    Record<string, WarehouseHistoryWithRelations[]>
+    Record<string, VectraWarehouseHistoryWithRelations[]>
   >((acc, entry) => {
     const roundedTime = new Date(
       Math.floor(new Date(entry.actionDate).getTime() / 5000) * 5000

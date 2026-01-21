@@ -2,7 +2,10 @@
 
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
-import { IssuedItemMaterial, VectraActivatedService } from '@/types/vectra-crm'
+import {
+  VectraActivatedService,
+  VectraIssuedItemMaterial,
+} from '@/types/vectra-crm'
 import { VectraMaterialUnit, VectraOrderType } from '@prisma/client'
 import { AlertCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -26,7 +29,7 @@ interface Props {
 
   /** Material definitions and technician stock */
   materialDefs: { id: string; name: string; unit: VectraMaterialUnit }[]
-  techMaterials: IssuedItemMaterial[]
+  techMaterials: VectraIssuedItemMaterial[]
 
   /** Navigation handlers */
   onBack: () => void
@@ -134,11 +137,11 @@ const StepInstallationAndMaterials = ({
       <div className="flex-1 overflow-y-auto px-4 pb-8">
         <h3 className="text-xl font-semibold text-center mt-3 mb-4">
           {`Wprowadź ${
-            orderType === 'INSTALATION' ? 'elementy instalacji i' : ''
+            orderType === 'INSTALLATION' ? 'elementy instalacji i' : ''
           } zużyty materiał`}
         </h3>
 
-        {orderType === 'INSTALATION' && (
+        {orderType === 'INSTALLATION' && (
           <>
             <InstallationSection
               activatedServices={activatedServices}

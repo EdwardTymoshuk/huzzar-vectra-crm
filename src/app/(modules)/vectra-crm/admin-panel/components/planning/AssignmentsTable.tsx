@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { statusColorMap, statusMap } from '@/lib/constants'
-import { TechnicianAssignment } from '@/types/vectra-crm'
+import { VectraTechnicianAssignment } from '@/types/vectra-crm'
 import { matchSearch } from '@/utils/searchUtils'
 import { trpc } from '@/utils/trpc'
 import {
@@ -44,7 +44,7 @@ const AssignmentsTable = () => {
     trpc.vectra.order.getAllInProgress.useQuery({
       dateFrom: from,
       dateTo: to,
-      orderType: 'INSTALATION',
+      orderType: 'INSTALLATION',
     })
 
   const utils = trpc.useUtils()
@@ -109,7 +109,7 @@ const AssignmentsTable = () => {
 
         return null
       })
-      .filter(Boolean) as TechnicianAssignment[]
+      .filter(Boolean) as VectraTechnicianAssignment[]
   }, [assignments, searchTerm])
 
   return (

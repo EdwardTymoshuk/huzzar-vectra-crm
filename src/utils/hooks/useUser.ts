@@ -1,5 +1,5 @@
 // src/utils/hooks/useUser.ts
-import { UserLocation, UserModule } from '@/types'
+import { Location, UserModule } from '@/types'
 import type { Role } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 
@@ -17,7 +17,7 @@ export function useUser() {
         id: string
         role: Role
         modules: UserModule[]
-        locations?: UserLocation[]
+        locations?: Location[]
       }
     | undefined
 

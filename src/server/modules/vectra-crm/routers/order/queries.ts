@@ -1,9 +1,8 @@
-import { isTechnician } from './../../../../../utils/auth/role'
+import { hasAnyRole, isTechnician } from './../../../../../utils/auth/role'
 // src/server/routers/order/queries.ts
 import { router } from '@/server/trpc'
 
 import { sortedTimeSlotsByHour } from '@/app/(modules)/vectra-crm/lib/constants'
-import { getNextLineOrderNumber } from '@/app/(modules)/vectra-crm/utils/nextLineOrderNumber'
 import {
   adminCoordOrWarehouse,
   adminOrCoord,
@@ -11,11 +10,12 @@ import {
   technicianOnly,
 } from '@/server/roleHelpers'
 import {
-  OrderAttemptVM,
-  PreviousOrderPrismaResult,
-  TechnicianAssignment,
+  VectraOrderAttemptVM,
+  VectraPreviousOrderPrismaResult,
+  VectraTechnicianAssignment,
 } from '@/types/vectra-crm'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
+import { getNextLineOrderNumber } from '@/utils/orders/nextLineOrderNumber'
 import {
   Prisma,
   VectraOrderStatus,
@@ -81,17 +81,20 @@ export const queriesRouter = router({
     .query(async ({ input, ctx }) => {
       const filters: Prisma.VectraOrderWhereInput = {}
 
-      const vectraUser = ctx.vectraUser
-      const userId = vectraUser.userId
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+        })
+      }
 
-      // Technician → only see own orders
-      if (isTechnician(vectraUser.user.role)) {
+      const { role, id: userId } = ctx.user
+
+      if (isTechnician(role)) {
         filters.assignedToId = userId
       }
 
-      // Admin/Coordinator: filtering by assignedToId
       if (
-        ['ADMIN', 'COORDINATOR'].includes(vectraUser.user.role) &&
+        hasAnyRole(role, ['ADMIN', 'COORDINATOR']) &&
         input.assignedToId !== undefined
       ) {
         filters.assignedToId =
@@ -200,13 +203,13 @@ export const queriesRouter = router({
        * ---------------------------------------------------------- */
       async function fetchAllPreviousOrders(
         orderId: string
-      ): Promise<OrderAttemptVM[]> {
-        const results: OrderAttemptVM[] = []
+      ): Promise<VectraOrderAttemptVM[]> {
+        const results: VectraOrderAttemptVM[] = []
 
         let currentId: string | null = orderId
 
         while (currentId) {
-          const prev: PreviousOrderPrismaResult | null =
+          const prev: VectraPreviousOrderPrismaResult | null =
             await prisma.vectraOrder.findUnique({
               where: { id: currentId },
               select: {
@@ -338,7 +341,7 @@ export const queriesRouter = router({
   /** Orders grouped by technician and time-slot for planning board */
   getAssignedOrders: adminCoordOrWarehouse
     .input(z.object({ date: z.string().optional() }).optional())
-    .query(async ({ input, ctx }): Promise<TechnicianAssignment[]> => {
+    .query(async ({ input, ctx }): Promise<VectraTechnicianAssignment[]> => {
       const target = input?.date
         ? new Date(`${input.date}T00:00:00`)
         : new Date()
@@ -349,7 +352,7 @@ export const queriesRouter = router({
         orderBy: { name: 'asc' },
       })
 
-      const byTech: Record<string, TechnicianAssignment> = {}
+      const byTech: Record<string, VectraTechnicianAssignment> = {}
       techs.forEach((t) => {
         byTech[t.id] = { technicianId: t.id, technicianName: t.name, slots: [] }
       })
@@ -357,7 +360,7 @@ export const queriesRouter = router({
       const assigned = await ctx.prisma.vectraOrder.findMany({
         where: {
           assignedToId: { not: null },
-          type: VectraOrderType.INSTALATION,
+          type: VectraOrderType.INSTALLATION,
           date: { gte: startOfDay(target), lte: endOfDay(target) },
         },
         select: {
@@ -552,7 +555,7 @@ export const queriesRouter = router({
       const target = input?.date ? parseISO(input.date) : null
       const where: Prisma.VectraOrderWhereInput = {
         assignedToId: null,
-        type: VectraOrderType.INSTALATION,
+        type: VectraOrderType.INSTALLATION,
       }
       if (target) {
         where.date = { gte: startOfDay(target), lte: endOfDay(target) }
