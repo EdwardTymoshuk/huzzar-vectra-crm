@@ -5,12 +5,13 @@ import { historyRouter } from './history'
 import { locationTransferRouter } from './locationTransfer'
 import { mutationsRouter } from './mutations'
 import { queriesRouter } from './queries'
+import { reportsRouters } from './reports'
 // import { reportsRouters } from './reports'
 
 export const warehouseRouter = mergeRouters(
   queriesRouter,
   locationTransferRouter,
   mutationsRouter,
-  historyRouter
-  // reportsRouters
+  historyRouter,
+  reportsRouters
 )

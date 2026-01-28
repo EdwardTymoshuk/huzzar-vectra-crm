@@ -11,6 +11,7 @@ import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import AddModal from '../components/warehouse/add/AddModal'
 import OplIssueModal from '../components/warehouse/issue/OplIssueModal'
+import OplReturnModal from '../components/warehouse/return/OplReturnModal'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -86,11 +87,12 @@ const WarehousePage = () => {
         open={isIssueOpen}
         onCloseAction={() => setIssueOpen(false)}
       />
-      {/*
-      <ReturnModal
+
+      <OplReturnModal
         open={isReturnOpen}
         onCloseAction={() => setReturnOpen(false)}
       />
+      {/*
       <TechnicianStockSheet open={isStockOpen} setOpen={setStockOpen} />
       <DeviceCheckSheet
         open={isSerialOpen}
