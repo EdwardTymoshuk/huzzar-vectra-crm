@@ -29,10 +29,10 @@ type Props = {
   status: UserStatus
 }
 
-const EmployeesTable = ({ searchTerm, status }: Props) => {
+const OplEmployeesTable = ({ searchTerm, status }: Props) => {
   const [selectedUser, setSelectedUser] = useState<EmployeeVM | null>(null)
 
-  const { data, isLoading } = trpc.vectra.user.getTechnicians.useQuery({
+  const { data, isLoading } = trpc.opl.user.getTechnicians.useQuery({
     status,
   })
 
@@ -134,4 +134,4 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
   )
 }
 
-export default EmployeesTable
+export default OplEmployeesTable

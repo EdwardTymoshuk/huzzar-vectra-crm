@@ -27,6 +27,9 @@ const pages: Record<string, React.ComponentType> = {
   billing: dynamic(
     () => import('@/app/(modules)/opl-crm/admin-panel/billing/page')
   ),
+  employees: dynamic(
+    () => import('@/app/(modules)/opl-crm/admin-panel/employees/page')
+  ),
 }
 
 const OplClientRoutingHandler = ({
