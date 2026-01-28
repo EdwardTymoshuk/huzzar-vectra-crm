@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { deviceSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
@@ -124,7 +124,7 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
-                          {oplDeviceTypeMap[cat]}
+                          {oplDevicesTypeMap[cat]}
                         </SelectItem>
                       ))}
                     </SelectContent>

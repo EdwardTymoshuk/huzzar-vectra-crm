@@ -5,7 +5,7 @@ import {
 import { materialUnitMap } from '@/lib/constants'
 import { prisma } from '@/utils/prisma'
 import ExcelJS from 'exceljs'
-import { oplDeviceTypeMap } from '../../lib/constants'
+import { oplDevicesTypeMap } from '../../lib/constants'
 
 /**
  * writeOplReturnToOperatorReport
@@ -128,7 +128,7 @@ export async function writeOplReturnToOperatorReport(historyIds: string[]) {
       lpDev++,
       d.warehouseItem.name,
       d.warehouseItem.category
-        ? oplDeviceTypeMap[d.warehouseItem.category]
+        ? oplDevicesTypeMap[d.warehouseItem.category]
         : '',
       d.warehouseItem.serialNumber ?? '',
       1,

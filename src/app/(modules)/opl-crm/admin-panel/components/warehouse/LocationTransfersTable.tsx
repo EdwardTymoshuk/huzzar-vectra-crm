@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import {
   Accordion,
   AccordionContent,
@@ -191,7 +191,7 @@ const LocationTransfersTable = () => {
                           <>
                             <span className="font-semibold">
                               {line.category
-                                ? oplDeviceTypeMap[line.category]
+                                ? oplDevicesTypeMap[line.category]
                                 : 'Urządzenie'}{' '}
                               {line.nameSnapshot}
                             </span>

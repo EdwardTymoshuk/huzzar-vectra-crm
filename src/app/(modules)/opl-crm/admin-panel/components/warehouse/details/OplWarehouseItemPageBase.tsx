@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { OplSlimWarehouseItem } from '@/app/(modules)/opl-crm/utils/warehouse/warehouse'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { trpc } from '@/utils/trpc'
@@ -75,7 +75,7 @@ const OplWarehouseItemPageBase = ({
 
   const categoryLabel =
     definition.itemType === 'DEVICE'
-      ? oplDeviceTypeMap[definition.category ?? ''] ?? ''
+      ? oplDevicesTypeMap[definition.category ?? ''] ?? ''
       : ''
 
   const title = `${categoryLabel} ${name}`

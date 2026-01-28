@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { NavLink } from '@/app/components/navigation-progress'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
@@ -214,7 +214,7 @@ const WarehouseTableTech = ({
               <TableRow key={item.name}>
                 {itemType === 'DEVICE' && (
                   <TableCell>
-                    {item.category ? oplDeviceTypeMap[item.category] : '—'}
+                    {item.category ? oplDevicesTypeMap[item.category] : '—'}
                   </TableCell>
                 )}
                 <TableCell>

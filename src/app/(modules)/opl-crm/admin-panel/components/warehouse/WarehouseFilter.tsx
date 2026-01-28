@@ -16,7 +16,7 @@ import {
 import { OplDeviceCategory } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
-import { oplDeviceTypeMap } from '../../../lib/constants'
+import { oplDevicesTypeMap } from '../../../lib/constants'
 
 type Props = {
   setCategoryFilter: (category: string | null) => void
@@ -66,7 +66,7 @@ const WarehouseFilter = ({ setCategoryFilter }: Props) => {
               <SelectItem value="all">Wszystkie</SelectItem>
               {Object.values(OplDeviceCategory).map((cat) => (
                 <SelectItem key={cat} value={cat}>
-                  {oplDeviceTypeMap[cat] ?? cat}
+                  {oplDevicesTypeMap[cat] ?? cat}
                 </SelectItem>
               ))}
             </SelectContent>

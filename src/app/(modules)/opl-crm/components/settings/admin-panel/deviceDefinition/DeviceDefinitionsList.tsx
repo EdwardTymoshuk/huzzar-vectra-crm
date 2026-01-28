@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import SearchInput from '@/app/components/SearchInput'
 import { Alert, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
@@ -183,7 +183,7 @@ const DeviceDefinitionsList = () => {
               {sorted.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="whitespace-nowrap">
-                    {oplDeviceTypeMap[item.category]}
+                    {oplDevicesTypeMap[item.category]}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {item.name}

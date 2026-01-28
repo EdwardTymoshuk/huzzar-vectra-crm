@@ -12,6 +12,7 @@ import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import AddModal from '../components/warehouse/add/AddModal'
 import OplIssueModal from '../components/warehouse/issue/OplIssueModal'
 import OplReturnModal from '../components/warehouse/return/OplReturnModal'
+import OplTechnicianStockSheet from '../components/warehouse/technicianStock/OplTechnicianStockSheet'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -92,8 +93,8 @@ const WarehousePage = () => {
         open={isReturnOpen}
         onCloseAction={() => setReturnOpen(false)}
       />
+      <OplTechnicianStockSheet open={isStockOpen} setOpen={setStockOpen} />
       {/*
-      <TechnicianStockSheet open={isStockOpen} setOpen={setStockOpen} />
       <DeviceCheckSheet
         open={isSerialOpen}
         onClose={() => setSerialOpen(false)}

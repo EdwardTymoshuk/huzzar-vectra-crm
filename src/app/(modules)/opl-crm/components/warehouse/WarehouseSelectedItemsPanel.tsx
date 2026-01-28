@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,7 +75,7 @@ const WarehouseSelectedItemsPanel = ({
                 >
                   <div className="flex flex-col text-sm">
                     <span className="font-medium">
-                      {oplDeviceTypeMap[d.category]} | {d.name}
+                      {oplDevicesTypeMap[d.category]} | {d.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       SN:&nbsp;{d.serialNumber}

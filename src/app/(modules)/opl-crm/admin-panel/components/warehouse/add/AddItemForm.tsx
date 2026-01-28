@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { warehouseFormSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
@@ -200,7 +200,7 @@ const AddItemForm = ({
                               return (
                                 <CommandGroup
                                   key={cat}
-                                  heading={oplDeviceTypeMap[cat]}
+                                  heading={oplDevicesTypeMap[cat]}
                                   className="capitalize"
                                 >
                                   {defs.map((d) => (

@@ -2,7 +2,7 @@
 
 import { OplDeviceCategory, OplTimeSlot } from '@prisma/client'
 
-export const oplDeviceTypeMap = {
+export const oplDevicesTypeMap = {
   MODEM: 'MODEM',
   DECODER: 'DEKODER',
   ONT: 'ONT',

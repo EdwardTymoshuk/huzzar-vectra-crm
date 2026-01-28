@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { OplSlimWarehouseItem } from '@/app/(modules)/opl-crm/utils/warehouse/warehouse'
 import ItemStatsCard from '@/app/components/warehouse/ItemStatsCard'
 import { useMemo } from 'react'
@@ -17,7 +17,7 @@ type Props = {
   activeLocationId?: 'all' | string
 }
 
-type DeviceCategoryKey = keyof typeof oplDeviceTypeMap
+type DeviceCategoryKey = keyof typeof oplDevicesTypeMap
 
 /**
  * OplItemHeader
@@ -40,8 +40,8 @@ const OplItemHeader = ({
   const deviceCategoryLabel = (() => {
     if (!definition.category) return '—'
 
-    if (definition.category in oplDeviceTypeMap) {
-      return oplDeviceTypeMap[definition.category as DeviceCategoryKey]
+    if (definition.category in oplDevicesTypeMap) {
+      return oplDevicesTypeMap[definition.category as DeviceCategoryKey]
     }
 
     return '—'

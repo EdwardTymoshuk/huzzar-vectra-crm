@@ -1,6 +1,6 @@
 'use client'
 
-import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { NavLink } from '@/app/components/navigation-progress'
 import PaginationControls from '@/app/components/navigation/PaginationControls'
 import { Badge } from '@/app/components/ui/badge'
@@ -284,7 +284,7 @@ const WarehouseTableAdmin = ({
                 <TableRow key={item.name}>
                   {isDevice(item) && (
                     <TableCell>
-                      {oplDeviceTypeMap[item.category] ?? item.category}
+                      {oplDevicesTypeMap[item.category] ?? item.category}
                     </TableCell>
                   )}
 
