@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
 import { trpc } from '@/utils/trpc'
-import { VectraOperatorDefinition } from '@prisma/client'
+import { OplOperatorDefinition } from '@prisma/client'
 import { FC, MouseEvent, useState } from 'react'
 import { MdClose } from 'react-icons/md'
 import { toast } from 'sonner'
@@ -25,17 +25,18 @@ import EditOperatorDialog from './EditOperatorDefinitionDialog'
 
 const OperatorDefinitionsList: FC = () => {
   const { data, isLoading, isError } =
-    trpc.vectra.operatorDefinition.getAllDefinitions.useQuery()
+    trpc.opl.settings.getAllOplOperatorDefinitions.useQuery()
 
-  const [editingItem, setEditingItem] =
-    useState<VectraOperatorDefinition | null>(null)
+  const [editingItem, setEditingItem] = useState<OplOperatorDefinition | null>(
+    null
+  )
 
   const utils = trpc.useUtils()
   const deleteMutation =
-    trpc.vectra.operatorDefinition.deleteDefinition.useMutation({
+    trpc.opl.settings.deleteOplOperatorDefinition.useMutation({
       onSuccess: () => {
         toast.success('Operator został usunięty.')
-        utils.vectra.operatorDefinition.getAllDefinitions.invalidate()
+        utils.opl.settings.getAllOplOperatorDefinitions.invalidate()
       },
       onError: () => toast.error('Błąd podczas usuwania.'),
     })

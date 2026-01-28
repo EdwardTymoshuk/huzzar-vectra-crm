@@ -2,7 +2,7 @@
 
 import WarehouseItemHeaderBar from '@/app/(modules)/vectra-crm/components/warehouse/WarehouseItemHeaderBar'
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
-import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse/warehouse'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { trpc } from '@/utils/trpc'
 import { useParams } from 'next/navigation'

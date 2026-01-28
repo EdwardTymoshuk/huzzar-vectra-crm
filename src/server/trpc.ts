@@ -1,6 +1,8 @@
-import { Context } from '@/types'
+//src/server/trpc.ts
+
 import { initTRPC } from '@trpc/server'
 import superjson from 'superjson'
+import { Context } from './context'
 
 /**
  * Create a typed tRPC instance with application context and superjson transformer.

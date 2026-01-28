@@ -19,7 +19,7 @@ import {
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 
-import BarcodeScannerDialog from '@/app/(modules)/vectra-crm/components/orders/BarcodeScannerDialog'
+import BarcodeScannerDialog from '@/app/components/BarcodeScannerDialog'
 import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import { VectraDeviceCategory, VectraOrderType } from '@prisma/client'
 

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { VECTRA_PATH } from '@/lib/constants'
+import { OPL_PATH } from '@/lib/constants'
 import {
   OplWarehouseDefinitionWithStockVM,
   OplWarehouseDeviceDefinitionVM,
@@ -309,10 +309,10 @@ const WarehouseTableAdmin = ({
                       <NavLink
                         href={
                           locationId
-                            ? `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
+                            ? `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
                                 item.name
                               )}?loc=${locationId}`
-                            : `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
+                            : `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
                                 item.name
                               )}`
                         }

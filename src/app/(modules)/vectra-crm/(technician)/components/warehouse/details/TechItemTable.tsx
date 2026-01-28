@@ -6,7 +6,7 @@ import {
   fmt,
   getLastAction,
   getLastActionDate,
-} from '@/app/(modules)/vectra-crm/utils/warehouse'
+} from '@/app/(modules)/vectra-crm/utils/warehouse/warehouse'
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import {

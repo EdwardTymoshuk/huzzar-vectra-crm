@@ -8,9 +8,9 @@
  * - number of items already used/issued on orders
  * ------------------------------------------------------------------- */
 
-import ItemStatsCard from '@/app/(modules)/vectra-crm/components/warehouse/ItemStatsCard'
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
-import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse/warehouse'
+import ItemStatsCard from '@/app/components/warehouse/ItemStatsCard'
 import { VectraWarehouseAction } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useMemo } from 'react'

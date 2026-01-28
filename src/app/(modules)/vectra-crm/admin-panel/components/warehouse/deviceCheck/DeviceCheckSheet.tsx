@@ -1,7 +1,6 @@
 'use client'
 
 import OrderDetailsSheet from '@/app/(modules)/vectra-crm/components/orders/OrderDetailsSheet'
-import { getDeviceTimeline } from '@/app/(modules)/vectra-crm/utils/warehouse/getDeviceTimeline'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Label } from '@/app/components/ui/label'
@@ -14,6 +13,7 @@ import {
 import { Timeline } from '@/app/components/ui/timeline'
 import { devicesStatusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
+import { getDeviceTimeline } from '@/utils/warehouse/getDeviceTimeline'
 import { useEffect, useState } from 'react'
 
 type Props = { open: boolean; onClose: () => void }

@@ -1,6 +1,6 @@
 'use client'
 
-import TechnicianSelector from '@/app/components/TechnicianSelector'
+import VectraTechnicianSelector from '@/app/(modules)/vectra-crm/components/VectraTechnicianSelector'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -67,7 +67,7 @@ const IssueModal = ({ open, onCloseAction }: Props) => {
           <div className="flex items-center gap-2">
             {/* Technician select */}
             <div className="flex-1">
-              <TechnicianSelector
+              <VectraTechnicianSelector
                 value={selectedTechnician}
                 onChange={(tech) => {
                   setSelectedTechnician(tech)

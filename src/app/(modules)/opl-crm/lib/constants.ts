@@ -46,3 +46,48 @@ export const sortedOplTimeSlotsByHour: OplTimeSlot[] = [
   'EIGHT_FOURTEEN',
   'FOURTEEN_TWENTY',
 ]
+
+export const oplTimeSlotMap: Record<OplTimeSlot, string> = {
+  // 1h
+  EIGHT_NINE: '08:00 - 09:00',
+  NINE_TEN: '09:00 - 10:00',
+  TEN_ELEVEN: '10:00 - 11:00',
+  ELEVEN_TWELVE: '11:00 - 12:00',
+  TWELVE_THIRTEEN: '12:00 - 13:00',
+  THIRTEEN_FOURTEEN: '13:00 - 14:00',
+  FOURTEEN_FIFTEEN: '14:00 - 15:00',
+  FIFTEEN_SIXTEEN: '15:00 - 16:00',
+  SIXTEEN_SEVENTEEN: '16:00 - 17:00',
+  SEVENTEEN_EIGHTEEN: '17:00 - 18:00',
+  EIGHTEEN_NINETEEN: '18:00 - 19:00',
+  NINETEEN_TWENTY: '19:00 - 20:00',
+
+  // 2h
+  EIGHT_TEN: '08:00 - 10:00',
+  TEN_TWELVE: '10:00 - 12:00',
+  TWELVE_FOURTEEN: '12:00 - 14:00',
+  FOURTEEN_SIXTEEN: '14:00 - 16:00',
+  SIXTEEN_EIGHTEEN: '16:00 - 18:00',
+  EIGHTEEN_TWENTY: '18:00 - 20:00',
+
+  // 3h
+  EIGHT_ELEVEN: '08:00 - 11:00',
+  ELEVEN_FOURTEEN: '11:00 - 14:00',
+  FOURTEEN_SEVENTEEN: '14:00 - 17:00',
+  SEVENTEEN_TWENTY: '17:00 - 20:00',
+
+  // 4h
+  EIGHT_TWELVE: '08:00 - 12:00',
+  TWELVE_SIXTEEN: '12:00 - 16:00',
+  SIXTEEN_TWENTY: '16:00 - 20:00',
+
+  // 6h
+  EIGHT_FOURTEEN: '08:00 - 14:00',
+  FOURTEEN_TWENTY: '14:00 - 20:00',
+}
+
+export const oplOrderTypeMap = {
+  INSTALLATION: 'Instalacja',
+  SERVICE: 'Serwis',
+  OUTAGE: 'Uszkodzenie',
+}

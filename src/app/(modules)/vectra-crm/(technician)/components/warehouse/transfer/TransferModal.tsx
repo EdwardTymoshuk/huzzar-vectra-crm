@@ -1,7 +1,7 @@
 'use client'
 
+import VectraTechnicianSelector from '@/app/(modules)/vectra-crm/components/VectraTechnicianSelector'
 import TransferItemsTabs from '@/app/(modules)/vectra-crm/components/warehouse/TransferItemsTabs'
-import TechnicianSelector from '@/app/components/TechnicianSelector'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -50,7 +50,7 @@ const TransferModal = ({ open, onClose }: Props) => {
         ) : (
           <div className="flex items-center gap-2">
             <div className="flex-1">
-              <TechnicianSelector
+              <VectraTechnicianSelector
                 value={tech}
                 onChange={(t) => {
                   setTech(t)

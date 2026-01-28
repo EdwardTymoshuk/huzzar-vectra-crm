@@ -19,7 +19,7 @@ import {
 import { ScanLine } from 'lucide-react'
 import { useState } from 'react'
 
-import BarcodeScannerDialog from '@/app/(modules)/vectra-crm/components/orders/BarcodeScannerDialog'
+import BarcodeScannerDialog from '@/app/components/BarcodeScannerDialog'
 import {
   InputGroup,
   InputGroupButton,

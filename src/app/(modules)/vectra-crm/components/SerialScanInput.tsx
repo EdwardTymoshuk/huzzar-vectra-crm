@@ -15,7 +15,7 @@ import { ScanLine } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import BarcodeScannerDialog from './orders/BarcodeScannerDialog'
+import BarcodeScannerDialog from '../../../components/BarcodeScannerDialog'
 
 /**
  * DeviceBasic – local device definition used for technician stock.
@@ -43,6 +43,7 @@ interface Props {
   allowedCategories?: VectraDeviceCategory[]
   /** Optional service context (NET, TEL, etc.) for category-based filtering */
   serviceType?: 'NET' | 'TEL' | 'DTV' | 'ATV'
+  strictSource?: 'WAREHOUSE'
 }
 
 /**
@@ -61,6 +62,7 @@ const SerialScanInput = ({
   isDeviceUsed,
   allowedCategories,
   serviceType,
+  strictSource,
 }: Props) => {
   const [value, setValue] = useState('')
   const [showDD, setShowDD] = useState(false)
@@ -238,15 +240,27 @@ const SerialScanInput = ({
           category: localDevice.category,
         })
 
-        toast.success('Dodano urządzenie z lokalnego stanu technika.')
+        toast.success(
+          strictSource === 'WAREHOUSE'
+            ? 'Dodano urządzenie z magazynu.'
+            : 'Dodano urządzenie z lokalnego stanu technika.'
+        )
         setValue('')
         setShowDD(false)
         setIsAdding(false)
         return
       }
 
-      /** 🚫 STEP 2: Block lookup for technicians (no local match) */
-      if (!isAdmin && !isCoordinator) {
+      /** 🚫 STEP 2: Context-aware hard blocks */
+      if (strictSource === 'WAREHOUSE') {
+        toast.error(
+          'To urządzenie nie znajduje się na stanie magazynu i nie może zostać wydane.'
+        )
+        setIsAdding(false)
+        return
+      }
+
+      if (isTechnician) {
         toast.error(
           'Nie możesz dodać urządzenia spoza swojego stanu. Skontaktuj się z magazynem.'
         )

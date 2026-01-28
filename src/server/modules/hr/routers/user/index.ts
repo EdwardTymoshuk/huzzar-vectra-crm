@@ -1,6 +1,7 @@
 //src/server/modules/hr/routers/user/index.ts
 
-import { syncVectraUser } from '@/app/(modules)/vectra-crm/utils/users/syncVectraUser'
+import { normalizeUser } from '@/server/core/helpers/users/normalizeUser'
+import { syncModuleUsers } from '@/server/core/helpers/users/syncModuleUsers'
 import { adminOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { sendNewAccountEmail } from '@/utils/mail/sendNewAccountEmail'
@@ -17,12 +18,22 @@ export const hrUserRouter = router({
   /**
    * Returns all active users with assigned modules.
    */
-  getUsers: adminOnly.query(({ ctx }) => {
-    return ctx.prisma.user.findMany({
+  getUsers: adminOnly.query(async ({ ctx }) => {
+    const users = await ctx.prisma.user.findMany({
       where: {
         deletedAt: null,
       },
       include: {
+        locations: {
+          include: {
+            location: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         modules: {
           include: {
             module: {
@@ -34,11 +45,11 @@ export const hrUserRouter = router({
             },
           },
         },
-        locations: true,
       },
-
       orderBy: { createdAt: 'desc' },
     })
+
+    return users.map(normalizeUser)
   }),
 
   getUserById: adminOnly
@@ -113,7 +124,7 @@ export const hrUserRouter = router({
           })
         }
 
-        const hasVectra = modules.some((m) => m.code === 'VECTRA')
+        const nextModuleCodes = modules.map((m) => m.code)
 
         const createdUser = await tx.user.create({
           data: {
@@ -129,7 +140,13 @@ export const hrUserRouter = router({
               })),
             },
             locations: {
-              connect: validLocations.map((l) => ({ id: l.id })),
+              create: validLocations.map((l) => ({
+                location: {
+                  connect: {
+                    id: l.id,
+                  },
+                },
+              })),
             },
           },
         })
@@ -137,7 +154,7 @@ export const hrUserRouter = router({
          * Synchronize Vectra domain user with assigned modules.
          * Creates or activates VectraUser if VECTRA module is assigned.
          */
-        await syncVectraUser(tx, createdUser.id, hasVectra)
+        await syncModuleUsers(tx, createdUser.id, [], nextModuleCodes)
 
         return createdUser
       })
@@ -244,7 +261,12 @@ export const hrUserRouter = router({
         }
 
         const moduleCodes = modules.map((m) => m.code)
-        const hasVectra = moduleCodes.includes('VECTRA')
+        const prevModules = await tx.userModule.findMany({
+          where: { userId: input.userId },
+          include: { module: { select: { code: true } } },
+        })
+
+        const prevModuleCodes = prevModules.map((m) => m.module.code)
 
         /**
          * Update core user fields.
@@ -302,7 +324,14 @@ export const hrUserRouter = router({
             where: { id: input.userId },
             data: {
               locations: {
-                set: validLocations.map((l) => ({ id: l.id })),
+                deleteMany: {},
+                create: validLocations.map((l) => ({
+                  location: {
+                    connect: {
+                      id: l.id,
+                    },
+                  },
+                })),
               },
             },
           })
@@ -312,7 +341,7 @@ export const hrUserRouter = router({
          * Synchronize Vectra module profile based on assigned module codes.
          * This must never rely on raw IDs or UI labels.
          */
-        await syncVectraUser(tx, input.userId, hasVectra)
+        await syncModuleUsers(tx, input.userId, prevModuleCodes, moduleCodes)
 
         return { ok: true }
       })

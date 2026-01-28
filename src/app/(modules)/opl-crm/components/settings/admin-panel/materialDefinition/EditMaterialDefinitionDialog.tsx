@@ -1,6 +1,6 @@
 'use client'
 
-import { materialSchema } from '@/app/(modules)/vectra-crm/lib/schema'
+import { materialSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -24,10 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { MaterialFormData } from '@/types/vectra-crm'
+import { MaterialFormData } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { VectraMaterialUnit } from '@prisma/client'
+import { OplMaterialUnit } from '@prisma/client'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -39,7 +39,7 @@ interface Props {
     id: string
     name: string
     index: string
-    unit: VectraMaterialUnit
+    unit: OplMaterialUnit
     warningAlert: number
     alarmAlert: number
     price: number
@@ -50,7 +50,7 @@ const EditMaterialDefinitionDialog = ({ open, onClose, item }: Props) => {
   const utils = trpc.useUtils()
 
   const { data: allMaterials = [] } =
-    trpc.vectra.materialDefinition.getAll.useQuery()
+    trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -61,10 +61,10 @@ const EditMaterialDefinitionDialog = ({ open, onClose, item }: Props) => {
     form.reset(item)
   }, [item, form])
 
-  const mutation = trpc.vectra.materialDefinition.edit.useMutation({
+  const mutation = trpc.opl.settings.editOplMaterialDefinition.useMutation({
     onSuccess: () => {
       toast.success('Materiał został zaktualizowany.')
-      utils.vectra.materialDefinition.getAll.invalidate()
+      utils.opl.settings.getAllOplMaterialDefinitions.invalidate()
       onClose()
     },
     onError: () => toast.error('Błąd podczas edycji.'),

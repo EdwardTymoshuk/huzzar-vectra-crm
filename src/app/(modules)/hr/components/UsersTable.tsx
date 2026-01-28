@@ -10,28 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { NormalizedUser } from '@/server/core/helpers/users/normalizeUser'
 import { trpc } from '@/utils/trpc'
-import type { User, UserStatus } from '@prisma/client'
+import type { UserStatus } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import EditUserDialog from './EditUserDialog'
 import HrUserActionsDropdown from './HrUserActionsDropdown'
 
-type UserRow = User & {
-  modules: {
-    module: {
-      id: string
-      name: string
-      code: string
-    }
-  }[]
-  locations: {
-    id: string
-    name: string
-  }[]
-}
-
 interface Props {
-  users: UserRow[]
+  users: NormalizedUser[]
 }
 
 /**
@@ -41,9 +29,10 @@ interface Props {
  * This is the ONLY place where user lifecycle actions are allowed.
  */
 export default function UsersTable({ users }: Props) {
-  const utils = trpc.useUtils()
+  const [userToDelete, setUserToDelete] = useState<NormalizedUser | null>(null)
+  const [userToEdit, setUserToEdit] = useState<NormalizedUser | null>(null)
 
-  const [userToDelete, setUserToDelete] = useState<UserRow | null>(null)
+  const utils = trpc.useUtils()
 
   const updateStatus = trpc.hr.user.updateUserStatus.useMutation({
     onSuccess: () => {
@@ -114,8 +103,8 @@ export default function UsersTable({ users }: Props) {
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {user.modules.map((m) => (
-                    <Badge key={m.module.id} variant="secondary">
-                      {m.module.name}
+                    <Badge key={m.id} variant="secondary">
+                      {m.name}
                     </Badge>
                   ))}
                 </div>
@@ -133,7 +122,7 @@ export default function UsersTable({ users }: Props) {
                 <HrUserActionsDropdown
                   userId={user.id}
                   status={user.status}
-                  onEdit={() => {}}
+                  onEdit={() => setUserToEdit(user)}
                   onToggleStatus={() =>
                     handleToggleStatus(user.id, user.status)
                   }
@@ -157,6 +146,10 @@ export default function UsersTable({ users }: Props) {
         }}
         description={`Czy na pewno chcesz trwale usunąć użytkownika ${userToDelete?.email}?`}
       />
+
+      {userToEdit && (
+        <EditUserDialog user={userToEdit} onClose={() => setUserToEdit(null)} />
+      )}
     </>
   )
 }

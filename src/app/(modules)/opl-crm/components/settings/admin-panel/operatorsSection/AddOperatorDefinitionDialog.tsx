@@ -38,7 +38,7 @@ type OperatorFormData = z.infer<typeof operatorSchema>
 
 /**
  * AddOperatorDialog:
- * A modal form to create a new operator (e.g., Vectra, MMP).
+ * A modal form to create a new operator (e.g., Opl, MMP).
  */
 const AddOperatorDefinitionDialog = () => {
   const [open, setOpen] = useState(false)
@@ -51,10 +51,10 @@ const AddOperatorDefinitionDialog = () => {
     },
   })
 
-  const mutation = trpc.vectra.operatorDefinition.createDefinition.useMutation({
+  const mutation = trpc.opl.settings.createOplOperatorDefinition.useMutation({
     onSuccess: () => {
       toast.success('Dodano nowego operatora.')
-      utils.vectra.operatorDefinition.getAllDefinitions.invalidate()
+      utils.opl.settings.getAllOplOperatorDefinitions.invalidate()
       setOpen(false)
       form.reset()
     },
@@ -79,7 +79,7 @@ const AddOperatorDefinitionDialog = () => {
         <DialogHeader>
           <DialogTitle>Dodaj nowego operatora</DialogTitle>
           <DialogDescription>
-            Wprowadź nazwę nowego operatora (np. Vectra, MMP).
+            Wprowadź nazwę nowego operatora (np. Opl, MMP).
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -91,7 +91,7 @@ const AddOperatorDefinitionDialog = () => {
                 <FormItem>
                   <FormLabel>Nazwa operatora</FormLabel>
                   <FormControl>
-                    <Input placeholder="np. MMP, Vectra, Orange" {...field} />
+                    <Input placeholder="np. MMP, Opl, Orange" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

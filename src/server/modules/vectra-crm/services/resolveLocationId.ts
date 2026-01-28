@@ -12,7 +12,7 @@ export const resolveLocationId = (
   if (role === 'ADMIN' || role === 'COORDINATOR') {
     if (locationId) return locationId
 
-    const fallback = locations?.[0]?.id
+    const fallback = locations?.[0]?.locationId
     if (!fallback) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
@@ -24,14 +24,15 @@ export const resolveLocationId = (
   }
 
   if (role === 'WAREHOUSEMAN') {
-    if (!locations || locations.length === 0) {
+    const fallback = locations?.[0]?.locationId
+    if (!fallback) {
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'Warehouseman has no location assigned',
       })
     }
 
-    return locationId ?? locations[0].id
+    return locationId ?? fallback
   }
 
   throw new TRPCError({

@@ -1,7 +1,7 @@
 'use client'
 
-import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
-import { deviceSchema } from '@/app/(modules)/vectra-crm/lib/schema'
+import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { deviceSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -27,10 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { DeviceFormData } from '@/types/vectra-crm'
+import { DeviceFormData } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { VectraDeviceCategory } from '@prisma/client'
+import { OplDeviceCategory } from '@prisma/client'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { MdAdd } from 'react-icons/md'
@@ -43,7 +43,7 @@ import { toast } from 'sonner'
  */
 
 type Props = {
-  categories: VectraDeviceCategory[]
+  categories: OplDeviceCategory[]
 }
 
 const AddDeviceDefinitionDialog = ({ categories }: Props) => {
@@ -52,7 +52,7 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
 
   // Fetch existing device definitions
   const { data: allDefinitions } =
-    trpc.vectra.deviceDefinition.getAllDefinitions.useQuery()
+    trpc.opl.settings.getAllOplDeviceDefinitions.useQuery()
 
   const form = useForm<DeviceFormData>({
     resolver: zodResolver(deviceSchema),
@@ -65,10 +65,10 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
     },
   })
 
-  const mutation = trpc.vectra.deviceDefinition.createDefinition.useMutation({
+  const mutation = trpc.opl.settings.createOplDeviceDefinition.useMutation({
     onSuccess: () => {
       toast.success('Dodano nową podkategorię.')
-      utils.vectra.deviceDefinition.getAllDefinitions.invalidate()
+      utils.opl.settings.getAllOplDeviceDefinitions.invalidate()
       setOpen(false)
       form.reset()
     },
@@ -124,7 +124,7 @@ const AddDeviceDefinitionDialog = ({ categories }: Props) => {
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
-                          {devicesTypeMap[cat]}
+                          {oplDeviceTypeMap[cat]}
                         </SelectItem>
                       ))}
                     </SelectContent>

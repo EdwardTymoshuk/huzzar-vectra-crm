@@ -1,19 +1,13 @@
-//src/app/components/Providers.tsx
-
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider } from 'next-auth/react'
-import dynamic from 'next/dynamic'
 import { ReactNode, useState } from 'react'
 
 import { SearchProvider } from '../context/SearchContext'
+import ClientToaster from './ClientToaster'
 import Noop from './Noop'
 import { ThemeProvider } from './ThemeProvider'
-
-const Toaster = dynamic(() => import('sonner').then((m) => m.Toaster), {
-  ssr: false,
-})
 
 const Providers = ({ children }: { children: ReactNode }) => {
   const [queryClient] = useState(() => new QueryClient())
@@ -25,9 +19,11 @@ const Providers = ({ children }: { children: ReactNode }) => {
           <Noop>
             <ThemeProvider>{children}</ThemeProvider>
           </Noop>
-          <Toaster position="top-center" richColors />
         </SearchProvider>
       </SessionProvider>
+
+      {/* Global client-only toaster */}
+      <ClientToaster />
     </QueryClientProvider>
   )
 }

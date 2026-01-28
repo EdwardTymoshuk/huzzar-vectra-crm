@@ -1,6 +1,6 @@
 'use client'
 
-import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
+import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import SearchInput from '@/app/components/SearchInput'
 import { Alert, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { trpc } from '@/utils/trpc'
-import { VectraDeviceDefinition } from '@prisma/client'
+import { OplDeviceDefinition } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import { MdDelete, MdEdit } from 'react-icons/md'
 import {
@@ -37,7 +37,7 @@ type SortOrder = 'asc' | 'desc' | null
  * - Supports search, sorting, editing and deleting.
  */
 const DeviceDefinitionsList = () => {
-  const [editingItem, setEditingItem] = useState<VectraDeviceDefinition | null>(
+  const [editingItem, setEditingItem] = useState<OplDeviceDefinition | null>(
     null
   )
   const [searchTerm, setSearchTerm] = useState('')
@@ -46,21 +46,21 @@ const DeviceDefinitionsList = () => {
 
   const utils = trpc.useUtils()
   const { data, isLoading, isError } =
-    trpc.vectra.deviceDefinition.getAllDefinitions.useQuery()
+    trpc.opl.settings.getAllOplDeviceDefinitions.useQuery()
   const { data: categories = [] } =
-    trpc.vectra.deviceDefinition.getAllCategories.useQuery()
+    trpc.opl.settings.getAllOplDeviceCategories.useQuery()
 
   const deleteMutation =
-    trpc.vectra.deviceDefinition.deleteDefinition.useMutation({
+    trpc.opl.settings.deleteOplDeviceDefinition.useMutation({
       onSuccess: () => {
         toast.success('Urządzenie zostało usunięte.')
-        utils.vectra.deviceDefinition.getAllDefinitions.invalidate()
+        utils.opl.settings.getAllOplDeviceDefinitions.invalidate()
       },
       onError: () => toast.error('Błąd podczas usuwania.'),
     })
 
   /** Normalizes null values to defaults */
-  const safeData: VectraDeviceDefinition[] = useMemo(() => {
+  const safeData: OplDeviceDefinition[] = useMemo(() => {
     if (!data) return []
     return data.map((item) => ({
       ...item,
@@ -183,7 +183,7 @@ const DeviceDefinitionsList = () => {
               {sorted.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="whitespace-nowrap">
-                    {devicesTypeMap[item.category]}
+                    {oplDeviceTypeMap[item.category]}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {item.name}

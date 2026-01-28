@@ -3,6 +3,7 @@ import { router } from '@/server/trpc'
 import { hasAnyRole, isTechnician } from './../../../../../utils/auth/role'
 
 import { sortedOplTimeSlotsByHour } from '@/app/(modules)/opl-crm/lib/constants'
+import { requireOplModule } from '@/server/middleware/oplMiddleware'
 import {
   adminCoordOrWarehouse,
   adminOrCoord,
@@ -31,7 +32,6 @@ import {
   oplUserSlimSelect,
   oplUserWithCoreBasicSelect,
 } from '../../helpers/selects'
-import { oplProcedure } from '../trpc'
 
 /* -----------------------------------------------------------
  * Small, strongly-typed concurrency-limited map helper.
@@ -65,7 +65,8 @@ async function mapWithConcurrency<T, R>(
  * ----------------------------------------------------------- */
 export const queriesRouter = router({
   /** Paginated order list with filters and sort */
-  getOrders: oplProcedure
+  getOrders: loggedInEveryone
+    .use(requireOplModule)
     .input(
       z.object({
         page: z.number().default(1),

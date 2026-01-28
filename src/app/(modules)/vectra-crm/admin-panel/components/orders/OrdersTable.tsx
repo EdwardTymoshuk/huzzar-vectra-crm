@@ -1,8 +1,8 @@
 'use client'
 
-import OrderStatusBadge from '@/app/(modules)/vectra-crm/components/orders/OrderStatusBadge'
 import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
 import LoaderSpinner from '@/app/components/LoaderSpinner'
+import OrderStatusBadge from '@/app/components/order/OrderStatusBadge'
 import {
   Accordion,
   AccordionContent,

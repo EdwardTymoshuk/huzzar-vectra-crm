@@ -39,12 +39,12 @@ const RatesList = () => {
 
   const utils = trpc.useUtils()
   const { data, isLoading, isError } =
-    trpc.vectra.rateDefinition.getAllRates.useQuery()
+    trpc.opl.settings.getAllOplRates.useQuery()
 
-  const deleteMutation = trpc.vectra.rateDefinition.deleteRate.useMutation({
+  const deleteMutation = trpc.opl.settings.deleteOplRate.useMutation({
     onSuccess: () => {
       toast.success('Stawka została usunięta.')
-      utils.vectra.rateDefinition.getAllRates.invalidate()
+      utils.opl.settings.getAllOplRates.invalidate()
     },
     onError: () => toast.error('Błąd podczas usuwania.'),
   })

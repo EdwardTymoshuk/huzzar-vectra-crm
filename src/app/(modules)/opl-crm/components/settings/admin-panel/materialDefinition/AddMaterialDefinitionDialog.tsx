@@ -1,6 +1,6 @@
 'use client'
 
-import { materialSchema } from '@/app/(modules)/vectra-crm/lib/schema'
+import { materialSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { MaterialFormData } from '@/types/vectra-crm'
+import { MaterialFormData } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
@@ -43,7 +43,7 @@ const AddMaterialDefinitionDialog = () => {
   const utils = trpc.useUtils()
 
   const { data: allMaterials } =
-    trpc.vectra.materialDefinition.getAll.useQuery()
+    trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -57,10 +57,10 @@ const AddMaterialDefinitionDialog = () => {
     },
   })
 
-  const mutation = trpc.vectra.materialDefinition.create.useMutation({
+  const mutation = trpc.opl.settings.createOplMaterialDefinition.useMutation({
     onSuccess: () => {
       toast.success('Dodano nowy materiał.')
-      utils.vectra.materialDefinition.getAll.invalidate()
+      utils.opl.settings.getAllOplMaterialDefinitions.invalidate()
       setOpen(false)
       form.reset()
     },

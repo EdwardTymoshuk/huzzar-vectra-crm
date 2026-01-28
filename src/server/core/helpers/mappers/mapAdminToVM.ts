@@ -9,6 +9,10 @@ type LocationLite = {
   name: string
 }
 
+type UserLocationWithLocation = {
+  location: LocationLite
+}
+
 /**
  * Exact shape returned by Prisma VectraUser query for admins
  */
@@ -21,7 +25,7 @@ export interface AdminSource {
     phoneNumber: string
     role: Role
     status: UserStatus
-    locations: LocationLite[]
+    locations: UserLocationWithLocation[]
   }
 }
 
@@ -36,8 +40,9 @@ export interface AdminUserVM {
   locations: LocationLite[]
 }
 
-export const mapAdminToVM = (vectraUser: AdminSource): AdminUserVM => {
-  const { user } = vectraUser
+export const mapAdminToVM = (source: AdminSource): AdminUserVM => {
+  const { user } = source
+  const locations = user.locations.map((ul) => ul.location)
   return {
     id: user.id,
     name: user.name,
@@ -45,7 +50,7 @@ export const mapAdminToVM = (vectraUser: AdminSource): AdminUserVM => {
     phoneNumber: user.phoneNumber,
     role: user.role as AdminRole,
     status: user.status,
-    locationIds: user.locations.map((l) => l.id),
-    locations: user.locations,
+    locationIds: locations.map((l) => l.id),
+    locations,
   }
 }

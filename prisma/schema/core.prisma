@@ -1,84 +1,61 @@
-//prisma/schema/core.prisma
-
-/// -------------------------------------------
-/// CORE MODELS (schema: public)
-/// -------------------------------------------
-
 model User {
-  id            String     @id @default(uuid())
-  email         String     @unique
-  name          String
-  password      String
-  phoneNumber   String
-  identyficator Int?       @unique
-  role          Role       @default(TECHNICIAN)
-  status        UserStatus @default(ACTIVE)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  deletedAt     DateTime?
-
-  modules            UserModule[]
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  name               String
+  password           String
+  phoneNumber        String
+  identyficator      Int?                @unique
+  role               Role                @default(TECHNICIAN)
+  status             UserStatus          @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
   technicianSettings GlobalUserSettings?
-
-  locations     Location[]  @relation("Locations")
-  vectraProfile VectraUser? @relation("UserToVectraUser")
-  oplProfile    OplUser?    @relation("UserToOplUser")
-
-  locationLinks UserLocationLink[] @relation("UserToUserLocationLink")
+  locations          UserLocation[]
+  modules            UserModule[]
+  
+  oplProfile         OplUser?            @relation("UserToOplUser")
+  vectraProfile      VectraUser?         @relation("UserToVectraUser")
 
   @@schema("public")
 }
 
 model Location {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  //USERS
-  users User[] @relation("Locations")
-
-  // VECTRA
+  id                   String                   @id @default(uuid())
+  name                 String                   @unique
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  oplTransfersFrom     OplLocationTransfer[]    @relation("OplTransfersFromLocation")
+  oplTransfersTo       OplLocationTransfer[]    @relation("OplTransfersToLocation")
+  oplWarehouseItems    OplWarehouse[]
+  oplHistoryFrom       OplWarehouseHistory[]    @relation("OplFromLocationHistory")
+  oplHistoryTo         OplWarehouseHistory[]    @relation("OplToLocationHistory")
+  users                UserLocation[]
+  vectraTransfersFrom  VectraLocationTransfer[] @relation("VectraTransfersFromLocation")
+  vectraTransfersTo    VectraLocationTransfer[] @relation("VectraTransfersToLocation")
   vectraWarehouseItems VectraWarehouse[]
   vectraHistoryFrom    VectraWarehouseHistory[] @relation("VectraFromLocationHistory")
   vectraHistoryTo      VectraWarehouseHistory[] @relation("VectraToLocationHistory")
-  vectraTransfersFrom  VectraLocationTransfer[] @relation("VectraTransfersFromLocation")
-  vectraTransfersTo    VectraLocationTransfer[] @relation("VectraTransfersToLocation")
-
-  //OPL
-  oplWarehouseItems OplWarehouse[]
-  oplHistoryFrom    OplWarehouseHistory[] @relation("OplFromLocationHistory")
-  oplHistoryTo      OplWarehouseHistory[] @relation("OplToLocationHistory")
-  oplTransfersFrom  OplLocationTransfer[] @relation("OplTransfersFromLocation")
-  oplTransfersTo    OplLocationTransfer[] @relation("OplTransfersToLocation")
-
-  userLinks UserLocationLink[] @relation("LocationToUserLocationLink")
 
   @@schema("public")
 }
 
 model GlobalUserSettings {
   userId          String   @id
-  workingDaysGoal Int
-  revenueGoal     Float
   updatedAt       DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
+  revenueGoal     Float
+  workingDaysGoal Int
+  user            User     @relation(fields: [userId], references: [id])
 
   @@schema("public")
 }
 
-/// -------------------------------------------
-/// Dynamic Module Definitions
-/// -------------------------------------------
-
 model Module {
-  id      String  @id @default(uuid())
-  name    String  @unique
-  code    String  @unique
-  enabled Boolean @default(true)
-
-  users UserModule[]
+  id      String       @id @default(uuid())
+  name    String       @unique
+  code    String       @unique
+  enabled Boolean      @default(true)
+  users   UserModule[]
 
   @@schema("public")
 }
@@ -87,17 +64,22 @@ model UserModule {
   id       String @id @default(uuid())
   userId   String
   moduleId String
-
-  user   User   @relation(fields: [userId], references: [id])
-  module Module @relation(fields: [moduleId], references: [id])
+  module   Module @relation(fields: [moduleId], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
 
   @@unique([userId, moduleId])
   @@schema("public")
 }
 
-/// -------------------------------------------
-/// CORE ENUMS
-/// -------------------------------------------
+model UserLocation {
+  userId     String
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, locationId])
+  @@schema("public")
+}
 
 enum Role {
   TECHNICIAN
@@ -114,22 +96,5 @@ enum UserStatus {
   SUSPENDED
   DELETED
 
-  @@schema("public")
-}
-
-model UserLocationLink {
-  A String
-  B String
-
-  /// Legacy FK to public.User (column: A).
-  user User @relation("UserToUserLocationLink", fields: [A], references: [id], onDelete: Cascade)
-
-  /// Legacy FK to public.Location (column: B).
-  location Location @relation("LocationToUserLocationLink", fields: [B], references: [id], onDelete: Cascade)
-
-  @@id([A, B])
-  @@index([A])
-  @@index([B])
-  @@map("_UserLocations")
   @@schema("public")
 }

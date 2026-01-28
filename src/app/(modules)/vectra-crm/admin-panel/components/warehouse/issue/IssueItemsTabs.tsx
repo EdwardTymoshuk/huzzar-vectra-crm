@@ -153,6 +153,7 @@ const IssueItemsTabs = ({ technicianId, onCloseAction }: Props) => {
           <SerialScanInput
             onAddDevice={handleAddDevice}
             devices={availableDevices}
+            strictSource="WAREHOUSE"
           />
         </TabsContent>
 

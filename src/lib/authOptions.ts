@@ -1,7 +1,6 @@
 // src/lib/authOptions.ts
 import { prisma } from '@/utils/prisma'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { UserStatus } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
@@ -29,9 +28,10 @@ export const authOptions: NextAuthOptions = {
               include: { module: true },
             },
             locations: {
-              select: {
-                id: true,
-                name: true,
+              include: {
+                location: {
+                  select: { id: true, name: true },
+                },
               },
             },
           },
@@ -45,24 +45,11 @@ export const authOptions: NextAuthOptions = {
                 select: { id: true, name: true },
                 orderBy: { name: 'asc' },
               })
-            : user.locations
-
-        // Check status
-        switch (user.status as UserStatus) {
-          case 'ACTIVE':
-            break
-          case 'SUSPENDED':
-            throw new Error('Konto jest zawieszone')
-          case 'INACTIVE':
-            throw new Error('Konto zostało zarchiwizowane')
-          case 'DELETED':
-            throw new Error('Konto zostało usunięte')
-        }
+            : user.locations.map((ul) => ul.location)
 
         const ok = await bcrypt.compare(credentials.password, user.password)
         if (!ok) throw new Error('Nieprawidłowe hasło')
 
-        // Convert modules to flat array
         const modules = user.modules.map((m) => ({
           code: m.module.code,
           name: m.module.name,
@@ -118,7 +105,11 @@ export const authOptions: NextAuthOptions = {
           where: { id: token.id },
           include: {
             locations: {
-              select: { id: true, name: true },
+              include: {
+                location: {
+                  select: { id: true, name: true },
+                },
+              },
             },
           },
         })
@@ -130,7 +121,7 @@ export const authOptions: NextAuthOptions = {
                   select: { id: true, name: true },
                   orderBy: { name: 'asc' },
                 })
-              : dbUser.locations
+              : dbUser.locations.map((ul) => ul.location)
         }
       }
 

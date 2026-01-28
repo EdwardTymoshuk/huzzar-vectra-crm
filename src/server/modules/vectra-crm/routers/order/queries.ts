@@ -31,7 +31,6 @@ import {
   vectraUserSlimSelect,
   vectraUserWithCoreBasicSelect,
 } from '../../helpers/selects'
-import { vectraProcedure } from '../trpc'
 
 /* -----------------------------------------------------------
  * Small, strongly-typed concurrency-limited map helper.
@@ -65,7 +64,7 @@ async function mapWithConcurrency<T, R>(
  * ----------------------------------------------------------- */
 export const queriesRouter = router({
   /** Paginated order list with filters and sort */
-  getOrders: vectraProcedure
+  getOrders: loggedInEveryone
     .input(
       z.object({
         page: z.number().default(1),

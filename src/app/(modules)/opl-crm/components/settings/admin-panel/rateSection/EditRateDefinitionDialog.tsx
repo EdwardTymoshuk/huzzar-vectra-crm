@@ -23,7 +23,7 @@ const editRateSchema = z.object({
 })
 type EditRateFormData = z.infer<typeof editRateSchema>
 
-type VectraRateDefinition = {
+type OplaRateDefinition = {
   id: string
   code: string
   amount: number
@@ -31,7 +31,7 @@ type VectraRateDefinition = {
 
 interface EditRateDefinitionDialogProps {
   open: boolean
-  item: VectraRateDefinition
+  item: OplaRateDefinition
   onClose: () => void
 }
 
@@ -41,10 +41,10 @@ const EditRateDefinitionDialog: FC<EditRateDefinitionDialogProps> = ({
   onClose,
 }) => {
   const utils = trpc.useUtils()
-  const editMutation = trpc.vectra.rateDefinition.editRate.useMutation({
+  const editMutation = trpc.opl.settings.editOplRate.useMutation({
     onSuccess: () => {
       toast.success('Stawka została zaktualizowana.')
-      utils.vectra.rateDefinition.getAllRates.invalidate()
+      utils.opl.settings.getAllOplRates.invalidate()
       onClose()
     },
     onError: () => {

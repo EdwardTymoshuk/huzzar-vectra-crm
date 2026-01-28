@@ -27,16 +27,16 @@ type CreateRateFormData = z.infer<typeof createRateSchema>
 
 /**
  * AddRateDefinitionDialog:
- * Allows creating a new VectraRateDefinition (code + amount).
+ * Allows creating a new OplRateDefinition (code + amount).
  */
 const AddRateDefinitionDialog: FC = () => {
   const [open, setOpen] = useState(false)
 
   const utils = trpc.useUtils()
-  const createMutation = trpc.vectra.rateDefinition.createRate.useMutation({
+  const createMutation = trpc.opl.settings.createOplRate.useMutation({
     onSuccess: () => {
       toast.success('Dodano nową stawkę.')
-      utils.vectra.rateDefinition.getAllRates.invalidate()
+      utils.opl.settings.getAllOplRates.invalidate()
       reset()
       setOpen(false)
     },

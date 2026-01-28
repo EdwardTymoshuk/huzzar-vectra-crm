@@ -1,6 +1,6 @@
 // src/server/core/services/getCoreUserOrThrow.ts
 
-import type { Context } from '@/types'
+import { Context } from '@/server/context'
 import { TRPCError } from '@trpc/server'
 
 /**

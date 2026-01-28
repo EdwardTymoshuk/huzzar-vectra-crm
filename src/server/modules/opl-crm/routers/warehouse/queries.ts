@@ -1,7 +1,7 @@
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
+import { requireOplModule } from '@/server/middleware/oplMiddleware'
 import {
   adminCoordOrWarehouse,
-  adminOnly,
   adminOrCoord,
   loggedInEveryone,
 } from '@/server/roleHelpers'
@@ -31,6 +31,7 @@ const Modes = ['warehouse', 'technicians', 'orders', 'returned'] as const
 export const queriesRouter = router({
   /** 📦 Get all warehouse items (ordered by creation date) */
   getAll: loggedInEveryone
+    .use(requireOplModule)
     .input(
       z
         .object({
@@ -41,7 +42,11 @@ export const queriesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const coreUser = getCoreUserOrThrow(ctx)
-      const oplUser = await getOplUserOrThrow(ctx.prisma, coreUser.id)
+      const oplUser = await getOplUserOrThrow(
+        ctx.prisma,
+        coreUser.id,
+        coreUser.role
+      )
       const activeLocationId = resolveLocationId(oplUser, input?.locationId)
 
       return prisma.oplWarehouse.findMany({
@@ -54,6 +59,7 @@ export const queriesRouter = router({
     }),
 
   getDefinitionsWithStock: loggedInEveryone
+    .use(requireOplModule)
     .input(
       z.object({
         itemType: z.nativeEnum(OplWarehouseItemType),
@@ -62,7 +68,11 @@ export const queriesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const coreUser = getCoreUserOrThrow(ctx)
-      const oplUser = await getOplUserOrThrow(ctx.prisma, coreUser.id)
+      const oplUser = await getOplUserOrThrow(
+        ctx.prisma,
+        coreUser.id,
+        coreUser.role
+      )
       const activeLocationId = resolveLocationId(oplUser, input?.locationId)
 
       // ------------------------------------------------------------
@@ -672,62 +682,6 @@ export const queriesRouter = router({
     })
   }),
 
-  /** 📍 Get warehouse locations depending on role */
-  getAllLocations: adminCoordOrWarehouse.query(async ({ ctx }) => {
-    const { user } = ctx
-    if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
-
-    switch (user.role) {
-      case 'ADMIN':
-      case 'COORDINATOR':
-      case 'WAREHOUSEMAN':
-        return ctx.prisma.location.findMany({
-          orderBy: { name: 'asc' },
-          select: { id: true, name: true },
-        })
-      default:
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Technicians cannot access locations',
-        })
-    }
-  }),
-
-  /** 🗑️ Delete warehouse location */
-  deleteLocation: adminOnly
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      try {
-        return await ctx.prisma.location.delete({
-          where: { id: input.id },
-        })
-      } catch (err) {
-        if (
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2025'
-        ) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Lokalizacja już nie istnieje.',
-          })
-        }
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Nie udało się usunąć lokalizacji.',
-        })
-      }
-    }),
-
-  /** ✏️ Update warehouse location */
-  updateLocation: adminOnly
-    .input(z.object({ id: z.string(), name: z.string().min(2) }))
-    .mutation(({ input, ctx }) =>
-      ctx.prisma.location.update({
-        where: { id: input.id },
-        data: { name: input.name },
-      })
-    ),
-
   /** Get technichian stock for return */
   getItemsForReturn: adminCoordOrWarehouse
     .input(
@@ -738,7 +692,11 @@ export const queriesRouter = router({
     )
     .query(async ({ input, ctx }) => {
       const coreUser = getCoreUserOrThrow(ctx)
-      const oplUser = await getOplUserOrThrow(ctx.prisma, coreUser.id)
+      const oplUser = await getOplUserOrThrow(
+        ctx.prisma,
+        coreUser.id,
+        coreUser.role
+      )
 
       const activeLocationId = resolveLocationId(oplUser, input?.locationId)
 
@@ -763,7 +721,11 @@ export const queriesRouter = router({
     )
     .query(async ({ input, ctx }) => {
       const coreUser = getCoreUserOrThrow(ctx)
-      const oplUser = await getOplUserOrThrow(ctx.prisma, coreUser.id)
+      const oplUser = await getOplUserOrThrow(
+        ctx.prisma,
+        coreUser.id,
+        coreUser.role
+      )
 
       const activeLocationId = resolveLocationId(oplUser, input?.locationId)
 

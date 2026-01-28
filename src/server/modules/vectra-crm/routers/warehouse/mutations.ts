@@ -534,28 +534,28 @@ export const mutationsRouter = router({
 
   /** 🗂️ Devices returned by technicians – waiting to be shipped to operator */
   getReturnedFromTechnicians: adminCoordOrWarehouse.query(() =>
-  prisma.vectraWarehouse.findMany({
-    where: { itemType: 'DEVICE', status: 'RETURNED' },
-    include: {
-      history: {
-        orderBy: { actionDate: 'asc' },
-        include: {
-          performedBy: {
-            select: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
+    prisma.vectraWarehouse.findMany({
+      where: { itemType: 'DEVICE', status: 'RETURNED' },
+      include: {
+        history: {
+          orderBy: { actionDate: 'asc' },
+          include: {
+            performedBy: {
+              select: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
                 },
               },
             },
           },
         },
+        orderAssignments: { include: { order: true } },
       },
-      orderAssignments: { include: { order: true } },
-    },
-  })
-),
+    })
+  ),
 
   /**
    * importDevices

@@ -7,7 +7,7 @@ import OperatorDefinitionsList from './OperatorDefinitionsList'
  * A settings section for listing categories (VectraDeviceCategory)
  * and subcategories (name).
  */
-const OperatorsDefinitionSection = ({ title }: { title: string }) => {
+const OplOperatorsDefinitionSection = ({ title }: { title: string }) => {
   return (
     <SettingsSection title={title}>
       <OperatorDefinitionsList />
@@ -18,4 +18,4 @@ const OperatorsDefinitionSection = ({ title }: { title: string }) => {
   )
 }
 
-export default OperatorsDefinitionSection
+export default OplOperatorsDefinitionSection

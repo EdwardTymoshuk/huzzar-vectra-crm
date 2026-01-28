@@ -8,7 +8,7 @@
  *  • Przekazane   – history of transfers (for materials)
  * ----------------------------------------------------------------*/
 
-import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse'
+import { SlimWarehouseItem } from '@/app/(modules)/vectra-crm/utils/warehouse/warehouse'
 import {
   Tabs,
   TabsContent,

@@ -1,6 +1,6 @@
 'use client'
 
-import { operatorSchema } from '@/app/(modules)/vectra-crm/lib/schema'
+import { operatorSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from '@/app/components/ui/form'
 import { Input } from '@/app/components/ui/input'
-import { OperatorFormData } from '@/types/vectra-crm'
+import { OperatorFormData } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
@@ -51,10 +51,10 @@ const EditOperatorDialog = ({ open, onClose, item }: Props) => {
     form.reset({ operator: item.operator })
   }, [item, form])
 
-  const mutation = trpc.vectra.operatorDefinition.editDefinition.useMutation({
+  const mutation = trpc.opl.settings.editOplOperatorDefinition.useMutation({
     onSuccess: () => {
       toast.success('Operator został zaktualizowany.')
-      utils.vectra.operatorDefinition.getAllDefinitions.invalidate()
+      utils.opl.settings.getAllOplOperatorDefinitions.invalidate()
       onClose()
     },
     onError: () => toast.error('Błąd podczas edycji operatora.'),
@@ -73,7 +73,7 @@ const EditOperatorDialog = ({ open, onClose, item }: Props) => {
         <DialogHeader>
           <DialogTitle>Edytuj operatora</DialogTitle>
           <DialogDescription>
-            Zmień nazwę operatora (np. Vectra, MMP).
+            Zmień nazwę operatora (np. Opl, MMP).
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -85,7 +85,7 @@ const EditOperatorDialog = ({ open, onClose, item }: Props) => {
                 <FormItem>
                   <FormLabel>Nazwa operatora</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="np. Vectra" />
+                    <Input {...field} placeholder="np. Opl" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

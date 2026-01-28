@@ -2,7 +2,7 @@
 
 import { MenuItem } from '@/types'
 import { useRole } from '@/utils/hooks/useRole'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import MobileNav from './MobileNav'
 import TopNav from './TopNav'
@@ -20,26 +20,33 @@ const ResponsiveNavigation = ({
   adminMenu,
   technicianMenu,
 }: Props) => {
+  const [isMobile, setIsMobile] = useState(false)
+
   const pathname = usePathname()
   const router = useRouter()
   const { isWarehouseman, isTechnician } = useRole()
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768)
-    onResize()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+  const searchParams = useSearchParams()
 
   const menuItems = isTechnician ? technicianMenu : adminMenu
 
   const activeKey = useMemo(() => {
-    const match = menuItems.find((item) =>
-      pathname.startsWith(`${basePath}${item.href}`)
-    )
+    const tab = searchParams.get('tab')
+
+    /** Warehouseman always works in tab-based navigation */
+    if (isWarehouseman) {
+      return tab ?? 'warehouse'
+    }
+
+    /** Tab param has priority */
+    if (tab) return tab
+
+    /** Fallbacks for route-based pages */
+    if (pathname.includes('/settings')) return 'settings'
+
+    const match = menuItems.find((item) => pathname.includes(item.key))
+
     return match?.key ?? 'dashboard'
-  }, [pathname, menuItems, basePath])
+  }, [pathname, searchParams, menuItems, isWarehouseman])
 
   const sharedProps = {
     menuItems,
@@ -50,6 +57,19 @@ const ResponsiveNavigation = ({
     basePath,
     moduleLabel,
   }
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    if (isWarehouseman && !searchParams.get('tab')) {
+      router.replace(`${basePath}/admin-panel?tab=warehouse`)
+    }
+  }, [isWarehouseman, searchParams, router, basePath])
 
   return isMobile ? <MobileNav {...sharedProps} /> : <TopNav {...sharedProps} />
 }

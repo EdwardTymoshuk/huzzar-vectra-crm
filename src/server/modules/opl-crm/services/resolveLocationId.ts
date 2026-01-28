@@ -9,10 +9,12 @@ export const resolveLocationId = (
 ): string => {
   const { role, locations } = oplUser.user
 
+  const resolvedLocations = locations.map((ul) => ul.location)
+
   if (role === 'ADMIN' || role === 'COORDINATOR') {
     if (locationId) return locationId
 
-    const fallback = locations?.[0]?.id
+    const fallback = resolvedLocations[0]?.id
     if (!fallback) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
@@ -24,14 +26,14 @@ export const resolveLocationId = (
   }
 
   if (role === 'WAREHOUSEMAN') {
-    if (!locations || locations.length === 0) {
+    if (resolvedLocations.length === 0) {
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'Warehouseman has no location assigned',
       })
     }
 
-    return locationId ?? locations[0].id
+    return locationId ?? resolvedLocations[0].id
   }
 
   throw new TRPCError({

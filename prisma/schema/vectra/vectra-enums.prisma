@@ -1,19 +1,8 @@
-//prisma/schema/vectra/vectra-enums.prisma
-
 enum VectraOrderStatus {
   PENDING
   ASSIGNED
   COMPLETED
   NOT_COMPLETED
-
-  @@schema("vectra")
-}
-
-enum VectraOrderType {
-  INSTALLATION
-  INSTALATION
-  SERVICE
-  OUTAGE
 
   @@schema("vectra")
 }
@@ -116,3 +105,12 @@ enum VectraDeviceSource {
 
   @@schema("vectra")
 }
+
+enum VectraOrderType {
+  INSTALLATION
+  SERVICE
+  OUTAGE
+
+  @@schema("vectra")
+}
+

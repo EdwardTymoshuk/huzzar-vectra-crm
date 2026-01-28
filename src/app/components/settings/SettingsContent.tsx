@@ -1,9 +1,13 @@
 import OplAdminsSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/adminSection/OplAdminsSection'
+import OplDeviceDefinitionsSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/deviceDefinition/OplDeviceDefinitionsSection'
+import OplMaterialDefinitionsSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/materialDefinition/OplMaterialDefinitionsSection'
+import OplOperatorsDefinitionSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/operatorsSection/OplOperatorsDefinitionSection'
+import OplRatesSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/rateSection/OplRatesSection'
 import VectraAdminsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/adminSection/VectraAdminsSection'
-import DeviceDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/deviceDefinition/VectraDeviceDefinitionsSection'
-import MaterialDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/materialDefinition/VectraMaterialDefinitionsSection'
-import OperatorsDefinitionSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/operatorsSection/VectraOperatorsDefinitionSection'
-import RatesSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/rateSection/VectraRatesSection'
+import VectraDeviceDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/deviceDefinition/VectraDeviceDefinitionsSection'
+import VectraMaterialDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/materialDefinition/VectraMaterialDefinitionsSection'
+import VectraOperatorsDefinitionSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/operatorsSection/VectraOperatorsDefinitionSection'
+import VectraRatesSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/rateSection/VectraRatesSection'
 import { SettingsContext } from '@/types'
 import type { Role } from '@prisma/client'
 import TechnicianProfileSettings from '../../(modules)/vectra-crm/components/settings/technician/TechnicianProfileSettings'
@@ -29,11 +33,11 @@ export const SettingsContent = ({ section, role }: Props) => {
     return (
       <>
         {role === 'ADMIN' && <VectraAdminsSection title="Administratorzy" />}
-        {role === 'ADMIN' && <RatesSection title="Stawki" />}
+        {role === 'ADMIN' && <VectraRatesSection title="Stawki" />}
 
-        <DeviceDefinitionsSection title="Urządzenia" />
-        <MaterialDefinitionsSection title="Materiał" />
-        <OperatorsDefinitionSection title="Operatorzy" />
+        <VectraDeviceDefinitionsSection title="Urządzenia" />
+        <VectraMaterialDefinitionsSection title="Materiał" />
+        <VectraOperatorsDefinitionSection title="Operatorzy" />
       </>
     )
   }
@@ -42,11 +46,11 @@ export const SettingsContent = ({ section, role }: Props) => {
     return (
       <>
         {role === 'ADMIN' && <OplAdminsSection title="Administratorzy" />}
-        {role === 'ADMIN' && <RatesSection title="Stawki" />}
+        {role === 'ADMIN' && <OplRatesSection title="Stawki" />}
 
-        <DeviceDefinitionsSection title="Urządzenia" />
-        <MaterialDefinitionsSection title="Materiał" />
-        <OperatorsDefinitionSection title="Operatorzy" />
+        <OplDeviceDefinitionsSection title="Urządzenia" />
+        <OplMaterialDefinitionsSection title="Materiał" />
+        <OplOperatorsDefinitionSection title="Operatorzy" />
       </>
     )
   }

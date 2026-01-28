@@ -1,7 +1,7 @@
 'use client'
 
-import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
-import { deviceSchema } from '@/app/(modules)/vectra-crm/lib/schema'
+import { oplDeviceTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
+import { deviceSchema } from '@/app/(modules)/opl-crm/lib/schema'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -26,10 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select'
-import { DeviceFormData } from '@/types/vectra-crm'
+import { DeviceFormData } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { VectraDeviceCategory, VectraDeviceDefinition } from '@prisma/client'
+import { OplDeviceCategory, OplDeviceDefinition } from '@prisma/client'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -37,8 +37,8 @@ import { toast } from 'sonner'
 interface Props {
   open: boolean
   onClose: () => void
-  item: VectraDeviceDefinition & { id: string }
-  categories: VectraDeviceCategory[]
+  item: OplDeviceDefinition & { id: string }
+  categories: OplDeviceCategory[]
 }
 
 /**
@@ -55,7 +55,7 @@ const EditDeviceDefinitionDialog = ({
 
   // Fetch existing device definitions
   const { data: allDefinitions } =
-    trpc.vectra.deviceDefinition.getAllDefinitions.useQuery()
+    trpc.opl.settings.getAllOplDeviceDefinitions.useQuery()
 
   const form = useForm<DeviceFormData>({
     resolver: zodResolver(deviceSchema),
@@ -78,10 +78,10 @@ const EditDeviceDefinitionDialog = ({
     })
   }, [item, form])
 
-  const mutation = trpc.vectra.deviceDefinition.editDefinition.useMutation({
+  const mutation = trpc.opl.settings.editOplDeviceDefinition.useMutation({
     onSuccess: () => {
       toast.success('Urządzenie zostało zaktualizowane.')
-      utils.vectra.deviceDefinition.getAllDefinitions.invalidate()
+      utils.opl.settings.getAllOplDeviceDefinitions.invalidate()
       onClose()
     },
     onError: () => toast.error('Błąd podczas edycji.'),
@@ -135,7 +135,7 @@ const EditDeviceDefinitionDialog = ({
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
-                          {devicesTypeMap[cat]}
+                          {oplDeviceTypeMap[cat]}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -1,21 +1,31 @@
 import { OplUserWithLocations } from '@/types/opl-crm'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Role } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 
 /**
- * Loads VectraUser and validates access to Vectra CRM module.
+ * Loads OplUser and validates access to OPL CRM module.
  * User must exist and have active access to the module.
  */
 export const getOplUserOrThrow = async (
   prisma: PrismaClient,
-  coreUserId: string
+  coreUserId: string,
+  role: Role
 ): Promise<OplUserWithLocations> => {
   const oplUser = await prisma.oplUser.findUnique({
     where: { userId: coreUserId },
     include: {
       user: {
         include: {
-          locations: true,
+          locations: {
+            include: {
+              location: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -24,7 +34,7 @@ export const getOplUserOrThrow = async (
   if (!oplUser || !oplUser.active) {
     throw new TRPCError({
       code: 'FORBIDDEN',
-      message: 'User has no active access to Opl module',
+      message: 'User has no active access to OPL module',
     })
   }
 

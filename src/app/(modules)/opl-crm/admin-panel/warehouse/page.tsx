@@ -10,6 +10,7 @@ import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFrom
 import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import AddModal from '../components/warehouse/add/AddModal'
+import OplIssueModal from '../components/warehouse/issue/OplIssueModal'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -81,10 +82,11 @@ const WarehousePage = () => {
         open={isImportOpen}
         onClose={() => setImportOpen(false)}
       /> */}
-      {/* <IssueModal
+      <OplIssueModal
         open={isIssueOpen}
         onCloseAction={() => setIssueOpen(false)}
       />
+      {/*
       <ReturnModal
         open={isReturnOpen}
         onCloseAction={() => setReturnOpen(false)}

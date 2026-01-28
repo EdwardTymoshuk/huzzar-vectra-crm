@@ -3,11 +3,11 @@ import AddRateDefinitionDialog from './AddRateDefinitionDialog'
 import RatesTable from './RatesTable'
 
 /**
- * RatesSection component:
+ * OplRatesSection component:
  * - A settings section showing a list of rates (kod + stawka)
  * - Contains a button/dialog for adding new rates
  */
-const RatesSection = ({ title }: { title: string }) => {
+const OplRatesSection = ({ title }: { title: string }) => {
   return (
     <SettingsSection title={title}>
       <RatesTable />
@@ -18,4 +18,4 @@ const RatesSection = ({ title }: { title: string }) => {
   )
 }
 
-export default RatesSection
+export default OplRatesSection

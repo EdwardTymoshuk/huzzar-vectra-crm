@@ -67,9 +67,13 @@ export const vectraAdminSelect = Prisma.validator<Prisma.VectraUserSelect>()({
       role: true,
       status: true,
       locations: {
-        select: {
-          id: true,
-          name: true,
+        include: {
+          location: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       },
     },

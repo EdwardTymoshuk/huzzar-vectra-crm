@@ -154,6 +154,14 @@ export type OplWarehouseHistoryWithRelations =
     }
   }>
 
+export type OplDeviceBasic = {
+  id: string
+  name: string
+  serialNumber: string | null
+  category: OplDeviceCategory
+  status?: OplWarehouseStatus
+}
+
 export type OplActivatedService = {
   id: string
   type: OplInstallationType
@@ -250,7 +258,16 @@ export type OplUserWithLocations = Prisma.OplUserGetPayload<{
   include: {
     user: {
       include: {
-        locations: true
+        locations: {
+          include: {
+            location: {
+              select: {
+                id: true
+                name: true
+              }
+            }
+          }
+        }
       }
     }
   }

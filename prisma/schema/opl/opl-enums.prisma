@@ -1,6 +1,3 @@
-//prisma/schema/opl/opl-enums.prisma
-
-//ORDER
 enum OplOrderStatus {
   PENDING
   ASSIGNED
@@ -26,7 +23,6 @@ enum OplOrderCreatedSource {
 }
 
 enum OplTimeSlot {
-  // 1h
   EIGHT_NINE         @map("8-9")
   NINE_TEN           @map("9-10")
   TEN_ELEVEN         @map("10-11")
@@ -39,34 +35,25 @@ enum OplTimeSlot {
   SEVENTEEN_EIGHTEEN @map("17-18")
   EIGHTEEN_NINETEEN  @map("18-19")
   NINETEEN_TWENTY    @map("19-20")
-
-  // 2h
-  EIGHT_TEN        @map("8-10")
-  TEN_TWELVE       @map("10-12")
-  TWELVE_FOURTEEN  @map("12-14")
-  FOURTEEN_SIXTEEN @map("14-16")
-  SIXTEEN_EIGHTEEN @map("16-18")
-  EIGHTEEN_TWENTY  @map("18-20")
-
-  // 3h
+  EIGHT_TEN          @map("8-10")
+  TEN_TWELVE         @map("10-12")
+  TWELVE_FOURTEEN    @map("12-14")
+  FOURTEEN_SIXTEEN   @map("14-16")
+  SIXTEEN_EIGHTEEN   @map("16-18")
+  EIGHTEEN_TWENTY    @map("18-20")
   EIGHT_ELEVEN       @map("8-11")
   ELEVEN_FOURTEEN    @map("11-14")
   FOURTEEN_SEVENTEEN @map("14-17")
   SEVENTEEN_TWENTY   @map("17-20")
-
-  // 4h
-  EIGHT_TWELVE   @map("8-12")
-  TWELVE_SIXTEEN @map("12-16")
-  SIXTEEN_TWENTY @map("16-20")
-
-  // 6h
-  EIGHT_FOURTEEN  @map("8-14")
-  FOURTEEN_TWENTY @map("14-20")
+  EIGHT_TWELVE       @map("8-12")
+  TWELVE_SIXTEEN     @map("12-16")
+  SIXTEEN_TWENTY     @map("16-20")
+  EIGHT_FOURTEEN     @map("8-14")
+  FOURTEEN_TWENTY    @map("14-20")
 
   @@schema("opl")
 }
 
-//WAREHOUSE
 enum OplWarehouseStatus {
   AVAILABLE
   ASSIGNED

@@ -8,9 +8,10 @@ import {
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MdWarehouse } from 'react-icons/md'
 
 interface Props {
@@ -21,25 +22,58 @@ interface Props {
 
 /**
  * WarehouseDropdownMenuMobile
+ * --------------------------------------------------
+ * Mobile bottom navigation entry for Warehouse module.
  *
- * Mobile navigation item for multi-warehouse support.
- * - Displays as a single button in bottom navigation.
- * - Opens dropdown with available warehouse locations.
- * - Highlights both active section and selected location.
- * - Shows a chevron icon to indicate dropdown availability.
+ * Role behavior:
+ * - Technician:
+ *   - No location context.
+ *   - Simple button redirecting to technician warehouse view.
+ *
+ * - Admin:
+ *   - Can access ALL locations.
+ *   - Always sees dropdown when multiple locations exist.
+ *
+ * - Coordinator / Warehouseman:
+ *   - Restricted to assigned locations only.
+ *   - Dropdown shown only if more than one assigned location exists.
+ *
+ * Notes:
+ * - `loc` query param is UI context only.
+ * - Backend must always validate location permissions.
  */
 const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
-  const { data: locations = [] } = trpc.core.user.getUserLocations.useQuery(
+  const [open, setOpen] = useState(false)
+
+  const { isAdmin } = useRole()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+
+  /** Fetch all locations only for non-technicians */
+  const { data: allLocations = [] } = trpc.core.user.getAllLocations.useQuery(
     undefined,
     {
       enabled: !isTechnician,
     }
   )
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const pathname = usePathname()
 
-  const [open, setOpen] = useState(false)
+  /** Locations assigned to current user (non-admin roles) */
+  const { data: userLocations = [] } = trpc.core.user.getUserLocations.useQuery(
+    undefined,
+    {
+      enabled: !isTechnician && !isAdmin,
+    }
+  )
+
+  /**
+   * Determine available locations based on role.
+   * - Admin: all locations
+   * - Others: assigned locations only
+   */
+  const availableLocations = useMemo(() => {
+    return isAdmin ? allLocations : userLocations
+  }, [isAdmin, allLocations, userLocations])
 
   const currentTab = searchParams.get('tab')
   const currentLoc = searchParams.get('loc')
@@ -49,84 +83,120 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
     pathname.includes('/warehouse/details') ||
     pathname.includes('/warehouse/history')
 
-  // ---- CASE: single warehouse (no dropdown) ----
-  if (locations.length <= 1) {
-    const loc = locations[0]
-    const isActive = isWarehouseSection
+  /**
+   * Force location context for non-admin users with exactly one assigned location.
+   * Prevents ambiguous warehouse state on mobile.
+   */
+  useEffect(() => {
+    if (
+      !isAdmin &&
+      availableLocations.length === 1 &&
+      !currentLoc &&
+      isWarehouseSection
+    ) {
+      router.replace(
+        `${basePath}/admin-panel?tab=warehouse&loc=${availableLocations[0].id}`
+      )
+    }
+  }, [
+    isAdmin,
+    availableLocations,
+    currentLoc,
+    isWarehouseSection,
+    router,
+    basePath,
+  ])
+
+  /** -------------------------------------------
+   * Technician view — simple navigation button
+   * ------------------------------------------- */
+  if (isTechnician) {
+    return (
+      <Button
+        variant="ghost"
+        onClick={() => router.push(`${basePath}/?tab=warehouse`)}
+        className={cn(
+          'flex flex-1 flex-col items-center justify-center text-sm font-medium px-2 min-h-16 py-4 rounded-none',
+          isWarehouseSection
+            ? 'bg-primary text-primary-foreground font-semibold'
+            : 'text-primary-foreground hover:text-accent-foreground'
+        )}
+      >
+        <MdWarehouse className="h-6 w-6" />
+        <span>Magazyn</span>
+      </Button>
+    )
+  }
+
+  /** -------------------------------------------
+   * Single-location (non-admin) — simple button
+   * ------------------------------------------- */
+  if (!isAdmin && availableLocations.length <= 1) {
+    const loc = availableLocations[0]
 
     return (
       <Button
         variant="ghost"
         onClick={() =>
           router.push(
-            isTechnician
-              ? `${basePath}/?tab=warehouse`
-              : `${basePath}/admin-panel?tab=warehouse&loc=${loc?.id ?? ''}`
+            `${basePath}/admin-panel?tab=warehouse&loc=${loc?.id ?? ''}`
           )
         }
         className={cn(
-          'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 min-h-16 h-full py-4 rounded-none',
-          isActive
-            ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
+          'flex flex-1 flex-col items-center justify-center text-sm font-medium px-2 min-h-16 py-4 rounded-none',
+          isWarehouseSection
+            ? 'bg-primary text-primary-foreground font-semibold'
             : 'text-primary-foreground hover:text-accent-foreground'
         )}
       >
-        <MdWarehouse className="h-6 w-6 sm:scale-150" />
-        <span className="">Magazyn</span>
+        <MdWarehouse className="h-6 w-6" />
+        <span>Magazyn</span>
       </Button>
     )
   }
 
-  // ---- CASE: multiple warehouses → dropdown ----
+  /** -------------------------------------------
+   * Admin / multi-location dropdown
+   * ------------------------------------------- */
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           className={cn(
-            'flex flex-col my-auto items-center justify-center text-sm sm:text-lg font-medium transition-colors select-none focus-visible:outline-none px-2 w-full min-h-16 h-full py-4 rounded-none relative',
-            /**
-             * Highlight warehouse button as active when any warehouse tab
-             * or its subpage (details/history) is currently open.
-             */
+            'flex flex-col items-center justify-center text-sm font-medium px-2 min-h-16 py-4 rounded-none',
             isWarehouseSection
-              ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold'
+              ? 'bg-primary text-primary-foreground font-semibold'
               : 'text-primary-foreground hover:text-accent-foreground'
           )}
         >
-          <div className="flex items-center justify-center gap-1">
-            <MdWarehouse className="h-6 w-6 sm:scale-150" />
-            {/* Chevron indicating dropdown state */}
-          </div>
-          <span className="inline-flex items-center gap-1 justify-center align-middle">
-            Magazyn
-          </span>
+          <MdWarehouse className="h-6 w-6" />
+          <span>Magazyn</span>
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
         side="top"
         align="center"
-        className="bg-background border border-border rounded-md shadow-none w-fit"
+        className="bg-background border border-border rounded-md w-fit"
       >
-        {locations.map((loc) => {
+        {availableLocations.map((loc) => {
           const isLocActive = isWarehouseSection && currentLoc === loc.id
+
           return (
             <DropdownMenuItem
               key={loc.id}
               onClick={() => {
                 router.push(
-                  isTechnician
-                    ? `${basePath}/?tab=warehouse&loc=${loc.id}`
-                    : `${basePath}/admin-panel?tab=warehouse&loc=${loc.id}`
+                  `${basePath}/admin-panel?tab=warehouse&loc=${loc.id}`
                 )
                 setOpen(false)
               }}
               className={cn(
-                'cursor-pointer text-sm flex items-center gap-2 px-3 py-2 rounded-sm transition-colors',
+                'cursor-pointer text-sm px-3 py-2',
                 isLocActive
                   ? 'bg-primary text-primary-foreground font-semibold'
-                  : 'text-foreground hover:text-foreground'
+                  : 'hover:bg-primary'
               )}
             >
               {loc.name}

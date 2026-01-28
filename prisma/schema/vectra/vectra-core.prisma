@@ -1,45 +1,29 @@
-//prisma/schema/vectra/vectra-core.prisma
-
-/// -----------------------------------------
-/// VECTRA CORE (schema: vectra)
-/// -----------------------------------------
-
 model VectraUser {
-  userId String  @id
-  active Boolean @default(true)
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deactivatedAt DateTime?
-
-  // Bridge to global User
-  user User @relation("UserToVectraUser", fields: [userId], references: [id])
-
-  // --- Relations used throughout the module ---
-  ordersAssigned    VectraOrder[]        @relation("VectraOrderAssignedTo")
-  ordersTransferred VectraOrder[]        @relation("VectraOrderTransfer")
-  orderHistory      VectraOrderHistory[] @relation("VectraOrderHistoryByUser")
-
-  warehouseItems   VectraWarehouse[] @relation("VectraWarehouseAssignedTo")
-  transferredItems VectraWarehouse[] @relation("VectraWarehouseTransfer")
-
-  warehouseHistoryAssigned  VectraWarehouseHistory[] @relation("VectraWHAssignedTo")
-  warehouseHistoryPerformed VectraWarehouseHistory[] @relation("VectraWHPerformedBy")
-
-  transfersRequested VectraLocationTransfer[] @relation("VectraRequestedTransfers")
-  transfersConfirmed VectraLocationTransfer[] @relation("VectraConfirmedTransfers")
-
+  userId                         String                            @id
+  createdAt                      DateTime                          @default(now())
+  updatedAt                      DateTime                          @updatedAt
+  active                         Boolean                           @default(true)
+  deactivatedAt                  DateTime?
+  transfersConfirmed             VectraLocationTransfer[]          @relation("VectraConfirmedTransfers")
+  transfersRequested             VectraLocationTransfer[]          @relation("VectraRequestedTransfers")
+  ordersAssigned                 VectraOrder[]                     @relation("VectraOrderAssignedTo")
+  ordersTransferred              VectraOrder[]                     @relation("VectraOrderTransfer")
+  orderHistory                   VectraOrderHistory[]              @relation("VectraOrderHistoryByUser")
   materialDeficits               VectraTechnicianMaterialDeficit[] @relation("VectraMaterialDeficitTechnician")
-  VectraTechnicianSettingsLegacy VectraTechnicianSettingsLegacy[]
+  VectraTechnicianSettingsLegacy VectraTechnicianSettingsLegacy?
+  user                           User                              @relation("UserToVectraUser", fields: [userId], references: [id])
+  warehouseItems                 VectraWarehouse[]                 @relation("VectraWarehouseAssignedTo")
+  transferredItems               VectraWarehouse[]                 @relation("VectraWarehouseTransfer")
+  warehouseHistoryAssigned       VectraWarehouseHistory[]          @relation("VectraWHAssignedTo")
+  warehouseHistoryPerformed      VectraWarehouseHistory[]          @relation("VectraWHPerformedBy")
 
   @@schema("vectra")
 }
 
 model VectraRateDefinition {
-  id     String @id @default(uuid())
-  code   String @unique
-  amount Float
-
+  id          String                       @id @default(uuid())
+  code        String                       @unique
+  amount      Float
   settlements VectraOrderSettlementEntry[] @relation("RateDefinitionToSettlement")
 
   @@schema("vectra")
@@ -52,21 +36,18 @@ model VectraOperatorDefinition {
 }
 
 model VectraTechnicianSettingsLegacy {
-
-  userId          String   @id
+  userId          String     @id
   workingDaysGoal Int
   revenueGoal     Float
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user VectraUser @relation(fields: [userId], references: [userId])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  user            VectraUser @relation(fields: [userId], references: [userId])
 
   @@map("VectraTechnicianSettings")
   @@schema("vectra")
 }
 
 model VectraWarehouseLocationLegacy {
-
   id        String   @id
   name      String
   createdAt DateTime

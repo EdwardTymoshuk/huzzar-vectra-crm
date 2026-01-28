@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 export const materialDefinitionRouter = router({
   // 📦 Get all material definitions (accessible by everyone logged in)
-  getAllOplMaterialDefinition: loggedInEveryone.query(() => {
+  getAllOplMaterialDefinitions: loggedInEveryone.query(() => {
     return prisma.oplMaterialDefinition.findMany({
       orderBy: { name: 'asc' },
     })

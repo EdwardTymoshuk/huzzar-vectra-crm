@@ -38,13 +38,13 @@ interface Props {
 }
 
 /**
- * TechnicianSelector
+ * OplTechnicianSelector
  * ------------------------------------------------
  * Dropdown with technicians list.
  * - mode="all"    → admin/coord/warehouse, all technicians
  * - mode="others" → technician app, excludes current user
  */
-const TechnicianSelector = ({ value, onChange, mode = 'all' }: Props) => {
+const OplTechnicianSelector = ({ value, onChange, mode = 'all' }: Props) => {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: { technicianId: '' },
@@ -56,8 +56,10 @@ const TechnicianSelector = ({ value, onChange, mode = 'all' }: Props) => {
   // --- fetch technicians depending on mode ---
   const { data: techniciansRaw = [], isLoading } =
     mode === 'others'
-      ? trpc.vectra.user.getOtherTechnicians.useQuery({ excludeId: myId })
-      : trpc.vectra.user.getTechnicians.useQuery({ status: 'ACTIVE' })
+      ? trpc.opl.user.getOtherTechnicians.useQuery({ excludeId: myId })
+      : trpc.opl.user.getTechnicians.useQuery({ status: 'ACTIVE' })
+
+  console.log(techniciansRaw)
 
   // --- sync external value with form ---
   useEffect(() => {
@@ -94,7 +96,6 @@ const TechnicianSelector = ({ value, onChange, mode = 'all' }: Props) => {
                 {techniciansRaw.map((tech) => (
                   <SelectItem key={tech.id} value={tech.id}>
                     {tech.name}
-                    {tech.identyficator ? ` | ${tech.identyficator}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -108,4 +109,4 @@ const TechnicianSelector = ({ value, onChange, mode = 'all' }: Props) => {
   )
 }
 
-export default TechnicianSelector
+export default OplTechnicianSelector

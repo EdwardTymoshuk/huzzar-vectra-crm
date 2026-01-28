@@ -72,7 +72,7 @@ const AddItemForm = ({
   const { data: devices = [] } =
     trpc.opl.settings.getAllOplDeviceDefinitions.useQuery()
   const { data: materials = [] } =
-    trpc.opl.settings.getAllOplMaterialDefinition.useQuery()
+    trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
   const { data: allWarehouse = [] } = trpc.opl.warehouse.getAll.useQuery(
     locationId ? { locationId } : undefined,
     { enabled: !!locationId }

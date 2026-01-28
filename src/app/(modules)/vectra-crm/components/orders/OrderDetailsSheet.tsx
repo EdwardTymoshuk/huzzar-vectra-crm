@@ -22,7 +22,7 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import OrderStatusBadge from './OrderStatusBadge'
+import OrderStatusBadge from '../../../../components/order/OrderStatusBadge'
 import OrderTimeline from './OrderTimeline'
 
 type Props = {

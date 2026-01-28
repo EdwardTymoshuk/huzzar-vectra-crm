@@ -46,9 +46,13 @@ export const oplAdminSelect = Prisma.validator<Prisma.OplUserSelect>()({
       role: true,
       status: true,
       locations: {
-        select: {
-          id: true,
-          name: true,
+        include: {
+          location: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       },
     },

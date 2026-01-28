@@ -1,4 +1,5 @@
 // src/server/modules/opl-crm/routers/user/misc.ts
+import { mapTechnicianToVM } from '@/server/core/helpers/mappers/mapTechnicianToVM'
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
@@ -21,10 +22,10 @@ export const miscUserRouter = router({
         excludeId: z.string().optional(),
       })
     )
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
       const currentUser = getCoreUserOrThrow(ctx)
 
-      return ctx.prisma.oplUser.findMany({
+      const rows = await ctx.prisma.oplUser.findMany({
         where: {
           active: true,
           user: {
@@ -43,20 +44,14 @@ export const miscUserRouter = router({
             select: {
               id: true,
               name: true,
-              email: true,
-              phoneNumber: true,
               status: true,
               identyficator: true,
-              locations: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
             },
           },
         },
       })
+
+      return rows.map(mapTechnicianToVM)
     }),
 
   /**
@@ -71,8 +66,8 @@ export const miscUserRouter = router({
           .optional(),
       })
     )
-    .query(({ ctx, input }) =>
-      ctx.prisma.oplUser.findMany({
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.prisma.oplUser.findMany({
         where: {
           active: true,
           user: {
@@ -88,23 +83,15 @@ export const miscUserRouter = router({
             select: {
               id: true,
               name: true,
-              email: true,
-              phoneNumber: true,
-              role: true,
               status: true,
               identyficator: true,
-              locations: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
             },
           },
         },
       })
-    ),
 
+      return rows.map(mapTechnicianToVM)
+    }),
   /**
    * Searches VECTRA technicians by name
    * using a normalized, case-insensitive query.
@@ -152,9 +139,13 @@ export const miscUserRouter = router({
               phoneNumber: true,
               email: true,
               locations: {
-                select: {
-                  id: true,
-                  name: true,
+                include: {
+                  location: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },

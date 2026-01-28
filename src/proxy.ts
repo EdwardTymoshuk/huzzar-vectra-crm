@@ -12,7 +12,7 @@ type AppJwt = JWT & {
   id: string
   role: Role
   status: UserStatus
-  modules: string[]
+  modules: { code: string }[]
 }
 
 /**
@@ -99,11 +99,16 @@ export default async function proxy(req: NextRequest): Promise<Response> {
   if (matchedModuleEntry) {
     const [, requiredModule] = matchedModuleEntry
 
-    if (token.role !== 'ADMIN' && !token.modules?.includes(requiredModule)) {
+    const hasModule = token.modules?.some((m) => m.code === requiredModule)
+
+    if (token.role !== 'ADMIN' && !hasModule) {
       return NextResponse.redirect(new URL('/', req.url))
     }
   }
 
+  /**
+   * Default: allow request to continue.
+   */
   return NextResponse.next()
 }
 

@@ -2,10 +2,10 @@ import SettingsSection from '@/app/components/settings/SettingsSection'
 import MaterialDefinitionsList from './MaterialDefinitionsList'
 
 /**
- * MaterialDefinitionsSection:
+ * OplMaterialDefinitionsSection:
  * A settings section for managing material name definitions.
  */
-const MaterialDefinitionsSection = ({ title }: { title: string }) => {
+const OplMaterialDefinitionsSection = ({ title }: { title: string }) => {
   return (
     <SettingsSection title={title}>
       <MaterialDefinitionsList />
@@ -13,4 +13,4 @@ const MaterialDefinitionsSection = ({ title }: { title: string }) => {
   )
 }
 
-export default MaterialDefinitionsSection
+export default OplMaterialDefinitionsSection

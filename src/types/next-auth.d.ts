@@ -29,7 +29,7 @@ declare module 'next-auth' {
       role: Role
       status: UserStatus
       modules: SessionModule[]
-      locations?: SessionLocation[]
+      locations: SessionLocation[]
     }
   }
 
@@ -42,7 +42,7 @@ declare module 'next-auth' {
     role: Role
     status: UserStatus
     modules: SessionModule[]
-    locations?: SessionLocation[]
+    locations: SessionLocation[]
   }
 }
 
@@ -56,6 +56,6 @@ declare module 'next-auth/jwt' {
     role: Role
     status: UserStatus
     modules: SessionModule[]
-    locations?: SessionLocation[]
+    locations: SessionLocation[]
   }
 }

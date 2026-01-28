@@ -1,8 +1,8 @@
 'use client'
 
+import VectraTechnicianSelector from '@/app/(modules)/vectra-crm/components/VectraTechnicianSelector'
 import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
 import SearchInput from '@/app/components/SearchInput'
-import TechnicianSelector from '@/app/components/TechnicianSelector'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
@@ -276,7 +276,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   return (
     <div className="space-y-6">
       {/* Technician selection */}
-      <TechnicianSelector
+      <VectraTechnicianSelector
         value={selectedTechnician}
         onChange={(tech) => {
           setTechnicianId(tech?.id ?? null)

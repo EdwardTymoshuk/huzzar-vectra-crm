@@ -1,5 +1,6 @@
 // src/types/index.ts
 
+import { NormalizedUser } from '@/server/core/helpers/users/normalizeUser'
 import { AppRouter } from '@/server/routers'
 import { Prisma, PrismaClient, Role, UserStatus } from '@prisma/client'
 import { inferRouterInputs, inferRouterOutputs } from '@trpc/server'
@@ -9,31 +10,7 @@ import { IconType } from 'react-icons'
 // -----------------------------
 // CORE SESSION USER
 // -----------------------------
-export type CoreSessionUser = Prisma.UserGetPayload<{
-  select: {
-    id: true
-    name: true
-    email: true
-    phoneNumber: true
-    identyficator: true
-    role: true
-    status: true
-    locations: {
-      select: {
-        id: true
-        name: true
-      }
-    }
-  }
-}>
-
-// -----------------------------
-// GLOBAL CONTEXT
-// -----------------------------
-export interface Context {
-  user: CoreSessionUser | null
-  prisma: PrismaClient
-}
+export type CoreSessionUser = NormalizedUser
 
 // -----------------------------
 // GLOBAL USER TYPES

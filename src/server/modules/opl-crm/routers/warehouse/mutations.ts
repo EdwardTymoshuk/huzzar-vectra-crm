@@ -31,7 +31,11 @@ export const mutationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const coreUser = getCoreUserOrThrow(ctx)
 
-      const oplUser = await getOplUserOrThrow(ctx.prisma, coreUser.id)
+      const oplUser = await getOplUserOrThrow(
+        ctx.prisma,
+        coreUser.id,
+        coreUser.role
+      )
 
       const activeLocationId = resolveLocationId(oplUser, input.locationId)
 

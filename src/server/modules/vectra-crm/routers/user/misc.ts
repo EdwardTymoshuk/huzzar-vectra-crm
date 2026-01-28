@@ -1,6 +1,7 @@
 // src/server/modules/vectra-crm/routers/user/misc.ts
 import { mapTechnicianToEmployeeVM } from '@/server/core/helpers/mappers/mapTechnicianToEmployeeVM'
 import { mapTechnicianToVM } from '@/server/core/helpers/mappers/mapTechnicianToVM'
+import { normalizeUser } from '@/server/core/helpers/users/normalizeUser'
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { adminCoordOrWarehouse, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
@@ -86,9 +87,24 @@ export const miscUserRouter = router({
               status: true,
               identyficator: true,
               locations: {
-                select: {
-                  id: true,
-                  name: true,
+                include: {
+                  location: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+              modules: {
+                include: {
+                  module: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                    },
+                  },
                 },
               },
             },
@@ -96,7 +112,9 @@ export const miscUserRouter = router({
         },
       })
 
-      return technicians.map(mapTechnicianToEmployeeVM)
+      return technicians
+        .map((t) => normalizeUser(t.user))
+        .map(mapTechnicianToEmployeeVM)
     }),
   /**
    * Searches VECTRA technicians by name
@@ -145,9 +163,13 @@ export const miscUserRouter = router({
               phoneNumber: true,
               email: true,
               locations: {
-                select: {
-                  id: true,
-                  name: true,
+                include: {
+                  location: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },

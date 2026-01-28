@@ -57,7 +57,6 @@ const ModulesGrid = () => {
   const layoutClass = getGridClass(count)
 
   return (
-    // <div className="flex flex-col items-center justify-center">
     <MaxWidthWrapper className="my-auto">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-semibold uppercase">
@@ -73,7 +72,6 @@ const ModulesGrid = () => {
           <ModuleCard key={module.code} module={module} />
         ))}
       </div>
-      {/* // </div> */}
     </MaxWidthWrapper>
   )
 }
