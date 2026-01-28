@@ -14,6 +14,7 @@ import OplDeviceCheckSheet from '../components/warehouse/deviceCheck/OplDeviceCh
 import OplIssueModal from '../components/warehouse/issue/OplIssueModal'
 import OplReturnModal from '../components/warehouse/return/OplReturnModal'
 import OplTechnicianStockSheet from '../components/warehouse/technicianStock/OplTechnicianStockSheet'
+import OplLocationTransferModal from '../components/warehouse/warehouseLocalizations/OplLocationTransferModal'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -99,11 +100,11 @@ const WarehousePage = () => {
         open={isSerialOpen}
         onClose={() => setSerialOpen(false)}
       />
-      {/*
-      <LocationTransferModal
+      <OplLocationTransferModal
         open={isTransferOpen}
         onCloseAction={() => setTransferOpen(false)}
       />
+      {/*
       <ReportsDialog
         open={isReportsOpen}
         onClose={() => setReportsOpen(false)}

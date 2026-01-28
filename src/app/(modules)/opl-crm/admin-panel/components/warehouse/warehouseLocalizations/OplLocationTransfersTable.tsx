@@ -46,7 +46,7 @@ type TransferRow = {
 }
 
 /**
- * LocationTransfersTable (ADMIN/WAREHOUSE)
+ * OplLocationTransfersTable (ADMIN/WAREHOUSE)
  * -------------------------------------------------------------------------
  * • Displays all pending location-to-location transfers.
  * • Each transfer is an accordion item, listing all lines (devices/materials).
@@ -54,7 +54,7 @@ type TransferRow = {
  * • Uses ShadCN components for consistency and clarity.
  * ---------------------------------------------------------------------- */
 
-const LocationTransfersTable = () => {
+const OplLocationTransfersTable = () => {
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [showSkeleton, setShowSkeleton] = useState(false)
 
@@ -79,7 +79,6 @@ const LocationTransfersTable = () => {
     onSuccess: () => {
       setLoadingId(null)
       utils.opl.warehouse.getIncomingLocationTransfers.invalidate()
-      utils.opl.warehouse.getDefinitionsWithStock.invalidate()
       toast.success('Przekazanie zaakceptowane.')
     },
     onError: () => setLoadingId(null),
@@ -89,7 +88,6 @@ const LocationTransfersTable = () => {
     onSuccess: () => {
       setLoadingId(null)
       utils.opl.warehouse.getIncomingLocationTransfers.invalidate()
-      utils.opl.warehouse.getDefinitionsWithStock.invalidate()
       toast.info('Przekazanie odrzucone.')
     },
     onError: () => setLoadingId(null),
@@ -99,7 +97,6 @@ const LocationTransfersTable = () => {
     onSuccess: () => {
       setLoadingId(null)
       utils.opl.warehouse.getOutgoingLocationTransfers.invalidate()
-      utils.opl.warehouse.getDefinitionsWithStock.invalidate()
       toast.info('Przekazanie anulowane.')
     },
     onError: () => setLoadingId(null),
@@ -285,4 +282,4 @@ const LocationTransfersTable = () => {
   )
 }
 
-export default LocationTransfersTable
+export default OplLocationTransfersTable

@@ -13,7 +13,7 @@ import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { CgArrowsExchange } from 'react-icons/cg'
 import { toast } from 'sonner'
-import LocationTransferItemsTabs from './LocationTransferItemsTabs'
+import LocationTransferItemsTabs from './OplLocationTransferItemsTabs'
 
 type Props = {
   open: boolean
@@ -21,13 +21,13 @@ type Props = {
 }
 
 /**
- * LocationTransferModal
+ * OplLocationTransferModal
  * ---------------------------------------------------------
  * • Source warehouse (`fromLocationId`) = first assigned location of user.
  * • Destination warehouse (`toLocationId`) selected in modal.
  * • Provides tabs to pick devices/materials and confirm transfer.
  */
-const LocationTransferModal = ({ open, onCloseAction }: Props) => {
+const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
   const [toLocation, setToLocation] = useState<{
     id: string
     name: string
@@ -39,10 +39,11 @@ const LocationTransferModal = ({ open, onCloseAction }: Props) => {
   const fromLocationId = useActiveLocation()
 
   /** Create transfer mutation */
-  const mutation = trpc.vectra.warehouse.createTransfer.useMutation({
+  const mutation = trpc.opl.warehouse.createTransfer.useMutation({
     onSuccess: () => {
       toast.success('Przekazanie utworzone.')
-      utils.vectra.warehouse.getOutgoingLocationTransfers.invalidate()
+      utils.opl.warehouse.getOutgoingLocationTransfers.invalidate()
+      utils.opl.warehouse.getDefinitionsWithStock.invalidate()
       handleClose()
     },
     onError: () => toast.error('Błąd przy tworzeniu transferu.'),
@@ -122,4 +123,4 @@ const LocationTransferModal = ({ open, onCloseAction }: Props) => {
   )
 }
 
-export default LocationTransferModal
+export default OplLocationTransferModal
