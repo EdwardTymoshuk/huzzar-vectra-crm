@@ -23,7 +23,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 /**
- * ReportsDialog
+ * OplReportsDialog
  * --------------------------------------------------------
  * Unified entry point for generating and downloading
  * warehouse-related Excel reports.
@@ -38,7 +38,7 @@ type ReportType =
   | 'WAREHOUSE_STOCK'
   | 'USED_MATERIALS_INSTALLATIONS'
 
-const ReportsDialog = ({ open, onClose }: Props) => {
+const OplReportsDialog = ({ open, onClose }: Props) => {
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null)
   const [technicianId, setTechnicianId] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
@@ -46,18 +46,18 @@ const ReportsDialog = ({ open, onClose }: Props) => {
 
   const today = formatDate(new Date())
 
-  const { data: technicians = [] } = trpc.vectra.user.getTechnicians.useQuery({
+  const { data: technicians = [] } = trpc.opl.user.getTechnicians.useQuery({
     status: 'ACTIVE',
   })
 
   const generateTechnicianStockReport =
-    trpc.vectra.warehouse.generateTechnicianStockReport.useMutation()
+    trpc.opl.warehouse.generateTechnicianStockReport.useMutation()
 
   const generateWarehouseStockReport =
-    trpc.vectra.warehouse.generateWarehouseStockReport.useMutation()
+    trpc.opl.warehouse.generateWarehouseStockReport.useMutation()
 
   const generateUsedMaterialsReport =
-    trpc.vectra.warehouse.generateUsedMaterialsInstallationReport.useMutation()
+    trpc.opl.warehouse.generateUsedMaterialsInstallationReport.useMutation()
 
   /**
    * handleGenerate
@@ -200,7 +200,7 @@ const ReportsDialog = ({ open, onClose }: Props) => {
   )
 }
 
-export default ReportsDialog
+export default OplReportsDialog
 
 /**
  * downloadExcel

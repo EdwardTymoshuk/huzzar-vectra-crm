@@ -8,6 +8,7 @@ import {
 } from '@prisma/client'
 
 import { CleanTimelineItem } from '@/app/components/ui/timeline'
+import { BadgeVariant } from '@/lib/constants'
 
 export const orderStatusToTimelineColor = {
   COMPLETED: 'success',
@@ -190,19 +191,3 @@ export const devicesTypeMap = {
   NETWORK_DEVICE: 'SPRZĘT SIECIOWY',
   OTHER: 'INNE',
 } satisfies Record<VectraDeviceCategory, string>
-
-export const orderTimelineColorMap: Record<VectraOrderStatus, string> = {
-  COMPLETED: 'bg-success',
-  NOT_COMPLETED: 'bg-danger',
-  ASSIGNED: 'bg-warning',
-  PENDING: 'bg-secondary',
-}
-
-export type BadgeVariant =
-  | 'default'
-  | 'secondary'
-  | 'destructive'
-  | 'outline'
-  | 'success'
-  | 'warning'
-  | 'danger'

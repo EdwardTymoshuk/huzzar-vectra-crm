@@ -261,3 +261,19 @@ export const SETTINGS_SECTIONS: SettingsSectionConfig[] = [
     module: 'TOOLS',
   },
 ]
+
+export const orderTimelineColorMap: Record<VectraOrderStatus, string> = {
+  COMPLETED: 'bg-success',
+  NOT_COMPLETED: 'bg-danger',
+  ASSIGNED: 'bg-warning',
+  PENDING: 'bg-secondary',
+}
+
+export type BadgeVariant =
+  | 'default'
+  | 'secondary'
+  | 'destructive'
+  | 'outline'
+  | 'success'
+  | 'warning'
+  | 'danger'

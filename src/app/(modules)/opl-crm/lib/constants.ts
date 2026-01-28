@@ -1,6 +1,11 @@
 //src/app/(modules)/opl-crm/lib/constants.ts
 
-import { OplDeviceCategory, OplTimeSlot } from '@prisma/client'
+import { BadgeVariant } from '@/lib/constants'
+import {
+  OplDeviceCategory,
+  OplTimeSlot,
+  OplWarehouseAction,
+} from '@prisma/client'
 
 export const oplDevicesTypeMap = {
   MODEM: 'MODEM',
@@ -90,4 +95,22 @@ export const oplOrderTypeMap = {
   INSTALLATION: 'Instalacja',
   SERVICE: 'Serwis',
   OUTAGE: 'Uszkodzenie',
+}
+
+export const oplWarehouseActionMap: Record<
+  OplWarehouseAction,
+  { label: string; variant: BadgeVariant }
+> = {
+  RECEIVED: { label: 'Przyjęcie', variant: 'success' },
+  ISSUED: { label: 'Wydanie', variant: 'warning' },
+  RETURNED: { label: 'Zwrot', variant: 'destructive' },
+  RETURNED_TO_OPERATOR: { label: 'Zwrot do operatora', variant: 'danger' },
+  TRANSFER: { label: 'Przekazanie', variant: 'secondary' },
+  COLLECTED_FROM_CLIENT: { label: 'Odbiór od klienta', variant: 'default' },
+  ISSUED_TO_CLIENT: { label: 'Wydanie klientowi', variant: 'warning' },
+  ASSIGNED_TO_ORDER: { label: 'Przypisanie do zlecenia', variant: 'success' },
+  RETURNED_TO_TECHNICIAN: {
+    label: 'Zwrot do technika',
+    variant: 'danger',
+  },
 }

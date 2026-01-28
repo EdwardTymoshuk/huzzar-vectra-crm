@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import WarehouseTabs from '../../components/warehouse/WarehouseTabs'
 import LocationTransfersTable from '../components/warehouse/LocationTransfersTable'
+import OplReportsDialog from '../components/warehouse/OplReportsDialog'
 import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFromTechniciansSection'
 import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
@@ -104,11 +105,11 @@ const WarehousePage = () => {
         open={isTransferOpen}
         onCloseAction={() => setTransferOpen(false)}
       />
-      {/*
-      <ReportsDialog
+
+      <OplReportsDialog
         open={isReportsOpen}
         onClose={() => setReportsOpen(false)}
-      /> */}
+      />
     </div>
   )
 }
