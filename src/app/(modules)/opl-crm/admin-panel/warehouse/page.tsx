@@ -10,6 +10,7 @@ import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFrom
 import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
 import AddModal from '../components/warehouse/add/AddModal'
+import OplDeviceCheckSheet from '../components/warehouse/deviceCheck/OplDeviceCheckSheet'
 import OplIssueModal from '../components/warehouse/issue/OplIssueModal'
 import OplReturnModal from '../components/warehouse/return/OplReturnModal'
 import OplTechnicianStockSheet from '../components/warehouse/technicianStock/OplTechnicianStockSheet'
@@ -94,11 +95,11 @@ const WarehousePage = () => {
         onCloseAction={() => setReturnOpen(false)}
       />
       <OplTechnicianStockSheet open={isStockOpen} setOpen={setStockOpen} />
-      {/*
-      <DeviceCheckSheet
+      <OplDeviceCheckSheet
         open={isSerialOpen}
         onClose={() => setSerialOpen(false)}
       />
+      {/*
       <LocationTransferModal
         open={isTransferOpen}
         onCloseAction={() => setTransferOpen(false)}
