@@ -2,6 +2,7 @@ import { adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
 import { sortCodes } from '@/utils/sortCodes'
+import { endOfDay, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
 export const reportsRouter = router({
@@ -17,11 +18,16 @@ export const reportsRouter = router({
     .query(async ({ input }) => {
       const rates = await prisma.rateDefinition.findMany()
       const allCodes = sortCodes(rates.map((r) => r.code))
+      const from = startOfDay(new Date(input.from))
+      const to = endOfDay(new Date(input.to))
 
       const orders = await prisma.order.findMany({
         where: {
           type: 'INSTALATION',
-          date: { gte: new Date(input.from), lte: new Date(input.to) },
+          date: {
+            gte: from,
+            lte: to,
+          },
           ...(input.operator && { operator: input.operator }),
           status: { in: ['COMPLETED', 'NOT_COMPLETED'] },
           assignedToId: { not: null },
