@@ -1,5 +1,10 @@
 import { MenuItem, SettingsSectionConfig } from '@/types'
-import { Role, VectraMaterialUnit, VectraOrderStatus } from '@prisma/client'
+import {
+  OplMaterialUnit,
+  Role,
+  VectraMaterialUnit,
+  VectraOrderStatus,
+} from '@prisma/client'
 import { Briefcase } from 'lucide-react'
 import { BsTools } from 'react-icons/bs'
 import { FaCar } from 'react-icons/fa'
@@ -204,7 +209,10 @@ export const devicesStatusMap = {
   TRANSFER: 'PRZEKAZANY',
 }
 
-export const materialUnitMap: Record<VectraMaterialUnit, string> = {
+export const materialUnitMap: Record<
+  VectraMaterialUnit | OplMaterialUnit,
+  string
+> = {
   PIECE: 'szt',
   METER: 'm',
 }

@@ -60,7 +60,7 @@ const isMaterial = (
  * Backend is the single source of truth – no grouping or merging
  * is performed on the frontend.
  */
-const WarehouseTableAdmin = ({
+const OplWarehouseTableAdmin = ({
   itemType,
   searchTerm,
   categoryFilter,
@@ -338,4 +338,4 @@ const WarehouseTableAdmin = ({
   )
 }
 
-export default WarehouseTableAdmin
+export default OplWarehouseTableAdmin

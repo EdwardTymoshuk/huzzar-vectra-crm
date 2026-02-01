@@ -1,6 +1,5 @@
 'use client'
 
-import WarehouseTableAdmin from '@/app/(modules)/opl-crm/admin-panel/components/warehouse/WarehouseTableAdmin'
 import {
   Tabs,
   TabsContent,
@@ -9,7 +8,8 @@ import {
 } from '@/app/components/ui/tabs'
 import { useRole } from '@/utils/hooks/useRole'
 import { OplWarehouseItemType } from '@prisma/client'
-import WarehouseTableTech from '../../(technician)/components/warehouse/WarehouseTableTech'
+import OplWarehouseTableTech from '../../(technician)/components/warehouse/OplWarehouseTableTech'
+import OplWarehouseTableAdmin from '../../admin-panel/components/warehouse/OplWarehouseTableAdmin'
 
 interface Props {
   searchTerm: string
@@ -17,12 +17,12 @@ interface Props {
 }
 
 /**
- * WarehouseTabs (shared)
+ * OplWarehouseTabs (shared)
  * -------------------------------------------------------------
  * Shared between Admin/Coordinator and Technician views.
  * Automatically picks correct table based on user role.
  */
-const WarehouseTabs = ({ searchTerm, categoryFilter }: Props) => {
+const OplWarehouseTabs = ({ searchTerm, categoryFilter }: Props) => {
   const { isTechnician } = useRole()
 
   return (
@@ -34,13 +34,13 @@ const WarehouseTabs = ({ searchTerm, categoryFilter }: Props) => {
 
       <TabsContent value="devices">
         {isTechnician ? (
-          <WarehouseTableTech
+          <OplWarehouseTableTech
             itemType={OplWarehouseItemType.DEVICE}
             searchTerm={searchTerm}
             categoryFilter={categoryFilter}
           />
         ) : (
-          <WarehouseTableAdmin
+          <OplWarehouseTableAdmin
             itemType={OplWarehouseItemType.DEVICE}
             searchTerm={searchTerm}
             categoryFilter={categoryFilter}
@@ -50,13 +50,13 @@ const WarehouseTabs = ({ searchTerm, categoryFilter }: Props) => {
 
       <TabsContent value="materials">
         {isTechnician ? (
-          <WarehouseTableTech
+          <OplWarehouseTableTech
             itemType={OplWarehouseItemType.MATERIAL}
             searchTerm={searchTerm}
             categoryFilter={categoryFilter}
           />
         ) : (
-          <WarehouseTableAdmin
+          <OplWarehouseTableAdmin
             itemType={OplWarehouseItemType.MATERIAL}
             searchTerm={searchTerm}
             categoryFilter={categoryFilter}
@@ -67,4 +67,4 @@ const WarehouseTabs = ({ searchTerm, categoryFilter }: Props) => {
   )
 }
 
-export default WarehouseTabs
+export default OplWarehouseTabs

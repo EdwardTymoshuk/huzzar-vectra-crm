@@ -6,18 +6,18 @@ import { trpc } from '@/utils/trpc'
 import { useSession } from 'next-auth/react'
 
 /**
- * WarehouseSummaryCard (technician):
+ * OplTechWarehouseSummaryCard (technician):
  * - Shows total quantity and value of devices and materials
  *   **belonging to the logged-in technician**.
  */
-const WarehouseSummaryCard = () => {
+const OplTechWarehouseSummaryCard = () => {
   /* current user */
   const { data: session } = useSession()
   if (!session) return null
 
   /* technician-scoped stock */
   const { data, isLoading, isError } =
-    trpc.vectra.warehouse.getTechnicianStock.useQuery({
+    trpc.opl.warehouse.getTechnicianStock.useQuery({
       technicianId: 'self',
     })
 
@@ -72,4 +72,4 @@ const WarehouseSummaryCard = () => {
   )
 }
 
-export default WarehouseSummaryCard
+export default OplTechWarehouseSummaryCard

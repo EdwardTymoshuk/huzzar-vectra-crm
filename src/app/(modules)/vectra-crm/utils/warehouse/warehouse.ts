@@ -79,10 +79,3 @@ export const getLastAction = (
     if (hist[i].action === action) return hist[i]
   return undefined
 }
-
-/**
- * Formats a Date into dd.MM.yyyy or returns a dash if null.
- */
-import { format } from 'date-fns'
-export const fmt = (d: Date | null, f = 'dd.MM.yyyy'): string =>
-  d ? format(d, f) : '—'

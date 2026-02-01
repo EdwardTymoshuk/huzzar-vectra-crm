@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
-import { VECTRA_PATH } from '@/lib/constants'
+import { OPL_PATH } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OplDeviceCategory, OplWarehouseItemType } from '@prisma/client'
 import { useMemo, useState } from 'react'
@@ -49,7 +49,7 @@ type GroupedItem = {
 type SortField = null | 'name' | 'category'
 type SortOrder = null | 'asc' | 'desc'
 
-const WarehouseTableTech = ({
+const OplWarehouseTableTech = ({
   itemType,
   searchTerm,
   categoryFilter,
@@ -235,7 +235,7 @@ const WarehouseTableTech = ({
                 <TableCell>
                   <Button asChild size="sm" variant="ghost">
                     <NavLink
-                      href={`${VECTRA_PATH}/warehouse/details/${encodeURIComponent(
+                      href={`${OPL_PATH}/warehouse/details/${encodeURIComponent(
                         item.name.trim()
                       )}`}
                       prefetch
@@ -254,4 +254,4 @@ const WarehouseTableTech = ({
   )
 }
 
-export default WarehouseTableTech
+export default OplWarehouseTableTech

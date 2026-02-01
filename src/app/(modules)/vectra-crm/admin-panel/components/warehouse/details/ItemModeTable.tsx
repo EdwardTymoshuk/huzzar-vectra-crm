@@ -3,7 +3,6 @@
 import OrderDetailsSheet from '@/app/(modules)/vectra-crm/components/orders/OrderDetailsSheet'
 import {
   SlimWarehouseItem,
-  fmt,
   getActionDate,
   getLastAction,
   getLastActionDate,
@@ -18,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { formatDateOrDash } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { VectraWarehouseAction } from '@prisma/client'
@@ -210,19 +210,19 @@ const ItemModeTable = ({ mode, items }: Props) => {
                 )}
                 {mode === 'warehouse' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>{receivedBy}</TableCell>
                   </>
                 )}
                 {mode === 'technicians' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>{issuedToTech}</TableCell>
                   </>
                 )}
                 {mode === 'orders' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>
                       {order ? (
                         <Button
@@ -240,7 +240,7 @@ const ItemModeTable = ({ mode, items }: Props) => {
                 )}
                 {mode === 'returned' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>{returnedBy}</TableCell>
                   </>
                 )}

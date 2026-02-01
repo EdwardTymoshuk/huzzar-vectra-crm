@@ -564,32 +564,6 @@ export const mutationsRouter = router({
         })
       })
     }),
-
-  /** ✅ Change order status */
-  toggleOrderStatus: adminOrCoord
-    .input(
-      z.object({
-        id: z.string(),
-        status: z.nativeEnum(VectraOrderStatus),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const order = await prisma.vectraOrder.findUnique({
-        where: { id: input.id },
-      })
-      if (!order) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Zlecenie nie istnieje',
-        })
-      }
-
-      return prisma.vectraOrder.update({
-        where: { id: input.id },
-        data: { status: input.status },
-      })
-    }),
-
   /** ✅ Assign or unassign technician */
   assignTechnician: adminOnly
     .input(

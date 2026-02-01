@@ -3,7 +3,6 @@
 import OrderDetailsSheet from '@/app/(modules)/vectra-crm/components/orders/OrderDetailsSheet'
 import {
   SlimWarehouseItem,
-  fmt,
   getLastAction,
   getLastActionDate,
 } from '@/app/(modules)/vectra-crm/utils/warehouse/warehouse'
@@ -17,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import { formatDateOrDash } from '@/utils/dates/formatDateTime'
 import { VectraWarehouseAction } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
@@ -153,13 +153,13 @@ const TechItemTable = ({ items, mode }: Props) => {
 
                 {mode === 'warehouse' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>{issuedBy}</TableCell>
                   </>
                 )}
                 {mode === 'orders' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>
                       {order ? (
                         <Button
@@ -177,7 +177,7 @@ const TechItemTable = ({ items, mode }: Props) => {
                 )}
                 {mode === 'transfer' && (
                   <>
-                    <TableCell>{fmt(date)}</TableCell>
+                    <TableCell>{formatDateOrDash(date)}</TableCell>
                     <TableCell>{transferredTo}</TableCell>
                   </>
                 )}

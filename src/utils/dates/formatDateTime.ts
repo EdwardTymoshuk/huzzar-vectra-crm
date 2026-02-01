@@ -46,3 +46,20 @@ export const toLocalDateOnly = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+/**
+ * Formats a Date using given pattern and returns a dash when value is missing.
+ * Intended strictly for UI usage (tables, labels).
+ *
+ * @example
+ * formatDateOrDash(date) // "05.11.2025" | "—"
+ */
+export const formatDateOrDash = (
+  date: Date | string | null,
+  pattern = 'dd.MM.yyyy'
+): string => {
+  if (!date) return '—'
+  const d = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(d.getTime())) return '—'
+  return format(d, pattern, { locale: pl })
+}

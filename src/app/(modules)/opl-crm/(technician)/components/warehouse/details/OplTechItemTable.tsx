@@ -1,8 +1,8 @@
 'use client'
 
+import OplOrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import {
   OplSlimWarehouseItem,
-  getOplActionDate,
   getOplLastAction,
   getOplLastActionDate,
 } from '@/app/(modules)/opl-crm/utils/warehouse/warehouse'
@@ -17,87 +17,54 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { formatDateOrDash } from '@/utils/dates/formatDateTime'
-import { useRole } from '@/utils/hooks/useRole'
-import { trpc } from '@/utils/trpc'
 import { OplWarehouseAction } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 
-type Mode = 'warehouse' | 'technicians' | 'orders' | 'returned'
-
-interface Props {
-  mode: Mode
+type Props = {
   items: OplSlimWarehouseItem[]
+  mode: 'warehouse' | 'orders' | 'transfer'
 }
 
 /**
- * OplItemModeTable
- * - Includes local search + location filter above the table.
- * - Dynamically shows "Lokalizacja" column for admins and multi-location users.
+ * OplTechItemTable
+ * -------------
+ * Technician’s table view for warehouse items.
+ * • Includes search input above the table (local state).
+ * • Mirrors admin ItemModeTable for consistency.
  */
-const OplItemModeTable = ({ mode, items }: Props) => {
+const OplTechItemTable = ({ items, mode }: Props) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [orderId, setOrderId] = useState<string | null>(null)
 
-  const { isAdmin, isCoordinator, isWarehouseman } = useRole()
-  const { data: Locations = [] } = trpc.core.user.getUserLocations.useQuery(
-    undefined,
-    {
-      enabled: isAdmin || isCoordinator || isWarehouseman,
-    }
-  )
-
-  const locations = Locations.map((loc) => ({
-    id: loc.id,
-    name: loc.name,
-  }))
-
-  const showLocationColumn =
-    isAdmin || ((isCoordinator || isWarehouseman) && locations.length > 1)
-
-  // Apply filters
+  // Filter by search
   const filtered = useMemo(() => {
-    let data = items
-
-    // Filter by search
     const q = searchTerm.trim().toLowerCase()
-    if (q) {
-      data = data.filter((it) =>
-        (it.itemType === 'MATERIAL'
-          ? it.index ?? it.name
-          : it.serialNumber ?? '—'
-        )
-          .toLowerCase()
-          .includes(q)
+    if (!q) return items
+    return items.filter((it) =>
+      (it.itemType === 'MATERIAL'
+        ? it.index ?? it.name
+        : it.serialNumber ?? '—'
       )
-    }
-
-    return data
+        .toLowerCase()
+        .includes(q)
+    )
   }, [items, searchTerm])
 
+  // Resolve the most relevant date depending on mode
   const pickDate = (it: OplSlimWarehouseItem): Date | null => {
     if (mode === 'warehouse') {
-      return (
-        getOplLastActionDate(it.history, OplWarehouseAction.RECEIVED) ??
-        new Date(it.createdAt)
-      )
-    }
-    if (mode === 'technicians') {
       return getOplLastActionDate(it.history, OplWarehouseAction.ISSUED)
     }
     if (mode === 'orders') {
       return (
-        getOplActionDate(it.history, OplWarehouseAction.ISSUED) ??
-        (it.orderAssignments[0]?.order?.createdAt
-          ? new Date(it.orderAssignments[0].order.createdAt)
-          : null)
+        getOplLastActionDate(it.history, OplWarehouseAction.ISSUED) ??
+        it.orderAssignments[0]?.order?.createdAt ??
+        null
       )
     }
-    if (mode === 'returned') {
-      return (
-        getOplActionDate(it.history, OplWarehouseAction.RETURNED) ??
-        getOplActionDate(it.history, OplWarehouseAction.RETURNED_TO_OPERATOR)
-      )
+    if (mode === 'transfer') {
+      return getOplLastActionDate(it.history, OplWarehouseAction.TRANSFER)
     }
     return null
   }
@@ -113,7 +80,7 @@ const OplItemModeTable = ({ mode, items }: Props) => {
   return (
     <>
       {/* Controls above table */}
-      <div className="flex flex-col xs:flex-row w-full md:w-1/3 md:justify-self-end justify-between items-center gap-3 mb-3">
+      <div className="flex flex-col xs:flex-row justify-between items-center gap-3 mb-3">
         <SearchInput
           placeholder="Szukaj"
           value={searchTerm}
@@ -127,31 +94,25 @@ const OplItemModeTable = ({ mode, items }: Props) => {
           <TableRow>
             <TableHead>Lp</TableHead>
             <TableHead>
-              {items[0]?.itemType === 'MATERIAL' ? 'Indeks' : 'SN/MAC'}
+              {items[0]?.itemType === 'MATERIAL' ? 'Indeks' : 'Numer seryjny'}
             </TableHead>
-            {showLocationColumn && <TableHead>Magazyn</TableHead>}
+
             {mode === 'warehouse' && (
               <>
-                <TableHead>Data przyjęcia</TableHead>
-                <TableHead>Przyjęte przez</TableHead>
-              </>
-            )}
-            {mode === 'technicians' && (
-              <>
                 <TableHead>Data wydania</TableHead>
-                <TableHead>Technik</TableHead>
+                <TableHead>Wydane przez</TableHead>
               </>
             )}
             {mode === 'orders' && (
               <>
                 <TableHead>Data wydania</TableHead>
-                <TableHead>Nr zlecenia</TableHead>
+                <TableHead>Zlecenie</TableHead>
               </>
             )}
-            {mode === 'returned' && (
+            {mode === 'transfer' && (
               <>
-                <TableHead>Data zwrotu</TableHead>
-                <TableHead>Zwrot przez</TableHead>
+                <TableHead>Data przekazania</TableHead>
+                <TableHead>Przekazano do</TableHead>
               </>
             )}
           </TableRow>
@@ -163,32 +124,20 @@ const OplItemModeTable = ({ mode, items }: Props) => {
               it.itemType === 'MATERIAL'
                 ? it.index ?? it.name
                 : it.serialNumber ?? '—'
-
             const date = pickDate(it)
-            const order =
-              it.orderAssignments.length > 0
-                ? it.orderAssignments[0]?.order
-                : undefined
+            const order = it.orderAssignments[0]?.order
 
-            const lastReceived = getOplLastAction(
-              it.history,
-              OplWarehouseAction.RECEIVED
-            )
             const lastIssued = getOplLastAction(
               it.history,
               OplWarehouseAction.ISSUED
             )
-            const lastReturned =
-              getOplLastAction(it.history, OplWarehouseAction.RETURNED) ??
-              getOplLastAction(
-                it.history,
-                OplWarehouseAction.RETURNED_TO_OPERATOR
-              )
+            const lastTransfer = getOplLastAction(
+              it.history,
+              OplWarehouseAction.TRANSFER
+            )
 
-            const receivedBy = lastReceived?.performedBy?.name ?? '—'
-            const issuedToTech =
-              lastIssued?.assignedTo?.name ?? it.assignedTo?.name ?? '—'
-            const returnedBy = lastReturned?.performedBy?.name ?? '—'
+            const issuedBy = lastIssued?.performedBy?.name ?? '—'
+            const transferredTo = lastTransfer?.assignedTo?.name ?? '—'
 
             return (
               <TableRow key={it.id}>
@@ -201,19 +150,11 @@ const OplItemModeTable = ({ mode, items }: Props) => {
                     textToHighlight={identifier}
                   />
                 </TableCell>
-                {showLocationColumn && (
-                  <TableCell>{it.location?.name ?? '—'}</TableCell>
-                )}
+
                 {mode === 'warehouse' && (
                   <>
                     <TableCell>{formatDateOrDash(date)}</TableCell>
-                    <TableCell>{receivedBy}</TableCell>
-                  </>
-                )}
-                {mode === 'technicians' && (
-                  <>
-                    <TableCell>{formatDateOrDash(date)}</TableCell>
-                    <TableCell>{issuedToTech}</TableCell>
+                    <TableCell>{issuedBy}</TableCell>
                   </>
                 )}
                 {mode === 'orders' && (
@@ -234,10 +175,10 @@ const OplItemModeTable = ({ mode, items }: Props) => {
                     </TableCell>
                   </>
                 )}
-                {mode === 'returned' && (
+                {mode === 'transfer' && (
                   <>
                     <TableCell>{formatDateOrDash(date)}</TableCell>
-                    <TableCell>{returnedBy}</TableCell>
+                    <TableCell>{transferredTo}</TableCell>
                   </>
                 )}
               </TableRow>
@@ -245,14 +186,14 @@ const OplItemModeTable = ({ mode, items }: Props) => {
           })}
         </TableBody>
       </Table>
-      {/* 
-      <OrderDetailsSheet
+
+      <OplOrderDetailsSheet
         orderId={orderId}
         open={!!orderId}
         onClose={() => setOrderId(null)}
-      /> */}
+      />
     </>
   )
 }
 
-export default OplItemModeTable
+export default OplTechItemTable

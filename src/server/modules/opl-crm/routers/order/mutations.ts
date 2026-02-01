@@ -563,31 +563,6 @@ export const mutationsRouter = router({
       })
     }),
 
-  /** ✅ Change order status */
-  toggleOrderStatus: adminOrCoord
-    .input(
-      z.object({
-        id: z.string(),
-        status: z.nativeEnum(OplOrderStatus),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const order = await prisma.oplOrder.findUnique({
-        where: { id: input.id },
-      })
-      if (!order) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Zlecenie nie istnieje',
-        })
-      }
-
-      return prisma.oplOrder.update({
-        where: { id: input.id },
-        data: { status: input.status },
-      })
-    }),
-
   /** ✅ Assign or unassign technician */
   assignTechnician: adminOnly
     .input(
