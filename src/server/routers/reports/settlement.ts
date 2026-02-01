@@ -228,12 +228,14 @@ export const settlementRouter = router({
       })
     )
     .query(async ({ input }) => {
+      const from = startOfDay(new Date(input.from))
+      const to = endOfDay(new Date(input.to))
       // Get all orders for technician in the date range
       const orders = await prisma.order.findMany({
         where: {
           assignedToId: input.technicianId,
           type: { in: ['INSTALATION'] },
-          date: { gte: new Date(input.from), lte: new Date(input.to) },
+          date: { gte: from, lte: to },
         },
         include: { settlementEntries: { include: { rate: true } } },
         orderBy: { date: 'desc' },
