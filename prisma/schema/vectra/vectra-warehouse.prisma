@@ -1,39 +1,30 @@
-//prisma/schema/vectra/vectra-warehouse.prisma
-
-/// -------------------------------------------
-/// VECTRA WAREHOUSE (schema: vectra)
-/// -------------------------------------------
-
 model VectraWarehouse {
-  id                   String                  @id @default(uuid())
+  id                   String                       @id @default(uuid())
   itemType             VectraWarehouseItemType
   name                 String
   category             VectraDeviceCategory?
-  serialNumber         String?                 @unique
+  serialNumber         String?                      @unique
   quantity             Int
-  unit                 VectraMaterialUnit      @default(PIECE)
+  unit                 VectraMaterialUnit           @default(PIECE)
   price                Float
   status               VectraWarehouseStatus
   assignedToId         String?
   transferToId         String?
-  transferPending      Boolean                 @default(false)
+  transferPending      Boolean                      @default(false)
   materialDefinitionId String?
   locationId           String?
   index                String?
-  alarmAlert           Int?                    @default(5)
-  warningAlert         Int?                    @default(10)
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
-
-  assignedTo VectraUser? @relation("VectraWarehouseAssignedTo", fields: [assignedToId], references: [userId])
-  transferTo VectraUser? @relation("VectraWarehouseTransfer", fields: [transferToId], references: [userId])
-  location   Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
-
-  materialDefinition VectraMaterialDefinition? @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
-
-  transferLines    VectraLocationTransferLine[] @relation("WarehouseToTransferLines")
-  orderAssignments VectraOrderEquipment[]       @relation("WarehouseToOrderEquipment")
-  history          VectraWarehouseHistory[]
+  alarmAlert           Int?                         @default(5)
+  warningAlert         Int?                         @default(10)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  transferLines        VectraLocationTransferLine[] @relation("WarehouseToTransferLines")
+  orderAssignments     VectraOrderEquipment[]       @relation("WarehouseToOrderEquipment")
+  assignedTo           VectraUser?                  @relation("VectraWarehouseAssignedTo", fields: [assignedToId], references: [userId])
+  location             Location?                    @relation(fields: [locationId], references: [id])
+  materialDefinition   VectraMaterialDefinition?    @relation("MaterialDefinitionToWarehouse", fields: [materialDefinitionId], references: [id])
+  transferTo           VectraUser?                  @relation("VectraWarehouseTransfer", fields: [transferToId], references: [userId])
+  history              VectraWarehouseHistory[]
 
   @@index([itemType])
   @@index([locationId])
@@ -41,12 +32,8 @@ model VectraWarehouse {
   @@schema("vectra")
 }
 
-/// -------------------------------------------
-/// WAREHOUSE HISTORY
-/// -------------------------------------------
-
 model VectraWarehouseHistory {
-  id                 String                @id @default(uuid())
+  id                 String                  @id @default(uuid())
   warehouseItemId    String
   action             VectraWarehouseAction
   performedById      String
@@ -57,26 +44,20 @@ model VectraWarehouseHistory {
   locationTransferId String?
   quantity           Int?
   notes              String?
-  actionDate         DateTime              @default(now())
-
-  warehouseItem    VectraWarehouse         @relation(fields: [warehouseItemId], references: [id])
-  assignedOrder    VectraOrder?            @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
-  fromLocation     Location?               @relation("VectraFromLocationHistory", fields: [fromLocationId], references: [id])
-  toLocation       Location?               @relation("VectraToLocationHistory", fields: [toLocationId], references: [id])
-  locationTransfer VectraLocationTransfer? @relation("LocationTransferToHistory", fields: [locationTransferId], references: [id])
-
-  assignedTo  VectraUser? @relation("VectraWHAssignedTo", fields: [assignedToId], references: [userId])
-  performedBy VectraUser  @relation("VectraWHPerformedBy", fields: [performedById], references: [userId])
+  actionDate         DateTime                @default(now())
+  assignedOrder      VectraOrder?            @relation("OrderToWarehouseHistory", fields: [assignedOrderId], references: [id])
+  assignedTo         VectraUser?             @relation("VectraWHAssignedTo", fields: [assignedToId], references: [userId])
+  fromLocation       Location?               @relation("VectraFromLocationHistory", fields: [fromLocationId], references: [id])
+  locationTransfer   VectraLocationTransfer? @relation("LocationTransferToHistory", fields: [locationTransferId], references: [id])
+  performedBy        VectraUser              @relation("VectraWHPerformedBy", fields: [performedById], references: [userId])
+  toLocation         Location?               @relation("VectraToLocationHistory", fields: [toLocationId], references: [id])
+  warehouseItem      VectraWarehouse         @relation(fields: [warehouseItemId], references: [id])
 
   @@index([warehouseItemId])
   @@index([action])
   @@index([actionDate])
   @@schema("vectra")
 }
-
-/// -------------------------------------------
-/// LOCATION TRANSFER
-/// -------------------------------------------
 
 model VectraLocationTransfer {
   id             String                       @id @default(uuid())
@@ -88,15 +69,12 @@ model VectraLocationTransfer {
   confirmedAt    DateTime?
   notes          String?
   createdAt      DateTime                     @default(now())
-
-  fromLocation Location @relation("VectraTransfersFromLocation", fields: [fromLocationId], references: [id])
-  toLocation   Location @relation("VectraTransfersToLocation", fields: [toLocationId], references: [id])
-
-  requestedBy VectraUser  @relation("VectraRequestedTransfers", fields: [requestedById], references: [userId])
-  confirmedBy VectraUser? @relation("VectraConfirmedTransfers", fields: [confirmedById], references: [userId])
-
-  lines     VectraLocationTransferLine[]
-  histories VectraWarehouseHistory[]     @relation("LocationTransferToHistory")
+  confirmedBy    VectraUser?                  @relation("VectraConfirmedTransfers", fields: [confirmedById], references: [userId])
+  fromLocation   Location                     @relation("VectraTransfersFromLocation", fields: [fromLocationId], references: [id])
+  requestedBy    VectraUser                   @relation("VectraRequestedTransfers", fields: [requestedById], references: [userId])
+  toLocation     Location                     @relation("VectraTransfersToLocation", fields: [toLocationId], references: [id])
+  lines          VectraLocationTransferLine[]
+  histories      VectraWarehouseHistory[]     @relation("LocationTransferToHistory")
 
   @@index([fromLocationId])
   @@index([toLocationId])
@@ -104,12 +82,8 @@ model VectraLocationTransfer {
   @@schema("vectra")
 }
 
-/// -------------------------------------------
-/// LOCATION TRANSFER LINE
-/// -------------------------------------------
-
 model VectraLocationTransferLine {
-  id                   String                  @id @default(uuid())
+  id                   String                    @id @default(uuid())
   transferId           String
   itemType             VectraWarehouseItemType
   warehouseItemId      String?
@@ -119,40 +93,30 @@ model VectraLocationTransferLine {
   nameSnapshot         String?
   indexSnapshot        String?
   category             VectraDeviceCategory?
-
-  transfer           VectraLocationTransfer    @relation(fields: [transferId], references: [id])
-  warehouseItem      VectraWarehouse?          @relation("WarehouseToTransferLines", fields: [warehouseItemId], references: [id])
-  materialDefinition VectraMaterialDefinition? @relation("MaterialDefinitionToTransferLines", fields: [materialDefinitionId], references: [id])
+  materialDefinition   VectraMaterialDefinition? @relation("MaterialDefinitionToTransferLines", fields: [materialDefinitionId], references: [id])
+  transfer             VectraLocationTransfer    @relation(fields: [transferId], references: [id])
+  warehouseItem        VectraWarehouse?          @relation("WarehouseToTransferLines", fields: [warehouseItemId], references: [id])
 
   @@index([transferId])
   @@index([warehouseItemId])
   @@schema("vectra")
 }
 
-/// -------------------------------------------
-/// MATERIAL DEFINITION
-/// -------------------------------------------
-
 model VectraMaterialDefinition {
-  id           String             @id @default(uuid())
-  name         String             @unique
-  index        String?
-  unit         VectraMaterialUnit @default(PIECE)
-  price        Float?             @default(0)
-  alarmAlert   Int?               @default(5)
-  warningAlert Int?               @default(10)
-
-  warehouseItems   VectraWarehouse[]                 @relation("MaterialDefinitionToWarehouse")
+  id               String                            @id @default(uuid())
+  name             String                            @unique
+  index            String?
+  unit             VectraMaterialUnit                @default(PIECE)
+  price            Float?                            @default(0)
+  alarmAlert       Int?                              @default(5)
+  warningAlert     Int?                              @default(10)
   transferLines    VectraLocationTransferLine[]      @relation("MaterialDefinitionToTransferLines")
   orderMaterials   VectraOrderMaterial[]             @relation("MaterialToOrderMaterial")
   materialDeficits VectraTechnicianMaterialDeficit[]
+  warehouseItems   VectraWarehouse[]                 @relation("MaterialDefinitionToWarehouse")
 
   @@schema("vectra")
 }
-
-/// -------------------------------------------
-/// DEVICE DEFINITION
-/// -------------------------------------------
 
 model VectraDeviceDefinition {
   id           String               @id @default(uuid())
@@ -165,20 +129,15 @@ model VectraDeviceDefinition {
   @@schema("vectra")
 }
 
-/// -------------------------------------------
-/// TECHNICIAN MATERIAL DEFICIT
-/// -------------------------------------------
-
 model VectraTechnicianMaterialDeficit {
-  id                   String   @id @default(uuid())
+  id                   String                   @id @default(uuid())
   technicianId         String
   materialDefinitionId String
   quantity             Int
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  technician         VectraUser               @relation("VectraMaterialDeficitTechnician", fields: [technicianId], references: [userId])
-  materialDefinition VectraMaterialDefinition @relation(fields: [materialDefinitionId], references: [id])
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  materialDefinition   VectraMaterialDefinition @relation(fields: [materialDefinitionId], references: [id])
+  technician           VectraUser               @relation("VectraMaterialDeficitTechnician", fields: [technicianId], references: [userId])
 
   @@unique([technicianId, materialDefinitionId])
   @@schema("vectra")

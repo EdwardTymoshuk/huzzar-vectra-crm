@@ -6,30 +6,32 @@ model OplUser {
   deactivatedAt             DateTime?
   transfersConfirmed        OplLocationTransfer[]          @relation("OplConfirmedTransfers")
   transfersRequested        OplLocationTransfer[]          @relation("OplRequestedTransfers")
-  ordersAssigned            OplOrder[]                     @relation("OplOrderAssignedTo")
   ordersTransferred         OplOrder[]                     @relation("OplOrderTransfer")
   orderHistory              OplOrderHistory[]              @relation("OplOrderHistoryByUser")
   materialDeficits          OplTechnicianMaterialDeficit[] @relation("OplMaterialDeficitTechnician")
+  user                      User                           @relation("UserToOplUser", fields: [userId], references: [id])
   warehouseItems            OplWarehouse[]                 @relation("OplWarehouseAssignedTo")
   transferredItems          OplWarehouse[]                 @relation("OplWarehouseTransfer")
   warehouseHistoryAssigned  OplWarehouseHistory[]          @relation("OplWHAssignedTo")
   warehouseHistoryPerformed OplWarehouseHistory[]          @relation("OplWHPerformedBy")
 
-  user                      User                           @relation("UserToOplUser", fields: [userId], references: [id])
+  orderAssignments OplOrderAssignment[] @relation("OplOrderAssignmentsByTechnician")
+
   @@schema("opl")
 }
 
 model OplRateDefinition {
-  id          String                    @id @default(uuid())
-  code        String                    @unique
-  amount      Float
+  id     String @id @default(uuid())
+  code   String @unique
+  amount Float
+
   settlements OplOrderSettlementEntry[] @relation("RateDefinitionToSettlement")
 
   @@schema("opl")
 }
 
 model OplOperatorDefinition {
-  operator String @unique
+  operator String @id
 
   @@schema("opl")
 }

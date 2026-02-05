@@ -8,6 +8,7 @@ import { prisma } from '@/utils/prisma'
 import {
   OplDeviceCategory,
   OplInstallationType,
+  OplNetworkOeprator,
   OplOrderCreatedSource,
   OplOrderStatus,
   OplOrderType,
@@ -31,14 +32,14 @@ export const mutationsRouter = router({
         z.object({
           operator: z.string(),
           type: z.literal('INSTALLATION'),
-          clientId: z.string().optional(),
+          serviceId: z.string().optional(),
           orderNumber: z.string(),
           date: z.string(),
           timeSlot: z.nativeEnum(OplTimeSlot),
           city: z.string(),
           street: z.string(),
           postalCode: z.string().optional(),
-          assignedToId: z.string().optional(),
+          assignedTechnicianIds: z.array(z.string()).optional(),
           notes: z.string().optional(),
         })
       )
@@ -58,23 +59,30 @@ export const mutationsRouter = router({
       // ------------------------------------------------------------
       for (const o of input) {
         try {
-          await prisma.$transaction(async (tx) => {
-            const normOrder = o.orderNumber.trim()
+          await ctx.prisma.$transaction(async (tx) => {
+            const orderNumber = o.orderNumber.trim()
+            const city = o.city.trim()
+            const street = o.street.trim()
+            const date = new Date(o.date)
+
+            if (Number.isNaN(date.getTime())) {
+              throw new Error('INVALID_DATE')
+            }
 
             /** -------------------------------------------------------
-             * 1. Load existing attempts for this order/location pair
+             * 1. Load latest attempt
              * ------------------------------------------------------ */
             const existing = await tx.oplOrder.findFirst({
               where: {
-                orderNumber: { equals: normOrder, mode: 'insensitive' },
-                city: { equals: o.city.trim(), mode: 'insensitive' },
-                street: { equals: o.street.trim(), mode: 'insensitive' },
+                orderNumber: { equals: orderNumber, mode: 'insensitive' },
+                city: { equals: city, mode: 'insensitive' },
+                street: { equals: street, mode: 'insensitive' },
               },
               orderBy: { attemptNumber: 'desc' },
             })
 
             /** -------------------------------------------------------
-             * 2. Decide what to do based on existing order status
+             * 2. Decide if we can create a new attempt
              * ------------------------------------------------------ */
             let attemptNumber = 1
             let previousOrderId: string | null = null
@@ -85,12 +93,12 @@ export const mutationsRouter = router({
                 existing.status === OplOrderStatus.ASSIGNED
               ) {
                 summary.skippedPendingOrAssigned++
-                throw new Error('SKIP_ORDER_ACTIVE')
+                return
               }
 
               if (existing.status === OplOrderStatus.COMPLETED) {
                 summary.skippedCompleted++
-                throw new Error('SKIP_ORDER_COMPLETED')
+                return
               }
 
               if (existing.status === OplOrderStatus.NOT_COMPLETED) {
@@ -100,39 +108,42 @@ export const mutationsRouter = router({
             }
 
             /** -------------------------------------------------------
-             * 3. Resolve technician (optional)
+             * 3. Resolve technicians (0..N)
              * ------------------------------------------------------ */
-            let assignedToId: string | null = null
+            const technicianIds =
+              o.assignedTechnicianIds && o.assignedTechnicianIds.length > 0
+                ? (
+                    await tx.user.findMany({
+                      where: {
+                        id: { in: o.assignedTechnicianIds },
+                        role: 'TECHNICIAN',
+                      },
+                      select: { id: true },
+                    })
+                  ).map((t) => t.id)
+                : []
 
-            if (o.assignedToId) {
-              const tech = await tx.user.findUnique({
-                where: { id: o.assignedToId },
-                select: { id: true },
-              })
-              assignedToId = tech?.id ?? null
-            }
-
-            const newStatus = assignedToId
-              ? OplOrderStatus.ASSIGNED
-              : OplOrderStatus.PENDING
+            const status =
+              technicianIds.length > 0
+                ? OplOrderStatus.ASSIGNED
+                : OplOrderStatus.PENDING
 
             /** -------------------------------------------------------
-             * 4. Create new attempt
+             * 4. Create order attempt
              * ------------------------------------------------------ */
             const created = await tx.oplOrder.create({
               data: {
-                clientId: o.clientId ?? null,
+                serviceId: o.serviceId ?? null,
                 operator: o.operator,
                 type: o.type,
-                orderNumber: o.orderNumber.trim(),
-                date: new Date(o.date),
+                orderNumber,
+                date,
                 timeSlot: o.timeSlot,
-                city: o.city.trim(),
-                street: o.street.trim(),
+                city,
+                street,
                 postalCode: o.postalCode ?? null,
                 notes: o.notes ?? null,
-                assignedToId,
-                status: newStatus,
+                status,
                 attemptNumber,
                 previousOrderId,
                 createdSource: 'PLANNER',
@@ -141,62 +152,93 @@ export const mutationsRouter = router({
             })
 
             /** -------------------------------------------------------
-             * 5. History entry
+             * 5. Create technician assignments
              * ------------------------------------------------------ */
-            const historyNote = previousOrderId
-              ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
-              : 'Utworzono zlecenie (import).'
+            if (technicianIds.length > 0) {
+              await tx.oplOrderAssignment.createMany({
+                data: technicianIds.map((technicianId) => ({
+                  orderId: created.id,
+                  technicianId,
+                })),
+                skipDuplicates: true,
+              })
+            }
 
+            /** -------------------------------------------------------
+             * 6. History entry
+             * ------------------------------------------------------ */
             await tx.oplOrderHistory.create({
               data: {
                 orderId: created.id,
                 changedById: adminId,
-                statusBefore: OplOrderStatus.PENDING,
-                statusAfter: newStatus,
-                notes: historyNote,
+                statusBefore: previousOrderId
+                  ? OplOrderStatus.NOT_COMPLETED
+                  : OplOrderStatus.PENDING,
+                statusAfter: status,
+                notes: previousOrderId
+                  ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
+                  : technicianIds.length > 0
+                  ? `Utworzono zlecenie i przypisano do ${technicianIds.length} techników.`
+                  : 'Utworzono zlecenie (import).',
               },
             })
+
+            summary.added++
           })
-
-          summary.added++
         } catch (err) {
-          // Orders intentionally skipped do not count as "errors"
-          if (err instanceof Error && err.message === 'SKIP_ORDER_ACTIVE')
-            continue
-          if (err instanceof Error && err.message === 'SKIP_ORDER_COMPLETED')
-            continue
-
           console.error(`❌ Import error for order ${o.orderNumber}`)
           console.error(err)
           summary.otherErrors++
         }
       }
+
       return summary
     }),
 
-  /** ✅ Create new order (clientId-aware, preserves Polish letters but uses normalized comparisons) */
+  /** ✅ Create new order (serviceId-aware, preserves Polish letters but uses normalized comparisons) */
   createOrder: loggedInEveryone
     .input(
       z.object({
         operator: z.string(),
         type: z.nativeEnum(OplOrderType),
+        network: z.nativeEnum(OplNetworkOeprator),
+        serviceId: z.string().length(12).optional(),
+
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(OplTimeSlot),
-        clientId: z.string().min(3).optional(),
+
         clientPhoneNumber: z
           .string()
+          .min(7)
+          .max(20)
           .optional()
           .refine((val) => !val || /^(\+48)?\d{9}$/.test(val), {
             message: 'Nieprawidłowy numer telefonu',
           }),
-        notes: z.string().optional(),
-        county: z.string().optional(),
-        municipality: z.string().optional(),
+
         city: z.string(),
         street: z.string(),
         postalCode: z.string().optional(),
-        assignedToId: z.string().optional(),
+        county: z.string().optional(),
+        municipality: z.string().optional(),
+
+        /** Contract required (yes / no) */
+        contractRequired: z.boolean().default(false),
+
+        /** Optional suggested equipment to be issued */
+        equipmentRequirements: z
+          .array(
+            z.object({
+              deviceDefinitionId: z.string(),
+              quantity: z.number().min(1).default(1),
+            })
+          )
+          .optional(),
+
+        assignedTechnicianIds: z.array(z.string()).optional(),
+
+        notes: z.string().optional(),
         createdSource: z.nativeEnum(OplOrderCreatedSource).default('PLANNER'),
       })
     )
@@ -205,9 +247,6 @@ export const mutationsRouter = router({
 
       const normOrder = input.orderNumber.trim()
 
-      // ------------------------------------------------------------
-      // 🔍 Check if order number already exists (global, case-insensitive)
-      // ------------------------------------------------------------
       const existingOrder = await prisma.oplOrder.findFirst({
         where: {
           orderNumber: { equals: normOrder, mode: 'insensitive' },
@@ -233,31 +272,16 @@ export const mutationsRouter = router({
         }
       }
 
-      /* ------------------------------------------------------------
-       * 1️⃣ Validate assigned technician (if provided)
-       * ---------------------------------------------------------- */
-      if (input.assignedToId) {
-        const tech = await prisma.user.findUnique({
-          where: { id: input.assignedToId },
-        })
-        if (!tech)
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Technik nie istnieje',
-          })
-      }
-
-      /* ------------------------------------------------------------
-       * 2️⃣ Prepare geocoded coordinates
-       * ---------------------------------------------------------- */
       let lat: number | null = null
       let lng: number | null = null
+
       try {
         const addressVariants = [
           `${input.street}, ${input.postalCode ?? ''} ${input.city}, Polska`,
           `${input.street}, ${input.city}, Polska`,
           `${input.city}, Polska`,
         ]
+
         for (const addr of addressVariants) {
           const coords = await getCoordinatesFromAddress(addr)
           if (coords) {
@@ -267,21 +291,11 @@ export const mutationsRouter = router({
           }
         }
       } catch {
-        console.warn(
-          '⚠️ Geocoding failed for address:',
-          input.street,
-          input.city
-        )
+        console.warn('Geocoding failed for address:', input.street, input.city)
       }
 
-      /* ------------------------------------------------------------
-       * 3️⃣ Determine attempt chain (based on orderNumber + address)
-       * ---------------------------------------------------------- */
       let attemptNumber = 1
       let previousOrderId: string | null = null
-      const status: OplOrderStatus = input.assignedToId
-        ? OplOrderStatus.ASSIGNED
-        : OplOrderStatus.PENDING
 
       const lastAttempt = await prisma.oplOrder.findFirst({
         where: {
@@ -298,14 +312,30 @@ export const mutationsRouter = router({
         previousOrderId = lastAttempt.id
       }
 
-      /* ------------------------------------------------------------
-       * 4️⃣ Create new order (preserves Polish letters in DB)
-       * ---------------------------------------------------------- */
+      const technicianIds =
+        input.assignedTechnicianIds && input.assignedTechnicianIds.length > 0
+          ? (
+              await prisma.user.findMany({
+                where: {
+                  id: { in: input.assignedTechnicianIds },
+                  role: 'TECHNICIAN',
+                },
+                select: { id: true },
+              })
+            ).map((t) => t.id)
+          : []
+
+      const status =
+        technicianIds.length > 0
+          ? OplOrderStatus.ASSIGNED
+          : OplOrderStatus.PENDING
+
       const created = await prisma.oplOrder.create({
         data: {
-          clientId: input.clientId ?? null,
+          serviceId: input.serviceId ?? null,
           operator: input.operator,
           type: input.type,
+          network: input.network,
           orderNumber: input.orderNumber.trim(),
           date: parseLocalDate(input.date),
           timeSlot: input.timeSlot,
@@ -316,9 +346,9 @@ export const mutationsRouter = router({
           city: input.city.trim(),
           street: input.street.trim(),
           postalCode: input.postalCode?.trim() ?? null,
+          contractRequired: input.contractRequired,
           lat,
           lng,
-          assignedToId: input.assignedToId ?? null,
           createdSource: input.createdSource,
           status,
           attemptNumber,
@@ -326,10 +356,28 @@ export const mutationsRouter = router({
         },
       })
 
-      /* ------------------------------------------------------------
-       * 5️⃣ Create order history entry
-       * ---------------------------------------------------------- */
-      const historyNote = input.clientId
+      if (input.equipmentRequirements?.length) {
+        await prisma.oplOrderEquipmentRequirement.createMany({
+          data: input.equipmentRequirements.map((req) => ({
+            orderId: created.id,
+            deviceDefinitionId: req.deviceDefinitionId,
+            quantity: req.quantity,
+          })),
+          skipDuplicates: true,
+        })
+      }
+
+      if (technicianIds.length > 0) {
+        await prisma.oplOrderAssignment.createMany({
+          data: technicianIds.map((technicianId) => ({
+            orderId: created.id,
+            technicianId,
+          })),
+          skipDuplicates: true,
+        })
+      }
+
+      const historyNote = input.serviceId
         ? previousOrderId
           ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
           : 'Utworzono pierwsze zlecenie klienta.'
@@ -339,7 +387,9 @@ export const mutationsRouter = router({
         data: {
           orderId: created.id,
           changedById: userId,
-          statusBefore: OplOrderStatus.PENDING,
+          statusBefore: previousOrderId
+            ? OplOrderStatus.NOT_COMPLETED
+            : OplOrderStatus.PENDING,
           statusAfter: status,
           notes: historyNote,
         },
@@ -347,7 +397,8 @@ export const mutationsRouter = router({
 
       return created
     }),
-  /** ✅ Edit existing order (clientId-aware, preserves Polish letters and recalculates attempt chain) */
+
+  /** ✅ Edit existing order (serviceId-aware, preserves Polish letters and recalculates attempt chain) */
   editOrder: adminOrCoord
     .input(
       z.object({
@@ -361,20 +412,25 @@ export const mutationsRouter = router({
         status: z.nativeEnum(OplOrderStatus),
         city: z.string(),
         street: z.string(),
-        assignedToId: z.string().optional(),
-        clientId: z.string().optional(),
+        assignedTechnicianIds: z.array(z.string()).optional(),
+        serviceId: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
       try {
         const existing = await prisma.oplOrder.findUnique({
           where: { id: input.id },
+          include: {
+            assignments: true,
+          },
         })
-        if (!existing)
+
+        if (!existing) {
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: 'Zlecenie nie istnieje',
           })
+        }
 
         const normOrder = input.orderNumber.trim()
         const normCity = normalizeAdressForSearch(input.city)
@@ -389,22 +445,20 @@ export const mutationsRouter = router({
         let attemptNumber = existing.attemptNumber
         let previousOrderId = existing.previousOrderId
 
-        // 🔒 Prevent duplicate order number globally
         const existingSameNumber = await prisma.oplOrder.findFirst({
           where: {
             orderNumber: { equals: normOrder, mode: 'insensitive' },
             NOT: { id: existing.id },
           },
         })
-        if (existingSameNumber)
+
+        if (existingSameNumber) {
           throw new TRPCError({
             code: 'CONFLICT',
             message: `Numer zlecenia "${input.orderNumber}" jest już używany.`,
           })
+        }
 
-        /* ----------------------------------------------------------
-         * 1️⃣ Recalculate attempt chain if address changed
-         * ---------------------------------------------------------- */
         if (addressChanged) {
           const lastAttempt = await prisma.oplOrder.findFirst({
             where: {
@@ -444,57 +498,85 @@ export const mutationsRouter = router({
                 break
               }
             } catch {
-              // ignore and check next variant
+              // ignore and continue
             }
           }
 
-          // no result -> clear coordinates so they can be filled later
           if (lat === undefined) lat = null
           if (lng === undefined) lng = null
         }
 
-        /* ----------------------------------------------------------
-         * 2️⃣ Apply update (keep Polish letters in DB)
-         * ---------------------------------------------------------- */
-        const updated = await prisma.oplOrder.update({
-          where: { id: existing.id },
-          data: {
-            orderNumber: input.orderNumber.trim(),
-            type: input.type,
-            operator: input.operator,
-            date: parseLocalDate(input.date),
-            timeSlot: input.timeSlot,
-            notes: input.notes,
-            status: input.status,
-            city: input.city.trim(),
-            street: input.street.trim(),
-            assignedToId: input.assignedToId ?? null,
-            clientId: input.clientId ?? existing.clientId,
-            attemptNumber,
-            previousOrderId,
-            ...(addressChanged
-              ? {
-                  lat: lat ?? null,
-                  lng: lng ?? null,
-                }
-              : {}),
-          },
-        })
+        const technicianIds =
+          input.assignedTechnicianIds && input.assignedTechnicianIds.length > 0
+            ? (
+                await prisma.user.findMany({
+                  where: {
+                    id: { in: input.assignedTechnicianIds },
+                    role: 'TECHNICIAN',
+                  },
+                  select: { id: true },
+                })
+              ).map((t) => t.id)
+            : []
 
-        /* ----------------------------------------------------------
-         * 3️⃣ Log history entry if status changed
-         * ---------------------------------------------------------- */
-        if (input.status !== existing.status) {
-          await prisma.oplOrderHistory.create({
+        const status =
+          technicianIds.length > 0
+            ? OplOrderStatus.ASSIGNED
+            : OplOrderStatus.PENDING
+
+        const updated = await prisma.$transaction(async (tx) => {
+          const order = await tx.oplOrder.update({
+            where: { id: existing.id },
             data: {
-              orderId: existing.id,
-              changedById: ctx.user!.id,
-              statusBefore: existing.status,
-              statusAfter: input.status,
-              notes: 'Zmieniono status przez edycję zlecenia',
+              orderNumber: normOrder,
+              type: input.type,
+              operator: input.operator,
+              date: parseLocalDate(input.date),
+              timeSlot: input.timeSlot,
+              notes: input.notes,
+              status,
+              city: input.city.trim(),
+              street: input.street.trim(),
+              serviceId: input.serviceId ?? existing.serviceId,
+              attemptNumber,
+              previousOrderId,
+              ...(addressChanged
+                ? {
+                    lat: lat ?? null,
+                    lng: lng ?? null,
+                  }
+                : {}),
             },
           })
-        }
+
+          await tx.oplOrderAssignment.deleteMany({
+            where: { orderId: existing.id },
+          })
+
+          if (technicianIds.length > 0) {
+            await tx.oplOrderAssignment.createMany({
+              data: technicianIds.map((technicianId) => ({
+                orderId: existing.id,
+                technicianId,
+              })),
+              skipDuplicates: true,
+            })
+          }
+
+          if (existing.status !== status) {
+            await tx.oplOrderHistory.create({
+              data: {
+                orderId: existing.id,
+                changedById: ctx.user!.id,
+                statusBefore: existing.status,
+                statusAfter: status,
+                notes: 'Zmieniono status przez edycję zlecenia',
+              },
+            })
+          }
+
+          return order
+        })
 
         return updated
       } catch (err) {
@@ -507,6 +589,7 @@ export const mutationsRouter = router({
             })
           }
         }
+
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Nieoczekiwany błąd przy edycji zlecenia.',
@@ -531,32 +614,53 @@ export const mutationsRouter = router({
           })
         }
 
-        if (order.status === 'COMPLETED' || order.status === 'NOT_COMPLETED') {
+        if (
+          order.status === OplOrderStatus.COMPLETED ||
+          order.status === OplOrderStatus.NOT_COMPLETED
+        ) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Nie można usunąć zlecenia, które zostało już rozliczone.',
           })
         }
 
-        await tx.oplOrderMaterial.deleteMany({
+        /* ----------------------------------------------------------
+         * Remove dependent entities
+         * ---------------------------------------------------------- */
+
+        await tx.oplOrderAssignment.deleteMany({
           where: { orderId: input.id },
         })
-        await tx.oplOrderEquipment.deleteMany({
-          where: { orderId: input.id },
-        })
-        await tx.oplOrderService.deleteMany({ where: { orderId: input.id } })
+
         await tx.oplOrderExtraDevice.deleteMany({
           where: {
             service: { orderId: input.id },
           },
         })
+
+        await tx.oplOrderService.deleteMany({
+          where: { orderId: input.id },
+        })
+
+        await tx.oplOrderMaterial.deleteMany({
+          where: { orderId: input.id },
+        })
+
+        await tx.oplOrderEquipment.deleteMany({
+          where: { orderId: input.id },
+        })
+
         await tx.oplOrderSettlementEntry.deleteMany({
           where: { orderId: input.id },
         })
+
         await tx.oplOrderHistory.deleteMany({
           where: { orderId: input.id },
         })
 
+        /* ----------------------------------------------------------
+         * Remove order
+         * ---------------------------------------------------------- */
         return tx.oplOrder.delete({
           where: { id: input.id },
         })
@@ -568,13 +672,17 @@ export const mutationsRouter = router({
     .input(
       z.object({
         id: z.string(),
-        assignedToId: z.string().optional(),
+        technicianId: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
       const order = await prisma.oplOrder.findUnique({
         where: { id: input.id },
+        include: {
+          assignments: true,
+        },
       })
+
       if (!order) {
         throw new TRPCError({
           code: 'NOT_FOUND',
@@ -582,21 +690,26 @@ export const mutationsRouter = router({
         })
       }
 
-      // ✅ Validate technician existence when assigning
-      if (input.assignedToId) {
+      let technicianIds: string[] = []
+
+      if (input.technicianId) {
         const tech = await prisma.user.findUnique({
-          where: { id: input.assignedToId },
+          where: { id: input.technicianId, role: 'TECHNICIAN' },
+          select: { id: true },
         })
+
         if (!tech) {
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: 'Technik nie istnieje',
           })
         }
+
+        technicianIds = [tech.id]
       }
 
-      // ✅ Try to geocode if coordinates are missing
-      let coords: { lat: number; lng: number } | null = null
+      let lat: number | null | undefined = undefined
+      let lng: number | null | undefined = undefined
 
       if (order.lat === null && order.lng === null) {
         const variants = [
@@ -606,38 +719,48 @@ export const mutationsRouter = router({
 
         for (const v of variants) {
           try {
-            const result = await getCoordinatesFromAddress(v)
-            if (result) {
-              coords = result
+            const coords = await getCoordinatesFromAddress(v)
+            if (coords) {
+              lat = coords.lat
+              lng = coords.lng
               break
             }
           } catch {
-            // Fail-safe: ignore geocoding errors
-            coords = null
+            // ignore and continue
           }
         }
+
+        if (lat === undefined) lat = null
+        if (lng === undefined) lng = null
       }
 
-      const newStatus = input.assignedToId
-        ? OplOrderStatus.ASSIGNED
-        : OplOrderStatus.PENDING
+      const status =
+        technicianIds.length > 0
+          ? OplOrderStatus.ASSIGNED
+          : OplOrderStatus.PENDING
 
-      console.info('[assignTechnician]', {
-        orderNumber: order.orderNumber,
-        city: order.city,
-        street: order.street,
-        coords,
-        existing: { lat: order.lat, lng: order.lng },
-      })
+      return prisma.$transaction(async (tx) => {
+        await tx.oplOrderAssignment.deleteMany({
+          where: { orderId: order.id },
+        })
 
-      // ✅ Update assignment and store coordinates if newly available
-      return prisma.oplOrder.update({
-        where: { id: input.id },
-        data: {
-          assignedToId: input.assignedToId ?? null,
-          status: newStatus,
-          ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
-        },
+        if (technicianIds.length > 0) {
+          await tx.oplOrderAssignment.createMany({
+            data: technicianIds.map((technicianId) => ({
+              orderId: order.id,
+              technicianId,
+            })),
+            skipDuplicates: true,
+          })
+        }
+
+        return tx.oplOrder.update({
+          where: { id: order.id },
+          data: {
+            status,
+            ...(lat !== undefined && lng !== undefined ? { lat, lng } : {}),
+          },
+        })
       })
     }),
 

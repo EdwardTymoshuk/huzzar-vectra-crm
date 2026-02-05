@@ -10,11 +10,7 @@ import {
   loggedInEveryone,
   technicianOnly,
 } from '@/server/roleHelpers'
-import {
-  OplOrderAttemptVM,
-  OplPreviousOrderPrismaResult,
-  OplTechnicianAssignment,
-} from '@/types/opl-crm'
+import { OplTechnicianAssignment } from '@/types/opl-crm'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { getNextLineOrderNumber } from '@/utils/orders/nextLineOrderNumber'
 import {
@@ -26,7 +22,7 @@ import {
 import { TRPCError } from '@trpc/server'
 import { endOfDay, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
-import { mapOplUserToVM } from '../../helpers/mappers/mapOplUserToVM'
+import { mapOplOrderToListVM } from '../../helpers/mappers/mapOplOrderToListVM'
 import {
   oplUserBasicSelect,
   oplUserSlimSelect,
@@ -74,37 +70,58 @@ export const queriesRouter = router({
         sortField: z.enum(['createdAt', 'date', 'status']).default('createdAt'),
         sortOrder: z.enum(['asc', 'desc']).default('desc'),
         status: z.nativeEnum(OplOrderStatus).optional(),
-        assignedToId: z.string().optional(),
+        technicianId: z.string().optional(),
         type: z.nativeEnum(OplOrderType).optional(),
         searchTerm: z.string().optional(),
       })
     )
     .query(async ({ input, ctx }) => {
-      const filters: Prisma.OplOrderWhereInput = {}
-
       if (!ctx.user) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-        })
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
       const { role, id: userId } = ctx.user
 
+      const filters: Prisma.OplOrderWhereInput = {}
+
+      /* -------------------------------------------
+       * Technician access: only orders assigned to him
+       * ------------------------------------------- */
       if (isTechnician(role)) {
-        filters.assignedToId = userId
+        filters.assignments = {
+          some: {
+            technicianId: userId,
+          },
+        }
       }
 
+      /* -------------------------------------------
+       * Admin / Coordinator filtering by technician
+       * ------------------------------------------- */
       if (
         hasAnyRole(role, ['ADMIN', 'COORDINATOR']) &&
-        input.assignedToId !== undefined
+        input.technicianId !== undefined
       ) {
-        filters.assignedToId =
-          input.assignedToId === 'unassigned' ? null : input.assignedToId
+        if (input.technicianId === 'unassigned') {
+          // Orders WITHOUT any technician assigned
+          filters.assignments = {
+            none: {},
+          }
+        } else {
+          filters.assignments = {
+            some: {
+              technicianId: input.technicianId,
+            },
+          }
+        }
       }
 
       if (input.status) filters.status = input.status
       if (input.type) filters.type = input.type
 
+      /* -------------------------------------------
+       * Text search
+       * ------------------------------------------- */
       if (input.searchTerm?.trim()) {
         const q = input.searchTerm.trim()
         filters.OR = [
@@ -123,28 +140,44 @@ export const queriesRouter = router({
         skip: (input.page - 1) * input.limit,
         take: input.limit,
         include: {
-          transferTo: { include: { user: true } },
-          assignedTo: { include: { user: true } },
+          assignments: {
+            include: {
+              technician: {
+                select: oplUserSlimSelect,
+              },
+            },
+          },
+          transferTo: {
+            include: {
+              user: true,
+            },
+          },
         },
       })
 
-      const totalOrders = await ctx.prisma.oplOrder.count({ where: filters })
-      return { orders, totalOrders }
+      const totalOrders = await ctx.prisma.oplOrder.count({
+        where: filters,
+      })
+
+      return {
+        orders: orders.map(mapOplOrderToListVM),
+        totalOrders,
+      }
     }),
+
   /** ✅ Full order details (with complete attempt chain + full client history) */
   getOrderById: loggedInEveryone
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      const prisma = ctx.prisma
-
-      /* ------------------------------------------------------------
-       * 1️⃣ Fetch main (current) order with all related details
-       * ---------------------------------------------------------- */
-      const order = await prisma.oplOrder.findUnique({
+      const order = await ctx.prisma.oplOrder.findUnique({
         where: { id: input.id },
         include: {
-          assignedTo: {
-            select: oplUserWithCoreBasicSelect,
+          assignments: {
+            include: {
+              technician: {
+                select: oplUserWithCoreBasicSelect,
+              },
+            },
           },
           history: {
             include: {
@@ -156,187 +189,25 @@ export const queriesRouter = router({
           usedMaterials: { include: { material: true } },
           assignedEquipment: {
             include: {
-              warehouse: {
-                include: { history: true },
-              },
+              warehouse: true,
             },
           },
           services: {
             include: {
-              extraDevices: {
-                select: {
-                  id: true,
-                  source: true,
-                  name: true,
-                  serialNumber: true,
-                  category: true,
-                  warehouseId: true,
-                  serviceId: true,
-                },
-              },
-            },
-          },
-          previousOrder: {
-            select: {
-              id: true,
-              attemptNumber: true,
-              date: true,
-              createdAt: true,
-              completedAt: true,
-              closedAt: true,
-              status: true,
-              failureReason: true,
-              notes: true,
-              previousOrderId: true,
-              assignedTo: { select: oplUserWithCoreBasicSelect },
+              extraDevices: true,
             },
           },
         },
       })
 
-      if (!order)
+      if (!order) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Zlecenie nie istnieje',
         })
-      /* ------------------------------------------------------------
-       * 2️⃣ Recursively fetch all previous orders (attempt chain)
-       * ---------------------------------------------------------- */
-      async function fetchAllPreviousOrders(
-        orderId: string
-      ): Promise<OplOrderAttemptVM[]> {
-        const results: OplOrderAttemptVM[] = []
-
-        let currentId: string | null = orderId
-
-        while (currentId) {
-          const prev: OplPreviousOrderPrismaResult | null =
-            await prisma.oplOrder.findUnique({
-              where: { id: currentId },
-              select: {
-                id: true,
-                attemptNumber: true,
-                date: true,
-                createdAt: true,
-                completedAt: true,
-                closedAt: true,
-                status: true,
-                failureReason: true,
-                notes: true,
-                previousOrderId: true,
-                assignedTo: { select: oplUserWithCoreBasicSelect },
-              },
-            })
-
-          if (!prev) break
-          results.push({
-            id: prev.id,
-            attemptNumber: prev.attemptNumber,
-            date: prev.date,
-            createdAt: prev.createdAt,
-            completedAt: prev.completedAt,
-            closedAt: prev.closedAt,
-            status: prev.status,
-            failureReason: prev.failureReason,
-            notes: prev.notes,
-            previousOrderId: prev.previousOrderId,
-            assignedTo: mapOplUserToVM(prev.assignedTo),
-          })
-
-          currentId = prev.previousOrderId
-        }
-
-        return results.reverse()
       }
 
-      const previousChain = order.previousOrderId
-        ? await fetchAllPreviousOrders(order.previousOrderId)
-        : []
-
-      /* ------------------------------------------------------------
-       * 3️⃣ Combine all attempts (previous + current)
-       * ---------------------------------------------------------- */
-      const allAttempts = [
-        ...previousChain.map((o) => ({
-          id: o.id,
-          attemptNumber: o.attemptNumber,
-          date: o.date,
-          createdAt: o.createdAt,
-          completedAt: o.completedAt,
-          closedAt: o.closedAt,
-          status: o.status,
-          failureReason: o.failureReason,
-          notes: o.notes,
-          assignedTo: o.assignedTo ? { ...o.assignedTo } : null,
-        })),
-        {
-          id: order.id,
-          attemptNumber: order.attemptNumber,
-          date: order.date,
-          createdAt: order.createdAt,
-          completedAt: order.completedAt,
-          closedAt: order.closedAt,
-          status: order.status,
-          failureReason: order.failureReason,
-          notes: order.notes,
-          assignedTo: mapOplUserToVM(order.assignedTo),
-        },
-      ]
-
-      /* ------------------------------------------------------------
-       * 4️⃣ Merge all orderHistory entries from all attempts
-       * ---------------------------------------------------------- */
-      const allOrderIds = [order.id, ...previousChain.map((o) => o.id)]
-
-      const mergedHistory = await prisma.oplOrderHistory.findMany({
-        where: { orderId: { in: allOrderIds } },
-        include: { changedBy: { select: oplUserBasicSelect } },
-        orderBy: { changeDate: 'desc' },
-      })
-
-      /* ------------------------------------------------------------
-       * 5️⃣ Fetch full client history (all orders by clientId)
-       * ---------------------------------------------------------- */
-      let clientHistory: {
-        id: string
-        orderNumber: string
-        date: Date
-        status: OplOrderStatus
-        type: OplOrderType
-        city: string
-        street: string
-        attemptNumber: number
-      }[] = []
-
-      if (order.clientId) {
-        const ordersByClient = await prisma.oplOrder.findMany({
-          where: { clientId: order.clientId },
-          orderBy: { date: 'desc' },
-          select: {
-            id: true,
-            orderNumber: true,
-            date: true,
-            status: true,
-            type: true,
-            city: true,
-            street: true,
-            attemptNumber: true,
-          },
-        })
-
-        // Exclude the current order from the summary (optional)
-        clientHistory = ordersByClient.filter((o) => o.id !== order.id)
-      }
-
-      /* ------------------------------------------------------------
-       * 6️⃣ Return combined response
-       * ---------------------------------------------------------- */
-      return {
-        ...order,
-        attempts: allAttempts,
-        history: mergedHistory,
-        clientHistory,
-      }
+      return order
     }),
 
   /** Orders grouped by technician and time-slot for planning board */
@@ -347,6 +218,9 @@ export const queriesRouter = router({
         ? new Date(`${input.date}T00:00:00`)
         : new Date()
 
+      /* -------------------------------------------
+       * 1️⃣ Load technicians
+       * ------------------------------------------- */
       const techs = await ctx.prisma.user.findMany({
         where: { role: 'TECHNICIAN' },
         select: { id: true, name: true },
@@ -354,15 +228,28 @@ export const queriesRouter = router({
       })
 
       const byTech: Record<string, OplTechnicianAssignment> = {}
+
       techs.forEach((t) => {
-        byTech[t.id] = { technicianId: t.id, technicianName: t.name, slots: [] }
+        byTech[t.id] = {
+          technicianId: t.id,
+          technicianName: t.name,
+          slots: [],
+        }
       })
 
-      const assigned = await ctx.prisma.oplOrder.findMany({
+      /* -------------------------------------------
+       * 2️⃣ Load assigned orders (ASSIGNMENTS!)
+       * ------------------------------------------- */
+      const orders = await ctx.prisma.oplOrder.findMany({
         where: {
-          assignedToId: { not: null },
           type: OplOrderType.INSTALLATION,
-          date: { gte: startOfDay(target), lte: endOfDay(target) },
+          date: {
+            gte: startOfDay(target),
+            lte: endOfDay(target),
+          },
+          assignments: {
+            some: {}, // 🔥 tylko z przypisaniami
+          },
         },
         select: {
           id: true,
@@ -373,15 +260,21 @@ export const queriesRouter = router({
           lng: true,
           timeSlot: true,
           status: true,
-          assignedTo: { select: oplUserBasicSelect },
           operator: true,
           date: true,
+          assignments: {
+            select: {
+              technicianId: true,
+            },
+          },
         },
         orderBy: { timeSlot: 'asc' },
       })
 
-      // Auto-geocode assigned orders missing coordinates
-      for (const o of assigned) {
+      /* -------------------------------------------
+       * 3️⃣ Auto-geocoding (bez zmian)
+       * ------------------------------------------- */
+      for (const o of orders) {
         if (o.lat === null || o.lng === null) {
           const address = `${o.street}, ${o.city}, Polska`
           const coords = await getCoordinatesFromAddress(address)
@@ -390,7 +283,6 @@ export const queriesRouter = router({
             o.lat = coords.lat
             o.lng = coords.lng
 
-            // Update DB so next time the order already has coords
             await ctx.prisma.oplOrder.update({
               where: { id: o.id },
               data: { lat: coords.lat, lng: coords.lng },
@@ -399,8 +291,12 @@ export const queriesRouter = router({
         }
       }
 
+      /* -------------------------------------------
+       * 4️⃣ Helper do wrzucania w sloty
+       * ------------------------------------------- */
       const push = (
-        key: string,
+        technicianId: string,
+        technicianName: string,
         data: {
           id: string
           orderNumber: string
@@ -414,23 +310,28 @@ export const queriesRouter = router({
           date: Date
         }
       ) => {
-        if (!byTech[key]) {
-          byTech[key] = {
-            technicianId: null,
-            technicianName: 'Nieprzypisany',
+        if (!byTech[technicianId]) {
+          byTech[technicianId] = {
+            technicianId,
+            technicianName,
             slots: [],
           }
         }
-        let slot = byTech[key].slots.find((s) => s.timeSlot === data.timeSlot)
+
+        let slot = byTech[technicianId].slots.find(
+          (s) => s.timeSlot === data.timeSlot
+        )
+
         if (!slot) {
           slot = { timeSlot: data.timeSlot, orders: [] }
-          byTech[key].slots.push(slot)
-          byTech[key].slots.sort(
+          byTech[technicianId].slots.push(slot)
+          byTech[technicianId].slots.sort(
             (a, b) =>
               sortedOplTimeSlotsByHour.indexOf(a.timeSlot) -
               sortedOplTimeSlotsByHour.indexOf(b.timeSlot)
           )
         }
+
         slot.orders.push({
           id: data.id,
           orderNumber: data.orderNumber,
@@ -438,13 +339,24 @@ export const queriesRouter = router({
           lat: data.lat ?? null,
           lng: data.lng ?? null,
           status: data.status,
-          assignedToId: key === 'unassigned' ? undefined : key,
+          assignedToId: technicianId,
           operator: data.operator,
           date: data.date,
         })
       }
 
-      assigned.forEach((o) => push(o.assignedTo?.user.id ?? 'unassigned', o))
+      /* -------------------------------------------
+       * 5️⃣ Fan-out: jedno zlecenie → wielu techników
+       * ------------------------------------------- */
+      orders.forEach((o) => {
+        o.assignments.forEach((a) => {
+          const tech = techs.find((t) => t.id === a.technicianId)
+          if (!tech) return
+
+          push(tech.id, tech.name, o)
+        })
+      })
+
       return Object.values(byTech)
     }),
 
@@ -468,7 +380,13 @@ export const queriesRouter = router({
         },
       }
 
-      if (input.assignedToId) filters.assignedToId = input.assignedToId
+      if (input.assignedToId) {
+        filters.assignments = {
+          some: {
+            technicianId: input.assignedToId,
+          },
+        }
+      }
       if (input.type) filters.type = input.type
       if (input.status) filters.status = input.status
 
@@ -489,12 +407,21 @@ export const queriesRouter = router({
         skip: (input.page - 1) * input.limit,
         take: input.limit,
         include: {
-          assignedTo: { select: oplUserBasicSelect },
+          assignments: {
+            include: {
+              technician: {
+                select: oplUserSlimSelect,
+              },
+            },
+          },
         },
       })
 
       const totalOrders = await ctx.prisma.oplOrder.count({ where: filters })
-      return { orders, totalOrders }
+      return {
+        orders: orders.map(mapOplOrderToListVM),
+        totalOrders,
+      }
     }),
 
   /** Returns realized (completed or not completed) orders assigned to the logged-in technician. */
@@ -511,20 +438,21 @@ export const queriesRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      const technicianId = ctx.user?.id
+      const technicianId = ctx.user!.id
 
       const filters: Prisma.OplOrderWhereInput = {
-        assignedToId: technicianId,
         status: {
           in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+        },
+        assignments: {
+          some: { technicianId },
         },
       }
 
       if (input.type) filters.type = input.type
       if (input.status) filters.status = input.status
 
-      // 🔍 Search by number, city or street
-      if (input.searchTerm && input.searchTerm.trim() !== '') {
+      if (input.searchTerm?.trim()) {
         const q = input.searchTerm.trim()
         filters.OR = [
           { orderNumber: { contains: q, mode: 'insensitive' } },
@@ -541,12 +469,22 @@ export const queriesRouter = router({
         skip: (input.page - 1) * input.limit,
         take: input.limit,
         include: {
-          assignedTo: { select: oplUserBasicSelect },
+          assignments: {
+            include: {
+              technician: {
+                select: oplUserSlimSelect,
+              },
+            },
+          },
         },
       })
 
       const totalOrders = await ctx.prisma.oplOrder.count({ where: filters })
-      return { orders, totalOrders }
+
+      return {
+        orders: orders.map(mapOplOrderToListVM),
+        totalOrders,
+      }
     }),
 
   /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */
@@ -555,7 +493,7 @@ export const queriesRouter = router({
     .query(async ({ input, ctx }) => {
       const target = input?.date ? parseISO(input.date) : null
       const where: Prisma.OplOrderWhereInput = {
-        assignedToId: null,
+        assignments: { none: {} },
         type: OplOrderType.INSTALLATION,
       }
       if (target) {
@@ -675,7 +613,10 @@ export const queriesRouter = router({
 
       const orders = await ctx.prisma.oplOrder.findMany({
         where: {
-          status: 'ASSIGNED',
+          status: { in: [OplOrderStatus.PENDING, OplOrderStatus.ASSIGNED] },
+          assignments: {
+            some: {}, // ✅ MUSI mieć przypisanych techników
+          },
           ...(dateFrom && dateTo
             ? {
                 date: {
@@ -693,11 +634,15 @@ export const queriesRouter = router({
           street: true,
           date: true,
           operator: true,
-          clientId: true,
+          serviceId: true,
           status: true,
           timeSlot: true,
-          assignedTo: {
-            select: oplUserSlimSelect,
+          assignments: {
+            select: {
+              technician: {
+                select: oplUserSlimSelect,
+              },
+            },
           },
         },
         orderBy: {
@@ -706,13 +651,19 @@ export const queriesRouter = router({
       })
 
       return orders.map((o) => ({
-        ...o,
-        assignedTo: o.assignedTo
-          ? {
-              id: o.assignedTo.user.id,
-              name: o.assignedTo.user.name,
-            }
-          : null,
+        id: o.id,
+        orderNumber: o.orderNumber,
+        city: o.city,
+        street: o.street,
+        date: o.date,
+        operator: o.operator,
+        serviceId: o.serviceId,
+        status: o.status,
+        timeSlot: o.timeSlot,
+        technicians: o.assignments.map((a) => ({
+          id: a.technician.user.id,
+          name: a.technician.user.name,
+        })),
       }))
     }),
 
@@ -723,7 +674,13 @@ export const queriesRouter = router({
       const o = await ctx.prisma.oplOrder.findUnique({
         where: { id: input.orderId },
         include: {
-          assignedTo: { select: oplUserBasicSelect },
+          assignments: {
+            include: {
+              technician: {
+                select: oplUserBasicSelect,
+              },
+            },
+          },
           settlementEntries: {
             include: { rate: { select: { amount: true } } },
           },
@@ -735,45 +692,52 @@ export const queriesRouter = router({
           },
         },
       })
+
       if (!o) return null
 
       return {
         orderId: o.id,
-        technician: o.assignedTo?.user.name ?? 'Nieznany',
+        technicians: o.assignments.map((a) => a.technician.user.name),
         status: o.status,
         closedAt: o.closedAt,
         failureReason: o.failureReason,
         notes: o.notes,
+
         codes: o.settlementEntries.map((e) => ({
           code: e.code,
           quantity: e.quantity,
           amount: (e.rate?.amount ?? 0) * e.quantity,
         })),
+
         materials: o.usedMaterials.map((m) => ({
           name: m.material.name,
           quantity: m.quantity,
           unit: m.unit,
         })),
+
         equipment: o.assignedEquipment.map((eq) => ({
           name: eq.warehouse.name,
           serialNumber: eq.warehouse.serialNumber,
         })),
       }
     }),
+
   getNextOutageOrderNumber: loggedInEveryone.query(async () => {
     return await getNextLineOrderNumber()
   }),
   /** Returns all active (unrealized) orders assigned to the logged-in technician. */
   getTechnicianActiveOrders: technicianOnly.query(async ({ ctx }) => {
-    const technicianId = ctx.user?.id
-
-    const filters: Prisma.OplOrderWhereInput = {
-      assignedToId: technicianId,
-      status: { in: ['PENDING', 'ASSIGNED'] },
-    }
+    const technicianId = ctx.user!.id
 
     const orders = await ctx.prisma.oplOrder.findMany({
-      where: filters,
+      where: {
+        status: { in: [OplOrderStatus.PENDING, OplOrderStatus.ASSIGNED] },
+        assignments: {
+          some: {
+            technicianId,
+          },
+        },
+      },
       orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
       select: {
         id: true,
@@ -785,11 +749,34 @@ export const queriesRouter = router({
         timeSlot: true,
         operator: true,
         status: true,
-        assignedTo: { select: oplUserBasicSelect },
         notes: true,
+
+        assignments: {
+          select: {
+            technician: {
+              select: oplUserBasicSelect,
+            },
+          },
+        },
       },
     })
 
-    return orders
+    return orders.map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      type: o.type,
+      city: o.city,
+      street: o.street,
+      date: o.date,
+      timeSlot: o.timeSlot,
+      operator: o.operator,
+      status: o.status,
+      notes: o.notes,
+
+      technicians: o.assignments.map((a) => ({
+        id: a.technician.user.id,
+        name: a.technician.user.name,
+      })),
+    }))
   }),
 })

@@ -10,11 +10,10 @@ model User {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   deletedAt          DateTime?
+  oplProfile         OplUser?            @relation("UserToOplUser")
   technicianSettings GlobalUserSettings?
   locations          UserLocation[]
   modules            UserModule[]
-  
-  oplProfile         OplUser?            @relation("UserToOplUser")
   vectraProfile      VectraUser?         @relation("UserToVectraUser")
 
   @@schema("public")

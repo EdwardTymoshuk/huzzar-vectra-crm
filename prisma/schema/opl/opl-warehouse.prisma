@@ -126,6 +126,8 @@ model OplDeviceDefinition {
   alarmAlert   Int?              @default(5)
   warningAlert Int?              @default(10)
 
+  orderEquipmentRequirements OplOrderEquipmentRequirement[]
+
   @@schema("opl")
 }
 

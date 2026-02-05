@@ -3,6 +3,7 @@
 import { BadgeVariant } from '@/lib/constants'
 import {
   OplDeviceCategory,
+  OplOrderStandard,
   OplTimeSlot,
   OplWarehouseAction,
 } from '@prisma/client'
@@ -91,10 +92,20 @@ export const oplTimeSlotMap: Record<OplTimeSlot, string> = {
   FOURTEEN_TWENTY: '14:00 - 20:00',
 }
 
+/**
+ * Options list for selects / dropdowns in OPL module.
+ * Order is controlled by `sortedOplTimeSlotsByHour`.
+ */
+export const oplTimeSlotOptions: { value: OplTimeSlot; label: string }[] =
+  sortedOplTimeSlotsByHour.map((slot) => ({
+    value: slot,
+    label: oplTimeSlotMap[slot],
+  }))
+
 export const oplOrderTypeMap = {
   INSTALLATION: 'Instalacja',
   SERVICE: 'Serwis',
-  OUTAGE: 'Uszkodzenie',
+  OUTAGE: 'Awaria',
 }
 
 export const oplWarehouseActionMap: Record<
@@ -114,3 +125,18 @@ export const oplWarehouseActionMap: Record<
     variant: 'danger',
   },
 }
+
+export const oplOrderStandardOptions: {
+  value: OplOrderStandard
+  label: string
+}[] = [
+  { value: 'W1', label: 'W1' },
+  { value: 'W2', label: 'W2' },
+  { value: 'W3', label: 'W3' },
+  { value: 'W4', label: 'W4' },
+  { value: 'W5', label: 'W5' },
+  { value: 'W6', label: 'W6' },
+  { value: 'ZJD', label: 'ZJD' },
+  { value: 'ZJN', label: 'ZJN' },
+  { value: 'ZJK', label: 'ZJK' },
+]

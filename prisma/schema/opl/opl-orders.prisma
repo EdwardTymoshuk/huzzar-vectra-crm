@@ -1,36 +1,50 @@
+/// -------------------------------------------
+/// OPL ORDERS
+/// -------------------------------------------
 model OplOrder {
-  id                String                    @id @default(uuid())
-  clientId          String?
+  id                String            @id @default(uuid())
+  serviceId         String?
   orderNumber       String
   date              DateTime
   timeSlot          OplTimeSlot
   clientPhoneNumber String?
   notes             String?
-  status            OplOrderStatus            @default(PENDING)
-  county            String?
-  municipality      String?
-  city              String
-  street            String
-  postalCode        String?
-  lat               Float?
-  lng               Float?
-  assignedToId      String?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  createdSource     OplOrderCreatedSource     @default(PLANNER)
-  operator          String
-  type              OplOrderType
-  closedAt          DateTime?
-  failureReason     String?
-  transferPending   Boolean                   @default(false)
-  transferToId      String?
-  completedAt       DateTime?
-  attemptNumber     Int                       @default(1)
-  previousOrderId   String?
-  assignedTo        OplUser?                  @relation("OplOrderAssignedTo", fields: [assignedToId], references: [userId])
-  previousOrder     OplOrder?                 @relation("OrderAttempts", fields: [previousOrderId], references: [id])
-  attempts          OplOrder[]                @relation("OrderAttempts")
-  transferTo        OplUser?                  @relation("OplOrderTransfer", fields: [transferToId], references: [userId])
+  status            OplOrderStatus    @default(PENDING)
+  standard          OplOrderStandard?
+  contractRequired  Boolean           @default(false)
+
+  network OplNetworkOeprator
+
+  county       String?
+  municipality String?
+  city         String
+  street       String
+  postalCode   String?
+  lat          Float?
+  lng          Float?
+
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  createdSource OplOrderCreatedSource @default(PLANNER)
+  operator      String
+  type          OplOrderType
+
+  closedAt      DateTime?
+  completedAt   DateTime?
+  failureReason String?
+
+  transferPending Boolean  @default(false)
+  transferToId    String?
+  transferTo      OplUser? @relation("OplOrderTransfer", fields: [transferToId], references: [userId])
+
+  attemptNumber   Int        @default(1)
+  previousOrderId String?
+  previousOrder   OplOrder?  @relation("OrderAttempts", fields: [previousOrderId], references: [id])
+  attempts        OplOrder[] @relation("OrderAttempts")
+
+  assignments           OplOrderAssignment[]
+  equipmentRequirements OplOrderEquipmentRequirement[]
+
   assignedEquipment OplOrderEquipment[]       @relation("OrderToOrderEquipment")
   history           OplOrderHistory[]
   usedMaterials     OplOrderMaterial[]
@@ -42,58 +56,127 @@ model OplOrder {
   @@schema("opl")
 }
 
+/// -------------------------------------------
+/// ORDER ↔ TECHNICIAN ASSIGNMENT (N:N)
+/// -------------------------------------------
+model OplOrderAssignment {
+  id           String   @id @default(uuid())
+  orderId      String
+  technicianId String
+  assignedAt   DateTime @default(now())
+
+  order      OplOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  technician OplUser  @relation("OplOrderAssignmentsByTechnician", fields: [technicianId], references: [userId])
+
+  @@unique([orderId, technicianId])
+  @@index([technicianId])
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// ORDER MATERIALS
+/// -------------------------------------------
 model OplOrderMaterial {
-  id         String                @id @default(uuid())
+  id         String          @id @default(uuid())
   orderId    String
   materialId String
   quantity   Int
   unit       OplMaterialUnit
-  material   OplMaterialDefinition @relation("MaterialToOrderMaterial", fields: [materialId], references: [id])
-  order      OplOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  material OplMaterialDefinition @relation("MaterialToOrderMaterial", fields: [materialId], references: [id])
+  order    OplOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@schema("opl")
 }
 
+/// -------------------------------------------
+/// ORDER SETTLEMENT / BILLING
+/// -------------------------------------------
 model OplOrderSettlementEntry {
-  id       String            @id @default(uuid())
+  id       String @id @default(uuid())
   orderId  String
   code     String
   quantity Int
-  rate     OplRateDefinition @relation("RateDefinitionToSettlement", fields: [code], references: [code])
-  order    OplOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  rate  OplRateDefinition @relation("RateDefinitionToSettlement", fields: [code], references: [code])
+  order OplOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@schema("opl")
 }
 
+/// -------------------------------------------
+/// ORDER SERVICES
+/// -------------------------------------------
 model OplOrderService {
-  id                String                @id @default(uuid())
-  orderId           String
-  type              OplInstallationType
-  deviceId          String?
-  serialNumber      String?
-  deviceType        OplDeviceCategory?
-  deviceSource      OplDeviceSource?
-  deviceName        String?
-  deviceId2         String?
-  serialNumber2     String?
-  deviceType2       OplDeviceCategory?
-  device2Source     OplDeviceSource?
-  deviceName2       String?
-  extraDevicesCount Int?                  @default(0)
+  id      String              @id @default(uuid())
+  orderId String
+  type    OplInstallationType
+
+  deviceId     String?
+  serialNumber String?
+  deviceType   OplDeviceCategory?
+  deviceSource OplDeviceSource?
+  deviceName   String?
+
+  deviceId2     String?
+  serialNumber2 String?
+  deviceType2   OplDeviceCategory?
+  device2Source OplDeviceSource?
+  deviceName2   String?
+
+  extraDevicesCount Int?    @default(0)
   speedTest         String?
   usDbmDown         Float?
   usDbmUp           Float?
-  createdAt         DateTime              @default(now())
-  notes             String?
-  extraDevices      OplOrderExtraDevice[]
-  order             OplOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  notes     String?
+
+  extraDevices OplOrderExtraDevice[]
+  order        OplOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@schema("opl")
 }
 
+/// -------------------------------------------
+/// EXTRA DEVICES (SERVICE-LEVEL)
+/// -------------------------------------------
+model OplOrderExtraDevice {
+  id           String             @id @default(uuid())
+  serviceId    String
+  warehouseId  String?
+  source       OplDeviceSource
+  name         String
+  serialNumber String?
+  category     OplDeviceCategory?
+
+  service OplOrderService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// ASSIGNED EQUIPMENT
+/// -------------------------------------------
+model OplOrderEquipment {
+  id          String @id @default(uuid())
+  orderId     String
+  warehouseId String
+
+  order     OplOrder     @relation("OrderToOrderEquipment", fields: [orderId], references: [id], onDelete: Cascade)
+  warehouse OplWarehouse @relation("WarehouseToOrderEquipment", fields: [warehouseId], references: [id])
+
+  @@unique([orderId, warehouseId])
+  @@index([orderId])
+  @@schema("opl")
+}
+
+/// -------------------------------------------
+/// ORDER HISTORY / AUDIT
+/// -------------------------------------------
 model OplOrderHistory {
   id            String         @id @default(uuid())
   orderId       String
@@ -103,33 +186,22 @@ model OplOrderHistory {
   statusAfter   OplOrderStatus
   notes         String?
   equipmentUsed String[]
-  changedBy     OplUser        @relation("OplOrderHistoryByUser", fields: [changedById], references: [userId])
-  order         OplOrder       @relation(fields: [orderId], references: [id])
+
+  changedBy OplUser  @relation("OplOrderHistoryByUser", fields: [changedById], references: [userId])
+  order     OplOrder @relation(fields: [orderId], references: [id])
 
   @@schema("opl")
 }
 
-model OplOrderEquipment {
-  id          String       @id @default(uuid())
-  orderId     String
-  warehouseId String
-  order       OplOrder     @relation("OrderToOrderEquipment", fields: [orderId], references: [id], onDelete: Cascade)
-  warehouse   OplWarehouse @relation("WarehouseToOrderEquipment", fields: [warehouseId], references: [id])
+model OplOrderEquipmentRequirement {
+  id                 String @id @default(uuid())
+  orderId            String
+  deviceDefinitionId String
+  quantity           Int    @default(1)
 
-  @@unique([orderId, warehouseId])
-  @@index([orderId])
-  @@schema("opl")
-}
+  order            OplOrder            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deviceDefinition OplDeviceDefinition @relation(fields: [deviceDefinitionId], references: [id])
 
-model OplOrderExtraDevice {
-  id           String             @id @default(uuid())
-  serviceId    String
-  warehouseId  String?
-  source       OplDeviceSource
-  name         String
-  serialNumber String?
-  category     OplDeviceCategory?
-  service      OplOrderService    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-
+  @@unique([orderId, deviceDefinitionId])
   @@schema("opl")
 }

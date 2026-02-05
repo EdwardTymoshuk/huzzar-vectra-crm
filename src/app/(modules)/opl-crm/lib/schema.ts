@@ -2,6 +2,8 @@
 import {
   OplDeviceCategory,
   OplInstallationType,
+  OplNetworkOeprator,
+  OplOrderStandard,
   OplOrderStatus,
   OplOrderType,
   OplTimeSlot,
@@ -86,21 +88,46 @@ export const operatorSchema = z.object({
 export const orderSchema = z.object({
   type: z.nativeEnum(OplOrderType),
   operator: z.string(),
-  clientId: z.string().min(3, 'ID klienta jest wymagane'),
+  serviceId: z
+    .string()
+    .length(12, 'Id usługi musi mieć dokładnie 12 znaków')
+    .optional(),
+  network: z.nativeEnum(OplNetworkOeprator).default('ORANGE'),
   orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),
   date: z.string().min(1, 'Data jest wymagana'),
+  clientPhoneNumber: z
+    .string()
+    .min(7)
+    .max(20)
+    .optional()
+    .refine((val) => !val || /^(\+48)?\d{9}$/.test(val), {
+      message: 'Nieprawidłowy numer telefonu',
+    }),
   timeSlot: z.nativeEnum(OplTimeSlot),
   city: z.string().min(2, 'Miasto jest wymagane'),
   street: z.string().min(3, 'Adres jest wymagany'),
   postalCode: z.string().max(6).optional().default(''),
-  assignedToId: z.string(),
+  assignedTechnicianIds: z
+    .array(z.string())
+    .min(1, 'Wybierz przynajmniej jednego technika')
+    .max(2, 'Można przypisać maksymalnie dwóch techników'),
+  standard: z.nativeEnum(OplOrderStandard).optional(),
   notes: z.string().optional(),
+  contractRequired: z.boolean().default(false),
+  equipmentRequirements: z
+    .array(
+      z.object({
+        deviceDefinitionId: z.string(),
+        quantity: z.coerce.number().min(1),
+      })
+    )
+    .optional(),
   status: z.nativeEnum(OplOrderStatus),
 })
 
 export const technicianOrderSchema = orderSchema.omit({
   postalCode: true,
-  assignedToId: true,
+  assignedTechnicianIds: true,
 })
 
 export const workCodeSchema = z.object({

@@ -107,6 +107,20 @@ enum OplWarehouseAction {
   @@schema("opl")
 }
 
+enum OplOrderStandard {
+  W1
+  W2
+  W3
+  W4
+  W5
+  W6
+  ZJD
+  ZJN
+  ZJK
+
+  @@schema("opl")
+}
+
 enum OplInstallationType {
   I_1P @map("1P")
   I_2P @map("2P")
@@ -156,6 +170,13 @@ enum OplLocationTransferStatus {
 enum OplDeviceSource {
   WAREHOUSE
   CLIENT
+
+  @@schema("opl")
+}
+
+enum OplNetworkOeprator {
+  ORANGE
+  SI
 
   @@schema("opl")
 }
