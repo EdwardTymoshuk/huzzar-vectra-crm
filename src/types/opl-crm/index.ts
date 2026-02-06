@@ -6,8 +6,6 @@
 
 import {
   OplDeviceCategory,
-  OplDeviceSource,
-  OplInstallationType,
   OplMaterialUnit,
   OplOrderStatus,
   OplOrderType,
@@ -76,15 +74,6 @@ export type OplIssuedItemMaterial = {
   name: string
   materialDefinitionId: string
   quantity: number
-}
-
-export type OplActivatedServiceExtraDevice = {
-  id: string
-  source: OplDeviceSource
-  deviceId?: string
-  category: OplDeviceCategory
-  name?: string
-  serialNumber: string
 }
 
 // Full warehouse history with relations
@@ -160,37 +149,6 @@ export type OplDeviceBasic = {
   serialNumber: string | null
   category: OplDeviceCategory
   status?: OplWarehouseStatus
-}
-
-export type OplActivatedService = {
-  id: string
-  type: OplInstallationType
-
-  // Primary device (decoder/modem)
-  deviceSource?: OplDeviceSource
-  deviceId?: string
-  serialNumber?: string
-  /** Optional label when using client's device */
-  deviceName?: string
-  deviceType?: OplDeviceCategory
-
-  // Secondary device (router for HFC / special cases)
-  device2Source?: OplDeviceSource
-  deviceId2?: string
-  serialNumber2?: string
-  deviceName2?: string
-  deviceType2?: OplDeviceCategory
-
-  // NET-only: extra modems/routers that should count as sockets
-  extraDevices?: OplActivatedServiceExtraDevice[]
-
-  // Measurements
-  speedTest?: string
-  usDbmDown?: number
-  usDbmUp?: number
-
-  // Free-form notes
-  notes?: string
 }
 
 // -----------------------------
@@ -402,3 +360,25 @@ export type OplTechnicianStockMaterialItem = OplTechnicianStockBase & {
 export type OplTechnicianStockItem =
   | OplTechnicianStockDeviceItem
   | OplTechnicianStockMaterialItem
+
+/**
+ * Canonical OPL order billing configuration.
+ * This model is UI-facing and validated before persistence.
+ */
+export type OplBillingDraft = {
+  baseWork: {
+    code: OplBaseWorkCode
+  }
+
+  activation?: {
+    type: OplActivationType
+    multiroomCount: number // 0–3
+    umz: boolean
+  }
+
+  addons: {
+    code: OplAddonCode
+    quantity: number
+    autoAdded: boolean
+  }[]
+}

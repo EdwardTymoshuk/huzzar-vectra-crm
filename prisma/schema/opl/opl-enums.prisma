@@ -107,38 +107,61 @@ enum OplWarehouseAction {
   @@schema("opl")
 }
 
-enum OplOrderStandard {
+/// Base type of work that defines the entire order mode.
+/// Exactly ONE per order.
+enum OplBaseWorkCode {
   W1
   W2
   W3
   W4
   W5
   W6
+  WGH
+
   ZJD
   ZJN
   ZJK
 
+  P1P
+  P2P
+  P3P
+  PUTD
+
+  DU
+
   @@schema("opl")
 }
 
-enum OplInstallationType {
+/// Activation scope for standard installations.
+enum OplActivationType {
   I_1P @map("1P")
   I_2P @map("2P")
   I_3P @map("3P")
   UTD
+
+  @@schema("opl")
+}
+
+/// Addon / billing codes.
+/// Quantity-based logic is handled in data, not enums.
+enum OplAddonCode {
+  ZJWEW
+  ZJDD
+  ZJNK
+  ZJKD
+
   MR
   UMZ
-  P1P
-  P2P
-  P3P
-  DSD
-  DU
-  DTV
+
   DMR
+  DTV
   DDSD
   DMOD
+  KUK
   DAFP
   DAFN
+
+  IKDD
 
   @@schema("opl")
 }

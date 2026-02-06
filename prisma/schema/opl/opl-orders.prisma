@@ -2,16 +2,19 @@
 /// OPL ORDERS
 /// -------------------------------------------
 model OplOrder {
-  id                String            @id @default(uuid())
+  id                String         @id @default(uuid())
   serviceId         String?
   orderNumber       String
   date              DateTime
   timeSlot          OplTimeSlot
   clientPhoneNumber String?
   notes             String?
-  status            OplOrderStatus    @default(PENDING)
-  standard          OplOrderStandard?
-  contractRequired  Boolean           @default(false)
+  status            OplOrderStatus @default(PENDING)
+
+  /// If true, UMZ should be added to settlement lines.
+  contractRequired Boolean @default(false)
+
+  equipmentRequirements OplOrderEquipmentRequirement[]
 
   network OplNetworkOeprator
 
@@ -42,17 +45,65 @@ model OplOrder {
   previousOrder   OplOrder?  @relation("OrderAttempts", fields: [previousOrderId], references: [id])
   attempts        OplOrder[] @relation("OrderAttempts")
 
-  assignments           OplOrderAssignment[]
-  equipmentRequirements OplOrderEquipmentRequirement[]
+  assignments OplOrderAssignment[]
 
-  assignedEquipment OplOrderEquipment[]       @relation("OrderToOrderEquipment")
-  history           OplOrderHistory[]
+  /// Wizard state used to generate settlement entries deterministically.
+  billingConfig OplOrderBillingConfig?
+
+  /// Final billing lines used for reports/payouts (source of truth).
+  settlementEntries     OplOrderSettlementEntry[]
+  suggestedBaseWorkCode OplBaseWorkCode?
+
+  /// Warehouse integrations.
+  assignedEquipment OplOrderEquipment[]   @relation("OrderToOrderEquipment")
   usedMaterials     OplOrderMaterial[]
-  services          OplOrderService[]
-  settlementEntries OplOrderSettlementEntry[]
-  warehouseHistory  OplWarehouseHistory[]     @relation("OrderToWarehouseHistory")
+  warehouseHistory  OplWarehouseHistory[] @relation("OrderToWarehouseHistory")
+
+  /// Audit trail.
+  history OplOrderHistory[]
 
   @@unique([orderNumber, city, street, attemptNumber])
+  @@schema("opl")
+}
+
+/// Wizard state used to build settlement entries deterministically.
+/// This is NOT the source of truth for payouts.
+model OplOrderBillingConfig {
+  id String @id @default(uuid())
+
+  orderId String   @unique
+  order   OplOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Exactly one base work code.
+  baseWorkCode OplBaseWorkCode
+
+  /// Activation (1P / 2P / 3P / UTD), if applicable.
+  activationType OplActivationType?
+
+  /// List of addons selected or calculated during completion.
+  addons OplOrderBillingAddon[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("opl")
+}
+
+model OplOrderBillingAddon {
+  id String @id @default(uuid())
+
+  billingConfigId String
+  billingConfig   OplOrderBillingConfig @relation(fields: [billingConfigId], references: [id], onDelete: Cascade)
+
+  code OplAddonCode
+
+  /// Quantity >= 1
+  quantity Int
+
+  /// True if auto-added by business rules (e.g. ZJWEW).
+  autoAdded Boolean @default(false)
+
+  @@unique([billingConfigId, code])
   @@schema("opl")
 }
 
@@ -91,7 +142,7 @@ model OplOrderMaterial {
 }
 
 /// -------------------------------------------
-/// ORDER SETTLEMENT / BILLING
+/// ORDER SETTLEMENT / BILLING (SOURCE OF TRUTH)
 /// -------------------------------------------
 model OplOrderSettlementEntry {
   id       String @id @default(uuid())
@@ -103,58 +154,6 @@ model OplOrderSettlementEntry {
   order OplOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
-  @@schema("opl")
-}
-
-/// -------------------------------------------
-/// ORDER SERVICES
-/// -------------------------------------------
-model OplOrderService {
-  id      String              @id @default(uuid())
-  orderId String
-  type    OplInstallationType
-
-  deviceId     String?
-  serialNumber String?
-  deviceType   OplDeviceCategory?
-  deviceSource OplDeviceSource?
-  deviceName   String?
-
-  deviceId2     String?
-  serialNumber2 String?
-  deviceType2   OplDeviceCategory?
-  device2Source OplDeviceSource?
-  deviceName2   String?
-
-  extraDevicesCount Int?    @default(0)
-  speedTest         String?
-  usDbmDown         Float?
-  usDbmUp           Float?
-
-  createdAt DateTime @default(now())
-  notes     String?
-
-  extraDevices OplOrderExtraDevice[]
-  order        OplOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([orderId])
-  @@schema("opl")
-}
-
-/// -------------------------------------------
-/// EXTRA DEVICES (SERVICE-LEVEL)
-/// -------------------------------------------
-model OplOrderExtraDevice {
-  id           String             @id @default(uuid())
-  serviceId    String
-  warehouseId  String?
-  source       OplDeviceSource
-  name         String
-  serialNumber String?
-  category     OplDeviceCategory?
-
-  service OplOrderService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-
   @@schema("opl")
 }
 

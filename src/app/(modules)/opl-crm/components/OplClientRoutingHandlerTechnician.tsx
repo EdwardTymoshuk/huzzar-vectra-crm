@@ -16,7 +16,7 @@ const pages: Record<string, React.ComponentType> = {
     () => import('@/app/(modules)/opl-crm/(technician)/dashboard/page')
   ),
   planer: dynamic(
-    () => import('@/app/(modules)/opl-crm/(technician)/planning/page')
+    () => import('@/app/(modules)/opl-crm/(technician)/planner/page')
   ),
   orders: dynamic(
     () => import('@/app/(modules)/opl-crm/(technician)/orders/page')

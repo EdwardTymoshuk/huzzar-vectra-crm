@@ -179,12 +179,41 @@ export const queriesRouter = router({
               },
             },
           },
+
+          // ✅ PREVIOUS ORDER (attempt chain)
+          previousOrder: {
+            include: {
+              assignments: {
+                include: {
+                  technician: {
+                    select: oplUserWithCoreBasicSelect,
+                  },
+                },
+              },
+            },
+          },
+
+          // ✅ ALL ATTEMPTS
+          attempts: {
+            orderBy: { attemptNumber: 'asc' },
+            include: {
+              assignments: {
+                include: {
+                  technician: {
+                    select: oplUserWithCoreBasicSelect,
+                  },
+                },
+              },
+            },
+          },
+
           history: {
             include: {
               changedBy: { select: oplUserWithCoreBasicSelect },
             },
             orderBy: { changeDate: 'desc' },
           },
+
           settlementEntries: { include: { rate: true } },
           usedMaterials: { include: { material: true } },
           assignedEquipment: {
@@ -754,13 +783,24 @@ export const queriesRouter = router({
         assignments: {
           select: {
             technician: {
-              select: oplUserBasicSelect,
+              select: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
             },
           },
         },
       },
     })
 
+    /**
+     * Map relational assignment model into a flat, UI-friendly view model.
+     * The frontend must not depend on join tables or relational structures.
+     */
     return orders.map((o) => ({
       id: o.id,
       orderNumber: o.orderNumber,

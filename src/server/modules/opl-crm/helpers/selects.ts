@@ -67,3 +67,28 @@ export const oplUserSlimSelect = {
     },
   },
 } satisfies Prisma.OplUserSelect
+
+/**
+ * Active Opl order projection used by technician views.
+ * ------------------------------------------------------------
+ * Includes assigned technician (OplUser -> CORE User).
+ */
+export const activeOplOrderSelect = {
+  id: true,
+  orderNumber: true,
+  type: true,
+  city: true,
+  street: true,
+  date: true,
+  timeSlot: true,
+  operator: true,
+  status: true,
+  notes: true,
+  assignments: {
+    select: {
+      technician: {
+        select: oplUserBasicSelect,
+      },
+    },
+  },
+} satisfies Prisma.OplOrderSelect

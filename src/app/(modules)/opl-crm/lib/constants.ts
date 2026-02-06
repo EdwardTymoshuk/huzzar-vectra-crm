@@ -140,3 +140,16 @@ export const oplOrderStandardOptions: {
   { value: 'ZJN', label: 'ZJN' },
   { value: 'ZJK', label: 'ZJK' },
 ]
+
+export const oplOrderFailureReasons = [
+  'Rezygnacja',
+  'Zmiana terminu z przyczyn klienckich',
+  'Zmiana terminu z przyczyn technicznych',
+  'Zmiana terminu z przyczyn technika',
+  'Zwiększony zakres prac/PKI',
+  'Brak dostępu do urządzeń OPL/OA',
+  'Brak zgody administratora',
+  'Braki materiałowe',
+  'Błędne dane na umowie',
+  'Siła wyższa',
+]

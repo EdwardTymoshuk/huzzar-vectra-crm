@@ -5,12 +5,6 @@ CREATE SCHEMA IF NOT EXISTS "public";
 CREATE SCHEMA IF NOT EXISTS "vectra";
 
 -- CreateEnum
-CREATE TYPE "public"."Role" AS ENUM ('TECHNICIAN', 'COORDINATOR', 'WAREHOUSEMAN', 'ADMIN');
-
--- CreateEnum
-CREATE TYPE "public"."UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'DELETED');
-
--- CreateEnum
 CREATE TYPE "vectra"."VectraOrderStatus" AS ENUM ('PENDING', 'ASSIGNED', 'COMPLETED', 'NOT_COMPLETED');
 
 -- CreateEnum

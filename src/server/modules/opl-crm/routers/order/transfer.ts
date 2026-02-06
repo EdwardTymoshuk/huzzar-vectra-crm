@@ -4,7 +4,6 @@ import { technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { z } from 'zod'
 import { addOrderHistory } from '../../helpers/addOrderHistory'
-import { oplUserBasicSelect } from '../../helpers/selects'
 
 /**
  * transferRouter – handles technician-to-technician order transfers.
@@ -16,7 +15,10 @@ export const transferRouter = router({
     const user = getCoreUserOrThrow(ctx)
 
     return ctx.prisma.oplOrder.findMany({
-      where: { transferToId: user.id, transferPending: true },
+      where: {
+        transferToId: user.id,
+        transferPending: true,
+      },
       select: {
         id: true,
         orderNumber: true,
@@ -25,7 +27,10 @@ export const transferRouter = router({
         street: true,
         date: true,
         timeSlot: true,
-        assignedTo: { select: oplUserBasicSelect },
+        operator: true,
+        status: true,
+        transferToId: true,
+        transferPending: true,
       },
     })
   }),
@@ -39,15 +44,31 @@ export const transferRouter = router({
       const me = user.id
 
       await ctx.prisma.$transaction(async (tx) => {
+        // ensure order is assigned to current technician
+        const assignment = await tx.oplOrderAssignment.findUnique({
+          where: {
+            orderId_technicianId: {
+              orderId,
+              technicianId: me,
+            },
+          },
+        })
+
+        if (!assignment) {
+          throw new Error('Nie masz uprawnień do przekazania tego zlecenia.')
+        }
+
         const targetTech = await tx.user.findUnique({
           where: { id: newTechnicianId },
           select: { name: true },
         })
 
-        if (!targetTech) throw new Error('Nie znaleziono technika docelowego.')
+        if (!targetTech) {
+          throw new Error('Nie znaleziono technika docelowego.')
+        }
 
         const order = await tx.oplOrder.update({
-          where: { id: orderId, assignedToId: me },
+          where: { id: orderId },
           data: {
             transferToId: newTechnicianId,
             transferPending: true,
@@ -73,20 +94,36 @@ export const transferRouter = router({
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ input, ctx }) => {
       const user = getCoreUserOrThrow(ctx)
-      const userId = user.id
-      const userName = user.name
+      const { id: userId, name: userName } = user
       const { orderId } = input
 
       await ctx.prisma.$transaction(async (tx) => {
-        const current = await tx.oplOrder.findUniqueOrThrow({
-          where: { id: orderId },
+        const order = await tx.oplOrder.findUniqueOrThrow({
+          where: {
+            id: orderId,
+            transferToId: userId,
+            transferPending: true,
+          },
           select: { status: true },
         })
 
-        await tx.oplOrder.update({
-          where: { id: orderId, transferToId: userId, transferPending: true },
+        // remove all previous assignments
+        await tx.oplOrderAssignment.deleteMany({
+          where: { orderId },
+        })
+
+        // assign order to accepting technician
+        await tx.oplOrderAssignment.create({
           data: {
-            assignedToId: userId,
+            orderId,
+            technicianId: userId,
+          },
+        })
+
+        // clear transfer flags
+        await tx.oplOrder.update({
+          where: { id: orderId },
+          data: {
             transferToId: null,
             transferPending: false,
           },
@@ -95,8 +132,8 @@ export const transferRouter = router({
         await addOrderHistory({
           orderId,
           userId,
-          before: current.status,
-          after: current.status,
+          before: order.status,
+          after: order.status,
           note: `Technik ${userName} przyjął przekazane zlecenie`,
           prisma: tx,
         })
@@ -114,12 +151,16 @@ export const transferRouter = router({
 
       await ctx.prisma.$transaction(async (tx) => {
         const current = await tx.oplOrder.findUniqueOrThrow({
-          where: { id: orderId },
+          where: {
+            id: orderId,
+            transferToId: userId,
+            transferPending: true,
+          },
           select: { status: true },
         })
 
         await tx.oplOrder.update({
-          where: { id: orderId, transferToId: userId, transferPending: true },
+          where: { id: orderId },
           data: {
             transferToId: null,
             transferPending: false,

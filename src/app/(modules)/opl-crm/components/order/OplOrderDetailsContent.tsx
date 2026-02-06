@@ -1,6 +1,5 @@
 'use client'
 
-import { collectOrderEquipment } from '@/app/(modules)/vectra-crm/utils/orders/collectOrderEquipment'
 import { materialUnitMap } from '@/lib/constants'
 import {
   OplDeviceCategory,
@@ -141,7 +140,7 @@ const OplOrderDetailsContent = ({ order }: Props) => {
       />
 
       {/* ===== Issued equipment ===== */}
-      <section className="pt-4 border-t border-border space-y-1">
+      {/* <section className="pt-4 border-t border-border space-y-1">
         <h4 className="font-semibold">Sprzęt wydany</h4>
 
         {(() => {
@@ -167,7 +166,7 @@ const OplOrderDetailsContent = ({ order }: Props) => {
             </ul>
           )
         })()}
-      </section>
+      </section> */}
 
       {/* ===== Collected equipment ===== */}
       <Section

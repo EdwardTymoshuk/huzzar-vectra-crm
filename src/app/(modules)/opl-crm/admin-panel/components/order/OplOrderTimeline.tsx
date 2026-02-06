@@ -1,7 +1,7 @@
 'use client'
 
 import { Timeline } from '@/app/components/ui/timeline'
-import { mapOrderToTimelineVM } from '@/server/modules/opl-crm/helpers/mappers/mapOrderToTimelineVM'
+import { mapOrderToTimelineVM } from '@/server/modules/opl-crm/helpers/mappers/mapOplOrderToTimelineVM'
 import { RouterOutputs } from '@/types'
 import { useRole } from '@/utils/hooks/useRole'
 import { getOplFullOrderTimeline } from '../../../utils/order/getOplFullOrderTimeline'
