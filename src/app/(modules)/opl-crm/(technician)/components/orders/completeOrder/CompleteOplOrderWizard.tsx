@@ -9,34 +9,26 @@ import {
 } from '@/app/components/ui/dialog'
 import { Progress } from '@/app/components/ui/progress'
 import { RouterOutputs } from '@/types'
-import {
-  VectraActivatedService,
-  VectraIssuedItemDevice,
-  VectraIssuedItemMaterial,
-} from '@/types/vectra-crm'
+import { OplIssuedItemDevice } from '@/types/opl-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import {
-  VectraDeviceCategory,
-  VectraMaterialDefinition,
-  VectraMaterialUnit,
-  VectraOrderStatus,
-  VectraOrderType,
-  VectraRateDefinition,
+  OplDeviceCategory,
+  OplMaterialDefinition,
+  OplOrderStatus,
+  OplOrderType,
+  OplRateDefinition,
 } from '@prisma/client'
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MdClose } from 'react-icons/md'
 import { toast } from 'sonner'
-import StepCollectedAndNotes from './steps/StepCollectedAndNotes'
-import StepInstallationAndMaterials from './steps/StepInstallationAndMaterials'
-import StepServices from './steps/StepServices'
-import StepStatus from './steps/StepStatus'
-import StepSummary from './steps/StepSummary'
+import OplStepStatus from './steps/OplStepStatus'
+import OplStepWorkCodes from './steps/OplStepWorkCodes'
 
 const STEPS_INSTALLATION = [
   'Status',
-  'Usługi',
+  'Kody pracy',
   'Instalacja i materiały',
   'Odbiór i uwagi',
   'Podsumowanie',
@@ -44,30 +36,30 @@ const STEPS_INSTALLATION = [
 
 const STEPS_SERVICE = ['Status', 'Odbiór i uwagi', 'Materiały', 'Podsumowanie']
 
-type FullOrder = RouterOutputs['vectra']['order']['getOrderById']
+type FullOrder = RouterOutputs['opl']['order']['getOrderById']
 
 interface Props {
   open: boolean
   order: FullOrder
-  orderType: VectraOrderType
+  orderType: OplOrderType
   onCloseAction: () => void
-  materialDefs: VectraMaterialDefinition[]
+  materialDefs: OplMaterialDefinition[]
   techMaterials: {
     id: string
     name: string
     materialDefinitionId: string
     quantity: number
   }[]
-  devices?: VectraIssuedItemDevice[]
+  devices?: OplIssuedItemDevice[]
   mode?: 'complete' | 'amend' | 'adminEdit'
-  workCodeDefs: VectraRateDefinition[] | undefined
+  workCodeDefs: OplRateDefinition[] | undefined
 }
 
 /**
- * Multi-step order completion and editing wizard.
- * Handles technician and admin flows.
+ * Multi-step OPL order completion wizard.
+ * UI-first flow, backend mapping happens only on submit.
  */
-const CompleteOrderWizard = ({
+const CompleteOplOrderWizard = ({
   open,
   order,
   orderType,
@@ -76,13 +68,12 @@ const CompleteOrderWizard = ({
   techMaterials,
   devices = [],
   mode = 'complete',
-  workCodeDefs,
 }: Props) => {
-  /** Step state */
+  /** Wizard step index */
   const [step, setStep] = useState(0)
-  /** Core form states */
-  const [status, setStatus] = useState<VectraOrderStatus>('COMPLETED')
-  const [services, setServices] = useState<VectraActivatedService[]>([])
+
+  /** Core order state */
+  const [status, setStatus] = useState<OplOrderStatus>('COMPLETED')
   const [install, setInstall] = useState({ pion: 0, listwa: 0 })
   const [materials, setMaterials] = useState<
     { id: string; quantity: number }[]
@@ -91,13 +82,13 @@ const CompleteOrderWizard = ({
     {
       id: string
       name: string
-      category: VectraDeviceCategory
+      category: OplDeviceCategory
       serialNumber: string
     }[]
   >([])
+  const [issued, setIssued] = useState<OplIssuedItemDevice[]>([])
   const [notes, setNotes] = useState('')
-  const [failureReason, setFailureReason] = useState<string>('')
-  const [issued, setIssued] = useState<VectraIssuedItemDevice[]>([])
+  const [failureReason, setFailureReason] = useState('')
 
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
@@ -105,112 +96,14 @@ const CompleteOrderWizard = ({
   const STEPS =
     order.type === 'INSTALLATION' ? STEPS_INSTALLATION : STEPS_SERVICE
 
-  /**
-   * Prefill data for "amend" or "adminEdit" mode.
-   * Includes installation details, used materials and collected devices.
-   */
-  useEffect(() => {
-    if (mode === 'complete') return
-
-    const normalizedServices: VectraActivatedService[] =
-      order.services?.map((s) => ({
-        id: s.id,
-        type: s.type,
-        deviceSource: s.deviceSource ?? 'WAREHOUSE',
-        deviceId: s.deviceId ?? undefined,
-        deviceName: s.deviceName ?? undefined,
-        serialNumber: s.serialNumber ?? undefined,
-        deviceType: s.deviceType ?? undefined,
-
-        device2Source: s.device2Source ?? undefined,
-        deviceId2: s.deviceId2 ?? undefined,
-        deviceName2: s.deviceName2 ?? undefined,
-        serialNumber2: s.serialNumber2 ?? undefined,
-        deviceType2: s.deviceType2 ?? undefined,
-
-        usDbmDown: s.usDbmDown ?? undefined,
-        usDbmUp: s.usDbmUp ?? undefined,
-        speedTest: s.speedTest ?? undefined,
-        notes: s.notes ?? undefined,
-
-        extraDevices:
-          s.extraDevices?.map((d) => ({
-            id: d.id,
-            source: d.source ?? 'WAREHOUSE',
-            category: d.category ?? VectraDeviceCategory.OTHER,
-            serialNumber: d.serialNumber ?? '',
-            name: d.name ?? '',
-          })) ?? [],
-      })) ?? []
-
-    const normalizedMaterials =
-      order.usedMaterials?.map((m) => ({
-        id: m.material?.id ?? '',
-        quantity: m.quantity ?? 0,
-      })) ?? []
-
-    const collectedFromAssigned =
-      order.assignedEquipment
-        ?.filter(
-          (e) =>
-            e.warehouse?.status === 'COLLECTED_FROM_CLIENT' &&
-            e.warehouse?.serialNumber &&
-            e.warehouse?.name
-        )
-        .map((e) => ({
-          id: e.warehouse!.id,
-          name: e.warehouse!.name,
-          category: e.warehouse!.category ?? VectraDeviceCategory.OTHER,
-          serialNumber: e.warehouse!.serialNumber ?? '',
-        })) ?? []
-    const issuedToClient =
-      order.assignedEquipment
-        ?.filter(
-          (e) =>
-            e.warehouse?.status === 'ASSIGNED_TO_ORDER' &&
-            e.warehouse?.serialNumber &&
-            e.warehouse?.name
-        )
-        .map((e) => ({
-          id: e.warehouse!.id,
-          name: e.warehouse!.name,
-          category: e.warehouse!.category ?? VectraDeviceCategory.OTHER,
-          serialNumber: e.warehouse!.serialNumber ?? '',
-          type: 'DEVICE' as const,
-        })) ?? []
-
-    const findQty = (keyword: string): number =>
-      order.settlementEntries?.find((e) =>
-        e.code.toLowerCase().includes(keyword.toLowerCase())
-      )?.quantity ?? 0
-
-    setStatus(order.status ?? 'COMPLETED')
-    setNotes(order.notes ?? '')
-    setServices(normalizedServices)
-    setMaterials(normalizedMaterials)
-    setCollected(collectedFromAssigned)
-    setIssued(issuedToClient)
-    setInstall({ pion: findQty('pion'), listwa: findQty('listw') })
-    setFailureReason(order.failureReason ?? '')
-  }, [mode, order])
-
-  /** Technician stock typing */
-  const techMaterialsTyped: VectraIssuedItemMaterial[] = techMaterials.map(
-    (m) => ({
-      ...m,
-      type: 'MATERIAL',
-    })
-  )
-  const materialDefsTyped = materialDefs.map((m) => ({
-    ...m,
-    unit: m.unit as VectraMaterialUnit,
-  }))
-
   /** Mutations */
-  const completeMutation = trpc.vectra.order.completeOrder.useMutation()
-  const amendMutation = trpc.vectra.order.amendCompletion.useMutation()
-  const adminEditMutation = trpc.vectra.order.adminEditCompletion.useMutation()
+  const completeMutation = trpc.opl.order.completeOrder.useMutation()
+  const amendMutation = trpc.opl.order.amendCompletion.useMutation()
+  const adminEditMutation = trpc.opl.order.adminEditCompletion.useMutation()
 
+  /**
+   * Resolves correct mutation based on mode and role.
+   */
   const resolveMutation = () => {
     if (mode === 'adminEdit') return adminEditMutation
     if (mode === 'amend')
@@ -219,27 +112,21 @@ const CompleteOrderWizard = ({
   }
 
   /**
-   * Handles final submission.
-   * Selects appropriate mutation based on role and mode.
+   * Handles final order submission.
+   * Mapping of workCodesDraft -> backend payload
+   * will be done here later.
    */
-  const handleSubmit = async (payload: {
-    status: VectraOrderStatus
-    notes?: string | null
-    failureReason?: string
-    workCodes?: { code: string; quantity: number }[]
-    equipmentIds: string[]
-    usedMaterials: { id: string; quantity: number }[]
-    collectedDevices: {
-      name: string
-      category: VectraDeviceCategory
-      serialNumber?: string
-    }[]
-    issuedDevices?: string[]
-    services: VectraActivatedService[]
-  }) => {
+  const handleSubmit = async () => {
     try {
       const mutation = resolveMutation()
-      await mutation.mutateAsync({ orderId: order.id, ...payload })
+
+      await mutation.mutateAsync({
+        orderId: order.id,
+        status,
+        notes,
+        failureReason,
+        // TODO: map workCodesDraft -> workCodes[]
+      })
 
       toast.success(
         mode === 'complete'
@@ -247,212 +134,89 @@ const CompleteOrderWizard = ({
           : 'Zlecenie zostało zaktualizowane.'
       )
 
-      await utils.vectra.order.getTechnicianRealizedOrders.invalidate()
-      await utils.vectra.order.getOrderById.invalidate({ id: order.id })
-      await utils.vectra.order.getAssignedOrders.invalidate()
-      await utils.vectra.order.getUnassignedOrders.invalidate()
+      await Promise.all([
+        utils.opl.order.getTechnicianRealizedOrders.invalidate(),
+        utils.opl.order.getOrderById.invalidate({ id: order.id }),
+        utils.opl.order.getAssignedOrders.invalidate(),
+        utils.opl.order.getUnassignedOrders.invalidate(),
+      ])
+
       onCloseAction()
     } catch {
       toast.error('Błąd podczas zapisu zlecenia.')
     }
   }
 
-  /** Step navigation helpers */
+  /** Navigation */
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1))
-  /** Handles back navigation inside the wizard or closes dialog on first step */
+
   const back = () => {
-    // If it's the first step, close the dialog
     if (step === 0) {
       onCloseAction()
       return
     }
 
-    // If order was NOT_COMPLETED, always go back to status step
     if (status === 'NOT_COMPLETED') {
       setStep(0)
       return
     }
 
-    // Normal flow – go back one step
     setStep((s) => Math.max(s - 1, 0))
   }
 
   /** Render */
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:w-full md:max-w-lg flex flex-col [&>button.absolute.right-4.top-4]:hidden overflow-x-hidden">
-        <DialogHeader className="border-bflex flex-row items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:max-w-lg flex flex-col overflow-x-hidden [&>button.absolute.right-4.top-4]:hidden">
+        <DialogHeader className="flex flex-row items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
           <Button variant="ghost" onClick={back} size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
 
-          <DialogTitle className="text-center flex-1">
+          <DialogTitle className="flex-1 text-center">
             <div className="flex flex-col items-center">
-              {/* Order number */}
               <span className="text-base font-semibold">
                 {order.orderNumber}
               </span>
-
-              {/* Address (smaller, muted color) */}
-              <span className="text-sm text-muted-foreground text-center leading-tight">
+              <span className="text-sm text-muted-foreground">
                 {`${order.city} ${order.street}` || 'Brak adresu'}
               </span>
             </div>
           </DialogTitle>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onCloseAction}
-            aria-label="Close"
-          >
+          <Button variant="ghost" size="icon" onClick={onCloseAction}>
             <MdClose className="w-5 h-5" />
           </Button>
         </DialogHeader>
 
         <Progress
           value={((step + 1) / STEPS.length) * 100}
-          className="mb-2 h-2 rounded-full md:mx-auto"
+          className="mb-2 h-2 rounded-full"
         />
 
         <div className="flex-1 overflow-y-auto">
           {step === 0 && (
-            <StepStatus
+            <OplStepStatus
               key={order.id}
               status={status}
               setStatus={setStatus}
+              initialNotes={notes}
+              initialFailureReason={failureReason}
               onNext={(data) => {
                 setStatus(data.status)
-                setNotes(data.notes || '')
+                setNotes(data.notes ?? '')
                 setFailureReason(data.failureReason ?? '')
-                if (data.finishImmediately) setStep(STEPS.length - 1)
-                else next()
+                data.finishImmediately ? setStep(STEPS.length - 1) : next()
               }}
-              initialFailureReason={failureReason}
-              initialNotes={notes}
             />
           )}
 
-          {/* Installation flow */}
-          {orderType === 'INSTALLATION' && (
-            <>
-              {step === 1 && (
-                <StepServices
-                  services={services}
-                  setServices={setServices}
-                  onNext={next}
-                  onBack={back}
-                  operator={order.operator}
-                  devices={devices}
-                />
-              )}
-
-              {step === 2 && (
-                <StepInstallationAndMaterials
-                  orderType={orderType}
-                  activatedServices={services}
-                  installValue={install}
-                  onInstallChange={setInstall}
-                  materials={materials}
-                  setMaterials={setMaterials}
-                  materialDefs={materialDefsTyped}
-                  techMaterials={techMaterialsTyped}
-                  onNext={next}
-                  onBack={back}
-                />
-              )}
-
-              {step === 3 && (
-                <StepCollectedAndNotes
-                  orderType={orderType}
-                  devices={devices}
-                  collected={collected}
-                  setCollected={setCollected}
-                  issued={issued}
-                  setIssued={setIssued}
-                  notes={notes}
-                  setNotes={setNotes}
-                  onNext={next}
-                  onBack={back}
-                />
-              )}
-
-              {step === 4 && (
-                <StepSummary
-                  orderType={orderType}
-                  status={status}
-                  services={services}
-                  install={install}
-                  materials={materials}
-                  collected={collected}
-                  issued={issued}
-                  notes={notes}
-                  onBack={back}
-                  onSubmit={handleSubmit}
-                  materialDefs={materialDefsTyped}
-                  workCodeDefs={workCodeDefs ?? []}
-                  failureReason={failureReason}
-                />
-              )}
-            </>
-          )}
-
-          {/* Service / Outage flow */}
-          {orderType !== 'INSTALLATION' && (
-            <>
-              {step === 1 && (
-                <StepCollectedAndNotes
-                  orderType={orderType}
-                  devices={devices}
-                  collected={collected}
-                  setCollected={setCollected}
-                  issued={issued}
-                  setIssued={setIssued}
-                  notes={notes}
-                  setNotes={setNotes}
-                  onNext={({ collected, issued, notes }) => {
-                    setCollected(collected)
-                    setIssued(issued)
-                    setNotes(notes)
-                    next()
-                  }}
-                  onBack={back}
-                />
-              )}
-
-              {step === 2 && (
-                <StepInstallationAndMaterials
-                  activatedServices={services}
-                  installValue={install}
-                  onInstallChange={setInstall}
-                  materials={materials}
-                  setMaterials={setMaterials}
-                  materialDefs={materialDefsTyped}
-                  techMaterials={techMaterialsTyped}
-                  onNext={next}
-                  onBack={back}
-                  orderType={orderType}
-                />
-              )}
-
-              {step === 3 && (
-                <StepSummary
-                  orderType={orderType}
-                  status={status}
-                  services={[]}
-                  install={{ pion: 0, listwa: 0 }}
-                  materials={materials}
-                  collected={collected}
-                  notes={notes}
-                  onBack={back}
-                  onSubmit={handleSubmit}
-                  materialDefs={materialDefsTyped}
-                  workCodeDefs={workCodeDefs ?? []}
-                  failureReason={failureReason}
-                  issued={issued}
-                />
-              )}
-            </>
+          {orderType === 'INSTALLATION' && step === 1 && (
+            <OplStepWorkCodes
+              standard={order.standard ?? undefined}
+              onBack={back}
+              onNext={next}
+            />
           )}
         </div>
       </DialogContent>
@@ -460,4 +224,4 @@ const CompleteOrderWizard = ({
   )
 }
 
-export default CompleteOrderWizard
+export default CompleteOplOrderWizard

@@ -121,6 +121,7 @@ enum OplBaseWorkCode {
   ZJD
   ZJN
   ZJK
+  ZJDEW
 
   P1P
   P2P
@@ -147,7 +148,7 @@ enum OplActivationType {
 enum OplAddonCode {
   ZJWEW
   ZJDD
-  ZJNK
+  ZJND
   ZJKD
 
   MR
@@ -178,6 +179,28 @@ enum OplServisType {
   USTAP
 
   @@schema("opl")
+}
+
+enum OplOrderStandard {
+  W1
+  W2
+  W3
+  W4
+  W5
+  W6
+  ZJD
+  ZJD1
+  ZJD3
+  ZJD5
+  ZJD30
+  ZJN
+  ZJN1
+  ZJN3
+  ZJN5
+  ZJN30
+  ZJK
+
+   @@schema("opl")
 }
 
 enum OplLocationTransferStatus {

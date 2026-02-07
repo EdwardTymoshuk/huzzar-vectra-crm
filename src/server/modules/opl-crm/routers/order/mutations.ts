@@ -10,6 +10,7 @@ import {
   OplInstallationType,
   OplNetworkOeprator,
   OplOrderCreatedSource,
+  OplOrderStandard,
   OplOrderStatus,
   OplOrderType,
   OplTimeSlot,
@@ -203,6 +204,7 @@ export const mutationsRouter = router({
         type: z.nativeEnum(OplOrderType),
         network: z.nativeEnum(OplNetworkOeprator),
         serviceId: z.string().length(12).optional(),
+        standard: z.nativeEnum(OplOrderStandard).optional(),
 
         orderNumber: z.string().min(3),
         date: z.string(),
@@ -336,6 +338,7 @@ export const mutationsRouter = router({
           operator: input.operator,
           type: input.type,
           network: input.network,
+          standard: input.standard ?? null,
           orderNumber: input.orderNumber.trim(),
           date: parseLocalDate(input.date),
           timeSlot: input.timeSlot,

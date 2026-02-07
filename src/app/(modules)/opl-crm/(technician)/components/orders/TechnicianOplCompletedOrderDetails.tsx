@@ -11,6 +11,7 @@ import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { MdEdit } from 'react-icons/md'
 import OplOrderTimeline from '../../../admin-panel/components/order/OplOrderTimeline'
+import CompleteOplOrderWizard from './completeOrder/CompleteOplOrderWizard'
 
 interface Props {
   orderId: string
@@ -21,9 +22,9 @@ interface Props {
 
 /**
  * TechnicianOplCompletedOrderDetails
- * - Displays technician order details and actions.
- * - Handles "transfer" and "complete order" flows.
- * - Opens CompleteOrderWizard as a Dialog (mobile fullscreen, desktop modal).
+ *
+ * Displays completed OPL order details for technician view.
+ * Allows order completion or amendment within allowed time window.
  */
 const TechnicianOplCompletedOrderDetails = ({
   orderId,
@@ -40,18 +41,22 @@ const TechnicianOplCompletedOrderDetails = ({
   const { data, isLoading, isError } = trpc.opl.order.getOrderById.useQuery({
     id: orderId,
   })
+
   const { data: materialDefs } =
     trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
+
   const { data: rawMaterials } = trpc.opl.warehouse.getTechnicianStock.useQuery(
     {
       technicianId: 'self',
       itemType: 'MATERIAL',
     }
   )
+
   const { data: rawDevices } = trpc.opl.warehouse.getTechnicianStock.useQuery({
     technicianId: 'self',
     itemType: 'DEVICE',
   })
+
   const { data: workCodeDefs } = trpc.opl.settings.getAllOplRates.useQuery()
 
   /* ---------------- Auto open (deep-link) ---------------- */
@@ -67,6 +72,7 @@ const TechnicianOplCompletedOrderDetails = ({
     const isEnded =
       orderStatus === OplOrderStatus.COMPLETED ||
       orderStatus === OplOrderStatus.NOT_COMPLETED
+
     if (!isEnded) return false
     if (isAdmin || isCoordinator) return true
 
@@ -74,26 +80,30 @@ const TechnicianOplCompletedOrderDetails = ({
       const diff = differenceInMinutes(new Date(), new Date(data.completedAt))
       return diff <= 15
     }
+
     return false
   }, [orderStatus, isAdmin, isCoordinator, isTechnician, data?.completedAt])
 
   /* ---------------- Loading states ---------------- */
-  if (isLoading)
+  if (isLoading) {
     return (
       <div className="w-full flex justify-center py-10">
         <LoaderSpinner />
       </div>
     )
+  }
 
-  if (isError || !data)
+  if (isError || !data) {
     return <p className="text-destructive">Błąd ładowania danych.</p>
+  }
 
-  if (!materialDefs || !rawMaterials)
+  if (!materialDefs || !rawMaterials) {
     return (
       <p className="text-destructive">
         Nie udało się pobrać danych magazynowych.
       </p>
     )
+  }
 
   /* ---------------- Prepare technician stock ---------------- */
   const techMaterials: OplIssuedItemMaterial[] = rawMaterials
@@ -111,7 +121,7 @@ const TechnicianOplCompletedOrderDetails = ({
     .map((d) => ({
       id: d.id,
       name: d.name,
-      serialNumber: d.serialNumber ?? '',
+      serialNumber: d.serialNumber!,
       category: (d.category as OplDeviceCategory) ?? 'OTHER',
       type: 'DEVICE',
     }))
@@ -119,10 +129,9 @@ const TechnicianOplCompletedOrderDetails = ({
   /* ---------------- Render ---------------- */
   return (
     <div className="flex flex-col md:flex-row gap-6">
-      {/* -------- LEFT COLUMN: main content -------- */}
+      {/* -------- LEFT COLUMN -------- */}
       <div className="space-y-4 flex-1">
         <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
-        {/* <OplOrderDetailsContent order={data} hideTechnician /> */}
 
         {canShowAmendButton && (
           <div className="flex gap-2 pt-2">
@@ -136,23 +145,25 @@ const TechnicianOplCompletedOrderDetails = ({
           </div>
         )}
 
-        {/* Complete wizard modal */}
-        {/* <CompleteOrderWizard
+        {/* Complete / amend wizard */}
+        <CompleteOplOrderWizard
           key={data.id}
           open={showCompleteModal}
           order={data}
           orderType={data.type}
+          mode={canShowAmendButton ? 'amend' : 'complete'}
           onCloseAction={async () => {
             setShowCompleteModal(false)
-            await utils.opl.order.getRealizedOrders.invalidate()
-            await utils.opl.order.getOrderById.invalidate({ id: orderId })
+            await Promise.all([
+              utils.opl.order.getTechnicianActiveOrders.invalidate(),
+              utils.opl.order.getOrderById.invalidate({ id: orderId }),
+            ])
           }}
           materialDefs={materialDefs}
           techMaterials={techMaterials}
           devices={devices}
           workCodeDefs={workCodeDefs}
-          mode={canShowAmendButton ? 'amend' : 'complete'}
-        /> */}
+        />
       </div>
 
       <Separator
@@ -160,7 +171,7 @@ const TechnicianOplCompletedOrderDetails = ({
         orientation="horizontal"
       />
 
-      {/* -------- RIGHT COLUMN: timeline -------- */}
+      {/* -------- RIGHT COLUMN -------- */}
       <div className="flex-1">
         <h3 className="text-base font-semibold mb-2">Historia zlecenia</h3>
         <OplOrderTimeline order={data} />

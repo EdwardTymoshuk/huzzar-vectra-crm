@@ -10,6 +10,7 @@ model OplOrder {
   clientPhoneNumber String?
   notes             String?
   status            OplOrderStatus @default(PENDING)
+  standard          OplOrderStandard?
 
   /// If true, UMZ should be added to settlement lines.
   contractRequired Boolean @default(false)

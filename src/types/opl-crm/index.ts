@@ -5,6 +5,9 @@
 // -----------------------------
 
 import {
+  OplActivationType,
+  OplAddonCode,
+  OplBaseWorkCode,
   OplDeviceCategory,
   OplMaterialUnit,
   OplOrderStatus,
@@ -24,7 +27,6 @@ import {
   materialSchema,
   operatorSchema,
   orderSchema,
-  serviceSchema,
   technicianOrderSchema,
   usedMaterialSchema,
   warehouseFormSchema,
@@ -49,7 +51,6 @@ export type WarehouseFormData = z.infer<typeof warehouseFormSchema>
 export type WorkCodeInput = z.infer<typeof workCodeSchema>
 export type UsedMaterialInput = z.infer<typeof usedMaterialSchema>
 export type CollectedDeviceInput = z.infer<typeof collectedDeviceSchema>
-export type ServiceInput = z.infer<typeof serviceSchema>
 
 export type CompleteOrderInput = z.infer<typeof completeOrderSchema>
 export type AmendCompletionInput = z.infer<typeof amendCompletionSchema>
@@ -368,17 +369,52 @@ export type OplTechnicianStockItem =
 export type OplBillingDraft = {
   baseWork: {
     code: OplBaseWorkCode
-  }
+  } | null
 
-  activation?: {
+  activation: {
     type: OplActivationType
     multiroomCount: number // 0–3
     umz: boolean
-  }
+  } | null
 
   addons: {
     code: OplAddonCode
     quantity: number
     autoAdded: boolean
   }[]
+
+  showAllCodes: boolean
 }
+export type DigCode = 'ZJDD' | 'ZJKD' | 'ZJND'
+
+/**
+ * UI-only draft for OPL work code selection.
+ * Converted to billingConfig / settlement entries later.
+ */
+export type OplWorkCodesDraft = {
+  baseWork: OplBaseWorkCode | null
+
+  activation: {
+    enabled: boolean
+    ports: 1 | 2 | 3 | null
+  }
+
+  addons: {
+    MR: number
+    UMZ: boolean
+    dig?: {
+      code: DigCode
+      meters: number
+    }
+  }
+
+  showAllBase: boolean
+  showAllAddons: boolean
+}
+
+export type ActivationPrimaryItem = {
+  code: OplActivationType | 'ZJWEW'
+  auto: boolean
+}
+
+export type PrimaryAddonCode = OplAddonCode | DigCode

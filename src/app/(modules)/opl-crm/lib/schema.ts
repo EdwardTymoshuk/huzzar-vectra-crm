@@ -1,7 +1,6 @@
 // schema.ts
 import {
   OplDeviceCategory,
-  OplInstallationType,
   OplNetworkOeprator,
   OplOrderStandard,
   OplOrderStatus,
@@ -154,27 +153,6 @@ export const extraDeviceSchema = z.object({
   serialNumber: z.string().optional(),
 })
 
-export const serviceSchema = z.object({
-  id: z.string(),
-  type: z.nativeEnum(OplInstallationType),
-  deviceSource: z.enum(['WAREHOUSE', 'CLIENT']).optional(),
-  deviceName: z.string().optional(),
-  deviceType: z.nativeEnum(OplDeviceCategory).optional(),
-
-  deviceId: z.string().optional(),
-  serialNumber: z.string().optional(),
-  deviceId2: z.string().optional(),
-  deviceName2: z.string().optional(),
-  serialNumber2: z.string().optional(),
-  speedTest: z.string().optional(),
-  usDbmDown: z.coerce.number().optional(),
-  usDbmUp: z.coerce.number().optional(),
-  notes: z.string().optional(),
-  extraDevices: z.array(extraDeviceSchema).optional(),
-})
-
-export const servicesArraySchema = z.array(serviceSchema).default([])
-
 export const baseCompletionInput = {
   orderId: z.string(),
   status: z.nativeEnum(OplOrderStatus),
@@ -184,7 +162,6 @@ export const baseCompletionInput = {
   equipmentIds: z.array(z.string()).optional(),
   usedMaterials: z.array(usedMaterialSchema).optional(),
   collectedDevices: z.array(collectedDeviceSchema).optional(),
-  services: servicesArraySchema,
 }
 
 export const completeOrderSchema = z.object({

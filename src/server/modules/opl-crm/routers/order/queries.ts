@@ -172,6 +172,7 @@ export const queriesRouter = router({
       const order = await ctx.prisma.oplOrder.findUnique({
         where: { id: input.id },
         include: {
+          /** Current technician assignments */
           assignments: {
             include: {
               technician: {
@@ -180,50 +181,54 @@ export const queriesRouter = router({
             },
           },
 
-          // ✅ PREVIOUS ORDER (attempt chain)
-          previousOrder: {
-            include: {
-              assignments: {
-                include: {
-                  technician: {
-                    select: oplUserWithCoreBasicSelect,
-                  },
-                },
-              },
-            },
-          },
-
-          // ✅ ALL ATTEMPTS
+          /** Attempt chain */
+          previousOrder: true,
           attempts: {
             orderBy: { attemptNumber: 'asc' },
+          },
+
+          /** Wizard billing state (NOT source of truth) */
+          billingConfig: {
             include: {
-              assignments: {
-                include: {
-                  technician: {
-                    select: oplUserWithCoreBasicSelect,
-                  },
-                },
-              },
+              addons: true,
             },
           },
 
-          history: {
+          /** Final settlement lines (SOURCE OF TRUTH) */
+          settlementEntries: {
             include: {
-              changedBy: { select: oplUserWithCoreBasicSelect },
+              rate: true,
             },
-            orderBy: { changeDate: 'desc' },
           },
 
-          settlementEntries: { include: { rate: true } },
-          usedMaterials: { include: { material: true } },
+          /** Required equipment definitions */
+          equipmentRequirements: {
+            include: {
+              deviceDefinition: true,
+            },
+          },
+
+          /** Assigned / collected equipment */
           assignedEquipment: {
             include: {
               warehouse: true,
             },
           },
-          services: {
+
+          /** Used materials */
+          usedMaterials: {
             include: {
-              extraDevices: true,
+              material: true,
+            },
+          },
+
+          /** Audit trail */
+          history: {
+            orderBy: { changeDate: 'desc' },
+            include: {
+              changedBy: {
+                select: oplUserWithCoreBasicSelect,
+              },
             },
           },
         },
@@ -779,6 +784,7 @@ export const queriesRouter = router({
         operator: true,
         status: true,
         notes: true,
+        standard: true,
 
         assignments: {
           select: {

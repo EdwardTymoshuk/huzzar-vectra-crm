@@ -2,8 +2,9 @@
 
 import { BadgeVariant } from '@/lib/constants'
 import {
+  OplActivationType,
+  OplBaseWorkCode,
   OplDeviceCategory,
-  OplOrderStandard,
   OplTimeSlot,
   OplWarehouseAction,
 } from '@prisma/client'
@@ -127,7 +128,7 @@ export const oplWarehouseActionMap: Record<
 }
 
 export const oplOrderStandardOptions: {
-  value: OplOrderStandard
+  value: OplBaseWorkCode
   label: string
 }[] = [
   { value: 'W1', label: 'W1' },
@@ -136,10 +137,22 @@ export const oplOrderStandardOptions: {
   { value: 'W4', label: 'W4' },
   { value: 'W5', label: 'W5' },
   { value: 'W6', label: 'W6' },
+  { value: 'WGH', label: 'WGH' },
+  { value: 'P1P', label: 'P1P' },
+  { value: 'P2P', label: 'P2P' },
+  { value: 'P3P', label: 'P3P' },
+  { value: 'PUTD', label: 'PUTD' },
+  { value: 'DU', label: 'DU' },
   { value: 'ZJD', label: 'ZJD' },
   { value: 'ZJN', label: 'ZJN' },
   { value: 'ZJK', label: 'ZJK' },
 ]
+export const oplActivationLabelMap: Record<OplActivationType, string> = {
+  I_1P: '1P',
+  I_2P: '2P',
+  I_3P: '3P',
+  UTD: 'UTD',
+}
 
 export const oplOrderFailureReasons = [
   'Rezygnacja',

@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import OplOrderDetailsSheet from '../../../components/order/OplOrderDetailsSheet'
 import { oplOrderTypeMap } from '../../../lib/constants'
 import TransferOplOrderModal from '../orders/TransferOplOrderModal'
+import CompleteOplOrderWizard from '../orders/completeOrder/CompleteOplOrderWizard'
 
 interface Props {
   searchTerm: string
@@ -387,24 +388,26 @@ const TechnicianOplPlanerTable = ({
       )}
 
       {/* Complete/Amend wizard */}
-      {/* {showComplete && fullOrder && (
-        <CompleteOrderWizard
+      {showComplete && fullOrder && (
+        <CompleteOplOrderWizard
           open
           order={fullOrder}
           orderType={fullOrder.type}
+          mode="complete"
           onCloseAction={async () => {
             setShowComplete(null)
-            await utils.opl.order.getTechnicianActiveOrders.invalidate()
-            await utils.opl.order.getOrderById.invalidate({
-              id: fullOrder.id,
-            })
+
+            await Promise.all([
+              utils.opl.order.getTechnicianActiveOrders.invalidate(),
+              utils.opl.order.getOrderById.invalidate({ id: fullOrder.id }),
+            ])
           }}
           materialDefs={materialDefs ?? []}
           techMaterials={mappedMaterials}
           devices={mappedDevices}
           workCodeDefs={workCodeDefs}
         />
-      )} */}
+      )}
     </div>
   )
 }
