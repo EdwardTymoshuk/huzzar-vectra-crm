@@ -1,0 +1,48 @@
+//.github/workflows/deploy-web.yml
+
+name: '🚀 Deploy WEB / DEV'
+
+on:
+  push:
+    branches:
+      - prisma7-upgrade
+      - multischema-multimodule-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy WEB over SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: 57.128.227.195
+          username: debian
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 39222
+          script: |
+            set -e
+
+            # ENV for WEB
+            printf "%s" "${{ secrets.ENV_WEB }}" > /var/www/huzzar-vectra-crm-web/.env.production
+
+            cd /var/www/huzzar-vectra-crm-web
+
+           git fetch origin
+git checkout prisma7-upgrade || git checkout -b prisma7-upgrade origin/prisma7-upgrade
+git reset --hard origin/prisma7-upgrade
+
+
+            rm -rf node_modules .prisma
+
+            npm ci || npm install
+
+            npx prisma generate
+            npx prisma migrate deploy || true
+
+            npm run build
+
+            pm2 restart huzzar-web || pm2 start npm --name "huzzar-web" -- start
+            pm2 save
