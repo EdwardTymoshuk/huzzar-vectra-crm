@@ -1,4 +1,4 @@
-import { DigInput } from '../hooks/useOplWorkCodes'
+import { DigInput } from '@/types/opl-crm/orders'
 
 /**
  * Calculates additional DIG work codes based on base code and user input.

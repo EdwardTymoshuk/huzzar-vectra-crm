@@ -11,6 +11,7 @@ import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { MdEdit } from 'react-icons/md'
 import OplOrderTimeline from '../../../admin-panel/components/order/OplOrderTimeline'
+import { CompleteOplOrderProvider } from '../../../utils/context/order/CompleteOplOrderContext'
 import CompleteOplOrderWizard from './completeOrder/CompleteOplOrderWizard'
 
 interface Props {
@@ -61,11 +62,11 @@ const TechnicianOplCompletedOrderDetails = ({
 
   /* ---------------- Auto open (deep-link) ---------------- */
   useEffect(() => {
-    if (autoOpen) {
+    if (autoOpen && data) {
       setShowCompleteModal(true)
       onAutoOpenHandled?.()
     }
-  }, [autoOpen, onAutoOpenHandled])
+  }, [autoOpen, data, onAutoOpenHandled])
 
   /* ---------------- Permissions ---------------- */
   const canShowAmendButton = useMemo(() => {
@@ -146,24 +147,26 @@ const TechnicianOplCompletedOrderDetails = ({
         )}
 
         {/* Complete / amend wizard */}
-        <CompleteOplOrderWizard
-          key={data.id}
-          open={showCompleteModal}
-          order={data}
-          orderType={data.type}
-          mode={canShowAmendButton ? 'amend' : 'complete'}
-          onCloseAction={async () => {
-            setShowCompleteModal(false)
-            await Promise.all([
-              utils.opl.order.getTechnicianActiveOrders.invalidate(),
-              utils.opl.order.getOrderById.invalidate({ id: orderId }),
-            ])
-          }}
-          materialDefs={materialDefs}
-          techMaterials={techMaterials}
-          devices={devices}
-          workCodeDefs={workCodeDefs}
-        />
+        <CompleteOplOrderProvider orderId={data.id}>
+          <CompleteOplOrderWizard
+            key={data.id}
+            open={showCompleteModal}
+            order={data}
+            orderType={data.type}
+            mode={canShowAmendButton ? 'amend' : 'complete'}
+            onCloseAction={async () => {
+              setShowCompleteModal(false)
+              await Promise.all([
+                utils.opl.order.getTechnicianActiveOrders.invalidate(),
+                utils.opl.order.getOrderById.invalidate({ id: orderId }),
+              ])
+            }}
+            materialDefs={materialDefs}
+            techMaterials={techMaterials}
+            devices={devices}
+            workCodeDefs={workCodeDefs}
+          />
+        </CompleteOplOrderProvider>
       </div>
 
       <Separator

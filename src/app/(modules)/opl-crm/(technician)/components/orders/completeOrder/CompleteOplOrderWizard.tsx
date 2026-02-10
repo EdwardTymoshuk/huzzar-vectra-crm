@@ -1,5 +1,6 @@
 'use client'
 
+import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -10,19 +11,13 @@ import {
 import { Progress } from '@/app/components/ui/progress'
 import { RouterOutputs } from '@/types'
 import { OplIssuedItemDevice } from '@/types/opl-crm'
-import { useRole } from '@/utils/hooks/useRole'
-import { trpc } from '@/utils/trpc'
 import {
-  OplDeviceCategory,
   OplMaterialDefinition,
-  OplOrderStatus,
   OplOrderType,
   OplRateDefinition,
 } from '@prisma/client'
 import { ArrowLeft } from 'lucide-react'
-import { useState } from 'react'
 import { MdClose } from 'react-icons/md'
-import { toast } from 'sonner'
 import OplStepStatus from './steps/OplStepStatus'
 import OplStepWorkCodes from './steps/OplStepWorkCodes'
 
@@ -69,88 +64,15 @@ const CompleteOplOrderWizard = ({
   devices = [],
   mode = 'complete',
 }: Props) => {
-  /** Wizard step index */
-  const [step, setStep] = useState(0)
+  const { state, setStep, next, back, setStatus, setFailureReason, setNotes } =
+    useCompleteOplOrder()
 
-  /** Core order state */
-  const [status, setStatus] = useState<OplOrderStatus>('COMPLETED')
-  const [install, setInstall] = useState({ pion: 0, listwa: 0 })
-  const [materials, setMaterials] = useState<
-    { id: string; quantity: number }[]
-  >([])
-  const [collected, setCollected] = useState<
-    {
-      id: string
-      name: string
-      category: OplDeviceCategory
-      serialNumber: string
-    }[]
-  >([])
-  const [issued, setIssued] = useState<OplIssuedItemDevice[]>([])
-  const [notes, setNotes] = useState('')
-  const [failureReason, setFailureReason] = useState('')
-
-  const { isAdmin, isCoordinator } = useRole()
-  const utils = trpc.useUtils()
+  const { step, status, failureReason, notes } = state
 
   const STEPS =
     order.type === 'INSTALLATION' ? STEPS_INSTALLATION : STEPS_SERVICE
 
-  /** Mutations */
-  const completeMutation = trpc.opl.order.completeOrder.useMutation()
-  const amendMutation = trpc.opl.order.amendCompletion.useMutation()
-  const adminEditMutation = trpc.opl.order.adminEditCompletion.useMutation()
-
-  /**
-   * Resolves correct mutation based on mode and role.
-   */
-  const resolveMutation = () => {
-    if (mode === 'adminEdit') return adminEditMutation
-    if (mode === 'amend')
-      return isAdmin || isCoordinator ? adminEditMutation : amendMutation
-    return completeMutation
-  }
-
-  /**
-   * Handles final order submission.
-   * Mapping of workCodesDraft -> backend payload
-   * will be done here later.
-   */
-  const handleSubmit = async () => {
-    try {
-      const mutation = resolveMutation()
-
-      await mutation.mutateAsync({
-        orderId: order.id,
-        status,
-        notes,
-        failureReason,
-        // TODO: map workCodesDraft -> workCodes[]
-      })
-
-      toast.success(
-        mode === 'complete'
-          ? 'Zlecenie zostało zakończone.'
-          : 'Zlecenie zostało zaktualizowane.'
-      )
-
-      await Promise.all([
-        utils.opl.order.getTechnicianRealizedOrders.invalidate(),
-        utils.opl.order.getOrderById.invalidate({ id: order.id }),
-        utils.opl.order.getAssignedOrders.invalidate(),
-        utils.opl.order.getUnassignedOrders.invalidate(),
-      ])
-
-      onCloseAction()
-    } catch {
-      toast.error('Błąd podczas zapisu zlecenia.')
-    }
-  }
-
-  /** Navigation */
-  const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1))
-
-  const back = () => {
+  const handleBack = () => {
     if (step === 0) {
       onCloseAction()
       return
@@ -161,7 +83,7 @@ const CompleteOplOrderWizard = ({
       return
     }
 
-    setStep((s) => Math.max(s - 1, 0))
+    back()
   }
 
   /** Render */
@@ -169,7 +91,7 @@ const CompleteOplOrderWizard = ({
     <Dialog open={open} onOpenChange={onCloseAction}>
       <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen md:h-[90vh] md:max-w-lg flex flex-col overflow-x-hidden [&>button.absolute.right-4.top-4]:hidden">
         <DialogHeader className="flex flex-row items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
-          <Button variant="ghost" onClick={back} size="icon">
+          <Button variant="ghost" onClick={handleBack} size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
 
@@ -197,16 +119,23 @@ const CompleteOplOrderWizard = ({
         <div className="flex-1 overflow-y-auto">
           {step === 0 && (
             <OplStepStatus
-              key={order.id}
               status={status}
               setStatus={setStatus}
-              initialNotes={notes}
-              initialFailureReason={failureReason}
+              failureReason={failureReason}
+              setFailureReason={setFailureReason}
+              notes={notes}
+              setNotes={setNotes}
               onNext={(data) => {
                 setStatus(data.status)
-                setNotes(data.notes ?? '')
                 setFailureReason(data.failureReason ?? '')
-                data.finishImmediately ? setStep(STEPS.length - 1) : next()
+                setNotes(data.notes ?? '')
+
+                if (data.finishImmediately) {
+                  setStep(STEPS.length - 1)
+                  return
+                }
+
+                next(STEPS.length)
               }}
             />
           )}
@@ -214,8 +143,10 @@ const CompleteOplOrderWizard = ({
           {orderType === 'INSTALLATION' && step === 1 && (
             <OplStepWorkCodes
               standard={order.standard ?? undefined}
-              onBack={back}
-              onNext={next}
+              onBack={handleBack}
+              onNext={() => {
+                next(STEPS.length)
+              }}
             />
           )}
         </div>

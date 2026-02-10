@@ -1,9 +1,9 @@
-// File: CollectedDevicesSection.tsx
+// File: OplCollectedDevicesSection.tsx
 
 'use client'
 
-import DeviceSummaryRow from '@/app/(modules)/vectra-crm/(technician)/components/orders/completeOrder/DeviceSummaryRow'
-import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
+import DeviceSummaryRow from '@/app/(modules)/opl-crm/(technician)/components/orders/completeOrder/OplDeviceSummaryRow'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import {
@@ -15,31 +15,31 @@ import {
 } from '@/app/components/ui/select'
 import { Switch } from '@/app/components/ui/switch'
 import { genUUID } from '@/utils/uuid'
-import { VectraDeviceCategory } from '@prisma/client'
+import { OplDeviceCategory } from '@prisma/client'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 export type CollectedDevice = {
   id: string
   name: string
-  category: VectraDeviceCategory
+  category: OplDeviceCategory
   serialNumber: string
 }
 
 /**
- * CollectedDevicesSection
+ * OplCollectedDevicesSection
  * -----------------------------------------------------------------------------
  * Handles simple inline form for adding devices collected from the client.
  * The component owns the small input state and produces a normalized object.
  */
-const CollectedDevicesSection: React.FC<{
+const OplCollectedDevicesSection: React.FC<{
   enabled: boolean
   onToggle: (on: boolean) => void
   items: CollectedDevice[]
   onAdd: (d: CollectedDevice) => void
   onRemove: (id: string) => void
 }> = ({ enabled, onToggle, items, onAdd, onRemove }) => {
-  const [category, setCategory] = useState<VectraDeviceCategory>('OTHER')
+  const [category, setCategory] = useState<OplDeviceCategory>('OTHER')
   const [name, setName] = useState('')
   const [serial, setSerial] = useState('')
 
@@ -74,15 +74,15 @@ const CollectedDevicesSection: React.FC<{
           <div className="flex flex-col md:flex-row gap-2">
             <Select
               value={category}
-              onValueChange={(v) => setCategory(v as VectraDeviceCategory)}
+              onValueChange={(v) => setCategory(v as OplDeviceCategory)}
             >
               <SelectTrigger className="w-full md:w-40">
                 <SelectValue placeholder="Kategoria" />
               </SelectTrigger>
               <SelectContent>
-                {Object.values(VectraDeviceCategory).map((c) => (
+                {Object.values(OplDeviceCategory).map((c) => (
                   <SelectItem key={c} value={c}>
-                    {devicesTypeMap[c]}
+                    {oplDevicesTypeMap[c]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -124,4 +124,4 @@ const CollectedDevicesSection: React.FC<{
   )
 }
 
-export default CollectedDevicesSection
+export default OplCollectedDevicesSection

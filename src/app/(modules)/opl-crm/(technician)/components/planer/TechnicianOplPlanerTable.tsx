@@ -20,6 +20,7 @@ import { MdVisibility } from 'react-icons/md'
 import { toast } from 'sonner'
 import OplOrderDetailsSheet from '../../../components/order/OplOrderDetailsSheet'
 import { oplOrderTypeMap } from '../../../lib/constants'
+import { CompleteOplOrderProvider } from '../../../utils/context/order/CompleteOplOrderContext'
 import TransferOplOrderModal from '../orders/TransferOplOrderModal'
 import CompleteOplOrderWizard from '../orders/completeOrder/CompleteOplOrderWizard'
 
@@ -84,7 +85,8 @@ const TechnicianOplPlanerTable = ({
   /** Local UI state for modals / sheets */
   const [openOrderId, setOpenOrderId] = useState<string | null>(null)
   const [showTransfer, setShowTransfer] = useState<string | null>(null)
-  const [showComplete, setShowComplete] = useState<string | null>(null)
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null)
+  const [isCompleteOpen, setIsCompleteOpen] = useState(false)
 
   /* ---------------------- Data fetching ---------------------- */
   // Active (unrealized) orders for selected day
@@ -105,8 +107,8 @@ const TechnicianOplPlanerTable = ({
 
   // Full order (lazy) when opening complete wizard
   const { data: fullOrder } = trpc.opl.order.getOrderById.useQuery(
-    { id: showComplete ?? '' },
-    { enabled: !!showComplete }
+    { id: activeOrderId ?? '' },
+    { enabled: isCompleteOpen }
   )
 
   // Dictionaries for CompleteOrderWizard
@@ -145,7 +147,7 @@ const TechnicianOplPlanerTable = ({
   /** Automatically open CompleteOrderWizard after new order is created */
   useEffect(() => {
     if (autoOpenOrderId) {
-      setShowComplete(autoOpenOrderId)
+      setActiveOrderId(autoOpenOrderId)
       onAutoOpenHandled?.()
     }
   }, [autoOpenOrderId, onAutoOpenHandled])
@@ -231,12 +233,13 @@ const TechnicianOplPlanerTable = ({
       })) ?? []
 
   /* ---------------------- Loading & error states ---------------------- */
-  if (activeLoading || incomingLoading)
-    return (
-      <div className="w-full flex justify-center py-8">
+  {
+    isCompleteOpen && activeOrderId && !fullOrder && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
         <LoaderSpinner />
       </div>
     )
+  }
 
   if (activeError || incomingError)
     return (
@@ -334,7 +337,10 @@ const TechnicianOplPlanerTable = ({
                     size="sm"
                     variant="success"
                     className="w-full sm:w-auto"
-                    onClick={() => setShowComplete(o.id)}
+                    onClick={() => {
+                      setActiveOrderId(o.id)
+                      setIsCompleteOpen(true)
+                    }}
                   >
                     <BsSendCheck className="mr-1" />
                     Odpisz
@@ -381,32 +387,34 @@ const TechnicianOplPlanerTable = ({
       />
 
       {/* Preloader overlay while fetching order for the wizard */}
-      {showComplete && !fullOrder && (
+      {activeOrderId && !fullOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
           <LoaderSpinner />
         </div>
       )}
 
       {/* Complete/Amend wizard */}
-      {showComplete && fullOrder && (
-        <CompleteOplOrderWizard
-          open
-          order={fullOrder}
-          orderType={fullOrder.type}
-          mode="complete"
-          onCloseAction={async () => {
-            setShowComplete(null)
+      {fullOrder && (
+        <CompleteOplOrderProvider orderId={fullOrder.id}>
+          <CompleteOplOrderWizard
+            open={isCompleteOpen && !!fullOrder}
+            order={fullOrder}
+            orderType={fullOrder.type}
+            mode="complete"
+            onCloseAction={async () => {
+              setIsCompleteOpen(false)
 
-            await Promise.all([
-              utils.opl.order.getTechnicianActiveOrders.invalidate(),
-              utils.opl.order.getOrderById.invalidate({ id: fullOrder.id }),
-            ])
-          }}
-          materialDefs={materialDefs ?? []}
-          techMaterials={mappedMaterials}
-          devices={mappedDevices}
-          workCodeDefs={workCodeDefs}
-        />
+              await Promise.all([
+                utils.opl.order.getTechnicianActiveOrders.invalidate(),
+                utils.opl.order.getOrderById.invalidate({ id: fullOrder.id }),
+              ])
+            }}
+            materialDefs={materialDefs ?? []}
+            techMaterials={mappedMaterials}
+            devices={mappedDevices}
+            workCodeDefs={workCodeDefs}
+          />
+        </CompleteOplOrderProvider>
       )}
     </div>
   )

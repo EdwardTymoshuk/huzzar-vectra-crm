@@ -1,26 +1,26 @@
 'use client'
 
-import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
+import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { Button } from '@/app/components/ui/button'
 import { Card, CardContent } from '@/app/components/ui/card'
-import { VectraIssuedItemDevice } from '@/types/vectra-crm'
+import { OplIssuedItemDevice } from '@/types/opl-crm'
 import { MdDelete } from 'react-icons/md'
 
 type Props = {
-  device: VectraIssuedItemDevice
-  label?: string // e.g., "NET", "DTV", "Router"
+  device: OplIssuedItemDevice
+  label?: string
   onRemove?: (id: string) => void
   className?: string
   children?: React.ReactNode
 }
 
 /**
- * DeviceSummaryRow – Always renders as a Card.
+ * OplDeviceSummaryRow – Always renders as a Card.
  * If device.name is empty: shows only label.
  * If device.name exists: shows [LABEL | KATEGORIA NAZWA]
  * For Router: if label="Router", show "Router | NAZWA" (no category!).
  */
-const DeviceSummaryRow = ({
+const OplDeviceSummaryRow = ({
   device,
   label,
   onRemove,
@@ -43,8 +43,10 @@ const DeviceSummaryRow = ({
                 : showJustLabelAndName
                 ? `${label} | ${device.name}`
                 : label
-                ? `${label} | ${devicesTypeMap[device.category]} ${device.name}`
-                : `${devicesTypeMap[device.category]} ${device.name}`}
+                ? `${label} | ${oplDevicesTypeMap[device.category]} ${
+                    device.name
+                  }`
+                : `${oplDevicesTypeMap[device.category]} ${device.name}`}
             </span>
             {device.serialNumber && (
               <span className="text-xs text-muted-foreground">
@@ -69,4 +71,4 @@ const DeviceSummaryRow = ({
   )
 }
 
-export default DeviceSummaryRow
+export default OplDeviceSummaryRow

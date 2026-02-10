@@ -53,19 +53,6 @@ export const AddonsSection = ({
       )
     }
 
-    /* -------- UMZ -------- */
-    if (c === 'UMZ') {
-      return (
-        <Button
-          key="UMZ"
-          onClick={onToggleUmz}
-          variant={umz ? 'default' : 'outline'}
-        >
-          UMZ
-        </Button>
-      )
-    }
-
     /* -------- DIG (auto) -------- */
     if (c === 'ZJDD' || c === 'ZJKD' || c === 'ZJND') {
       return (

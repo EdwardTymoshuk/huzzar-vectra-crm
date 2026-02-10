@@ -1,56 +1,93 @@
 'use client'
 
 import { oplActivationLabelMap } from '@/app/(modules)/opl-crm/lib/constants'
-import { OplWorkCodesState } from '@/app/(modules)/opl-crm/utils/hooks/useOplWorkCodes'
 import { calculateDigAddons } from '@/app/(modules)/opl-crm/utils/order/calculateDigAddons'
+import {
+  ALL_ADDON_CODES,
+  ALL_BASE_CODES,
+} from '@/app/(modules)/opl-crm/utils/order/completeOrderHelper'
 import { Badge } from '@/app/components/ui/badge'
+import { DigInput, WorkCodePayload } from '@/types/opl-crm/orders'
+
+type Props = {
+  value: WorkCodePayload[]
+  digInput?: DigInput | null
+}
 
 /**
  * Displays selected work codes summary.
- * Read-only view.
+ * DIG addons are derived from digInput (not stored directly).
  */
-export const SelectedCodesSummary = ({
-  state,
-}: {
-  state: OplWorkCodesState
-}) => {
-  const digAddons = state.digInput ? calculateDigAddons(state.digInput) : {}
+export const SelectedCodesSummary = ({ value, digInput }: Props) => {
+  /* ---------------- BASE ---------------- */
 
-  const isZjBase =
-    state.base === 'ZJD' || state.base === 'ZJN' || state.base === 'ZJK'
+  const base = value.find((v) => ALL_BASE_CODES.includes(v.code as any))?.code
+
+  const activation = value.find((v) =>
+    Object.prototype.hasOwnProperty.call(oplActivationLabelMap, v.code)
+  )?.code as keyof typeof oplActivationLabelMap | undefined
+
+  const isZjBase = base === 'ZJD' || base === 'ZJN' || base === 'ZJK'
+
+  /* ---------------- ADDONS ---------------- */
+
+  const addons = value.filter(
+    (v) =>
+      ALL_ADDON_CODES.includes(v.code as any) &&
+      v.code !== 'MR' &&
+      !['ZJDD', 'ZJKD', 'ZJND'].includes(v.code)
+  )
+
+  const mr = value.find((v) => v.code === 'MR')
+
+  /* ---------------- DIG (DERIVED) ---------------- */
+
+  const digAddons = digInput ? calculateDigAddons(digInput) : {}
+
+  const digEntries = Object.entries(digAddons).filter(([, qty]) => qty > 0)
+
+  /* ---------------- PKI ---------------- */
+
+  const pkis = value.filter((v) => v.code.startsWith('PKI'))
 
   return (
     <div className="flex flex-wrap gap-2">
       {/* BASE */}
-      {state.base && <Badge>{state.base}</Badge>}
+      {base && <Badge className="px-5 py-2 text-sm">{base}</Badge>}
 
       {/* ACTIVATION */}
-      {state.activation && (
-        <Badge>{oplActivationLabelMap[state.activation]}</Badge>
+      {activation && (
+        <Badge className="px-5 py-2 text-sm">
+          {oplActivationLabelMap[activation]}
+        </Badge>
       )}
 
       {/* AUTO ZJWEW */}
-      {isZjBase && <Badge>ZJWEW</Badge>}
+      {isZjBase && <Badge className="px-5 py-2 text-sm">ZJWEW</Badge>}
 
-      {/* MANUAL ADDONS */}
-      {state.addons.map((code) => (
-        <Badge key={code}>{code}</Badge>
+      {/* ADDONS */}
+      {addons.map(({ code }) => (
+        <Badge key={code} className="px-5 py-2 text-sm">
+          {code}
+        </Badge>
       ))}
 
       {/* MR */}
-      {state.mrCount > 0 && <Badge>MR ×{state.mrCount}</Badge>}
+      {mr && <Badge className="px-5 py-2 text-sm">MR ×{mr.quantity}</Badge>}
 
-      {/* UMZ */}
-      {state.umz && <Badge>UMZ</Badge>}
+      {/* DIG ADDONS (COUNT ONLY) */}
+      {digEntries.map(([code, quantity]) => (
+        <Badge key={code} className="px-5 py-2 text-sm">
+          {code} ×{quantity}
+        </Badge>
+      ))}
 
-      {/* DIG DERIVED */}
-      {Object.entries(digAddons).map(([code, qty]) =>
-        qty > 0 ? (
-          <Badge key={code}>
-            {code} ×{qty}
-          </Badge>
-        ) : null
-      )}
+      {/* PKI */}
+      {pkis.map(({ code, quantity }) => (
+        <Badge key={code} className="px-5 py-2 text-sm">
+          <span className="font-semibold">{code}</span> ×{quantity}
+        </Badge>
+      ))}
     </div>
   )
 }

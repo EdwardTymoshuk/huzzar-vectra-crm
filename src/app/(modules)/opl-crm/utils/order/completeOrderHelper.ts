@@ -32,7 +32,6 @@ export const ALL_ACTIVATION_CODES: ActivationPrimaryItem[] = [
   { code: 'I_2P', auto: false },
   { code: 'I_3P', auto: false },
 
-  // jeśli kiedyś dojdą:
   { code: 'UTD', auto: false },
 ]
 
@@ -85,7 +84,7 @@ export const getPrimaryBaseCodes = (
  * ZJWEW is auto-added (non-removable) for ZJ family.
  */
 export const getPrimaryActivationCodes = (
-  base: OplBaseWorkCode | null
+  base: OplBaseWorkCode | undefined
 ): ActivationPrimaryItem[] => {
   const isZj = base === 'ZJD' || base === 'ZJN' || base === 'ZJK'
 
@@ -109,8 +108,8 @@ export const getPrimaryActivationCodes = (
  * Service-only orders (DTV / DMR) allow MR even without installation base.
  */
 export const getPrimaryAddonCodes = (
-  base: OplBaseWorkCode | null,
-  activation: OplActivationType | null,
+  base: OplBaseWorkCode | undefined,
+  activation: OplActivationType | undefined,
   allAddons: PrimaryAddonCode[],
   serviceOnly: boolean
 ): PrimaryAddonCode[] => {

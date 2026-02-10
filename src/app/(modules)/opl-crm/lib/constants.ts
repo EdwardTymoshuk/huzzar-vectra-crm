@@ -1,6 +1,7 @@
 //src/app/(modules)/opl-crm/lib/constants.ts
 
 import { BadgeVariant } from '@/lib/constants'
+import { PkiDefinition } from '@/types/opl-crm/orders'
 import {
   OplActivationType,
   OplBaseWorkCode,
@@ -165,4 +166,131 @@ export const oplOrderFailureReasons = [
   'Braki materiałowe',
   'Błędne dane na umowie',
   'Siła wyższa',
+]
+
+/**
+ * Full list of PKI definitions (Overstandard installation costs).
+ * Source: official HUZZAR PKI rate table.
+ */
+export const ALL_PKI_DEFS: PkiDefinition[] = [
+  {
+    code: 'PKI1',
+    label:
+      'Dodatkowa długość instalacji optycznej za każdy metr powyżej standardu',
+  },
+  {
+    code: 'PKI2',
+    label:
+      'Dodatek za układanie korytek powyżej standardowej długości (za 1 m)',
+  },
+  {
+    code: 'PKI3',
+    label: 'Montaż skrzynki osłonowej',
+  },
+  {
+    code: 'PKI4',
+    label: 'Przewierty przez strop lub ściany o grubości powyżej 25 cm',
+  },
+  {
+    code: 'PKI5',
+    label: 'Układanie duktów, drabinek i łączników (za każdy metr)',
+  },
+  {
+    code: 'PKI6',
+    label: 'Budowa pionów technicznych (za jedną kondygnację)',
+  },
+  {
+    code: 'PKI7',
+    label: 'Uszczelnianie masą HILTI (1 uszczelnienie z materiałem)',
+  },
+  {
+    code: 'PKI8',
+    label: 'Uzyskanie zgody administratora wraz ze szkicem instalacji',
+  },
+  {
+    code: 'PKI9',
+    label: 'Wkuwanie instalacji pod tynk z wykończeniem do 3 mb',
+  },
+  {
+    code: 'PKI10',
+    label: 'Wkuwanie instalacji pod tynk – każdy kolejny metr',
+  },
+  {
+    code: 'PKI11',
+    label: 'Wprowadzenie kanalizacji lub kabla do budynku / studni',
+  },
+  {
+    code: 'PKI12',
+    label: 'Udrożnienie mikrokanalizacji lub rurociągu HDPE',
+  },
+  {
+    code: 'PKI13',
+    label: 'Montaż mufy lub gniazdka optycznego przelotowego',
+  },
+  {
+    code: 'PKI14',
+    label: 'Rozebranie i odtworzenie nawierzchni asfaltowej (1 m²)',
+  },
+  {
+    code: 'PKI15',
+    label: 'Rozebranie i odtworzenie nawierzchni twardej (1 m²)',
+  },
+  {
+    code: 'PKI16',
+    label: 'Dodatkowy metr instalacji optycznej dla standardu W4',
+  },
+  {
+    code: 'PKI17',
+    label: 'Pozyskanie zgód dla galerii handlowych i budynków B2B',
+  },
+  {
+    code: 'PKI18',
+    label: 'Geodezyjna dokumentacja powykonawcza przyłącza',
+  },
+  {
+    code: 'PKI19',
+    label: 'Malowanie ścian i sufitów farbą emulsyjną',
+  },
+  {
+    code: 'PKI20',
+    label: 'Montaż i ustawienie pierwszego słupa drewnianego',
+  },
+  {
+    code: 'PKI21',
+    label: 'Montaż i ustawienie kolejnego słupa drewnianego',
+  },
+  {
+    code: 'PKI22',
+    label: 'Przewierty przez ściany o grubości do 25 cm',
+  },
+  {
+    code: 'PKI23',
+    label:
+      'Dodatkowa długość instalacji ethernetowej powyżej 15 mb dla usługi Multiroom',
+  },
+  {
+    code: 'PKI24',
+    label:
+      'Dodatkowa długość instalacji ethernetowej powyżej 25 mb dla budowy sieci wewnętrznej',
+  },
+  {
+    code: 'PKI25',
+    label: 'Wykop w celu identyfikacji mikrokanalizacji (ZJ-DEW)',
+  },
+  {
+    code: 'PKI26',
+    label: 'Wprowadzenie kabla instalacyjnego do OPP',
+  },
+  {
+    code: 'PKI27',
+    label: 'Dospawanie pigtaila w OPP',
+  },
+  {
+    code: 'PKI28',
+    label: 'Wprowadzenie kabla lub mikrokanalizacji w mufie',
+  },
+  {
+    code: 'PKI29',
+    label: 'Kosztorys CESUB – zakres prac nieujęty w PKI',
+  },
 ]
