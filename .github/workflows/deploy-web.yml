@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Deploy WEB over SSH
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v0.1.10
         with:
           host: 57.128.227.195
           username: debian
@@ -30,17 +30,14 @@ jobs:
 
             cd /var/www/huzzar-vectra-crm-web
 
-           git fetch origin
-git checkout prisma7-upgrade || git checkout -b prisma7-upgrade origin/prisma7-upgrade
-git reset --hard origin/prisma7-upgrade
-
+            git fetch origin
+            git checkout prisma7-upgrade || git checkout -b prisma7-upgrade origin/prisma7-upgrade
+            git reset --hard origin/prisma7-upgrade
 
             rm -rf node_modules .prisma
 
             npm ci || npm install
-
             npx prisma generate
-            npx prisma migrate deploy || true
 
             npm run build
 
