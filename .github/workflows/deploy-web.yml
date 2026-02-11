@@ -41,5 +41,6 @@ jobs:
 
             npm run build
 
-            pm2 restart huzzar-web || pm2 start npm --name "huzzar-web" -- start
+            pm2 restart huzzar-web || pm2 start "npm start -- -p 3001" --name "huzzar-web"
+
             pm2 save
