@@ -6,7 +6,7 @@ import { materialUnitMap } from '@/lib/constants'
 import { VectraMaterialUnit } from '@prisma/client'
 import { useState } from 'react'
 import { MdDelete } from 'react-icons/md'
-import SearchableSelector from '../../SearchableSelector'
+import SearchableSelector from '../../../../../../components/fields/SearchableSelector'
 
 type Props = {
   selected: { id: string; quantity: number }[]

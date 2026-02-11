@@ -7,7 +7,11 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
-import { OplIssuedItemDevice, OplIssuedItemMaterial } from '@/types/opl-crm'
+import {
+  OplIssuedItemDevice,
+  OplIssuedItemMaterial,
+  OplTechnicianStockDeviceItem,
+} from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -53,13 +57,16 @@ const OplTransferItemsTabs = ({ technicianId, onClose }: Props) => {
       itemType: 'DEVICE',
     })
 
-  const deviceOptions = myDevices.map((d) => ({
-    id: d.id,
-    name: d.name,
-    serialNumber: d.serialNumber,
-    category: d.category ?? 'OTHER',
-    status: d.status,
-  }))
+  const deviceOptions = myDevices
+    .filter((d): d is OplTechnicianStockDeviceItem => d.itemType === 'DEVICE')
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber,
+      category: d.category ?? 'OTHER',
+      status: d.status,
+      deviceDefinitionId: d.deviceDefinitionId,
+    }))
 
   /* ---------- add / remove helpers (same logic as IssueItemsTabs) ---------- */
   const addDevice = (d: OplIssuedItemDevice) =>
@@ -113,11 +120,7 @@ const OplTransferItemsTabs = ({ technicianId, onClose }: Props) => {
         </TabsList>
 
         <TabsContent value="devices" className="pt-4">
-          <OplSerialScanInput
-            onAddDevice={addDevice}
-            devices={deviceOptions}
-            mode="TRANSFER"
-          />
+          <OplSerialScanInput onAdd={addDevice} devices={deviceOptions} />
         </TabsContent>
 
         <TabsContent value="materials">

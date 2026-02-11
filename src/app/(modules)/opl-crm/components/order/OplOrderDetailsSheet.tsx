@@ -15,8 +15,10 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import CompleteOplOrderWizard from '../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
 import OrderStatusBadge from '../../../../components/order/OrderStatusBadge'
 import OplOrderTimeline from '../../admin-panel/components/order/OplOrderTimeline'
+import EditOplOrderModal from '../../admin-panel/components/orders/EditOplOrderModal'
 import { oplOrderTypeMap, oplTimeSlotMap } from '../../lib/constants'
 
 type Props = {
@@ -169,9 +171,9 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">
-                    Id klienta
+                    Id usługi
                   </h3>
-                  <p>{order.clientId ? order.clientId : '-'}</p>
+                  <p>{order.serviceId ? order.serviceId : '-'}</p>
                 </div>
 
                 <div>
@@ -186,7 +188,16 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Technik
                     </h3>
-                    <p>{order.assignedTo?.user.name ?? 'Nieprzypisany'}</p>
+
+                    {order.assignments.length === 0 ? (
+                      <p>Nieprzypisany</p>
+                    ) : (
+                      <p>
+                        {order.assignments
+                          .map((a) => a.technician.user.name)
+                          .join(' + ')}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -262,7 +273,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </div>
 
                   {/* --- Activated services --- */}
-                  <div>
+                  {/* <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Uruchomione usługi
                     </h3>
@@ -293,7 +304,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                             </span>
 
                             {/* Notes (if any) */}
-                            {data.notes.length > 0 && (
+                  {/* {data.notes.length > 0 && (
                               <ul className="ml-4 mt-1 text-xs text-muted-foreground space-y-1">
                                 {data.notes.map((n, i) => (
                                   <li key={i}>Komentarz: {n}</li>
@@ -306,7 +317,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     ) : (
                       <p>Brak</p>
                     )}
-                  </div>
+                  </div>  */}
 
                   {/* --- Issued equipment (merged + deduplicated) --- */}
                   {false && (
@@ -352,7 +363,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       Sprzęt odebrany od klienta
                     </h3>
 
-                    {order.assignedEquipment?.filter((e) =>
+                    {/* {order.assignedEquipment?.filter((e) =>
                       e.warehouse.history?.some(
                         (h) => h.action === 'COLLECTED_FROM_CLIENT'
                       )
@@ -374,7 +385,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       </ul>
                     ) : (
                       <p>Brak</p>
-                    )}
+                    )} */}
                   </div>
 
                   {/* --- Materials --- */}
@@ -397,7 +408,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </div>
 
                   {/* --- Total --- */}
-                  <div className="font-semibold text-sm">
+                  {/* <div className="font-semibold text-sm">
                     Kwota:{' '}
                     {order.settlementEntries
                       .reduce(
@@ -407,7 +418,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       )
                       .toFixed(2)}{' '}
                     zł
-                  </div>
+                  </div> */}
                 </section>
               )}
 
@@ -428,16 +439,16 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
       </Sheet>
 
       {/* --- Modals --- */}
-      {/* {order && (
-        <EditOrderModal
+      {order && (
+        <EditOplOrderModal
           open={showEditModal}
           onCloseAction={() => setShowEditModal(false)}
-          order={order}
+          orderId={order.id}
         />
       )}
 
       {order && (
-        <CompleteOrderWizard
+        <CompleteOplOrderWizard
           open={showAdminEdit}
           onCloseAction={() => setShowAdminEdit(false)}
           order={order}
@@ -448,7 +459,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
           mode="adminEdit"
           workCodeDefs={[]}
         />
-      )} */}
+      )}
 
       <ConfirmDeleteDialog
         open={showDeleteDialog}

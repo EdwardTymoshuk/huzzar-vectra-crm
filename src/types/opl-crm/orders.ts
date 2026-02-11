@@ -86,3 +86,60 @@ export type WorkCodePayload = {
   code: string
   quantity: number
 }
+
+/**
+ * Single equipment row draft used by both "issued" and "collected" flows.
+ * Stored in wizard context as a stable, serializable form state.
+ */
+export type OplEquipmentDraftItem = {
+  /** Stable client-side id used as React key and for updates/removals. */
+  clientId: string
+
+  /** Device definition identity (preferred for backend mapping). */
+  deviceDefinitionId: string | null
+
+  /** Display fields kept in state to avoid re-deriving UI when reopening dialog. */
+  name: string
+  category: OplDeviceCategory
+
+  /** Optional serial entered by technician (can be required at submit-time). */
+  serial: string
+}
+
+/**
+ * Generic draft for an equipment section (issued / collected).
+ */
+export type OplEquipmentSectionDraft = {
+  /**
+   * Whether the section is enabled by the user.
+   * For "issued" this can be auto-enabled if suggestions exist.
+   */
+  enabled: boolean
+
+  /**
+   * When suggestions exist for "issued", user can skip the entire issuance flow.
+   * Ignored when there are no suggestions (then enabled is driven by switch).
+   */
+  skip: boolean
+
+  /** Draft rows. */
+  items: OplEquipmentDraftItem[]
+}
+
+/**
+ * Wizard equipment state (issued + collected).
+ */
+export type OplEquipmentDraft = {
+  issued: OplEquipmentSectionDraft
+  collected: OplEquipmentSectionDraft
+}
+
+/**
+ * Lightweight suggested equipment row (from order requirements / assignments).
+ */
+export type OplSuggestedEquipmentVM = {
+  deviceDefinitionId: string
+  name: string
+  category: OplDeviceCategory
+  quantity: number
+}

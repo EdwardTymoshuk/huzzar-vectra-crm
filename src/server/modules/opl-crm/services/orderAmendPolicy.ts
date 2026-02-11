@@ -1,4 +1,4 @@
-//src/server/modules/opl-crm/services/orderAmendpolicy.ts
+// src/server/modules/opl-crm/services/orderAmendPolicy.ts
 
 import { DbTx } from '@/types'
 import { TRPCError } from '@trpc/server'
@@ -6,9 +6,12 @@ import { differenceInMinutes } from 'date-fns'
 
 /**
  * Validates whether a technician is allowed to amend a completed order.
+ *
+ * Rules:
+ * - Order must exist
+ * - Technician must be assigned to the order (N:N relation)
  * - Order must be completed
- * - Technician must be assigned to the order
- * - Amendment window is limited (15 minutes)
+ * - Amendment window is limited (default 15 minutes)
  */
 export const canTechnicianAmendOrder = async (
   tx: DbTx,
@@ -20,26 +23,28 @@ export const canTechnicianAmendOrder = async (
 ): Promise<void> => {
   const { orderId, technicianId, windowMinutes = 15 } = params
 
-  const order = await tx.oplOrder.findUnique({
-    where: { id: orderId },
+  const order = await tx.oplOrder.findFirst({
+    where: {
+      id: orderId,
+      assignments: {
+        some: {
+          technicianId,
+        },
+      },
+    },
     select: {
-      assignedToId: true,
       completedAt: true,
-      status: true,
     },
   })
 
   if (!order) {
     throw new TRPCError({
-      code: 'NOT_FOUND',
-      message: 'Zlecenie nie istnieje',
+      code: 'FORBIDDEN',
+      message: 'Brak dostępu do zlecenia lub zlecenie nie istnieje',
     })
   }
 
-  if (order.assignedToId !== technicianId) {
-    throw new TRPCError({ code: 'FORBIDDEN' })
-  }
-
+  /** Order must be completed */
   if (!order.completedAt) {
     throw new TRPCError({
       code: 'BAD_REQUEST',
@@ -47,7 +52,9 @@ export const canTechnicianAmendOrder = async (
     })
   }
 
+  /** Validate amendment time window */
   const diff = differenceInMinutes(new Date(), order.completedAt)
+
   if (diff > windowMinutes) {
     throw new TRPCError({
       code: 'FORBIDDEN',

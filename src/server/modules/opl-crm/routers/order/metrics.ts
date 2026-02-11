@@ -79,17 +79,23 @@ export const metricsRouter = router({
 
       const rows = await prisma.oplOrder.findMany({
         where: {
-          assignedToId: { not: null },
+          assignments: {
+            some: {},
+          },
           status: { in: statusesToCount },
           date: { gte: start, lte: end },
           ...(input.orderType ? { type: input.orderType } : {}),
         },
         include: {
-          assignedTo: {
-            select: {
-              user: {
+          assignments: {
+            include: {
+              technician: {
                 select: {
-                  name: true,
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -112,24 +118,28 @@ export const metricsRouter = router({
       >()
 
       rows.forEach((r) => {
-        const id = r.assignedToId!
-        if (!map.has(id)) {
-          map.set(id, {
-            technicianId: id,
-            technicianName: r.assignedTo?.user.name ?? 'Nieznany',
-            assigned: 0,
-            completed: 0,
-            notCompleted: 0,
-            received: 0,
-            successRate: 0,
-          })
-        }
+        r.assignments.forEach((a) => {
+          const id = a.technicianId
+          const name = a.technician.user.name ?? 'Nieznany'
 
-        const e = map.get(id)!
+          if (!map.has(id)) {
+            map.set(id, {
+              technicianId: id,
+              technicianName: name,
+              assigned: 0,
+              completed: 0,
+              notCompleted: 0,
+              received: 0,
+              successRate: 0,
+            })
+          }
 
-        if (r.status === 'ASSIGNED') e.assigned++
-        else if (r.status === 'COMPLETED') e.completed++
-        else if (r.status === 'NOT_COMPLETED') e.notCompleted++
+          const e = map.get(id)!
+
+          if (r.status === 'ASSIGNED') e.assigned++
+          else if (r.status === 'COMPLETED') e.completed++
+          else if (r.status === 'NOT_COMPLETED') e.notCompleted++
+        })
       })
 
       // Compute received + successRate
@@ -274,7 +284,9 @@ export const metricsRouter = router({
         const rows = await prisma.oplOrder.findMany({
           where: {
             date: { gte: start, lte: end },
-            assignedToId: { not: null },
+            assignments: {
+              some: {},
+            },
             ...(input.orderType ? { type: input.orderType } : {}),
           },
           select: { status: true },
@@ -350,7 +362,11 @@ export const metricsRouter = router({
       const calc = async (start: Date, end: Date) => {
         const rows = await prisma.oplOrder.findMany({
           where: {
-            assignedToId: technicianId,
+            assignments: {
+              some: {
+                technicianId: technicianId,
+              },
+            },
             date: { gte: start, lte: end },
             status: { in: ['ASSIGNED', 'COMPLETED', 'NOT_COMPLETED'] },
           },
@@ -421,7 +437,11 @@ export const metricsRouter = router({
       const sumEarnings = async (start: Date, end: Date): Promise<number> => {
         const orders = await ctx.prisma.oplOrder.findMany({
           where: {
-            assignedToId: technicianId,
+            assignments: {
+              some: {
+                technicianId: technicianId,
+              },
+            },
             date: { gte: start, lte: end },
             status: 'COMPLETED',
           },
@@ -476,7 +496,11 @@ export const metricsRouter = router({
         // Fetch orders for the month for this technician
         const orders = await prisma.oplOrder.findMany({
           where: {
-            assignedToId: technicianId,
+            assignments: {
+              some: {
+                technicianId: technicianId,
+              },
+            },
             date: { gte: start, lte: end },
             status: { in: ['COMPLETED', 'NOT_COMPLETED'] }, // only these affect success rate
           },
@@ -548,7 +572,11 @@ export const metricsRouter = router({
 
       const orders = await prisma.oplOrder.findMany({
         where: {
-          assignedToId: technicianId,
+          assignments: {
+            some: {
+              technicianId: technicianId,
+            },
+          },
           date: { gte: dateFrom, lte: dateTo },
         },
         select: { date: true, status: true },

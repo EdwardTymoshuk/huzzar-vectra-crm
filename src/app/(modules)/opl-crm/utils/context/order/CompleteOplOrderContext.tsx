@@ -1,6 +1,12 @@
 'use client'
 
-import { DigInput, WorkCodePayload } from '@/types/opl-crm/orders'
+import {
+  DigInput,
+  OplEquipmentDraft,
+  OplEquipmentDraftItem,
+  OplSuggestedEquipmentVM,
+  WorkCodePayload,
+} from '@/types/opl-crm/orders'
 import { OplOrderStatus } from '@prisma/client'
 import {
   createContext,
@@ -24,8 +30,9 @@ export type CompleteOplOrderState = {
   notes: string
 
   workCodes: WorkCodePayload[]
-
   digInput: DigInput | null
+
+  equipment: OplEquipmentDraft
 }
 
 type CompleteOplOrderContextValue = {
@@ -43,18 +50,39 @@ type CompleteOplOrderContextValue = {
 
   /* work codes */
   setWorkCodes: (v: WorkCodePayload[]) => void
-
-  /** DIG input provided by user (meters / points) */
-  digInput: DigInput | null
   setDigInput: (v: DigInput | null) => void
-
   addWorkCode: (code: string, quantity?: number) => void
   removeWorkCode: (code: string) => void
   resetWorkCodes: () => void
-
   clearPkiCodes: () => void
 
-  /* lifecycle */
+  /* equipment - issued */
+  setIssuedEnabled: (v: boolean) => void
+  setIssuedSkip: (v: boolean) => void
+  addIssuedItem: (item?: Partial<OplEquipmentDraftItem>) => void
+  updateIssuedItem: (
+    clientId: string,
+    patch: Partial<OplEquipmentDraftItem>
+  ) => void
+  removeIssuedItem: (clientId: string) => void
+  resetIssued: () => void
+
+  /* equipment - collected */
+  setCollectedEnabled: (v: boolean) => void
+  addCollectedItem: (item?: Partial<OplEquipmentDraftItem>) => void
+  updateCollectedItem: (
+    clientId: string,
+    patch: Partial<OplEquipmentDraftItem>
+  ) => void
+  removeCollectedItem: (clientId: string) => void
+  resetCollected: () => void
+
+  /**
+   * Seeds issued items based on suggested equipment requirements.
+   * Should be called by the step component when it detects suggestions and draft is empty.
+   */
+  seedIssuedFromSuggestions: (suggested: OplSuggestedEquipmentVM[]) => void
+
   reset: () => void
 }
 
@@ -69,6 +97,10 @@ const initialState: CompleteOplOrderState = {
   notes: '',
   workCodes: [],
   digInput: null,
+  equipment: {
+    issued: { enabled: false, skip: false, items: [] },
+    collected: { enabled: false, skip: false, items: [] },
+  },
 }
 
 /* ------------------------------------------------------------------ */
@@ -188,35 +220,279 @@ export const CompleteOplOrderProvider = ({
     }))
   }, [])
 
-  /* -------- RESET -------- */
+  /* -------- EQUIPMENTS -------- */
+  /**
+   * Creates a stable client-side id for list row drafts.
+   * Uses crypto.randomUUID when available, falls back to a simple timestamp-based id.
+   */
+  const createClientId = (): string => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID()
+    }
+    return `tmp_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  }
 
+  /* -------- EQUIPMENT: ISSUED -------- */
+
+  const setIssuedEnabled = useCallback((v: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        issued: {
+          ...prev.equipment.issued,
+          enabled: v,
+          // If user disables issuance, we keep items to preserve user input on accidental toggles.
+        },
+      },
+    }))
+  }, [])
+
+  const setIssuedSkip = useCallback((v: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        issued: {
+          ...prev.equipment.issued,
+          skip: v,
+        },
+      },
+    }))
+  }, [])
+
+  const addIssuedItem = useCallback((item?: Partial<OplEquipmentDraftItem>) => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        issued: {
+          ...prev.equipment.issued,
+          items: [
+            ...prev.equipment.issued.items,
+            {
+              clientId: createClientId(),
+              deviceDefinitionId: null,
+              name: '',
+              category: 'OTHER',
+              serial: '',
+              ...item,
+            },
+          ],
+        },
+      },
+    }))
+  }, [])
+
+  const updateIssuedItem = useCallback(
+    (clientId: string, patch: Partial<OplEquipmentDraftItem>) => {
+      setState((prev) => ({
+        ...prev,
+        equipment: {
+          ...prev.equipment,
+          issued: {
+            ...prev.equipment.issued,
+            items: prev.equipment.issued.items.map((it) =>
+              it.clientId === clientId ? { ...it, ...patch } : it
+            ),
+          },
+        },
+      }))
+    },
+    []
+  )
+
+  const removeIssuedItem = useCallback((clientId: string) => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        issued: {
+          ...prev.equipment.issued,
+          items: prev.equipment.issued.items.filter(
+            (it) => it.clientId !== clientId
+          ),
+        },
+      },
+    }))
+  }, [])
+
+  const resetIssued = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        issued: { enabled: false, skip: false, items: [] },
+      },
+    }))
+  }, [])
+
+  const seedIssuedFromSuggestions = useCallback(
+    (suggested: OplSuggestedEquipmentVM[]) => {
+      setState((prev) => {
+        // Do not override user edits.
+        if (prev.equipment.issued.items.length > 0) return prev
+
+        const items: OplEquipmentDraftItem[] = suggested.flatMap((s) => {
+          const qty = Math.max(1, s.quantity)
+          return Array.from({ length: qty }).map(() => ({
+            clientId: createClientId(),
+            deviceDefinitionId: s.deviceDefinitionId,
+            name: s.name,
+            category: s.category,
+            serial: '',
+          }))
+        })
+
+        return {
+          ...prev,
+          equipment: {
+            ...prev.equipment,
+            issued: {
+              ...prev.equipment.issued,
+              enabled: true,
+              // When suggestions exist we show the form by default,
+              // but allow skipping via checkbox.
+              skip: false,
+              items,
+            },
+          },
+        }
+      })
+    },
+    []
+  )
+
+  /* -------- EQUIPMENT: COLLECTED -------- */
+
+  const setCollectedEnabled = useCallback((v: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        collected: {
+          ...prev.equipment.collected,
+          enabled: v,
+        },
+      },
+    }))
+  }, [])
+
+  const addCollectedItem = useCallback(
+    (item?: Partial<OplEquipmentDraftItem>) => {
+      setState((prev) => ({
+        ...prev,
+        equipment: {
+          ...prev.equipment,
+          collected: {
+            ...prev.equipment.collected,
+            items: [
+              ...prev.equipment.collected.items,
+              {
+                clientId: createClientId(),
+                deviceDefinitionId: null,
+                name: '',
+                category: 'OTHER',
+                serial: '',
+                ...item,
+              },
+            ],
+          },
+        },
+      }))
+    },
+    []
+  )
+
+  const updateCollectedItem = useCallback(
+    (clientId: string, patch: Partial<OplEquipmentDraftItem>) => {
+      setState((prev) => ({
+        ...prev,
+        equipment: {
+          ...prev.equipment,
+          collected: {
+            ...prev.equipment.collected,
+            items: prev.equipment.collected.items.map((it) =>
+              it.clientId === clientId ? { ...it, ...patch } : it
+            ),
+          },
+        },
+      }))
+    },
+    []
+  )
+
+  const removeCollectedItem = useCallback((clientId: string) => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        collected: {
+          ...prev.equipment.collected,
+          items: prev.equipment.collected.items.filter(
+            (it) => it.clientId !== clientId
+          ),
+        },
+      },
+    }))
+  }, [])
+
+  const resetCollected = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      equipment: {
+        ...prev.equipment,
+        collected: { enabled: false, skip: false, items: [] },
+      },
+    }))
+  }, [])
+
+  /* -------- RESET -------- */
   const reset = useCallback(() => {
     setState(initialState)
   }, [])
 
   /* -------- VALUE -------- */
-
   const value = useMemo<CompleteOplOrderContextValue>(
     () => ({
       state,
 
+      /* step */
       setStep,
       next,
       back,
 
+      /* status */
       setStatus,
       setFailureReason,
       setNotes,
 
+      /* work codes */
       setWorkCodes,
       addWorkCode,
       removeWorkCode,
       resetWorkCodes,
       digInput: state.digInput,
       setDigInput,
-
       clearPkiCodes,
 
+      /* equipment - issued */
+      setIssuedEnabled,
+      setIssuedSkip,
+      addIssuedItem,
+      updateIssuedItem,
+      removeIssuedItem,
+      resetIssued,
+      seedIssuedFromSuggestions,
+
+      /* equipment - collected */
+      setCollectedEnabled,
+      addCollectedItem,
+      updateCollectedItem,
+      removeCollectedItem,
+      resetCollected,
+
+      /* lifecycle */
       reset,
     }),
     [
@@ -229,6 +505,18 @@ export const CompleteOplOrderProvider = ({
       setNotes,
       setWorkCodes,
       setDigInput,
+      setIssuedEnabled,
+      setIssuedSkip,
+      addIssuedItem,
+      updateIssuedItem,
+      removeIssuedItem,
+      resetIssued,
+      seedIssuedFromSuggestions,
+      setCollectedEnabled,
+      addCollectedItem,
+      updateCollectedItem,
+      removeCollectedItem,
+      resetCollected,
       reset,
     ]
   )

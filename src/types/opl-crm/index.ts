@@ -67,6 +67,7 @@ export type OplIssuedItemDevice = {
   serialNumber: string
   category: OplDeviceCategory
   status?: OplWarehouseStatus
+  deviceDefinitionId: string | null
 }
 
 export type OplIssuedItemMaterial = {
@@ -146,6 +147,7 @@ export type OplWarehouseHistoryWithRelations =
 
 export type OplDeviceBasic = {
   id: string
+  deviceDefinitionId: string | null
   name: string
   serialNumber: string | null
   category: OplDeviceCategory
@@ -187,13 +189,13 @@ export type OplOrderWithAttempts = {
   failureReason?: string | null
   notes?: string | null
   date: Date
-  assignedTo?: { id: string; name: string } | null
+  assignedTechnicians: { id: string; name: string }[]
   previousOrder?: {
     id: string
     attemptNumber: number
     status: OplOrderStatus
     failureReason?: string | null
-    assignedTo?: { id: string; name: string } | null
+    assignedTechnicians: { id: string; name: string }[]
   } | null
   attempts: {
     id: string
@@ -205,7 +207,7 @@ export type OplOrderWithAttempts = {
     completedAt?: Date | null
     closedAt?: Date | null
     createdAt?: Date | null
-    assignedTo?: { id: string; name: string } | null
+    assignedTechnicians: { id: string; name: string }[]
   }[]
 }
 
@@ -336,6 +338,7 @@ export type OplTechnicianStockDeviceItem = OplTechnicianStockBase & {
   category: OplDeviceCategory
   serialNumber: string | null
   status: OplWarehouseStatus
+  deviceDefinitionId: string | null
 
   price: number
 

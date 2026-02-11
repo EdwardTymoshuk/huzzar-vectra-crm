@@ -42,7 +42,7 @@ export const mapOplOrderToListVM = (o: {
   date: o.date,
   type: o.type,
   operator: o.operator,
-  netword: o.network,
+  network: o.network,
   serviceId: o.serviceId,
   orderNumber: o.orderNumber,
   city: o.city,

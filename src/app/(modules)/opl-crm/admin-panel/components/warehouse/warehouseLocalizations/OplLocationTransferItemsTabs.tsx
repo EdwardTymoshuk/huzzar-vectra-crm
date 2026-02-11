@@ -64,6 +64,7 @@ const OplLocationTransferItemsTabs = ({
       name: d.name,
       serialNumber: d.serialNumber,
       category: d.category ?? 'OTHER',
+      deviceDefinitionId: d.deviceDefinitionId,
     }))
 
   /** Add a new device to the transfer list */
@@ -135,11 +136,7 @@ const OplLocationTransferItemsTabs = ({
 
         {/* Devices tab */}
         <TabsContent value="devices">
-          <OplSerialScanInput
-            onAddDevice={addDevice}
-            devices={availableDevices}
-            mode="ISSUE"
-          />
+          <OplSerialScanInput onAdd={addDevice} devices={availableDevices} />
         </TabsContent>
 
         {/* Materials tab */}

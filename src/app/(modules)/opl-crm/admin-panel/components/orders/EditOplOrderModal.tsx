@@ -61,15 +61,35 @@ const EditOplOrderModal = ({ open, orderId, onCloseAction }: Props) => {
       ? {
           type: order.type,
           operator: order.operator,
-          clientId: order.clientId ?? '',
+
+          serviceId: order.serviceId ?? undefined,
+
+          network: order.network ?? 'ORANGE',
+
           orderNumber: order.orderNumber,
           date: new Date(order.date).toISOString().split('T')[0],
           timeSlot: order.timeSlot,
+
           city: order.city,
           street: order.street,
           postalCode: order.postalCode ?? '',
-          notes: order.notes ?? '',
+
+          clientPhoneNumber: order.clientPhoneNumber ?? undefined,
+
           assignedTechnicianIds: defaultAssignedIds,
+
+          standard: order.standard ?? undefined,
+
+          notes: order.notes ?? undefined,
+
+          contractRequired: order.contractRequired ?? false,
+
+          equipmentRequirements:
+            order.equipmentRequirements?.map((e) => ({
+              deviceDefinitionId: e.deviceDefinitionId,
+              quantity: e.quantity,
+            })) ?? undefined,
+
           status: order.status ?? OplOrderStatus.PENDING,
         }
       : undefined,

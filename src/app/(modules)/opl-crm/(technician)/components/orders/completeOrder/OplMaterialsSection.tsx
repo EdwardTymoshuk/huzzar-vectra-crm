@@ -1,15 +1,15 @@
 'use client'
 
-import MaterialSelector from '@/app/(modules)/vectra-crm/(technician)/components/orders/completeOrder/MaterialSelector'
-import { VectraMaterialUnit, VectraWarehouse } from '@prisma/client'
+import MaterialSelector from '@/app/(modules)/opl-crm/(technician)/components/orders/completeOrder/OplMaterialSelector'
+import { OplMaterialUnit, OplWarehouse } from '@prisma/client'
 
 type MaterialDef = {
   id: string
   name: string
-  unit: VectraMaterialUnit
+  unit: OplMaterialUnit
 }
 
-type TechnicianMaterial = VectraWarehouse
+type TechnicianMaterial = OplWarehouse
 
 type Props = {
   selected: { id: string; quantity: number }[]
@@ -19,13 +19,13 @@ type Props = {
 }
 
 /**
- * MaterialsSection
+ * OplMaterialsSection
  * -----------------------------------------------------------------------------
  * Thin wrapper around MaterialSelector to keep headings and wiring out of the
  * main modal file. Keeps parent focused on business rules and submit logic.
  */
 
-const MaterialsSection: React.FC<Props> = ({
+const OplMaterialsSection: React.FC<Props> = ({
   selected,
   onChange,
   materialDefs,
@@ -44,4 +44,4 @@ const MaterialsSection: React.FC<Props> = ({
   )
 }
 
-export default MaterialsSection
+export default OplMaterialsSection

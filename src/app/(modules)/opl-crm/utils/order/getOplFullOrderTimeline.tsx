@@ -60,7 +60,12 @@ export function getOplFullOrderTimeline(
         color,
         description: (
           <>
-            {a.assignedTo?.name && <p>Technik: {a.assignedTo.name}</p>}
+            {a.assignedTechnicians?.length > 0 && (
+              <p>
+                Technik: {a.assignedTechnicians.map((t) => t.name).join(' + ')}
+              </p>
+            )}
+
             {a.failureReason && (
               <p className=" text-muted-foreground text-xs font-medium">
                 Powód: {a.failureReason}

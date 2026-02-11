@@ -118,12 +118,16 @@ const TechnicianOplCompletedOrderDetails = ({
     }))
 
   const devices: OplIssuedItemDevice[] = (rawDevices ?? [])
-    .filter((d) => !!d.serialNumber)
+    .filter(
+      (d): d is typeof d & { serialNumber: string } =>
+        typeof d.serialNumber === 'string'
+    )
     .map((d) => ({
       id: d.id,
       name: d.name,
-      serialNumber: d.serialNumber!,
+      serialNumber: d.serialNumber, // ← teraz TS wie że to string
       category: (d.category as OplDeviceCategory) ?? 'OTHER',
+      deviceDefinitionId: d.deviceDefinitionId ?? null,
       type: 'DEVICE',
     }))
 

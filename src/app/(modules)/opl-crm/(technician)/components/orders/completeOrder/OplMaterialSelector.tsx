@@ -1,12 +1,12 @@
 'use client'
 
+import SearchableSelector from '@/app/components/fields/SearchableSelector'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { materialUnitMap } from '@/lib/constants'
-import { VectraMaterialUnit } from '@prisma/client'
+import { OplMaterialUnit } from '@prisma/client'
 import { useState } from 'react'
 import { MdDelete } from 'react-icons/md'
-import SearchableSelector from '../../SearchableSelector'
 
 type Props = {
   selected: { id: string; quantity: number }[]
@@ -14,7 +14,7 @@ type Props = {
   materials: {
     id: string
     name: string
-    unit: VectraMaterialUnit
+    unit: OplMaterialUnit
   }[]
   technicianStock: {
     name: string
@@ -24,7 +24,7 @@ type Props = {
 }
 
 /**
- * MaterialSelector component for selecting and managing used materials in an order.
+ * OplMaterialSelector component for selecting and managing used materials in an order.
  * - Allows searching and selecting a material from the database.
  * - Supports adding a specified quantity to the current selection.
  * - Renders a list of selected materials with the ability to remove items.
@@ -36,7 +36,7 @@ type Props = {
  * - Clear user feedback for out-of-stock scenarios.
  *
  */
-const MaterialSelector = ({
+const OplMaterialSelector = ({
   selected,
   setSelected,
   materials,
@@ -178,4 +178,4 @@ const MaterialSelector = ({
   )
 }
 
-export default MaterialSelector
+export default OplMaterialSelector

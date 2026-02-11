@@ -182,9 +182,29 @@ export const queriesRouter = router({
           },
 
           /** Attempt chain */
-          previousOrder: true,
+          previousOrder: {
+            include: {
+              assignments: {
+                include: {
+                  technician: {
+                    select: oplUserWithCoreBasicSelect,
+                  },
+                },
+              },
+            },
+          },
+
           attempts: {
             orderBy: { attemptNumber: 'asc' },
+            include: {
+              assignments: {
+                include: {
+                  technician: {
+                    select: oplUserWithCoreBasicSelect,
+                  },
+                },
+              },
+            },
           },
 
           /** Wizard billing state (NOT source of truth) */

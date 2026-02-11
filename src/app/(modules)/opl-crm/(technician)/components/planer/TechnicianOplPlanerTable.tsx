@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/app/components/ui/card'
+import { OplIssuedItemDevice } from '@/types/opl-crm'
 import { formatDate } from '@/utils/dates/formatDateTime'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
@@ -221,16 +222,24 @@ const TechnicianOplPlanerTable = ({
         quantity: m.quantity ?? 0,
       })) ?? []
 
-  const mappedDevices =
-    techDevices
-      ?.filter((d) => !!d.serialNumber)
-      .map((d) => ({
-        id: d.id,
-        name: d.name,
-        serialNumber: d.serialNumber ?? '',
-        category: d.category ?? 'OTHER',
-        type: 'DEVICE' as const,
-      })) ?? []
+  const mappedDevices: OplIssuedItemDevice[] = (techDevices ?? [])
+    .filter(
+      (
+        d
+      ): d is typeof d & {
+        itemType: 'DEVICE'
+        serialNumber: string
+      } => d.itemType === 'DEVICE' && typeof d.serialNumber === 'string'
+    )
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      serialNumber: d.serialNumber,
+      category: d.category ?? 'OTHER',
+      deviceDefinitionId: d.deviceDefinitionId ?? null,
+      status: d.status,
+      type: 'DEVICE',
+    }))
 
   /* ---------------------- Loading & error states ---------------------- */
   {

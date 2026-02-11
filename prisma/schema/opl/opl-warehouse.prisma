@@ -11,6 +11,8 @@ model OplWarehouse {
   assignedToId         String?
   transferToId         String?
   transferPending      Boolean                   @default(false)
+  deviceDefinitionId   String?
+  deviceDefinition     OplDeviceDefinition?      @relation(fields: [deviceDefinitionId], references: [id])
   materialDefinitionId String?
   locationId           String?
   index                String?
@@ -126,7 +128,9 @@ model OplDeviceDefinition {
   alarmAlert   Int?              @default(5)
   warningAlert Int?              @default(10)
 
+  warehouseItems OplWarehouse[]
   orderEquipmentRequirements OplOrderEquipmentRequirement[]
+
 
   @@schema("opl")
 }

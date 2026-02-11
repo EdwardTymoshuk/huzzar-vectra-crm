@@ -91,6 +91,7 @@ const OplReturnToOperator = ({ onClose }: Props) => {
         name: device.name,
         serialNumber: device.serialNumber!,
         category: device.category ?? 'OTHER',
+        deviceDefinitionId: device.deviceDefinitionId,
         type: 'DEVICE',
       },
     ])

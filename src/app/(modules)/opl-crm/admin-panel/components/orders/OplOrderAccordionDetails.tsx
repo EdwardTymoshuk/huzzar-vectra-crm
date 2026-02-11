@@ -3,6 +3,7 @@
 import LoaderSpinner from '@/app/components/LoaderSpinner'
 import { Button } from '@/app/components/ui/button'
 import { Separator } from '@/app/components/ui/separator'
+import { OplIssuedItemDevice } from '@/types/opl-crm'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -12,7 +13,7 @@ import { useState } from 'react'
 import { IoCheckmarkDone } from 'react-icons/io5'
 import { MdEdit } from 'react-icons/md'
 import { toast } from 'sonner'
-import OplOrderDetailsContent from '../../../components/order/OplOrderDetailsContent'
+import CompleteOplOrderWizard from '../../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
 import OplOrderTimeline from '../order/OplOrderTimeline'
 
 type Props = { order: { id: string } }
@@ -28,15 +29,13 @@ type Props = { order: { id: string } }
  *   to avoid missing serial numbers during admin edit.
  */
 const OplOrderAccordionDetails = ({ order }: Props) => {
-  /** tRPC utils used for post-mutation invalidation */
-  const utils = trpc.useUtils()
-
   /** Local state for admin edit modal */
   const [openEdit, setOpenEdit] = useState<boolean>(false)
 
+  /** tRPC utils used for post-mutation invalidation */
+  const utils = trpc.useUtils()
   /** Role flags (used to control available actions) */
   const { isWarehouseman, isAdmin, isCoordinator } = useRole()
-
   /** Current session, used to append user name in approval notes */
   const session = useSession()
 
@@ -48,20 +47,23 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
     id: order.id,
   })
 
+  const technicianId = data?.assignments?.[0]?.technicianId ?? 'self'
+
   /* ---------------- Fetch dictionaries / stock ---------------- */
   // NOTE: these hooks must stay at the top-level to preserve hook order
-  const { data: materialDefs } = trpc.opl.materialDefinition.getAll.useQuery()
+  const { data: materialDefs } =
+    trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
   const { data: rawMaterials } = trpc.opl.warehouse.getTechnicianStock.useQuery(
     {
-      technicianId: data?.assignedToId ?? 'self',
+      technicianId: technicianId,
       itemType: 'MATERIAL',
     }
   )
   const { data: rawDevices } = trpc.opl.warehouse.getTechnicianStock.useQuery({
-    technicianId: data?.assignedToId ?? 'self',
+    technicianId: technicianId,
     itemType: 'DEVICE',
   })
-  const { data: workCodeDefs } = trpc.opl.rateDefinition.getAllRates.useQuery()
+  const { data: workCodeDefs } = trpc.opl.settings.getAllOplRates.useQuery()
 
   /* ---------------- Loading / error states ---------------- */
   if (isLoading || !data) {
@@ -110,12 +112,17 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
 
   // Devices from technician stock (normal case)
   const technicianDevices = (rawDevices ?? [])
-    .filter((d) => !!d.serialNumber)
+    .filter(
+      (d): d is typeof d & { serialNumber: string } =>
+        typeof d.serialNumber === 'string'
+    )
     .map((d) => ({
       id: d.id,
       name: d.name,
-      serialNumber: d.serialNumber ?? '',
+      serialNumber: d.serialNumber,
       category: d.category ?? 'OTHER',
+      deviceDefinitionId: d.deviceDefinitionId ?? null,
+      status: d.status,
       type: 'DEVICE' as const,
     }))
 
@@ -123,41 +130,30 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
   const devicesFromOrder = (data.assignedEquipment ?? [])
     .map((ae) => ae.warehouse)
     .filter(
-      (w): w is NonNullable<typeof w> =>
-        !!w && !!w.serialNumber && w.status === 'ASSIGNED_TO_ORDER'
+      (w): w is NonNullable<typeof w> & { serialNumber: string } =>
+        !!w &&
+        typeof w.serialNumber === 'string' &&
+        w.status === 'ASSIGNED_TO_ORDER'
     )
     .map((w) => ({
       id: w.id,
       name: w.name,
-      serialNumber: w.serialNumber ?? '',
+      serialNumber: w.serialNumber,
       category: w.category ?? 'OTHER',
+      deviceDefinitionId: w.deviceDefinitionId ?? null,
+      status: w.status,
       type: 'DEVICE' as const,
     }))
 
-  // ExtraDevices from each service
-  const extraDevicesFromServices =
-    data.services
-      ?.flatMap((s) => s.extraDevices ?? [])
-      .map((d) => ({
-        id: d.id,
-        name: d.name ?? '',
-        serialNumber: d.serialNumber ?? '',
-        category: d.category ?? 'OTHER',
-        type: 'DEVICE' as const,
-      })) ?? []
-
   // Merge technician devices with devices assigned to the order
   // and remove possible duplicates by serial number.
-  const allDevices = (() => {
-    /** Keep all possible sources together */
-    const merged = [
+  const allDevices: OplIssuedItemDevice[] = (() => {
+    const merged: OplIssuedItemDevice[] = [
       ...technicianDevices,
       ...devicesFromOrder,
-      ...extraDevicesFromServices,
     ]
 
-    /** Remove duplicates by serialNumber */
-    const unique: typeof merged = []
+    const unique: OplIssuedItemDevice[] = []
     const seen = new Set<string>()
 
     for (const dev of merged) {
@@ -193,7 +189,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
       {/* -------- LEFT COLUMN: main content -------- */}
       <div className="space-y-4 flex-1">
         <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
-        <OplOrderDetailsContent order={data} isConfirmed={isConfirmed} />
+        {/* <OplOrderDetailsContent order={data} isConfirmed={isConfirmed} /> */}
 
         {(canAdminEdit || canApprove) && (
           <div className="flex flex-wrap gap-2 pt-2">
@@ -226,6 +222,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
                     await editOrder.mutateAsync({
                       id: data.id,
                       operator: data.operator,
+                      serviceId: data.serviceId ?? undefined,
                       type: data.type,
                       notes: updatedNotes,
                       orderNumber: data.orderNumber,
@@ -234,7 +231,9 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
                       status: data.status,
                       city: data.city,
                       street: data.street,
-                      assignedToId: data.assignedTo?.user.id,
+                      assignedTechnicianIds: data.assignments
+                        .map((a) => a.technicianId)
+                        .slice(0, 2),
                     })
 
                     toast.success('Zlecenie zostało zatwierdzone.')
@@ -254,7 +253,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
           </div>
         )}
 
-        <CompleteOrderWizard
+        <CompleteOplOrderWizard
           key={order.id}
           open={openEdit}
           onCloseAction={async () => {

@@ -74,6 +74,7 @@ const IssueOplItemsTabs = ({ technicianId, onCloseAction }: Props) => {
       name: d.name,
       serialNumber: d.serialNumber,
       category: d.category ?? 'OTHER',
+      deviceDefinitionId: d.deviceDefinitionId,
     }))
 
   const handleAddDevice = (device: OplIssuedItemDevice) => {
@@ -157,9 +158,8 @@ const IssueOplItemsTabs = ({ technicianId, onCloseAction }: Props) => {
 
         <TabsContent value="devices" className="space-y-4">
           <OplSerialScanInput
-            onAddDevice={handleAddDevice}
+            onAdd={handleAddDevice}
             devices={availableDevices}
-            mode="ISSUE"
           />
         </TabsContent>
 

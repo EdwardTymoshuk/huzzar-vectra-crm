@@ -21,6 +21,7 @@ import {
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { mapWarehouseDeviceToBasic } from '../../helpers/mappers/mapWarehouseDevice'
 import { oplUserBasicSelect, oplUserSlimSelect } from '../../helpers/selects'
 import { getOplUserOrThrow } from '../../services/oplUserAccess'
 import { resolveLocationId } from '../../services/resolveLocationId'
@@ -375,7 +376,7 @@ export const queriesRouter = router({
       }))
     }),
 
-  /** 🔍 Get warehouse item by serial number */
+  /** 🔍 Get warehouse item by serial number (DEVICE only, UI-safe) */
   getBySerialNumber: loggedInEveryone
     .input(z.object({ serial: z.string().min(1) }))
     .query(async ({ input }) => {
@@ -385,8 +386,16 @@ export const queriesRouter = router({
             equals: input.serial,
             mode: 'insensitive',
           },
+          itemType: 'DEVICE',
         },
-        include: { assignedTo: true },
+        select: {
+          id: true,
+          name: true,
+          serialNumber: true,
+          category: true,
+          status: true,
+          deviceDefinitionId: true,
+        },
       })
 
       if (!item) {
@@ -396,7 +405,7 @@ export const queriesRouter = router({
         })
       }
 
-      return item
+      return mapWarehouseDeviceToBasic(item)
     }),
 
   /** 🧰 Get all items currently assigned to a technician */
@@ -474,13 +483,20 @@ export const queriesRouter = router({
             updatedAt: item.updatedAt,
           }
         }
+        if (!item.category) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Warehouse device ${item.id} has no category`,
+          })
+        }
 
         return {
           id: item.id,
+          deviceDefinitionId: item.deviceDefinitionId ?? null,
           name: item.name,
           itemType: 'DEVICE',
 
-          category: item.category ?? 'OTHER',
+          category: item.category,
           serialNumber: item.serialNumber ?? null,
           status: item.status,
 

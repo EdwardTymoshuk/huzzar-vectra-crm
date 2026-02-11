@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { Progress } from '@/app/components/ui/progress'
+import { mapEquipmentRequirementsToSuggested } from '@/server/modules/opl-crm/helpers/mappers/mapEquipmentRequirementsToSuggested'
 import { RouterOutputs } from '@/types'
 import { OplIssuedItemDevice } from '@/types/opl-crm'
 import {
@@ -18,14 +19,15 @@ import {
 } from '@prisma/client'
 import { ArrowLeft } from 'lucide-react'
 import { MdClose } from 'react-icons/md'
+import OplStepEquipment from './steps/OplStepEquipment'
 import OplStepStatus from './steps/OplStepStatus'
 import OplStepWorkCodes from './steps/OplStepWorkCodes'
 
 const STEPS_INSTALLATION = [
   'Status',
-  'Kody pracy',
-  'Instalacja i materiały',
-  'Odbiór i uwagi',
+  'Kody pracy i PKI',
+  'Urządzienia zainstalowane i odebrane',
+  'Materiał i uwagi',
   'Podsumowanie',
 ]
 
@@ -71,6 +73,11 @@ const CompleteOplOrderWizard = ({
 
   const STEPS =
     order.type === 'INSTALLATION' ? STEPS_INSTALLATION : STEPS_SERVICE
+
+  const normalizedDevices = devices.filter(
+    (d): d is OplIssuedItemDevice & { deviceDefinitionId: string } =>
+      typeof d.deviceDefinitionId === 'string'
+  )
 
   const handleBack = () => {
     if (step === 0) {
@@ -140,14 +147,31 @@ const CompleteOplOrderWizard = ({
             />
           )}
 
-          {orderType === 'INSTALLATION' && step === 1 && (
-            <OplStepWorkCodes
-              standard={order.standard ?? undefined}
-              onBack={handleBack}
-              onNext={() => {
-                next(STEPS.length)
-              }}
-            />
+          {orderType === 'INSTALLATION' && (
+            <>
+              {step === 1 && (
+                <OplStepWorkCodes
+                  standard={order.standard ?? undefined}
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                />
+              )}
+              {step === 2 && (
+                <OplStepEquipment
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                  suggestedIssued={mapEquipmentRequirementsToSuggested(
+                    order.equipmentRequirements
+                  )}
+                  mode={mode}
+                  technicianDevices={normalizedDevices}
+                />
+              )}
+            </>
           )}
         </div>
       </DialogContent>

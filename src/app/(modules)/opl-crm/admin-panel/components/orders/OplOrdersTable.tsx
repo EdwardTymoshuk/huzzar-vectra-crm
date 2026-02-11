@@ -225,7 +225,7 @@ const OplOrdersTableInner = ({
               )}
             </span>
             <span>Technik</span>
-            <span>Id klienta</span>
+            <span>Id zlecenia</span>
             <span>Nr zlecenia</span>
             <span>Adres</span>
             <span
@@ -306,7 +306,7 @@ const OplOrdersTableInner = ({
                           {formatAssignedTechnicians(o.assignedTechnicians)}
                         </span>
 
-                        <span>{o.clientId}</span>
+                        <span>{o.serviceId}</span>
                         <span
                           className="min-w-0 whitespace-normal break-words"
                           title={o.orderNumber}
