@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { materialUnitMap } from '@/lib/constants'
-import { MaterialDefinitionFormVM } from '@/server/modules/vectra-crm/helpers/mappers/mapMaterialDefinitionFormVM'
+import { MaterialDefinitionFormVM } from '@/server/modules/opl-crm/helpers/mappers/mapMaterialDefinitionFormVM'
 import { trpc } from '@/utils/trpc'
 import { useMemo, useState } from 'react'
 import { MdDelete, MdEdit } from 'react-icons/md'
@@ -39,15 +39,16 @@ const MaterialDefinitionsList = () => {
 
   const utils = trpc.useUtils()
   const { data, isLoading, isError } =
-    trpc.vectra.materialDefinition.getAll.useQuery()
+    trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
 
-  const deleteMutation = trpc.vectra.materialDefinition.delete.useMutation({
-    onSuccess: () => {
-      toast.success('Materiał został usunięty.')
-      utils.vectra.materialDefinition.getAll.invalidate()
-    },
-    onError: () => toast.error('Błąd podczas usuwania.'),
-  })
+  const deleteMutation =
+    trpc.opl.settings.deleteOplMaterialDefinition.useMutation({
+      onSuccess: () => {
+        toast.success('Materiał został usunięty.')
+        utils.opl.settings.getAllOplMaterialDefinitions.invalidate()
+      },
+      onError: () => toast.error('Błąd podczas usuwania.'),
+    })
 
   const safeData = useMemo(() => {
     return (data ?? []).map((item) => ({
