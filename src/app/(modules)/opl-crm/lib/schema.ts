@@ -9,6 +9,16 @@ import {
 } from '@prisma/client'
 import { z } from 'zod'
 
+/**
+ * Converts empty string inputs into `undefined` so optional Zod fields behave correctly with RHF.
+ */
+const optionalInputString = (schema: z.ZodTypeAny) =>
+  z.preprocess((val) => {
+    if (typeof val !== 'string') return val
+    const trimmed = val.trim()
+    return trimmed.length === 0 ? undefined : trimmed
+  }, schema)
+
 /* --------------------------------------------------------------------------
  * Device creation schema
  * -------------------------------------------------------------------------- */
@@ -87,32 +97,43 @@ export const operatorSchema = z.object({
 export const orderSchema = z.object({
   type: z.nativeEnum(OplOrderType),
   operator: z.string(),
-  serviceId: z
-    .string()
-    .length(12, 'Id usługi musi mieć dokładnie 12 znaków')
-    .optional(),
+
+  serviceId: optionalInputString(
+    z.string().length(12, 'Id usługi musi mieć dokładnie 12 znaków').optional()
+  ),
+
   network: z.nativeEnum(OplNetworkOeprator).default('ORANGE'),
   orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),
   date: z.string().min(1, 'Data jest wymagana'),
-  clientPhoneNumber: z
-    .string()
-    .min(7)
-    .max(20)
-    .optional()
-    .refine((val) => !val || /^(\+48)?\d{9}$/.test(val), {
-      message: 'Nieprawidłowy numer telefonu',
-    }),
+
+  clientPhoneNumber: optionalInputString(
+    z
+      .string()
+      .min(7, 'Numer telefonu musi mieć min. 7 znaków')
+      .max(20, 'Numer telefonu jest za długi')
+      .refine((val) => /^(\+48)?\d{9}$/.test(val), {
+        message: 'Nieprawidłowy numer telefonu',
+      })
+      .optional()
+  ),
+
   timeSlot: z.nativeEnum(OplTimeSlot),
   city: z.string().min(2, 'Miasto jest wymagane'),
   street: z.string().min(3, 'Adres jest wymagany'),
-  postalCode: z.string().max(6).optional().default(''),
+
+  postalCode: optionalInputString(
+    z.string().max(6, 'Kod pocztowy jest za długi').optional()
+  ),
+
   assignedTechnicianIds: z
     .array(z.string())
     .min(1, 'Wybierz przynajmniej jednego technika')
     .max(2, 'Można przypisać maksymalnie dwóch techników'),
+
   standard: z.nativeEnum(OplOrderStandard).optional(),
-  notes: z.string().optional(),
+  notes: optionalInputString(z.string().optional()),
   contractRequired: z.boolean().default(false),
+
   equipmentRequirements: z
     .array(
       z.object({
@@ -121,9 +142,9 @@ export const orderSchema = z.object({
       })
     )
     .optional(),
+
   status: z.nativeEnum(OplOrderStatus),
 })
-
 export const technicianOrderSchema = orderSchema.omit({
   postalCode: true,
   assignedTechnicianIds: true,

@@ -226,7 +226,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              ID usługi <span className="text-destructive">*</span>
+              ID usługi <span className="text-destructive"></span>
             </FormLabel>
             <FormControl>
               <Input
@@ -286,7 +286,9 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         name="standard"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Standard zlecenia</FormLabel>
+            <FormLabel>
+              Standard zlecenia<span className="text-destructive">*</span>
+            </FormLabel>
 
             <Select
               value={field.value ?? undefined}
@@ -505,7 +507,9 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
               name="assignedTechnicianIds.1"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Drugi technik</FormLabel>
+                  <FormLabel>
+                    Drugi technik<span className="text-destructive">*</span>
+                  </FormLabel>
 
                   <Select
                     value={field.value}

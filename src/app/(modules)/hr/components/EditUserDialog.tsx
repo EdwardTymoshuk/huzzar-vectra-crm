@@ -308,9 +308,6 @@ const EditUserDialog = ({
                           />
                           <div>
                             <div className="text-sm">{m.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {m.code}
-                            </div>
                           </div>
                         </div>
                       ))}

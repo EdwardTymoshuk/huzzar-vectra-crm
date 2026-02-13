@@ -1,7 +1,6 @@
 'use client'
 
 import { Card } from '@/app/components/ui/card'
-import { PlatformModule } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Lock } from 'lucide-react'
 import Link from 'next/link'
@@ -11,7 +10,13 @@ import LoaderSpinner from '../LoaderSpinner'
 import { Separator } from '../ui/separator'
 
 type Props = {
-  module: PlatformModule
+  module: {
+    code: string
+    name: string
+    href: string
+    icon: React.ComponentType<{ className?: string }>
+    enabled: boolean
+  }
 }
 
 /**

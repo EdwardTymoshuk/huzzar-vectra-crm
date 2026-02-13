@@ -10,7 +10,7 @@ export const queriesCoreRouter = router({
   getModules: adminOnly.query(({ ctx }) => {
     return ctx.prisma.module.findMany({
       where: { enabled: true },
-      orderBy: { name: 'asc' },
+      orderBy: { name: 'desc' },
       select: {
         id: true,
         name: true,

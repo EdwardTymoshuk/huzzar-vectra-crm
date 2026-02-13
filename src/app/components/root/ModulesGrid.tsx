@@ -1,20 +1,22 @@
 'use client'
 
-import { platformModules } from '@/lib/constants'
-import { hasModule } from '@/utils/auth/permissions'
-import { useUser } from '@/utils/hooks/useUser'
+import { platformModules } from '@/lib/platformModules'
+import { trpc } from '@/utils/trpc'
 import MaxWidthWrapper from '../MaxWidthWrapper'
 import ModuleCard from './ModuleCard'
 
+/**
+ * ModulesGrid
+ * --------------------------------------------------------------
+ * Displays enabled platform modules available in database.
+ * Merges database module data with frontend module definitions.
+ */
 const ModulesGrid = () => {
-  const { modules, role } = useUser()
+  const { data: dbModules } = trpc.core.user.getModules.useQuery(undefined, {
+    staleTime: 60_000,
+  })
 
-  const availableModules =
-    role === 'ADMIN'
-      ? platformModules
-      : platformModules.filter((m) => hasModule(role, modules, m.code))
-
-  if (availableModules.length === 0) {
+  if (!dbModules || dbModules.length === 0) {
     return (
       <p className="text-center text-muted-foreground">
         Brak przypisanych modułów. Skontaktuj się z administratorem.
@@ -22,39 +24,37 @@ const ModulesGrid = () => {
     )
   }
 
+  /**
+   * Merge DB modules with frontend definitions by code.
+   */
+  const availableModules = dbModules
+    .map((dbModule) => {
+      const definition = platformModules.find((m) => m.code === dbModule.code)
+
+      if (!definition) return null
+
+      return {
+        ...definition,
+        enabled: dbModule.enabled,
+      }
+    })
+    .filter(Boolean)
+
   const count = availableModules.length
 
-  const getGridClass = (count: number): string => {
-    /**
-     * Base layout:
-     * - mobile: 1 column
-     * - sm: 2 columns
-     * - md: 3 columns
-     * Grid is always centered as a block.
-     */
-    const base =
-      'grid gap-8 w-full justify-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
+  const baseGrid =
+    'grid gap-8 w-full justify-center grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
 
-    if (count <= 1) {
-      return 'flex justify-center'
-    }
-
-    if (count === 2) {
-      return `${base} lg:grid-cols-2`
-    }
-
-    if (count === 3) {
-      return `${base} lg:grid-cols-3`
-    }
-
-    if (count === 4) {
-      return `${base} lg:grid-cols-4`
-    }
-
-    return `${base} xl:grid-cols-5`
-  }
-
-  const layoutClass = getGridClass(count)
+  const layoutClass =
+    count <= 1
+      ? 'flex justify-center'
+      : count === 2
+      ? `${baseGrid} lg:grid-cols-2`
+      : count === 3
+      ? `${baseGrid} lg:grid-cols-3`
+      : count === 4
+      ? `${baseGrid} lg:grid-cols-4`
+      : `${baseGrid} xl:grid-cols-5`
 
   return (
     <MaxWidthWrapper className="my-auto">
@@ -68,9 +68,23 @@ const ModulesGrid = () => {
       </div>
 
       <div className={layoutClass}>
-        {availableModules.map((module) => (
-          <ModuleCard key={module.code} module={module} />
-        ))}
+        {availableModules.map((dbModule) => {
+          const staticModule = platformModules.find(
+            (m) => m.code === dbModule.code
+          )
+
+          if (!staticModule) return null
+
+          return (
+            <ModuleCard
+              key={dbModule.code}
+              module={{
+                ...staticModule,
+                enabled: dbModule.enabled,
+              }}
+            />
+          )
+        })}
       </div>
     </MaxWidthWrapper>
   )
