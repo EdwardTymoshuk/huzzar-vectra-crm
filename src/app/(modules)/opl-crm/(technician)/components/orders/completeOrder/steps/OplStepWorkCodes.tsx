@@ -1,5 +1,15 @@
 'use client'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog'
 import { Button } from '@/app/components/ui/button'
 import { Card } from '@/app/components/ui/card'
 import {
@@ -20,11 +30,16 @@ import {
 
 import { ALL_PKI_DEFS } from '@/app/(modules)/opl-crm/lib/constants'
 import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
-import { calculateDigAddons } from '@/app/(modules)/opl-crm/utils/order/calculateDigAddons'
 import { resolvePkiCodes } from '@/app/(modules)/opl-crm/utils/order/resolvePkiCodes'
 import { sortPkiByPriority } from '@/app/(modules)/opl-crm/utils/order/sortPkiByPriority'
+import { buildOrderedWorkCodes } from '@/app/(modules)/opl-crm/utils/order/workCodesPresentation'
 import { PrimaryAddonCode } from '@/types/opl-crm'
 import { PkiDefinition } from '@/types/opl-crm/orders'
+import {
+  MdKeyboardArrowLeft,
+  MdKeyboardArrowRight,
+  MdRestartAlt,
+} from 'react-icons/md'
 import { ActivationSection } from '../ActivationSection'
 import { AddonsSection } from '../AddonsSection'
 import { BaseWorkSection } from '../BaseWorkSection'
@@ -62,6 +77,7 @@ const OplStepWorkCodes = ({ standard, onBack, onNext }: Props) => {
   const [showAllBase, setShowAllBase] = useState(false)
   const [showAllActivation, setShowAllActivation] = useState(false)
   const [showAllAddons, setShowAllAddons] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   const [digDialog, setDigDialog] = useState<
     { open: false } | { open: true; type: 'ZJD' | 'ZJK' | 'ZJN' }
@@ -80,11 +96,11 @@ const OplStepWorkCodes = ({ standard, onBack, onNext }: Props) => {
   /* ---------------- DERIVED ---------------- */
 
   const base = value.find((v) =>
-    ALL_BASE_CODES.includes(v.code as OplBaseWorkCode)
+    ALL_BASE_CODES.includes(v.code as OplBaseWorkCode),
   )?.code as OplBaseWorkCode | undefined
 
   const activation = value.find((v) =>
-    ALL_ACTIVATION_CODES.some((a) => a.code === v.code)
+    ALL_ACTIVATION_CODES.some((a) => a.code === v.code),
   )?.code as OplActivationType | undefined
 
   const basePrimary = getPrimaryBaseCodes(standard)
@@ -93,30 +109,23 @@ const OplStepWorkCodes = ({ standard, onBack, onNext }: Props) => {
     base,
     activation,
     ALL_ADDON_CODES,
-    false
+    false,
   )
 
   const selectedAddons = value
     .map((v) => v.code)
     .filter((c): c is PrimaryAddonCode =>
-      ALL_ADDON_CODES.includes(c as PrimaryAddonCode)
+      ALL_ADDON_CODES.includes(c as PrimaryAddonCode),
     )
 
   /**
    * Final payload shown in summary and committed on "Next".
    * DIG addons are derived here.
    */
-  const finalWorkCodes = useMemo(() => {
-    const digAddons = digInput ? calculateDigAddons(digInput) : {}
-
-    return [
-      ...value.filter((v) => !['ZJDD', 'ZJKD', 'ZJND'].includes(v.code)),
-      ...Object.entries(digAddons).map(([code, quantity]) => ({
-        code,
-        quantity,
-      })),
-    ]
-  }, [value, digInput])
+  const finalWorkCodes = useMemo(
+    () => buildOrderedWorkCodes(value, digInput),
+    [value, digInput]
+  )
 
   /* ---------------- HANDLERS ---------------- */
 
@@ -273,23 +282,25 @@ const OplStepWorkCodes = ({ standard, onBack, onNext }: Props) => {
         </Card>
 
         <Button
-          variant="default"
+          variant="outline"
           size="sm"
-          onClick={handleReset}
+          onClick={() => setResetDialogOpen(true)}
           disabled={value.length === 0}
-          className="w-full"
+          className="w-full gap-2"
         >
+          <MdRestartAlt className="h-4 w-4" />
           Reset
         </Button>
       </div>
 
       {/* FOOTER */}
       <div className="flex gap-3 p-4">
-        <Button variant="outline" className="flex-1" onClick={onBack}>
+        <Button variant="outline" className="flex-1 gap-1" onClick={onBack}>
+          <MdKeyboardArrowLeft className="h-5 w-5" />
           Wstecz
         </Button>
         <Button
-          className="flex-1"
+          className="flex-1 gap-1"
           disabled={!base}
           onClick={() => {
             resetWorkCodes()
@@ -298,8 +309,32 @@ const OplStepWorkCodes = ({ standard, onBack, onNext }: Props) => {
           }}
         >
           Dalej
+          <MdKeyboardArrowRight className="h-5 w-5" />
         </Button>
       </div>
+
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zresetować wybrane kody?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Czy na pewno chcesz zresetować formularz? Wybrane kody zostaną
+              usunięte.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleReset()
+                setResetDialogOpen(false)
+              }}
+            >
+              Tak, resetuj
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* DIG DIALOG */}
       {digDialog.open && (

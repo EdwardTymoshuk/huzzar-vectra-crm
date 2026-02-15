@@ -28,9 +28,13 @@ export type CompleteOplOrderState = {
   status: OplOrderStatus | null
   failureReason: string
   notes: string
+  addressNoteEnabled: boolean
+  addressNoteText: string
+  addressNoteScope: string
 
   workCodes: WorkCodePayload[]
   digInput: DigInput | null
+  usedMaterials: { id: string; quantity: number }[]
 
   equipment: OplEquipmentDraft
 }
@@ -47,6 +51,9 @@ type CompleteOplOrderContextValue = {
   setStatus: (v: OplOrderStatus) => void
   setFailureReason: (v: string) => void
   setNotes: (v: string) => void
+  setAddressNoteEnabled: (v: boolean) => void
+  setAddressNoteText: (v: string) => void
+  setAddressNoteScope: (v: string) => void
 
   /* work codes */
   setWorkCodes: (v: WorkCodePayload[]) => void
@@ -55,6 +62,7 @@ type CompleteOplOrderContextValue = {
   removeWorkCode: (code: string) => void
   resetWorkCodes: () => void
   clearPkiCodes: () => void
+  setUsedMaterials: (v: { id: string; quantity: number }[]) => void
 
   /* equipment - issued */
   setIssuedEnabled: (v: boolean) => void
@@ -95,8 +103,12 @@ const initialState: CompleteOplOrderState = {
   status: null,
   failureReason: '',
   notes: '',
+  addressNoteEnabled: false,
+  addressNoteText: '',
+  addressNoteScope: '',
   workCodes: [],
   digInput: null,
+  usedMaterials: [],
   equipment: {
     issued: { enabled: false, skip: false, items: [] },
     collected: { enabled: false, skip: false, items: [] },
@@ -163,6 +175,15 @@ export const CompleteOplOrderProvider = ({
   const setNotes = useCallback((v: string) => {
     setState((prev) => ({ ...prev, notes: v }))
   }, [])
+  const setAddressNoteEnabled = useCallback((v: boolean) => {
+    setState((prev) => ({ ...prev, addressNoteEnabled: v }))
+  }, [])
+  const setAddressNoteText = useCallback((v: string) => {
+    setState((prev) => ({ ...prev, addressNoteText: v }))
+  }, [])
+  const setAddressNoteScope = useCallback((v: string) => {
+    setState((prev) => ({ ...prev, addressNoteScope: v }))
+  }, [])
 
   /* -------- WORK CODES -------- */
 
@@ -220,6 +241,10 @@ export const CompleteOplOrderProvider = ({
     }))
   }, [])
 
+  const setUsedMaterials = useCallback((v: { id: string; quantity: number }[]) => {
+    setState((prev) => ({ ...prev, usedMaterials: v }))
+  }, [])
+
   /* -------- EQUIPMENTS -------- */
   /**
    * Creates a stable client-side id for list row drafts.
@@ -273,6 +298,7 @@ export const CompleteOplOrderProvider = ({
             {
               clientId: createClientId(),
               deviceDefinitionId: null,
+              warehouseId: null,
               name: '',
               category: 'OTHER',
               serial: '',
@@ -337,10 +363,11 @@ export const CompleteOplOrderProvider = ({
           const qty = Math.max(1, s.quantity)
           return Array.from({ length: qty }).map(() => ({
             clientId: createClientId(),
-            deviceDefinitionId: s.deviceDefinitionId,
-            name: s.name,
-            category: s.category,
-            serial: '',
+                deviceDefinitionId: s.deviceDefinitionId,
+                warehouseId: null,
+                name: s.name,
+                category: s.category,
+                serial: '',
           }))
         })
 
@@ -391,6 +418,7 @@ export const CompleteOplOrderProvider = ({
               {
                 clientId: createClientId(),
                 deviceDefinitionId: null,
+                warehouseId: null,
                 name: '',
                 category: 'OTHER',
                 serial: '',
@@ -466,6 +494,9 @@ export const CompleteOplOrderProvider = ({
       setStatus,
       setFailureReason,
       setNotes,
+      setAddressNoteEnabled,
+      setAddressNoteText,
+      setAddressNoteScope,
 
       /* work codes */
       setWorkCodes,
@@ -475,6 +506,7 @@ export const CompleteOplOrderProvider = ({
       digInput: state.digInput,
       setDigInput,
       clearPkiCodes,
+      setUsedMaterials,
 
       /* equipment - issued */
       setIssuedEnabled,
@@ -503,8 +535,12 @@ export const CompleteOplOrderProvider = ({
       setStatus,
       setFailureReason,
       setNotes,
+      setAddressNoteEnabled,
+      setAddressNoteText,
+      setAddressNoteScope,
       setWorkCodes,
       setDigInput,
+      setUsedMaterials,
       setIssuedEnabled,
       setIssuedSkip,
       addIssuedItem,

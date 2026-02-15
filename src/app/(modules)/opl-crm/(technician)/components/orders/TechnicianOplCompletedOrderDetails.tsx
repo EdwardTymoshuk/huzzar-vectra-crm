@@ -11,6 +11,7 @@ import { differenceInMinutes } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { MdEdit } from 'react-icons/md'
 import OplOrderTimeline from '../../../admin-panel/components/order/OplOrderTimeline'
+import OplOrderDetailsContent from '../../../components/order/OplOrderDetailsContent'
 import { CompleteOplOrderProvider } from '../../../utils/context/order/CompleteOplOrderContext'
 import CompleteOplOrderWizard from './completeOrder/CompleteOplOrderWizard'
 
@@ -137,6 +138,7 @@ const TechnicianOplCompletedOrderDetails = ({
       {/* -------- LEFT COLUMN -------- */}
       <div className="space-y-4 flex-1">
         <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
+        <OplOrderDetailsContent order={data} />
 
         {canShowAmendButton && (
           <div className="flex gap-2 pt-2">

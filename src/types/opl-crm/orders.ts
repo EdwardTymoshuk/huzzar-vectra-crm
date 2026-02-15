@@ -97,6 +97,8 @@ export type OplEquipmentDraftItem = {
 
   /** Device definition identity (preferred for backend mapping). */
   deviceDefinitionId: string | null
+  /** Source warehouse item id for issued device selection. */
+  warehouseId?: string | null
 
   /** Display fields kept in state to avoid re-deriving UI when reopening dialog. */
   name: string

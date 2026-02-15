@@ -1,7 +1,7 @@
 'use client'
 
 import MaterialSelector from '@/app/(modules)/opl-crm/(technician)/components/orders/completeOrder/OplMaterialSelector'
-import { OplMaterialUnit, OplWarehouse } from '@prisma/client'
+import { OplBaseWorkCode, OplMaterialUnit } from '@prisma/client'
 
 type MaterialDef = {
   id: string
@@ -9,13 +9,19 @@ type MaterialDef = {
   unit: OplMaterialUnit
 }
 
-type TechnicianMaterial = OplWarehouse
+type TechnicianMaterial = {
+  id: string
+  name: string
+  materialDefinitionId: string
+  quantity: number
+}
 
 type Props = {
   selected: { id: string; quantity: number }[]
   onChange: (next: { id: string; quantity: number }[]) => void
   materialDefs: MaterialDef[]
   technicianStock: TechnicianMaterial[]
+  baseCode?: OplBaseWorkCode | string
 }
 
 /**
@@ -30,6 +36,7 @@ const OplMaterialsSection: React.FC<Props> = ({
   onChange,
   materialDefs,
   technicianStock,
+  baseCode,
 }) => {
   return (
     <div className="mt-4">
@@ -39,6 +46,7 @@ const OplMaterialsSection: React.FC<Props> = ({
         setSelected={onChange}
         materials={materialDefs ?? []}
         technicianStock={technicianStock ?? []}
+        baseCode={baseCode}
       />
     </div>
   )

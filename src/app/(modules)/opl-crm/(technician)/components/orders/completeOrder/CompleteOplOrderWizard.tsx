@@ -1,6 +1,7 @@
 'use client'
 
 import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
+import { buildOrderedWorkCodes } from '@/app/(modules)/opl-crm/utils/order/workCodesPresentation'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -17,21 +18,29 @@ import {
   OplOrderType,
   OplRateDefinition,
 } from '@prisma/client'
+import { useRole } from '@/utils/hooks/useRole'
+import { trpc } from '@/utils/trpc'
 import { ArrowLeft } from 'lucide-react'
+import { useMemo } from 'react'
 import { MdClose } from 'react-icons/md'
+import { toast } from 'sonner'
 import OplStepEquipment from './steps/OplStepEquipment'
+import OplStepMaterials from './steps/OplStepMaterials'
+import OplStepNotes from './steps/OplStepNotes'
 import OplStepStatus from './steps/OplStepStatus'
+import OplStepSummary from './steps/OplStepSummary'
 import OplStepWorkCodes from './steps/OplStepWorkCodes'
 
 const STEPS_INSTALLATION = [
   'Status',
   'Kody pracy i PKI',
-  'Urządzienia zainstalowane i odebrane',
-  'Materiał i uwagi',
+  'Urządzenia zainstalowane i odebrane',
+  'Materiały',
+  'Uwagi',
   'Podsumowanie',
 ]
 
-const STEPS_SERVICE = ['Status', 'Odbiór i uwagi', 'Materiały', 'Podsumowanie']
+const STEPS_SERVICE = ['Status', 'Odbiór sprzętu', 'Materiały', 'Uwagi', 'Podsumowanie']
 
 type FullOrder = RouterOutputs['opl']['order']['getOrderById']
 
@@ -68,6 +77,15 @@ const CompleteOplOrderWizard = ({
 }: Props) => {
   const { state, setStep, next, back, setStatus, setFailureReason, setNotes } =
     useCompleteOplOrder()
+  const { isAdmin, isCoordinator } = useRole()
+  const utils = trpc.useUtils()
+  const completeMutation = trpc.opl.order.completeOrder.useMutation()
+  const amendMutation = trpc.opl.order.amendCompletion.useMutation()
+  const adminEditMutation = trpc.opl.order.adminEditCompletion.useMutation()
+  const isSubmitting =
+    completeMutation.isPending ||
+    amendMutation.isPending ||
+    adminEditMutation.isPending
 
   const { step, status, failureReason, notes } = state
 
@@ -78,6 +96,102 @@ const CompleteOplOrderWizard = ({
     (d): d is OplIssuedItemDevice & { deviceDefinitionId: string } =>
       typeof d.deviceDefinitionId === 'string'
   )
+
+  const serialToDeviceId = useMemo(
+    () =>
+      new Map(
+        normalizedDevices
+          .filter((d) => d.serialNumber)
+          .map((d) => [d.serialNumber.trim().toUpperCase(), d.id])
+      ),
+    [normalizedDevices]
+  )
+
+  const resolveMutation = () => {
+    if (mode === 'adminEdit') return adminEditMutation
+    if (mode === 'amend')
+      return isAdmin || isCoordinator ? adminEditMutation : amendMutation
+    return completeMutation
+  }
+
+  const handleSubmit = async (
+    override?: Partial<{
+      status: typeof state.status
+      notes: string
+      failureReason: string
+    }>
+  ) => {
+    const finalStatus = override?.status ?? state.status
+    const finalNotes = override?.notes ?? state.notes
+    const finalFailureReason = override?.failureReason ?? state.failureReason
+
+    if (!finalStatus) {
+      toast.error('Wybierz status zlecenia.')
+      return
+    }
+
+    const workCodes = buildOrderedWorkCodes(state.workCodes, state.digInput)
+    const equipmentIds = state.equipment.issued.items
+      .map((item) => {
+        if (item.warehouseId) return item.warehouseId
+        return serialToDeviceId.get(item.serial.trim().toUpperCase()) ?? null
+      })
+      .filter((id): id is string => Boolean(id))
+
+    const unresolvedSerials = state.equipment.issued.items
+      .map((item) => item.serial.trim().toUpperCase())
+      .filter(
+        (serial, idx) =>
+          serial.length > 0 &&
+          !state.equipment.issued.items[idx]?.warehouseId &&
+          !serialToDeviceId.has(serial)
+      )
+
+    if (finalStatus === 'COMPLETED' && unresolvedSerials.length > 0) {
+      toast.error('Niektóre urządzenia nie istnieją na stanie technika.')
+      return
+    }
+
+    try {
+      await resolveMutation().mutateAsync({
+        orderId: order.id,
+        status: finalStatus,
+        notes: finalNotes || null,
+        failureReason: finalFailureReason || null,
+        workCodes: finalStatus === 'COMPLETED' ? workCodes : [],
+        equipmentIds: finalStatus === 'COMPLETED' ? equipmentIds : [],
+        usedMaterials: finalStatus === 'COMPLETED' ? state.usedMaterials : [],
+        collectedDevices:
+          finalStatus === 'COMPLETED' && state.equipment.collected.enabled
+            ? state.equipment.collected.items
+                .filter((item) => item.name.trim().length > 0)
+                .map((item) => ({
+                  name: item.name.trim(),
+                  category: item.category,
+                  serialNumber: item.serial.trim().toUpperCase() || undefined,
+                }))
+            : [],
+      })
+
+      toast.success(
+        mode === 'complete'
+          ? 'Zlecenie zostało zakończone.'
+          : 'Zlecenie zostało zaktualizowane.'
+      )
+
+      await Promise.all([
+        utils.opl.order.getOrderById.invalidate({ id: order.id }),
+        utils.opl.order.getTechnicianActiveOrders.invalidate(),
+        utils.opl.order.getTechnicianRealizedOrders.invalidate(),
+        utils.opl.order.getAssignedOrders.invalidate(),
+        utils.opl.order.getUnassignedOrders.invalidate(),
+      ])
+
+      onCloseAction()
+    } catch {
+      toast.error('Błąd podczas zapisu zlecenia.')
+    }
+  }
 
   const handleBack = () => {
     if (step === 0) {
@@ -138,7 +252,11 @@ const CompleteOplOrderWizard = ({
                 setNotes(data.notes ?? '')
 
                 if (data.finishImmediately) {
-                  setStep(STEPS.length - 1)
+                  void handleSubmit({
+                    status: data.status,
+                    notes: data.notes ?? '',
+                    failureReason: data.failureReason ?? '',
+                  })
                   return
                 }
 
@@ -169,6 +287,85 @@ const CompleteOplOrderWizard = ({
                   )}
                   mode={mode}
                   technicianDevices={normalizedDevices}
+                />
+              )}
+              {step === 3 && (
+                <OplStepMaterials
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                  materialDefs={materialDefs}
+                  techMaterials={techMaterials}
+                />
+              )}
+              {step === 4 && (
+                <OplStepNotes
+                  orderId={order.id}
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                />
+              )}
+              {step === 5 && (
+                <OplStepSummary
+                  materialDefs={materialDefs}
+                  onBack={handleBack}
+                  onFinish={() => {
+                    void handleSubmit()
+                  }}
+                  isSubmitting={isSubmitting}
+                />
+              )}
+            </>
+          )}
+
+          {orderType !== 'INSTALLATION' && (
+            <>
+              {step === 1 && (
+                <OplStepEquipment
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                  suggestedIssued={mapEquipmentRequirementsToSuggested(
+                    order.equipmentRequirements
+                  )}
+                  mode={mode}
+                  technicianDevices={normalizedDevices}
+                />
+              )}
+
+              {step === 2 && (
+                <OplStepMaterials
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                  materialDefs={materialDefs}
+                  techMaterials={techMaterials}
+                />
+              )}
+
+              {step === 3 && (
+                <OplStepNotes
+                  orderId={order.id}
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                />
+              )}
+
+              {step === 4 && (
+                <OplStepSummary
+                  materialDefs={materialDefs}
+                  onBack={handleBack}
+                  onFinish={() => {
+                    void handleSubmit()
+                  }}
+                  isSubmitting={isSubmitting}
                 />
               )}
             </>

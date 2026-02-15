@@ -1,4 +1,5 @@
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
+import { requireOplModule } from '@/server/middleware/oplMiddleware'
 import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { parseLocalDate } from '@/utils/dates/parseLocalDate'
@@ -6,16 +7,227 @@ import { getCoordinatesFromAddress } from '@/utils/geocode'
 import { normalizeAdressForSearch } from '@/utils/orders/normalizeAdressForSearch'
 import { prisma } from '@/utils/prisma'
 import {
+  OplDeviceCategory,
   OplNetworkOeprator,
   OplOrderCreatedSource,
   OplOrderStandard,
   OplOrderStatus,
   OplOrderType,
   OplTimeSlot,
+  OplWarehouseStatus,
   Prisma
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import {
+  createAddressNoteRecord,
+  normalizeAddressToken,
+  resolveBuildingScope,
+} from '../../helpers/addressNotes'
+import { addOrderHistory } from '../../helpers/addOrderHistory'
+import { canTechnicianAmendOrder } from '../../services/orderAmendPolicy'
+import { processEquipmentDelta } from '../../services/orderEquipmentDelta'
+import { reconcileOrderMaterials } from '../../services/orderMaterialsReconciliation'
+
+const completionInputSchema = z.object({
+  orderId: z.string().uuid(),
+  status: z.nativeEnum(OplOrderStatus),
+  notes: z.string().nullable().optional(),
+  failureReason: z.string().nullable().optional(),
+  workCodes: z
+    .array(z.object({ code: z.string(), quantity: z.number().min(1) }))
+    .optional(),
+  equipmentIds: z.array(z.string()).optional(),
+  usedMaterials: z
+    .array(z.object({ id: z.string(), quantity: z.number().min(1) }))
+    .optional(),
+  collectedDevices: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        category: z.nativeEnum(OplDeviceCategory),
+        serialNumber: z.string().optional(),
+      })
+    )
+    .optional(),
+})
+
+const normalizeSerial = (serial?: string | null): string | null => {
+  if (!serial) return null
+  const normalized = serial.trim().toUpperCase()
+  return normalized.length > 0 ? normalized : null
+}
+
+const settleCodeMap: Record<string, string> = {
+  I_1P: '1P',
+  I_2P: '2P',
+  I_3P: '3P',
+}
+
+const normalizeSettlementCode = (code: string): string =>
+  settleCodeMap[code] ?? code
+
+const createSettlementEntries = async ({
+  tx,
+  orderId,
+  workCodes,
+}: {
+  tx: Prisma.TransactionClient
+  orderId: string
+  workCodes: { code: string; quantity: number }[]
+}): Promise<{ warnings: string[] }> => {
+  if (!workCodes.length) return { warnings: [] }
+
+  const normalized = workCodes.map((entry) => ({
+    code: normalizeSettlementCode(entry.code),
+    quantity: entry.quantity,
+  }))
+
+  const uniqueCodes = [...new Set(normalized.map((entry) => entry.code))]
+  const availableRates = await tx.oplRateDefinition.findMany({
+    where: { code: { in: uniqueCodes } },
+    select: { code: true },
+  })
+
+  const availableSet = new Set(availableRates.map((rate) => rate.code))
+  const missingCodes = uniqueCodes.filter((code) => !availableSet.has(code))
+
+  const warnings: string[] = []
+
+  if (missingCodes.length > 0) {
+    // Auto-create missing rates with 0 amount so order completion is not blocked.
+    await tx.oplRateDefinition.createMany({
+      data: missingCodes.map((code) => ({
+        code,
+        amount: 0,
+      })),
+      skipDuplicates: true,
+    })
+
+    warnings.push(
+      `Brakujące definicje stawek utworzono z kwotą 0: ${missingCodes.join(', ')}`
+    )
+  }
+
+  await tx.oplOrderSettlementEntry.createMany({
+    data: normalized.map((entry) => ({
+      orderId,
+      code: entry.code,
+      quantity: entry.quantity,
+    })),
+  })
+
+  return { warnings }
+}
+
+const upsertCollectedDevices = async ({
+  tx,
+  orderId,
+  performedById,
+  technicianId,
+  devices,
+}: {
+  tx: Prisma.TransactionClient
+  orderId: string
+  performedById: string
+  technicianId: string
+  devices: Array<{
+    name: string
+    category: OplDeviceCategory
+    serialNumber?: string
+  }>
+}) => {
+  if (!devices.length) return
+
+  for (const device of devices) {
+    const serial = normalizeSerial(device.serialNumber)
+
+    const existing = serial
+      ? await tx.oplWarehouse.findFirst({
+          where: {
+            itemType: 'DEVICE',
+            serialNumber: serial,
+          },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+          },
+        })
+      : null
+
+    if (existing) {
+      await tx.oplWarehouse.update({
+        where: { id: existing.id },
+        data: {
+          name: device.name || existing.name,
+          category: device.category ?? existing.category,
+          serialNumber: serial,
+          status: OplWarehouseStatus.COLLECTED_FROM_CLIENT,
+          assignedToId: technicianId,
+          locationId: null,
+        },
+      })
+
+      await tx.oplOrderEquipment.upsert({
+        where: {
+          orderId_warehouseId: {
+            orderId,
+            warehouseId: existing.id,
+          },
+        },
+        create: {
+          orderId,
+          warehouseId: existing.id,
+        },
+        update: {},
+      })
+
+      await tx.oplWarehouseHistory.create({
+        data: {
+          warehouseItemId: existing.id,
+          action: 'COLLECTED_FROM_CLIENT',
+          performedById,
+          assignedToId: technicianId,
+          assignedOrderId: orderId,
+          actionDate: new Date(),
+        },
+      })
+
+      continue
+    }
+
+    const created = await tx.oplWarehouse.create({
+      data: {
+        itemType: 'DEVICE',
+        name: device.name,
+        category: device.category,
+        serialNumber: serial,
+        quantity: 1,
+        price: 0,
+        status: OplWarehouseStatus.COLLECTED_FROM_CLIENT,
+        assignedToId: technicianId,
+        locationId: null,
+      },
+      select: { id: true },
+    })
+
+    await tx.oplOrderEquipment.create({
+      data: { orderId, warehouseId: created.id },
+    })
+
+    await tx.oplWarehouseHistory.create({
+      data: {
+        warehouseItemId: created.id,
+        action: 'COLLECTED_FROM_CLIENT',
+        performedById,
+        assignedToId: technicianId,
+        assignedOrderId: orderId,
+        actionDate: new Date(),
+      },
+    })
+  }
+}
 
 export const mutationsRouter = router({
   /** Bulk import of installation orders from Excel */
@@ -749,6 +961,340 @@ export const mutationsRouter = router({
           },
         })
       })
+    }),
+
+  completeOrder: loggedInEveryone
+    .use(requireOplModule)
+    .input(completionInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const order = await ctx.prisma.oplOrder.findFirst({
+        where: {
+          id: input.orderId,
+          assignments: {
+            some: {
+              technicianId: userId,
+            },
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          assignments: { select: { technicianId: true } },
+        },
+      })
+
+      if (!order) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Nie masz dostępu do tego zlecenia',
+        })
+      }
+
+      if (
+        input.status === OplOrderStatus.COMPLETED &&
+        order.type === OplOrderType.INSTALLATION &&
+        (!input.workCodes || input.workCodes.length === 0)
+      ) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Brak dodanych kodów pracy dla instalacji',
+        })
+      }
+
+      const technicianId = order.assignments[0]?.technicianId ?? userId
+      const warnings: string[] = []
+      const equipmentIds =
+        input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
+      const materials =
+        input.status === OplOrderStatus.COMPLETED ? input.usedMaterials ?? [] : []
+      const collected =
+        input.status === OplOrderStatus.COMPLETED
+          ? input.collectedDevices ?? []
+          : []
+
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.oplOrder.update({
+          where: { id: input.orderId },
+          data: {
+            status: input.status,
+            notes: input.notes ?? null,
+            failureReason:
+              input.status === OplOrderStatus.NOT_COMPLETED
+                ? input.failureReason ?? null
+                : null,
+            completedAt: new Date(),
+          },
+        })
+
+        await tx.oplOrderSettlementEntry.deleteMany({
+          where: { orderId: input.orderId },
+        })
+
+        if (
+          input.status === OplOrderStatus.COMPLETED &&
+          input.workCodes?.length
+        ) {
+          const { warnings: settlementWarnings } = await createSettlementEntries({
+            tx,
+            orderId: input.orderId,
+            workCodes: input.workCodes,
+          })
+          warnings.push(...settlementWarnings)
+        }
+
+        const { warnings: matWarnings } = await reconcileOrderMaterials({
+          tx,
+          orderId: input.orderId,
+          technicianId,
+          editorId: userId,
+          newMaterials: materials,
+        })
+        warnings.push(...matWarnings)
+
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: equipmentIds,
+          technicianId,
+          editorId: userId,
+          mode: 'COMPLETE',
+        })
+
+        await upsertCollectedDevices({
+          tx,
+          orderId: input.orderId,
+          performedById: userId,
+          technicianId,
+          devices: collected,
+        })
+
+        await addOrderHistory({
+          prisma: tx,
+          orderId: input.orderId,
+          userId,
+          before: order.status,
+          after: input.status,
+          note:
+            input.status === OplOrderStatus.COMPLETED
+              ? 'Zlecenie zakończone przez technika.'
+              : 'Zlecenie oznaczone jako niewykonane przez technika.',
+        })
+      })
+
+      return { success: true, warnings }
+    }),
+
+  amendCompletion: loggedInEveryone
+    .use(requireOplModule)
+    .input(completionInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      await canTechnicianAmendOrder(ctx.prisma, {
+        orderId: input.orderId,
+        technicianId: userId,
+      })
+
+      const order = await ctx.prisma.oplOrder.findUnique({
+        where: { id: input.orderId },
+        select: {
+          status: true,
+          assignments: { select: { technicianId: true } },
+        },
+      })
+
+      if (!order) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Zlecenie nie istnieje',
+        })
+      }
+
+      const technicianId = order.assignments[0]?.technicianId ?? userId
+      const warnings: string[] = []
+      const equipmentIds =
+        input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
+      const materials =
+        input.status === OplOrderStatus.COMPLETED ? input.usedMaterials ?? [] : []
+      const collected =
+        input.status === OplOrderStatus.COMPLETED
+          ? input.collectedDevices ?? []
+          : []
+
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.oplOrder.update({
+          where: { id: input.orderId },
+          data: {
+            status: input.status,
+            notes: input.notes ?? null,
+            failureReason:
+              input.status === OplOrderStatus.NOT_COMPLETED
+                ? input.failureReason ?? null
+                : null,
+          },
+        })
+
+        await tx.oplOrderSettlementEntry.deleteMany({
+          where: { orderId: input.orderId },
+        })
+
+        if (
+          input.status === OplOrderStatus.COMPLETED &&
+          input.workCodes?.length
+        ) {
+          const { warnings: settlementWarnings } = await createSettlementEntries({
+            tx,
+            orderId: input.orderId,
+            workCodes: input.workCodes,
+          })
+          warnings.push(...settlementWarnings)
+        }
+
+        const { warnings: matWarnings } = await reconcileOrderMaterials({
+          tx,
+          orderId: input.orderId,
+          technicianId,
+          editorId: userId,
+          newMaterials: materials,
+        })
+        warnings.push(...matWarnings)
+
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: equipmentIds,
+          technicianId,
+          editorId: userId,
+          mode: 'AMEND',
+        })
+
+        await upsertCollectedDevices({
+          tx,
+          orderId: input.orderId,
+          performedById: userId,
+          technicianId,
+          devices: collected,
+        })
+
+        await addOrderHistory({
+          prisma: tx,
+          orderId: input.orderId,
+          userId,
+          before: order.status,
+          after: input.status,
+          note: 'Zlecenie poprawione przez technika.',
+        })
+      })
+
+      return { success: true, warnings }
+    }),
+
+  adminEditCompletion: adminOrCoord
+    .use(requireOplModule)
+    .input(completionInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id
+      if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const order = await ctx.prisma.oplOrder.findUnique({
+        where: { id: input.orderId },
+        select: {
+          status: true,
+          assignments: { select: { technicianId: true } },
+        },
+      })
+
+      if (!order) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Zlecenie nie istnieje',
+        })
+      }
+
+      const technicianId = order.assignments[0]?.technicianId ?? null
+      const warnings: string[] = []
+      const equipmentIds =
+        input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
+      const materials =
+        input.status === OplOrderStatus.COMPLETED ? input.usedMaterials ?? [] : []
+      const collected =
+        input.status === OplOrderStatus.COMPLETED
+          ? input.collectedDevices ?? []
+          : []
+
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.oplOrder.update({
+          where: { id: input.orderId },
+          data: {
+            status: input.status,
+            notes: input.notes ?? null,
+            failureReason:
+              input.status === OplOrderStatus.NOT_COMPLETED
+                ? input.failureReason ?? null
+                : null,
+          },
+        })
+
+        await tx.oplOrderSettlementEntry.deleteMany({
+          where: { orderId: input.orderId },
+        })
+
+        if (
+          input.status === OplOrderStatus.COMPLETED &&
+          input.workCodes?.length
+        ) {
+          const { warnings: settlementWarnings } = await createSettlementEntries({
+            tx,
+            orderId: input.orderId,
+            workCodes: input.workCodes,
+          })
+          warnings.push(...settlementWarnings)
+        }
+
+        const { warnings: matWarnings } = await reconcileOrderMaterials({
+          tx,
+          orderId: input.orderId,
+          technicianId,
+          editorId: userId,
+          newMaterials: materials,
+        })
+        warnings.push(...matWarnings)
+
+        await processEquipmentDelta({
+          tx,
+          orderId: input.orderId,
+          newEquipmentIds: equipmentIds,
+          technicianId,
+          editorId: userId,
+          mode: 'ADMIN',
+        })
+
+        if (technicianId) {
+          await upsertCollectedDevices({
+            tx,
+            orderId: input.orderId,
+            performedById: userId,
+            technicianId,
+            devices: collected,
+          })
+        }
+
+        await addOrderHistory({
+          prisma: tx,
+          orderId: input.orderId,
+          userId,
+          before: order.status,
+          after: input.status,
+          note: `Zlecenie edytowane przez administratora/koordynatora.`,
+        })
+      })
+
+      return { success: true, warnings }
     }),
 
   /** ✅ Technician completes or fails an order (with extra devices support) */
@@ -2150,4 +2696,60 @@ export const mutationsRouter = router({
 
     //   return { success: true }
     // }),
+
+  createAddressNote: loggedInEveryone
+    .use(requireOplModule)
+    .input(
+      z.object({
+        orderId: z.string().uuid(),
+        note: z.string().trim().min(3).max(2000),
+        buildingScope: z.string().trim().max(120).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user?.id
+      if (!userId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const order = await ctx.prisma.oplOrder.findUnique({
+        where: { id: input.orderId },
+        select: {
+          city: true,
+          street: true,
+        },
+      })
+
+      if (!order) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Zlecenie nie istnieje',
+        })
+      }
+
+      const cityNorm = normalizeAddressToken(order.city)
+      const streetNorm = normalizeAddressToken(order.street)
+      const buildingScope = resolveBuildingScope(input.buildingScope, order.street)
+
+      const created = await createAddressNoteRecord({
+        prisma: ctx.prisma,
+        city: order.city,
+        street: order.street,
+        cityNorm,
+        streetNorm,
+        buildingScope,
+        note: input.note,
+        createdById: userId,
+      })
+
+      return {
+        id: created.id,
+        city: created.city,
+        street: created.street,
+        note: created.note,
+        buildingScope: created.buildingScope,
+        createdAt: created.createdAt,
+        createdBy: created.createdBy,
+      }
+    }),
 })

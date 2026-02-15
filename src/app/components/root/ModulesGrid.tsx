@@ -2,6 +2,8 @@
 
 import { platformModules } from '@/lib/platformModules'
 import { trpc } from '@/utils/trpc'
+import { ShieldAlert } from 'lucide-react'
+import LoaderSpinner from '../LoaderSpinner'
 import MaxWidthWrapper from '../MaxWidthWrapper'
 import ModuleCard from './ModuleCard'
 
@@ -12,15 +14,37 @@ import ModuleCard from './ModuleCard'
  * Merges database module data with frontend module definitions.
  */
 const ModulesGrid = () => {
-  const { data: dbModules } = trpc.core.user.getModules.useQuery(undefined, {
-    staleTime: 60_000,
-  })
+  const { data: dbModules, isLoading } = trpc.core.user.getModules.useQuery(
+    undefined,
+    {
+      staleTime: 60_000,
+    }
+  )
+
+  if (isLoading) {
+    return (
+      <MaxWidthWrapper className="justify-center items-center">
+        <LoaderSpinner />
+      </MaxWidthWrapper>
+    )
+  }
 
   if (!dbModules || dbModules.length === 0) {
     return (
-      <p className="text-center text-muted-foreground">
-        Brak przypisanych modułów. Skontaktuj się z administratorem.
-      </p>
+      <MaxWidthWrapper className="justify-center items-center px-4 py-10">
+        <div className="w-full max-w-2xl rounded-2xl border border-border/80 bg-muted/20 p-8 md:p-12 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h1 className="text-2xl md:text-4xl font-semibold tracking-tight">
+            Brak przypisanych modułów
+          </h1>
+          <p className="mt-4 text-base md:text-lg text-muted-foreground">
+            Twoje konto nie ma jeszcze dostępu do żadnego modułu systemu.
+            Skontaktuj się z administratorem, aby nadać uprawnienia.
+          </p>
+        </div>
+      </MaxWidthWrapper>
     )
   }
 
@@ -38,7 +62,10 @@ const ModulesGrid = () => {
         enabled: dbModule.enabled,
       }
     })
-    .filter(Boolean)
+    .filter(
+      (module): module is (typeof platformModules)[number] & { enabled: boolean } =>
+        module !== null
+    )
 
   const count = availableModules.length
 

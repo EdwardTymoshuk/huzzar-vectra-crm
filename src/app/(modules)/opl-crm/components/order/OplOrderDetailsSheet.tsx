@@ -15,11 +15,16 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import {
+  shouldShowWorkCodeQuantity,
+  toWorkCodeLabel,
+} from '../../utils/order/workCodesPresentation'
 import CompleteOplOrderWizard from '../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
+import { CompleteOplOrderProvider } from '../../utils/context/order/CompleteOplOrderContext'
 import OrderStatusBadge from '../../../../components/order/OrderStatusBadge'
 import OplOrderTimeline from '../../admin-panel/components/order/OplOrderTimeline'
 import EditOplOrderModal from '../../admin-panel/components/orders/EditOplOrderModal'
-import { oplOrderTypeMap, oplTimeSlotMap } from '../../lib/constants'
+import { oplDevicesTypeMap, oplOrderTypeMap, oplTimeSlotMap } from '../../lib/constants'
 
 type Props = {
   orderId: string | null
@@ -42,6 +47,11 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
   } = trpc.opl.order.getOrderById.useQuery(
     { id: orderId ?? '' },
     { enabled: !!orderId }
+  )
+
+  const { data: addressNotes = [] } = trpc.opl.order.getAddressNotesForOrder.useQuery(
+    { orderId: orderId ?? '' },
+    { enabled: !!orderId && open }
   )
 
   const deleteMutation = trpc.opl.order.deleteOrder.useMutation({
@@ -70,6 +80,23 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
     if (!order) return
     deleteMutation.mutate({ id: order.id })
   }
+
+  const assignedToThisOrder =
+    order?.assignedEquipment?.filter((e) =>
+      e.warehouse.history?.some(
+        (h) =>
+          h.assignedOrderId === order.id &&
+          (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT')
+      )
+    ) ?? []
+
+  const collectedFromClient =
+    order?.assignedEquipment?.filter((e) =>
+      e.warehouse.history?.some(
+        (h) =>
+          h.assignedOrderId === order.id && h.action === 'COLLECTED_FROM_CLIENT'
+      )
+    ) ?? []
 
   return (
     <>
@@ -248,6 +275,28 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </h3>
                   <p>{order.notes || '—'}</p>
                 </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
+                    Uwagi do adresu
+                  </h3>
+                  {addressNotes.length ? (
+                    <ul className="space-y-2 normal-case">
+                      {addressNotes.map((n) => (
+                        <li key={n.id} className="rounded border border-border p-2">
+                          <p>{n.note}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {n.buildingScope ? `Zakres: ${n.buildingScope} • ` : ''}
+                            {n.createdBy.name} •{' '}
+                            {new Date(n.createdAt).toLocaleString('pl-PL')}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>—</p>
+                  )}
+                </div>
               </section>
 
               {/* --- Completed order (work codes, services, equipment, materials) --- */}
@@ -262,7 +311,14 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       <ul className="list-disc pl-4">
                         {order.settlementEntries.map((entry) => (
                           <li key={entry.id}>
-                            {entry.code} – {entry.quantity}× (
+                            {toWorkCodeLabel(entry.code)}
+                            {shouldShowWorkCodeQuantity(
+                              entry.code,
+                              entry.quantity
+                            )
+                              ? ` x ${entry.quantity}`
+                              : ''}{' '}
+                            (
                             {entry.rate?.amount?.toFixed(2) ?? '0.00'} zł)
                           </li>
                         ))}
@@ -320,72 +376,52 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </div>  */}
 
                   {/* --- Issued equipment (merged + deduplicated) --- */}
-                  {false && (
-                    <div>
-                      <h3 className="text-xs text-muted-foreground font-medium">
-                        Sprzęt wydany w ramach zlecenia
-                      </h3>
-
-                      {(() => {
-                        /** ---------------------------------------------------------
-                         * 3. Merge and deduplicate by (name + serial)
-                         * --------------------------------------------------------- */
-                        // const merged = collectOrderEquipment(order)
-                        // /** ---------------------------------------------------------
-                        //  * 4. Render
-                        //  * --------------------------------------------------------- */
-                        // if (merged.length === 0) return <p>Brak</p>
-                        // return (
-                        //   <ul className="list-disc pl-4">
-                        //     {merged.map((item) => (
-                        //       <li key={item.id}>
-                        //         {/* Category */}
-                        //         {item.category && (
-                        //           <span className="font-medium">
-                        //             {item.displayCategory}{' '}
-                        //           </span>
-                        //         )}
-                        //         {/* Name */}
-                        //         {item.name.toUpperCase()}
-                        //         {/* Serial */}
-                        //         {item.serial &&
-                        //           ` (SN: ${item.serial.toUpperCase()})`}
-                        //       </li>
-                        //     ))}
-                        //   </ul>
-                        // )
-                      })()}
-                    </div>
-                  )}
+                  <div>
+                    <h3 className="text-xs text-muted-foreground font-medium">
+                      Sprzęt wydany w ramach zlecenia
+                    </h3>
+                    {assignedToThisOrder.length ? (
+                      <ul className="list-disc pl-4 normal-case">
+                        {assignedToThisOrder.map((item) => (
+                          <li key={item.id}>
+                            {item.warehouse.category && (
+                              <span className="font-medium">
+                                {oplDevicesTypeMap[item.warehouse.category]}{' '}
+                              </span>
+                            )}
+                            {item.warehouse.name.toUpperCase()}
+                            {item.warehouse.serialNumber &&
+                              ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>Brak</p>
+                    )}
+                  </div>
                   {/* --- Collected from client --- */}
                   <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
                       Sprzęt odebrany od klienta
                     </h3>
-
-                    {/* {order.assignedEquipment?.filter((e) =>
-                      e.warehouse.history?.some(
-                        (h) => h.action === 'COLLECTED_FROM_CLIENT'
-                      )
-                    ).length ? (
+                    {collectedFromClient.length ? (
                       <ul className="list-disc pl-4">
-                        {order.assignedEquipment
-                          .filter((e) =>
-                            e.warehouse.history?.some(
-                              (h) => h.action === 'COLLECTED_FROM_CLIENT'
-                            )
-                          )
-                          .map((item) => (
-                            <li key={item.id}>
-                              {item.warehouse.name.toUpperCase()}
-                              {item.warehouse.serialNumber &&
-                                ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
-                            </li>
-                          ))}
+                        {collectedFromClient.map((item) => (
+                          <li key={item.id}>
+                            {item.warehouse.category && (
+                              <span className="font-medium">
+                                {oplDevicesTypeMap[item.warehouse.category]}{' '}
+                              </span>
+                            )}
+                            {item.warehouse.name.toUpperCase()}
+                            {item.warehouse.serialNumber &&
+                              ` (SN: ${item.warehouse.serialNumber.toUpperCase()})`}
+                          </li>
+                        ))}
                       </ul>
                     ) : (
                       <p>Brak</p>
-                    )} */}
+                    )}
                   </div>
 
                   {/* --- Materials --- */}
@@ -408,7 +444,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </div>
 
                   {/* --- Total --- */}
-                  {/* <div className="font-semibold text-sm">
+                  <div className="font-semibold text-sm">
                     Kwota:{' '}
                     {order.settlementEntries
                       .reduce(
@@ -418,7 +454,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       )
                       .toFixed(2)}{' '}
                     zł
-                  </div> */}
+                  </div>
                 </section>
               )}
 
@@ -448,17 +484,19 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
       )}
 
       {order && (
-        <CompleteOplOrderWizard
-          open={showAdminEdit}
-          onCloseAction={() => setShowAdminEdit(false)}
-          order={order}
-          orderType={order.type}
-          materialDefs={[]}
-          techMaterials={[]}
-          devices={[]}
-          mode="adminEdit"
-          workCodeDefs={[]}
-        />
+        <CompleteOplOrderProvider orderId={order.id}>
+          <CompleteOplOrderWizard
+            open={showAdminEdit}
+            onCloseAction={() => setShowAdminEdit(false)}
+            order={order}
+            orderType={order.type}
+            materialDefs={[]}
+            techMaterials={[]}
+            devices={[]}
+            mode="adminEdit"
+            workCodeDefs={[]}
+          />
+        </CompleteOplOrderProvider>
       )}
 
       <ConfirmDeleteDialog

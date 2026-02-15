@@ -43,6 +43,9 @@ interface Props {
   strictSource?: 'WAREHOUSE'
 }
 
+const normalizeSerial = (value: string) =>
+  value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+
 /**
  * OplSerialScanInput
  * ------------------------------------------------------------
@@ -71,7 +74,43 @@ const OplSerialScanInput = ({
   const utils = trpc.useUtils()
   const { data: session } = useSession()
   const { isTechnician, isAdmin, isCoordinator } = useRole()
-  const myId = session?.user.id
+
+  /**
+   * Fallback for screens that do not pass `devices` explicitly.
+   * Keeps technician flow functional in all wizard entry points.
+   */
+  const techStockQuery = trpc.opl.warehouse.getTechnicianStock.useQuery(
+    {
+      technicianId: 'self',
+      itemType: 'DEVICE',
+    },
+    {
+      enabled: isTechnician && devices.length === 0,
+      staleTime: 30_000,
+    }
+  )
+
+  const localDevices: OplDeviceBasic[] = useMemo(() => {
+    if (devices.length > 0) return devices
+
+    const fallback = techStockQuery.data ?? []
+    return fallback
+      .filter(
+        (d): d is typeof d & { serialNumber: string; category: OplDeviceCategory } =>
+          d.itemType === 'DEVICE' &&
+          typeof d.serialNumber === 'string' &&
+          d.serialNumber.length > 0 &&
+          d.category !== null
+      )
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        serialNumber: d.serialNumber,
+        category: d.category,
+        status: d.status,
+        deviceDefinitionId: d.deviceDefinitionId ?? null,
+      }))
+  }, [devices, techStockQuery.data])
 
   /**
    * Remote warehouse search (admin/coordinator only)
@@ -91,17 +130,18 @@ const OplSerialScanInput = ({
    */
   const suggestions = useMemo(() => {
     if (value.trim().length < 3) return []
-    const q = value.trim().toLowerCase()
+    const q = normalizeSerial(value)
 
-    return devices.filter((d) => {
-      const matchesSerial = d.serialNumber?.toLowerCase().includes(q)
+    return localDevices.filter((d) => {
+      const serial = normalizeSerial(d.serialNumber ?? '')
+      const matchesSerial = serial.includes(q)
       const matchesCategory =
         !allowedCategories || allowedCategories.includes(d.category)
       const matchesStatus = validStatuses.includes(d.status ?? 'AVAILABLE')
 
       return matchesSerial && matchesCategory && matchesStatus
     })
-  }, [value, devices, allowedCategories, validStatuses])
+  }, [value, localDevices, allowedCategories, validStatuses])
 
   const fetchDevice = (serial: string) =>
     utils.opl.warehouse.getBySerialNumber.fetch({ serial })
@@ -116,12 +156,16 @@ const OplSerialScanInput = ({
       setIsAdding(true)
 
       try {
-        const normalized = s.toUpperCase()
+        const normalized = normalizeSerial(s)
 
         // 1️⃣ Local technician stock
-        const local = devices.find(
-          (d) => d.serialNumber?.toUpperCase() === normalized
+        const localExact = localDevices.find(
+          (d) => normalizeSerial(d.serialNumber ?? '') === normalized
         )
+        const localFuzzy = localDevices.filter((d) =>
+          normalizeSerial(d.serialNumber ?? '').includes(normalized)
+        )
+        const local = localExact ?? (localFuzzy.length === 1 ? localFuzzy[0] : null)
 
         if (local) {
           if (isDeviceUsed?.(local.id)) {
@@ -155,7 +199,11 @@ const OplSerialScanInput = ({
 
         // 2️⃣ Hard block for technicians
         if (isTechnician || strictSource === 'WAREHOUSE') {
-          toast.error('Nie możesz dodać urządzenia spoza swojego stanu.')
+          toast.error(
+            localFuzzy.length > 1
+              ? 'Znaleziono kilka urządzeń. Wybierz właściwe z podpowiedzi.'
+              : 'Nie znaleziono urządzenia w Twoim stanie.'
+          )
           return
         }
 
@@ -186,7 +234,7 @@ const OplSerialScanInput = ({
       }
     },
     [
-      devices,
+      localDevices,
       isDeviceUsed,
       validStatuses,
       isTechnician,

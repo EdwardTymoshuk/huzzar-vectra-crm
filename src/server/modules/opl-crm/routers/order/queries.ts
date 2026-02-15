@@ -22,6 +22,12 @@ import {
 import { TRPCError } from '@trpc/server'
 import { endOfDay, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
+import {
+  getAddressNotesByAddress,
+  matchesBuildingScope,
+  normalizeAddressToken,
+  searchAddressNotesByText,
+} from '../../helpers/addressNotes'
 import { mapOplOrderToListVM } from '../../helpers/mappers/mapOplOrderToListVM'
 import {
   oplUserBasicSelect,
@@ -231,7 +237,16 @@ export const queriesRouter = router({
           /** Assigned / collected equipment */
           assignedEquipment: {
             include: {
-              warehouse: true,
+              warehouse: {
+                include: {
+                  history: {
+                    select: {
+                      action: true,
+                      assignedOrderId: true,
+                    },
+                  },
+                },
+              },
             },
           },
 
@@ -774,6 +789,75 @@ export const queriesRouter = router({
           serialNumber: eq.warehouse.serialNumber,
         })),
       }
+    }),
+
+  getAddressNotesForOrder: loggedInEveryone
+    .use(requireOplModule)
+    .input(z.object({ orderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const order = await ctx.prisma.oplOrder.findUnique({
+        where: { id: input.orderId },
+        select: {
+          id: true,
+          city: true,
+          street: true,
+        },
+      })
+
+      if (!order) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Zlecenie nie istnieje',
+        })
+      }
+
+      const cityNorm = normalizeAddressToken(order.city)
+      const streetNorm = normalizeAddressToken(order.street)
+
+      const rows = await getAddressNotesByAddress({
+        prisma: ctx.prisma,
+        cityNorm,
+        streetNorm,
+      })
+
+      return rows
+        .filter((row) => matchesBuildingScope(row.buildingScope, order.street))
+        .map((row) => ({
+          id: row.id,
+          note: row.note,
+          buildingScope: row.buildingScope,
+          createdAt: row.createdAt,
+          createdBy: row.createdBy,
+        }))
+    }),
+
+  searchAddressNotes: loggedInEveryone
+    .use(requireOplModule)
+    .input(
+      z.object({
+        query: z.string().trim().optional(),
+        limit: z.number().int().min(1).max(100).default(30),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const queryNorm = input.query ? normalizeAddressToken(input.query) : ''
+
+      const rows = await searchAddressNotesByText({
+        prisma: ctx.prisma,
+        query: input.query,
+        queryNorm,
+        limit: input.limit,
+      })
+
+      return rows.map((row) => ({
+        id: row.id,
+        city: row.city,
+        street: row.street,
+        note: row.note,
+        buildingScope: row.buildingScope,
+        createdAt: row.createdAt,
+        createdBy: row.createdBy,
+      }))
     }),
 
   getNextOutageOrderNumber: loggedInEveryone.query(async () => {

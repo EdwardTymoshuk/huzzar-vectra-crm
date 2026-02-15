@@ -3,6 +3,7 @@
 import { Button } from '@/app/components/ui/button'
 import { Textarea } from '@/app/components/ui/textarea'
 import { OplOrderStatus } from '@prisma/client'
+import { MdKeyboardArrowRight } from 'react-icons/md'
 import { toast } from 'sonner'
 import OplFailureReasonSelect from '../OplFailureReasonSelect'
 
@@ -119,13 +120,14 @@ const OplStepStatus = ({
       </div>
 
       {/* ============ Bottom navigation ============ */}
-      <div className="sticky bottom-0 bg-background">
+      <div className="sticky bottom-0 bg-background p-4">
         <Button
           onClick={handleSubmit}
-          className="w-full h-11 text-base"
+          className="w-full h-11 text-base gap-1"
           disabled={!status}
         >
           Dalej
+          <MdKeyboardArrowRight className="h-5 w-5" />
         </Button>
       </div>
     </div>

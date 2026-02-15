@@ -1,4 +1,5 @@
 import { timeSlotOptions } from '@/app/(modules)/vectra-crm/lib/constants'
+import { oplTimeSlotOptions } from '@/app/(modules)/opl-crm/lib/constants'
 import { OplTimeSlot, VectraTimeSlot } from '@prisma/client'
 
 /**
@@ -10,6 +11,8 @@ import { OplTimeSlot, VectraTimeSlot } from '@prisma/client'
 export function getTimeSlotLabel(
   slotValue: VectraTimeSlot | OplTimeSlot
 ): string {
-  const foundSlot = timeSlotOptions.find((item) => item.value === slotValue)
+  const foundSlot = [...timeSlotOptions, ...oplTimeSlotOptions].find(
+    (item) => item.value === slotValue
+  )
   return foundSlot?.label ?? slotValue
 }

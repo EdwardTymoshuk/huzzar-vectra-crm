@@ -11,7 +11,7 @@ export const getOplUserOrThrow = async (
   coreUserId: string,
   role: Role
 ): Promise<OplUserWithLocations> => {
-  const oplUser = await prisma.oplUser.findUnique({
+  let oplUser = await prisma.oplUser.findUnique({
     where: { userId: coreUserId },
     include: {
       user: {
@@ -30,6 +30,42 @@ export const getOplUserOrThrow = async (
       },
     },
   })
+
+  // Legacy users may have module access but missing/inactive OPL profile.
+  // For ADMIN, self-heal profile to keep global admin access consistent.
+  if (role === 'ADMIN' && (!oplUser || !oplUser.active)) {
+    await prisma.oplUser.upsert({
+      where: { userId: coreUserId },
+      update: {
+        active: true,
+        deactivatedAt: null,
+      },
+      create: {
+        userId: coreUserId,
+        active: true,
+      },
+    })
+
+    oplUser = await prisma.oplUser.findUnique({
+      where: { userId: coreUserId },
+      include: {
+        user: {
+          include: {
+            locations: {
+              include: {
+                location: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+  }
 
   if (!oplUser || !oplUser.active) {
     throw new TRPCError({

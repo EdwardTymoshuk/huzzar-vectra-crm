@@ -14,6 +14,7 @@ model OplUser {
   transferredItems          OplWarehouse[]                 @relation("OplWarehouseTransfer")
   warehouseHistoryAssigned  OplWarehouseHistory[]          @relation("OplWHAssignedTo")
   warehouseHistoryPerformed OplWarehouseHistory[]          @relation("OplWHPerformedBy")
+  addressNotesCreated       OplAddressNote[]               @relation("OplAddressNotesByUser")
 
   orderAssignments OplOrderAssignment[] @relation("OplOrderAssignmentsByTechnician")
 
@@ -33,5 +34,30 @@ model OplRateDefinition {
 model OplOperatorDefinition {
   operator String @id
 
+  @@schema("opl")
+}
+
+model OplAddressNote {
+  id String @id @default(uuid())
+
+  city       String
+  street     String
+  cityNorm   String
+  streetNorm String
+
+  /// Examples: "1,2,3,10" / "1-20". Empty means entire street.
+  buildingScope String?
+
+  note   String
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   OplUser @relation("OplAddressNotesByUser", fields: [createdById], references: [userId])
+
+  @@index([cityNorm, streetNorm, active])
+  @@index([createdAt])
   @@schema("opl")
 }

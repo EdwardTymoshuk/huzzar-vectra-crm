@@ -14,6 +14,8 @@ import { IoCheckmarkDone } from 'react-icons/io5'
 import { MdEdit } from 'react-icons/md'
 import { toast } from 'sonner'
 import CompleteOplOrderWizard from '../../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
+import OplOrderDetailsContent from '../../../components/order/OplOrderDetailsContent'
+import { CompleteOplOrderProvider } from '../../../utils/context/order/CompleteOplOrderContext'
 import OplOrderTimeline from '../order/OplOrderTimeline'
 
 type Props = { order: { id: string } }
@@ -189,7 +191,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
       {/* -------- LEFT COLUMN: main content -------- */}
       <div className="space-y-4 flex-1">
         <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
-        {/* <OplOrderDetailsContent order={data} isConfirmed={isConfirmed} /> */}
+        <OplOrderDetailsContent order={data} isConfirmed={isConfirmed} />
 
         {(canAdminEdit || canApprove) && (
           <div className="flex flex-wrap gap-2 pt-2">
@@ -253,22 +255,24 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
           </div>
         )}
 
-        <CompleteOplOrderWizard
-          key={order.id}
-          open={openEdit}
-          onCloseAction={async () => {
-            setOpenEdit(false)
-            await utils.opl.order.getOrders.invalidate()
-            await utils.opl.order.getOrderById.invalidate({ id: order.id })
-          }}
-          order={data}
-          orderType={data.type}
-          materialDefs={materialDefs}
-          techMaterials={techMaterials}
-          devices={allDevices}
-          mode="adminEdit"
-          workCodeDefs={workCodeDefs}
-        />
+        <CompleteOplOrderProvider orderId={data.id}>
+          <CompleteOplOrderWizard
+            key={order.id}
+            open={openEdit}
+            onCloseAction={async () => {
+              setOpenEdit(false)
+              await utils.opl.order.getOrders.invalidate()
+              await utils.opl.order.getOrderById.invalidate({ id: order.id })
+            }}
+            order={data}
+            orderType={data.type}
+            materialDefs={materialDefs}
+            techMaterials={techMaterials}
+            devices={allDevices}
+            mode="adminEdit"
+            workCodeDefs={workCodeDefs}
+          />
+        </CompleteOplOrderProvider>
       </div>
 
       <Separator className="h-auto" orientation="vertical" />

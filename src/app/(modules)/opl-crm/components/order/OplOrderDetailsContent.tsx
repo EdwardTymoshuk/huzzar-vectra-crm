@@ -3,12 +3,15 @@
 import { materialUnitMap } from '@/lib/constants'
 import {
   OplDeviceCategory,
-  OplDeviceSource,
   OplMaterialUnit,
   OplOrderStatus,
 } from '@prisma/client'
 import React from 'react'
 import { oplDevicesTypeMap } from '../../lib/constants'
+import {
+  shouldShowWorkCodeQuantity,
+  toWorkCodeLabel,
+} from '../../utils/order/workCodesPresentation'
 
 /**
  * Order details view model used by OplOrderDetailsContent.
@@ -21,14 +24,6 @@ export type OrderWithDetails = {
   completedAt: Date | null
   attemptNumber: number
   operator: string
-
-  assignedTo: {
-    userId: string
-    user: {
-      id: string
-      name: string
-    }
-  } | null
 
   settlementEntries: {
     id: string
@@ -61,26 +56,6 @@ export type OrderWithDetails = {
     }
   }[]
 
-  services: {
-    id: string
-    type: string
-    notes: string | null
-    deviceName: string | null
-    deviceName2: string | null
-    deviceType: OplDeviceCategory | null
-    deviceType2: OplDeviceCategory | null
-    serialNumber: string | null
-    serialNumber2: string | null
-    deviceSource: OplDeviceSource | null
-    extraDevices?: {
-      id: string
-      name: string | null
-      serialNumber: string | null
-      category: OplDeviceCategory | null
-      source: OplDeviceSource | null
-    }[]
-  }[]
-
   failureReason: string | null
   notes: string | null
 }
@@ -104,7 +79,6 @@ const OplOrderDetailsContent = ({ order }: Props) => {
     settlementEntries,
     usedMaterials,
     assignedEquipment,
-    services,
     failureReason,
     notes,
     attemptNumber,
@@ -116,6 +90,14 @@ const OplOrderDetailsContent = ({ order }: Props) => {
     e.warehouse.history.some(
       (h) =>
         h.action === 'COLLECTED_FROM_CLIENT' && h.assignedOrderId === order.id
+    )
+  )
+
+  const issued = assignedEquipment.filter((e) =>
+    e.warehouse.history.some(
+      (h) =>
+        h.assignedOrderId === order.id &&
+        (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT')
     )
   )
 
@@ -136,37 +118,31 @@ const OplOrderDetailsContent = ({ order }: Props) => {
       {/* ===== Work codes ===== */}
       <Section
         title="Kody pracy"
-        list={settlementEntries.map((s) => `${s.code} × ${s.quantity}`)}
+        list={settlementEntries.map((s) => {
+          const qty = shouldShowWorkCodeQuantity(s.code, s.quantity)
+            ? ` x ${s.quantity}`
+            : ''
+          return `${toWorkCodeLabel(s.code)}${qty}`
+        })}
       />
 
       {/* ===== Issued equipment ===== */}
-      {/* <section className="pt-4 border-t border-border space-y-1">
-        <h4 className="font-semibold">Sprzęt wydany</h4>
-
-        {(() => {
-          const equipment = collectOrderEquipment(order)
-
-          if (equipment.length === 0)
-            return <span className="text-muted-foreground">—</span>
-
-          return (
-            <ul className="list-none list-inside">
-              {equipment.map((e) => {
-                const category =
-                  e.category && e.category !== 'OTHER' ? e.displayCategory : ''
-
-                return (
-                  <li key={e.id} className="mt-1">
-                    {category} {e.name.toUpperCase()}
-                    {e.serial && ` (SN: ${e.serial.toUpperCase()})`}
-                    {e.client && ' [sprzęt klienta]'}
-                  </li>
-                )
-              })}
-            </ul>
-          )
-        })()}
-      </section> */}
+      <Section
+        title="Sprzęt wydany"
+        list={issued.map((e) => {
+          const showCat = e.warehouse.category !== 'OTHER'
+          const prefix = showCat
+            ? oplDevicesTypeMap[
+                (e.warehouse.category || 'OTHER') as OplDeviceCategory
+              ]
+            : ''
+          const name = e.warehouse.name?.toUpperCase() || ''
+          const sn = e.warehouse.serialNumber
+            ? ` (SN: ${e.warehouse.serialNumber.toUpperCase()})`
+            : ''
+          return `${showCat ? `${prefix} ` : ''}${name}${sn}`
+        })}
+      />
 
       {/* ===== Collected equipment ===== */}
       <Section
@@ -193,44 +169,6 @@ const OplOrderDetailsContent = ({ order }: Props) => {
           (m) => `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`
         )}
       />
-
-      {/* ===== Activated services ===== */}
-      <section className="pt-4 border-t border-border space-y-1">
-        <h4 className="font-semibold">Uruchomione usługi</h4>
-
-        {services.length ? (
-          <ul className="list-none list-inside">
-            {Object.entries(
-              services.reduce<
-                Record<string, { count: number; notes: string[] }>
-              >((acc, s) => {
-                if (!acc[s.type]) acc[s.type] = { count: 0, notes: [] }
-                acc[s.type].count++
-                if (s.notes) acc[s.type].notes.push(s.notes)
-                return acc
-              }, {})
-            ).map(([type, data]) => (
-              <li key={type} className="mt-1">
-                {/* Type name + count */}
-                <div className="font-medium">
-                  {type} {data.count > 1 && `× ${data.count}`}
-                </div>
-
-                {/* Notes for services of this type */}
-                {data.notes.length > 0 && (
-                  <div className="text-xs text-muted-foreground ml-4 space-y-0.5">
-                    {data.notes.map((note, i) => (
-                      <div key={i}>{note}</div>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </section>
 
       {/* ===== Not completed reason ===== */}
       {status === OplOrderStatus.NOT_COMPLETED && (
@@ -264,8 +202,8 @@ const Section = ({ title, list }: { title: string; list: string[] }) => (
     <h4 className="font-semibold">{title}</h4>
     {list.length ? (
       <ul className="list-none list-inside">
-        {list.map((it) => (
-          <li key={it}>{it}</li>
+        {list.map((it, idx) => (
+          <li key={`${it}-${idx}`}>{it}</li>
         ))}
       </ul>
     ) : (
