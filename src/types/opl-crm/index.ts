@@ -68,6 +68,7 @@ export type OplIssuedItemDevice = {
   category: OplDeviceCategory
   status?: OplWarehouseStatus
   deviceDefinitionId: string | null
+  sourceLabel?: string
 }
 
 export type OplIssuedItemMaterial = {
@@ -152,6 +153,7 @@ export type OplDeviceBasic = {
   serialNumber: string | null
   category: OplDeviceCategory
   status?: OplWarehouseStatus
+  sourceLabel?: string
 }
 
 // -----------------------------

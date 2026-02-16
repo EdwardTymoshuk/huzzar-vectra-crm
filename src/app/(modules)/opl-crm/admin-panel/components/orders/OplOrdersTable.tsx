@@ -61,19 +61,17 @@ interface OplOrdersTableProps {
   statusFilter: OplOrderStatus | null
   technicianFilter: string | null
   orderTypeFilter: OplOrderType | null
+  dateFrom: string | null
+  dateTo: string | null
 }
 
-/**
- * Formats assigned technicians for table display.
- * - 0 technicians → "-"
- * - 1 technician → full name
- * - 2 technicians → "Name + Name"
- */
-const formatAssignedTechnicians = (
-  assignments: OrderAssignmentVM[]
+const getTechnicianName = (
+  assignments: OrderAssignmentVM[],
+  index: 0 | 1
 ): string => {
   if (!assignments.length) return '-'
-  return assignments.map((a) => a.technician.name).join(' + ')
+  if (assignments.length === 1) return assignments[0]?.technician.name ?? '-'
+  return assignments[index]?.technician.name ?? assignments[0]?.technician.name ?? '-'
 }
 
 /* =============================== MAIN COMPONENT =============================== */
@@ -83,6 +81,8 @@ const OplOrdersTable = ({
   statusFilter,
   technicianFilter,
   orderTypeFilter,
+  dateFrom,
+  dateTo,
 }: OplOrdersTableProps) => {
   const { isWarehouseman, isLoading: isPageLoading } = useRole()
   if (isPageLoading) return <LoaderSpinner />
@@ -93,6 +93,8 @@ const OplOrdersTable = ({
       statusFilter={statusFilter}
       technicianFilter={technicianFilter}
       orderTypeFilter={orderTypeFilter}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
     />
   )
 }
@@ -107,12 +109,16 @@ const OplOrdersTableInner = ({
   statusFilter,
   technicianFilter,
   orderTypeFilter,
+  dateFrom,
+  dateTo,
 }: {
   searchTerm: string
   readOnly: boolean
   statusFilter: OplOrderStatus | null
   technicianFilter: string | null
   orderTypeFilter: OplOrderType | null
+  dateFrom: string | null
+  dateTo: string | null
 }) => {
   /* -------------------------- Local state ------------------------- */
   const [currentPage, setCurrentPage] = useState(1)
@@ -140,6 +146,8 @@ const OplOrdersTableInner = ({
       assignedToId: technicianFilter ?? undefined,
       type: orderTypeFilter ?? undefined,
       status: statusFilter ?? undefined,
+      dateFrom: dateFrom ?? undefined,
+      dateTo: dateTo ?? undefined,
       searchTerm: debouncedSearch || undefined,
     })
 
@@ -196,7 +204,7 @@ const OplOrdersTableInner = ({
 
   /* ---------------------------- Layout ---------------------------- */
   const GRID =
-    'grid grid-cols-[40px_120px_220px_220px_220px_minmax(260px,2fr)_80px_40px_40px]'
+    'grid grid-cols-[40px_120px_180px_180px_220px_minmax(260px,2fr)_80px_40px_40px]'
 
   /* ---------------------------- Render ---------------------------- */
   return (
@@ -224,8 +232,8 @@ const OplOrdersTableInner = ({
                 <TiArrowUnsorted className="opacity-60" />
               )}
             </span>
-            <span>Technik</span>
-            <span>Id zlecenia</span>
+            <span>Technik #1</span>
+            <span>Technik #2</span>
             <span>Nr zlecenia</span>
             <span>Adres</span>
             <span
@@ -303,10 +311,11 @@ const OplOrdersTableInner = ({
                         </span>
                         <span>{new Date(o.date).toLocaleDateString()}</span>
                         <span className="min-w-0 whitespace-normal break-words">
-                          {formatAssignedTechnicians(o.assignedTechnicians)}
+                          {getTechnicianName(o.assignedTechnicians, 0)}
                         </span>
-
-                        <span>{o.serviceId}</span>
+                        <span className="min-w-0 whitespace-normal break-words">
+                          {getTechnicianName(o.assignedTechnicians, 1)}
+                        </span>
                         <span
                           className="min-w-0 whitespace-normal break-words"
                           title={o.orderNumber}

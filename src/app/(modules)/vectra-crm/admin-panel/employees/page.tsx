@@ -35,9 +35,12 @@ const EmployeesPage = () => {
       <div className="flex-1 overflow-y-auto px-2 md:px-4">
         <Tabs defaultValue="active" className="w-full mt-2">
           <div className="w-full flex justify-center mb-2">
-            <TabsList className="w-full md:w-1/2 lg:w-1/4 justify-center">
+            <TabsList className="w-full md:w-2/3 lg:w-1/3 justify-center">
               <TabsTrigger value="active" className="w-full">
                 Aktywni
+              </TabsTrigger>
+              <TabsTrigger value="blocked" className="w-full">
+                Zablokowani
               </TabsTrigger>
               <TabsTrigger value="archived" className="w-full">
                 Zarchiwizowani
@@ -47,6 +50,10 @@ const EmployeesPage = () => {
 
           <TabsContent value="active" className="space-y-2">
             <EmployeesTable searchTerm={searchTerm} status="ACTIVE" />
+          </TabsContent>
+
+          <TabsContent value="blocked" className="space-y-2">
+            <EmployeesTable searchTerm={searchTerm} status="SUSPENDED" />
           </TabsContent>
 
           <TabsContent value="archived" className="space-y-2">

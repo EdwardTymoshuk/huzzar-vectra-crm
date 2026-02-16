@@ -363,9 +363,10 @@ export const mutationsRouter = router({
              * ------------------------------------------------------ */
             if (technicianIds.length > 0) {
               await tx.oplOrderAssignment.createMany({
-                data: technicianIds.map((technicianId) => ({
+                data: technicianIds.map((technicianId, idx) => ({
                   orderId: created.id,
                   technicianId,
+                  assignedAt: new Date(Date.now() + idx),
                 })),
                 skipDuplicates: true,
               })
@@ -578,9 +579,10 @@ export const mutationsRouter = router({
 
       if (technicianIds.length > 0) {
         await prisma.oplOrderAssignment.createMany({
-          data: technicianIds.map((technicianId) => ({
+          data: technicianIds.map((technicianId, idx) => ({
             orderId: created.id,
             technicianId,
+            assignedAt: new Date(Date.now() + idx),
           })),
           skipDuplicates: true,
         })
@@ -728,8 +730,13 @@ export const mutationsRouter = router({
               ).map((t) => t.id)
             : []
 
-        const status =
-          technicianIds.length > 0
+        const isFinalizedOrder =
+          existing.status === OplOrderStatus.COMPLETED ||
+          existing.status === OplOrderStatus.NOT_COMPLETED
+
+        const status = isFinalizedOrder
+          ? existing.status
+          : technicianIds.length > 0
             ? OplOrderStatus.ASSIGNED
             : OplOrderStatus.PENDING
 
@@ -764,9 +771,10 @@ export const mutationsRouter = router({
 
           if (technicianIds.length > 0) {
             await tx.oplOrderAssignment.createMany({
-              data: technicianIds.map((technicianId) => ({
+              data: technicianIds.map((technicianId, idx) => ({
                 orderId: existing.id,
                 technicianId,
+                assignedAt: new Date(Date.now() + idx),
               })),
               skipDuplicates: true,
             })
@@ -933,8 +941,13 @@ export const mutationsRouter = router({
         if (lng === undefined) lng = null
       }
 
-      const status =
-        technicianIds.length > 0
+      const isFinalizedOrder =
+        order.status === OplOrderStatus.COMPLETED ||
+        order.status === OplOrderStatus.NOT_COMPLETED
+
+      const status = isFinalizedOrder
+        ? order.status
+        : technicianIds.length > 0
           ? OplOrderStatus.ASSIGNED
           : OplOrderStatus.PENDING
 
@@ -945,9 +958,10 @@ export const mutationsRouter = router({
 
         if (technicianIds.length > 0) {
           await tx.oplOrderAssignment.createMany({
-            data: technicianIds.map((technicianId) => ({
+            data: technicianIds.map((technicianId, idx) => ({
               orderId: order.id,
               technicianId,
+              assignedAt: new Date(Date.now() + idx),
             })),
             skipDuplicates: true,
           })
@@ -983,7 +997,10 @@ export const mutationsRouter = router({
           id: true,
           type: true,
           status: true,
-          assignments: { select: { technicianId: true } },
+          assignments: {
+            orderBy: { assignedAt: 'asc' },
+            select: { technicianId: true },
+          },
         },
       })
 
@@ -1104,7 +1121,10 @@ export const mutationsRouter = router({
         where: { id: input.orderId },
         select: {
           status: true,
-          assignments: { select: { technicianId: true } },
+          assignments: {
+            orderBy: { assignedAt: 'asc' },
+            select: { technicianId: true },
+          },
         },
       })
 
@@ -1205,7 +1225,10 @@ export const mutationsRouter = router({
         where: { id: input.orderId },
         select: {
           status: true,
-          assignments: { select: { technicianId: true } },
+          assignments: {
+            orderBy: { assignedAt: 'asc' },
+            select: { technicianId: true },
+          },
         },
       })
 

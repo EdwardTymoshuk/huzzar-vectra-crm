@@ -1,7 +1,13 @@
 'use client'
 
 import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
+import {
+  SlimWarehouseItem,
+  getLastAction,
+  getLastActionDate,
+} from '@/app/(modules)/vectra-crm/utils/warehouse/warehouse'
 import { NavLink } from '@/app/components/navigation-progress'
+import PaginationControls from '@/app/components/navigation/PaginationControls'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Skeleton } from '@/app/components/ui/skeleton'
@@ -14,6 +20,7 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { VECTRA_PATH } from '@/lib/constants'
+import { formatDateOrDash } from '@/utils/dates/formatDateTime'
 import {
   VectraWarehouseDefinitionWithStockVM,
   VectraWarehouseDeviceDefinitionVM,
@@ -22,8 +29,11 @@ import {
 import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { VectraWarehouseItemType } from '@prisma/client'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  VectraWarehouseAction,
+  VectraWarehouseItemType,
+} from '@prisma/client'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdKeyboardArrowRight } from 'react-icons/md'
 import {
@@ -31,7 +41,6 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from 'react-icons/ti'
-import PaginationControls from '../../../../../components/navigation/PaginationControls'
 
 type Props = {
   itemType: VectraWarehouseItemType
@@ -39,28 +48,16 @@ type Props = {
   categoryFilter: string | null
 }
 
-/**
- * Type guard for DEVICE definitions
- */
 const isDevice = (
   item: VectraWarehouseDefinitionWithStockVM
 ): item is VectraWarehouseDeviceDefinitionVM => item.itemType === 'DEVICE'
 
-/**
- * Type guard for MATERIAL definitions
- */
 const isMaterial = (
   item: VectraWarehouseDefinitionWithStockVM
 ): item is VectraWarehouseMaterialDefinitionVM => item.itemType === 'MATERIAL'
 
-/**
- * WarehouseTable
- * ------------------------------------------------------------------
- * Displays warehouse item definitions with aggregated stock values.
- * Backend is the single source of truth – no grouping or merging
- * is performed on the frontend.
- */
 const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
+  const [openDeviceName, setOpenDeviceName] = useState<string | null>(null)
   const [sortField, setSortField] = useState<'name' | 'category' | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -81,55 +78,25 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
       }
     )
 
-  /**
-   * Apply filters (category only applies to DEVICE items)
-   */
-  const filtered = useMemo(() => {
-    if (!data) return []
-
-    if (itemType === 'DEVICE') {
-      const devices = data as VectraWarehouseDeviceDefinitionVM[]
-
-      return devices.filter(
-        (item) => !categoryFilter || item.category === categoryFilter
-      )
-    }
-
-    const materials = data as VectraWarehouseMaterialDefinitionVM[]
-    return materials
-  }, [data, itemType, categoryFilter])
-
-  /**
-   * Apply search (by name)
-   */
   const searched = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!data) return []
 
     if (itemType === 'DEVICE') {
       const devices = data as VectraWarehouseDeviceDefinitionVM[]
-
       return devices
         .filter((item) => !categoryFilter || item.category === categoryFilter)
         .filter((item) => !q || item.name.toLowerCase().includes(q))
     }
 
     const materials = data as VectraWarehouseMaterialDefinitionVM[]
-
     return materials.filter((item) => !q || item.name.toLowerCase().includes(q))
   }, [data, itemType, categoryFilter, searchTerm])
 
-  /**
-   * Sorting logic
-   * - Items with stock > 0 are always on top
-   * - DEVICE can be sorted by category
-   * - MATERIAL is always sorted by name
-   */
   const sorted = useMemo(() => {
     const items = [...searched]
 
     return items.sort((a, b) => {
-      // Rule 1: available stock first
       if (a.quantity > 0 && b.quantity === 0) return -1
       if (a.quantity === 0 && b.quantity > 0) return 1
 
@@ -145,15 +112,10 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
     })
   }, [searched, sortField, sortOrder, itemType])
 
-  /**
-   * Pagination
-   */
   const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage))
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
+    if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [totalPages, currentPage])
 
   const pageItems = useMemo(() => {
@@ -186,9 +148,6 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
     )
   }
 
-  /**
-   * UI states
-   */
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -215,15 +174,12 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
     )
   }
 
-  /**
-   * Render table
-   */
   return (
     <div className="border rounded-md mb-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {itemType === 'DEVICE' && (
+      {itemType === 'DEVICE' ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
               <TableHead
                 className="cursor-pointer select-none"
                 onClick={() => handleSort('category')}
@@ -233,92 +189,190 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
                   {renderSortIcon('category')}
                 </div>
               </TableHead>
-            )}
-
-            <TableHead
-              className="cursor-pointer select-none"
-              onClick={() => handleSort('name')}
-            >
-              <div className="flex items-center gap-1">
-                <span>Nazwa</span>
-                {renderSortIcon('name')}
-              </div>
-            </TableHead>
-
-            <TableHead>Ilość dostępna</TableHead>
-            <TableHead>Cena j.</TableHead>
-            <TableHead>Wartość</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {pageItems.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={itemType === 'DEVICE' ? 6 : 5}>
-                <p className="py-6 text-center text-muted-foreground">
-                  Brak pozycji w tej kategorii.
-                </p>
-              </TableCell>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Nazwa</span>
+                  {renderSortIcon('name')}
+                </div>
+              </TableHead>
+              <TableHead>Ilość dostępna</TableHead>
+              <TableHead>Cena j.</TableHead>
+              <TableHead>Wartość</TableHead>
+              <TableHead>Więcej</TableHead>
             </TableRow>
-          ) : (
-            pageItems.map((item) => {
-              const value = item.price * item.quantity
-              const variant: 'success' | 'warning' | 'danger' =
-                item.quantity <= 5
-                  ? 'danger'
-                  : item.quantity <= 15
-                  ? 'warning'
-                  : 'success'
+          </TableHeader>
+          <TableBody>
+            {pageItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <p className="py-6 text-center text-muted-foreground">
+                    Brak pozycji w tej kategorii.
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              pageItems.filter(isDevice).map((item) => {
+                const value = item.price * item.quantity
+                const variant: 'success' | 'warning' | 'danger' =
+                  item.quantity <= 5
+                    ? 'danger'
+                    : item.quantity <= 15
+                    ? 'warning'
+                    : 'success'
 
-              return (
-                <TableRow key={item.name}>
-                  {isDevice(item) && (
+                const isOpen = openDeviceName === item.name
+
+                return (
+                  <Fragment key={item.name}>
+                    <TableRow
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setOpenDeviceName((prev) =>
+                          prev === item.name ? null : item.name
+                        )
+                      }
+                    >
+                      <TableCell>
+                        {devicesTypeMap[item.category] ?? item.category}
+                      </TableCell>
+                      <TableCell>
+                        <Highlight
+                          highlightClassName="bg-yellow-200"
+                          searchWords={[searchTerm]}
+                          autoEscape
+                          textToHighlight={item.name}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={variant}>{item.quantity}</Badge>
+                      </TableCell>
+                      <TableCell>{item.price.toFixed(2)} zł</TableCell>
+                      <TableCell>{value.toFixed(2)} zł</TableCell>
+                      <TableCell>
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <NavLink
+                            href={
+                              locationId
+                                ? `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
+                                    item.name
+                                  )}?loc=${locationId}`
+                                : `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
+                                    item.name
+                                  )}`
+                            }
+                            prefetch
+                          >
+                            <MdKeyboardArrowRight />
+                          </NavLink>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+
+                    {isOpen && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-muted/20 p-0">
+                          <div className="px-3 py-2">
+                            <VectraDeviceDetailsRows
+                              name={item.name}
+                              locationId={locationId ?? undefined}
+                              open={isOpen}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Nazwa</span>
+                  {renderSortIcon('name')}
+                </div>
+              </TableHead>
+              <TableHead>Ilość dostępna</TableHead>
+              <TableHead>Cena j.</TableHead>
+              <TableHead>Wartość</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5}>
+                  <p className="py-6 text-center text-muted-foreground">
+                    Brak pozycji w tej kategorii.
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              pageItems.filter(isMaterial).map((item) => {
+                const value = item.price * item.quantity
+                const variant: 'success' | 'warning' | 'danger' =
+                  item.quantity <= 5
+                    ? 'danger'
+                    : item.quantity <= 15
+                    ? 'warning'
+                    : 'success'
+
+                return (
+                  <TableRow key={item.name}>
                     <TableCell>
-                      {devicesTypeMap[item.category] ?? item.category}
+                      <Highlight
+                        highlightClassName="bg-yellow-200"
+                        searchWords={[searchTerm]}
+                        autoEscape
+                        textToHighlight={item.name}
+                      />
                     </TableCell>
-                  )}
-
-                  <TableCell>
-                    <Highlight
-                      highlightClassName="bg-yellow-200"
-                      searchWords={[searchTerm]}
-                      autoEscape
-                      textToHighlight={item.name}
-                    />
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge variant={variant}>{item.quantity}</Badge>
-                  </TableCell>
-
-                  <TableCell>{item.price.toFixed(2)} zł</TableCell>
-                  <TableCell>{value.toFixed(2)} zł</TableCell>
-
-                  <TableCell>
-                    <Button asChild size="sm" variant="ghost">
-                      <NavLink
-                        href={
-                          locationId
-                            ? `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
-                                item.name
-                              )}?loc=${locationId}`
-                            : `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
-                                item.name
-                              )}`
-                        }
-                        prefetch
-                      >
-                        <MdKeyboardArrowRight />
-                      </NavLink>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )
-            })
-          )}
-        </TableBody>
-      </Table>
+                    <TableCell>
+                      <Badge variant={variant}>{item.quantity}</Badge>
+                    </TableCell>
+                    <TableCell>{item.price.toFixed(2)} zł</TableCell>
+                    <TableCell>{value.toFixed(2)} zł</TableCell>
+                    <TableCell>
+                      <Button asChild size="sm" variant="ghost">
+                        <NavLink
+                          href={
+                            locationId
+                              ? `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
+                                  item.name
+                                )}?loc=${locationId}`
+                              : `${VECTRA_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
+                                  item.name
+                                )}`
+                          }
+                          prefetch
+                        >
+                          <MdKeyboardArrowRight />
+                        </NavLink>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      )}
 
       <PaginationControls
         page={currentPage}
@@ -326,6 +380,78 @@ const WarehouseTable = ({ itemType, searchTerm, categoryFilter }: Props) => {
         onPageChange={setCurrentPage}
       />
     </div>
+  )
+}
+
+const VectraDeviceDetailsRows = ({
+  name,
+  locationId,
+  open,
+}: {
+  name: string
+  locationId?: string
+  open: boolean
+}) => {
+  const { data, isLoading } = trpc.vectra.warehouse.getItemsByName.useQuery(
+    {
+      name,
+      scope: 'all',
+      mode: 'warehouse',
+      locationId,
+    },
+    { enabled: open }
+  )
+
+  const devices = useMemo(
+    () =>
+      ((data ?? []) as SlimWarehouseItem[])
+        .filter((item) => item.itemType === 'DEVICE')
+        .filter((item) => item.status === 'AVAILABLE')
+        .sort((a, b) =>
+          (a.serialNumber ?? '').localeCompare(b.serialNumber ?? '', 'pl')
+        ),
+    [data]
+  )
+
+  if (isLoading) {
+    return <Skeleton className="h-16 w-full" />
+  }
+
+  if (!devices.length) {
+    return <p className="py-2 text-sm text-muted-foreground">Brak urządzeń.</p>
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Numer seryjny</TableHead>
+          <TableHead>Data przyjęcia</TableHead>
+          <TableHead>Przyjęte przez</TableHead>
+          <TableHead>Magazyn</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {devices.map((item) => {
+          const receivedDate =
+            getLastActionDate(item.history, VectraWarehouseAction.RECEIVED) ??
+            new Date(item.createdAt)
+          const receivedAction = getLastAction(
+            item.history,
+            VectraWarehouseAction.RECEIVED
+          )
+
+          return (
+            <TableRow key={item.id}>
+              <TableCell>{item.serialNumber ?? '—'}</TableCell>
+              <TableCell>{formatDateOrDash(receivedDate)}</TableCell>
+              <TableCell>{receivedAction?.performedBy?.name ?? '—'}</TableCell>
+              <TableCell>{item.location?.name ?? '—'}</TableCell>
+            </TableRow>
+          )
+        })}
+      </TableBody>
+    </Table>
   )
 }
 

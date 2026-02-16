@@ -25,6 +25,7 @@ export function mapOrderToTimelineVM(
   order: OrderOutput
 ): OplOrderWithAttempts & {
   type: OrderOutput['type']
+  completedAt?: Date | null
   closedAt?: Date | null
   history?: TimelineHistoryEntry[]
 } {
@@ -37,6 +38,7 @@ export function mapOrderToTimelineVM(
     failureReason: order.failureReason,
     notes: order.notes,
     date: order.date,
+    completedAt: order.completedAt,
     closedAt: order.closedAt,
 
     /** Preserve all assigned technicians (N:N) */

@@ -106,6 +106,8 @@ export type OplEquipmentDraftItem = {
 
   /** Optional serial entered by technician (can be required at submit-time). */
   serial: string
+  /** UI-only label informing which technician stock this device came from. */
+  sourceLabel?: string
 }
 
 /**

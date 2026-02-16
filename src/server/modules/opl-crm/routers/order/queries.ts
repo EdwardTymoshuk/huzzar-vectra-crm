@@ -147,6 +147,7 @@ export const queriesRouter = router({
         take: input.limit,
         include: {
           assignments: {
+            orderBy: { assignedAt: 'asc' },
             include: {
               technician: {
                 select: oplUserSlimSelect,
@@ -180,6 +181,7 @@ export const queriesRouter = router({
         include: {
           /** Current technician assignments */
           assignments: {
+            orderBy: { assignedAt: 'asc' },
             include: {
               technician: {
                 select: oplUserWithCoreBasicSelect,
@@ -191,6 +193,7 @@ export const queriesRouter = router({
           previousOrder: {
             include: {
               assignments: {
+                orderBy: { assignedAt: 'asc' },
                 include: {
                   technician: {
                     select: oplUserWithCoreBasicSelect,
@@ -204,6 +207,7 @@ export const queriesRouter = router({
             orderBy: { attemptNumber: 'asc' },
             include: {
               assignments: {
+                orderBy: { assignedAt: 'asc' },
                 include: {
                   technician: {
                     select: oplUserWithCoreBasicSelect,
@@ -439,6 +443,8 @@ export const queriesRouter = router({
         assignedToId: z.string().optional(),
         type: z.nativeEnum(OplOrderType).optional(),
         status: z.nativeEnum(OplOrderStatus).optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
         searchTerm: z.string().optional(),
       })
     )
@@ -458,6 +464,16 @@ export const queriesRouter = router({
       }
       if (input.type) filters.type = input.type
       if (input.status) filters.status = input.status
+      if (input.dateFrom || input.dateTo) {
+        const dateFilter: Prisma.DateTimeFilter = {}
+        if (input.dateFrom) {
+          dateFilter.gte = startOfDay(parseISO(input.dateFrom))
+        }
+        if (input.dateTo) {
+          dateFilter.lte = endOfDay(parseISO(input.dateTo))
+        }
+        filters.date = dateFilter
+      }
 
       if (input.searchTerm && input.searchTerm.trim() !== '') {
         const q = input.searchTerm.trim()
@@ -477,6 +493,7 @@ export const queriesRouter = router({
         take: input.limit,
         include: {
           assignments: {
+            orderBy: { assignedAt: 'asc' },
             include: {
               technician: {
                 select: oplUserSlimSelect,
@@ -539,6 +556,7 @@ export const queriesRouter = router({
         take: input.limit,
         include: {
           assignments: {
+            orderBy: { assignedAt: 'asc' },
             include: {
               technician: {
                 select: oplUserSlimSelect,
@@ -707,6 +725,7 @@ export const queriesRouter = router({
           status: true,
           timeSlot: true,
           assignments: {
+            orderBy: { assignedAt: 'asc' },
             select: {
               technician: {
                 select: oplUserSlimSelect,
@@ -744,6 +763,7 @@ export const queriesRouter = router({
         where: { id: input.orderId },
         include: {
           assignments: {
+            orderBy: { assignedAt: 'asc' },
             include: {
               technician: {
                 select: oplUserBasicSelect,

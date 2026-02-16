@@ -29,6 +29,25 @@ type OrderStats = {
   prevFailed: number
 }
 
+const getOrderTotalAmount = (
+  entries: Array<{ quantity: number; rate: { amount: number } | null }>
+): number =>
+  entries.reduce(
+    (sum, entry) => sum + (entry.rate?.amount ?? 0) * entry.quantity,
+    0
+  )
+
+const getTechnicianShareFromOrder = ({
+  entries,
+  assignmentsCount,
+}: {
+  entries: Array<{ quantity: number; rate: { amount: number } | null }>
+  assignmentsCount: number
+}): number => {
+  const safeAssignmentsCount = Math.max(assignmentsCount, 1)
+  return getOrderTotalAmount(entries) / safeAssignmentsCount
+}
+
 export const metricsRouter = router({
   /**
    * getTechnicianEfficiency
@@ -446,15 +465,19 @@ export const metricsRouter = router({
             status: 'COMPLETED',
           },
           select: {
+            assignments: {
+              select: { technicianId: true },
+            },
             settlementEntries: { select: { quantity: true, rate: true } },
           },
         })
 
         let total = 0
         for (const o of orders) {
-          for (const entry of o.settlementEntries) {
-            total += (entry.rate?.amount ?? 0) * entry.quantity
-          }
+          total += getTechnicianShareFromOrder({
+            entries: o.settlementEntries,
+            assignmentsCount: o.assignments.length,
+          })
         }
 
         return Math.round(total * 100) / 100
@@ -506,6 +529,9 @@ export const metricsRouter = router({
           },
           select: {
             status: true,
+            assignments: {
+              select: { technicianId: true },
+            },
             // earnings come only from COMPLETED via settlementEntries
             settlementEntries: { select: { quantity: true, rate: true } },
           },
@@ -518,10 +544,10 @@ export const metricsRouter = router({
         for (const o of orders) {
           if (o.status === 'COMPLETED') {
             completed++
-            for (const entry of o.settlementEntries) {
-              const rate = entry.rate?.amount ?? 0
-              amount += rate * entry.quantity
-            }
+            amount += getTechnicianShareFromOrder({
+              entries: o.settlementEntries,
+              assignmentsCount: o.assignments.length,
+            })
           } else if (o.status === 'NOT_COMPLETED') {
             failed++
           }

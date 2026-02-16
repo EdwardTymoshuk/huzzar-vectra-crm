@@ -20,6 +20,7 @@ type Props = {
     name: string
     materialDefinitionId: string
     quantity: number
+    sourceLabel?: string
   }[]
 }
 

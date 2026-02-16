@@ -27,6 +27,8 @@ const OplOrdersPage = () => {
   const [orderTypeFilter, setOrderTypeFilter] = useState<OplOrderType | null>(
     null
   )
+  const [dateFrom, setDateFrom] = useState<string | null>(null)
+  const [dateTo, setDateTo] = useState<string | null>(null)
 
   const [isAddModalOpen, setAddModalOpen] = useState(false)
 
@@ -50,6 +52,8 @@ const OplOrdersPage = () => {
             setStatusFilter={setStatusFilter}
             setTechnicianFilter={setTechnicianFilter}
             setOrderTypeFilter={setOrderTypeFilter}
+            setDateFrom={setDateFrom}
+            setDateTo={setDateTo}
           />
 
           <SearchInput
@@ -68,6 +72,8 @@ const OplOrdersPage = () => {
           statusFilter={statusFilter}
           technicianFilter={technicianFilter}
           orderTypeFilter={orderTypeFilter}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
         />
       </div>
 

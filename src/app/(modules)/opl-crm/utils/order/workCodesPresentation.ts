@@ -22,6 +22,11 @@ const activationOrder: Record<string, number> = {
 const isZjBaseCode = (code?: string): boolean =>
   code === 'ZJD' || code === 'ZJN' || code === 'ZJK'
 
+const legacyCodeLabelMap: Record<string, string> = {
+  // Legacy fallback seen in old settlements
+  '51': 'ZJDD',
+}
+
 const getBucket = (code: string): number => {
   if (BASE_CODES.has(code)) return 0
   if (code === 'ZJWEW') return 1
@@ -33,11 +38,16 @@ const getBucket = (code: string): number => {
 }
 
 export const toWorkCodeLabel = (code: string): string => {
+  if (code in legacyCodeLabelMap) {
+    return legacyCodeLabelMap[code]
+  }
   if (code in oplActivationLabelMap) {
     return oplActivationLabelMap[code as keyof typeof oplActivationLabelMap]
   }
   return code
 }
+
+export const isPkiCode = (code: string): boolean => code.startsWith('PKI')
 
 export const shouldShowWorkCodeQuantity = (
   code: string,

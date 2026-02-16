@@ -20,8 +20,9 @@ import {
 } from '@prisma/client'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
+import { OplDeviceCategory } from '@prisma/client'
 import { ArrowLeft } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { MdClose } from 'react-icons/md'
 import { toast } from 'sonner'
 import OplStepEquipment from './steps/OplStepEquipment'
@@ -55,6 +56,7 @@ interface Props {
     name: string
     materialDefinitionId: string
     quantity: number
+    sourceLabel?: string
   }[]
   devices?: OplIssuedItemDevice[]
   mode?: 'complete' | 'amend' | 'adminEdit'
@@ -75,8 +77,16 @@ const CompleteOplOrderWizard = ({
   devices = [],
   mode = 'complete',
 }: Props) => {
-  const { state, setStep, next, back, setStatus, setFailureReason, setNotes } =
-    useCompleteOplOrder()
+  const {
+    state,
+    hydrateState,
+    setStep,
+    next,
+    back,
+    setStatus,
+    setFailureReason,
+    setNotes,
+  } = useCompleteOplOrder()
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
   const completeMutation = trpc.opl.order.completeOrder.useMutation()
@@ -88,6 +98,7 @@ const CompleteOplOrderWizard = ({
     adminEditMutation.isPending
 
   const { step, status, failureReason, notes } = state
+  const prefilledRef = useRef(false)
 
   const STEPS =
     order.type === 'INSTALLATION' ? STEPS_INSTALLATION : STEPS_SERVICE
@@ -106,6 +117,83 @@ const CompleteOplOrderWizard = ({
       ),
     [normalizedDevices]
   )
+
+  useEffect(() => {
+    if (!open) {
+      prefilledRef.current = false
+      return
+    }
+    if (mode === 'complete') return
+    if (prefilledRef.current) return
+
+    const normalizeIncomingCode = (code: string): string => {
+      if (code === '1P') return 'I_1P'
+      if (code === '2P') return 'I_2P'
+      if (code === '3P') return 'I_3P'
+      return code
+    }
+
+    const issuedItems = (order.assignedEquipment ?? [])
+      .filter((item) =>
+        item.warehouse.history?.some(
+          (h) =>
+            h.assignedOrderId === order.id &&
+            (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT')
+        )
+      )
+      .map((item, idx) => ({
+        clientId: `issued-${item.warehouse.id}-${idx}`,
+        deviceDefinitionId: item.warehouse.deviceDefinitionId ?? null,
+        warehouseId: item.warehouse.id,
+        name: item.warehouse.name ?? '',
+        category: (item.warehouse.category ?? 'OTHER') as OplDeviceCategory,
+        serial: item.warehouse.serialNumber ?? '',
+      }))
+
+    const collectedItems = (order.assignedEquipment ?? [])
+      .filter((item) =>
+        item.warehouse.history?.some(
+          (h) =>
+            h.assignedOrderId === order.id && h.action === 'COLLECTED_FROM_CLIENT'
+        )
+      )
+      .map((item, idx) => ({
+        clientId: `collected-${item.warehouse.id}-${idx}`,
+        deviceDefinitionId: null,
+        warehouseId: item.warehouse.id,
+        name: item.warehouse.name ?? '',
+        category: (item.warehouse.category ?? 'OTHER') as OplDeviceCategory,
+        serial: item.warehouse.serialNumber ?? '',
+      }))
+
+    hydrateState({
+      status: order.status,
+      failureReason: order.failureReason ?? '',
+      notes: order.notes ?? '',
+      workCodes: (order.settlementEntries ?? []).map((entry) => ({
+        code: normalizeIncomingCode(entry.code),
+        quantity: entry.quantity,
+      })),
+      usedMaterials: (order.usedMaterials ?? []).map((m) => ({
+        id: m.materialId,
+        quantity: m.quantity,
+      })),
+      equipment: {
+        issued: {
+          enabled: issuedItems.length > 0,
+          skip: false,
+          items: issuedItems,
+        },
+        collected: {
+          enabled: collectedItems.length > 0,
+          skip: false,
+          items: collectedItems,
+        },
+      },
+    })
+
+    prefilledRef.current = true
+  }, [hydrateState, mode, open, order])
 
   const resolveMutation = () => {
     if (mode === 'adminEdit') return adminEditMutation

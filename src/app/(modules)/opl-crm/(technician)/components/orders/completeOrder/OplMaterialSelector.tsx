@@ -19,6 +19,7 @@ type StockRow = {
   name: string
   quantity: number
   materialDefinitionId?: string
+  sourceLabel?: string
 }
 
 type Props = {
@@ -146,6 +147,18 @@ const OplMaterialSelector = ({
     return map
   }, [technicianStock])
 
+  const stockByIdBySource = useMemo(() => {
+    const map = new Map<string, Map<string, number>>()
+    technicianStock.forEach((row) => {
+      const key = row.materialDefinitionId ?? row.id
+      const source = row.sourceLabel ?? 'Stan technika'
+      const bySource = map.get(key) ?? new Map<string, number>()
+      bySource.set(source, (bySource.get(source) ?? 0) + (row.quantity ?? 0))
+      map.set(key, bySource)
+    })
+    return map
+  }, [technicianStock])
+
   const selectedMaterial = materials.find((m) => m.id === selectedMaterialId)
   const materialName = selectedMaterial?.name
 
@@ -158,6 +171,22 @@ const OplMaterialSelector = ({
       .filter((s) => normalize(s.name) === normalize(materialName ?? ''))
       .reduce((sum, s) => sum + (s.quantity ?? 0), 0)
   }, [selectedMaterialId, stockById, technicianStock, materialName])
+
+  const availableQtyBySource = useMemo(() => {
+    if (!selectedMaterialId) return []
+    const rows = stockByIdBySource.get(selectedMaterialId)
+    if (rows) return Array.from(rows.entries())
+
+    const fallback = new Map<string, number>()
+    technicianStock
+      .filter((s) => normalize(s.name) === normalize(materialName ?? ''))
+      .forEach((s) => {
+        const source = s.sourceLabel ?? 'Stan technika'
+        fallback.set(source, (fallback.get(source) ?? 0) + (s.quantity ?? 0))
+      })
+
+    return Array.from(fallback.entries())
+  }, [selectedMaterialId, stockByIdBySource, technicianStock, materialName])
 
   const priorityRows = useMemo(() => {
     const priorityNames = resolvePriorityNames(baseCode)
@@ -252,6 +281,9 @@ const OplMaterialSelector = ({
           <div className="space-y-2">
             {priorityRows.map((row) => {
               const available = stockById.get(row.id) ?? 0
+              const availableBySource = Array.from(
+                stockByIdBySource.get(row.id)?.entries() ?? []
+              )
               const selectedQty = getSelectedQty(row.id)
               return (
                 <div
@@ -265,6 +297,11 @@ const OplMaterialSelector = ({
                     <p className="text-xs text-muted-foreground">
                       Stan: {available} {materialUnitMap[row.unit]}
                     </p>
+                    {availableBySource.map(([source, qty]) => (
+                      <p key={`${row.id}-${source}`} className="text-xs text-muted-foreground">
+                        {source}: {qty} {materialUnitMap[row.unit]}
+                      </p>
+                    ))}
                   </div>
                   {selectedQty <= 0 ? (
                     <Button size="sm" onClick={() => addMaterial(row.id, 1)}>
@@ -329,6 +366,11 @@ const OplMaterialSelector = ({
                 Dostępne: {availableQty}{' '}
                 {materialUnitMap[selectedMaterial.unit]}
               </p>
+              {availableQtyBySource.map(([source, qty]) => (
+                <p key={`${selectedMaterial.id}-${source}`} className="text-xs text-muted-foreground">
+                  {source}: {qty} {materialUnitMap[selectedMaterial.unit]}
+                </p>
+              ))}
             </div>
 
             <Input
@@ -367,6 +409,9 @@ const OplMaterialSelector = ({
               if (!material) return null
 
               const stockQty = stockById.get(item.id) ?? 0
+              const stockQtyBySource = Array.from(
+                stockByIdBySource.get(item.id)?.entries() ?? []
+              )
 
               return (
                 <div
@@ -380,9 +425,19 @@ const OplMaterialSelector = ({
                         ! Brak na stanie
                       </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Stan: {stockQty} {materialUnitMap[material.unit]}
-                      </p>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">
+                          Stan: {stockQty} {materialUnitMap[material.unit]}
+                        </p>
+                        {stockQtyBySource.map(([source, qty]) => (
+                          <p
+                            key={`${item.id}-${source}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            {source}: {qty} {materialUnitMap[material.unit]}
+                          </p>
+                        ))}
+                      </div>
                     )}
                   </div>
 

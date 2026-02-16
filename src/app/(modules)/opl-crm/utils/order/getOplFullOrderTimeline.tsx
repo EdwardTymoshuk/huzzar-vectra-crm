@@ -16,6 +16,7 @@ import { ReactNode } from 'react'
 export function getOplFullOrderTimeline(
   order: OplOrderWithAttempts & {
     type: OplOrderType
+    completedAt?: Date | null
     closedAt?: Date | null
     history?: {
       id: string
@@ -28,6 +29,7 @@ export function getOplFullOrderTimeline(
   },
   role: Role
 ) {
+  const isTechnician = role === 'TECHNICIAN'
   const events: {
     id: string
     rawDate: Date
@@ -35,6 +37,66 @@ export function getOplFullOrderTimeline(
     description?: ReactNode
     color: 'success' | 'danger' | 'warning' | 'secondary'
   }[] = []
+
+  if (isTechnician) {
+    const assignedEvent = order.history
+      ?.filter((h) => h.statusAfter === 'ASSIGNED')
+      .sort((a, b) => a.changeDate.getTime() - b.changeDate.getTime())[0]
+
+    if (assignedEvent) {
+      events.push({
+        id: `history-assigned-${assignedEvent.id}`,
+        rawDate: assignedEvent.changeDate,
+        title: 'Przypisane do realizacji',
+        color: 'warning',
+      })
+    }
+
+    const latestCompletedAttempt = [...(order.attempts ?? [])]
+      .filter((a) => a.status === 'COMPLETED' || a.status === 'NOT_COMPLETED')
+      .sort((a, b) => b.attemptNumber - a.attemptNumber)[0]
+
+    if (latestCompletedAttempt) {
+      events.push({
+        id: `attempt-final-${latestCompletedAttempt.id}`,
+        rawDate:
+          latestCompletedAttempt.completedAt ??
+          latestCompletedAttempt.closedAt ??
+          latestCompletedAttempt.createdAt ??
+          latestCompletedAttempt.date,
+        title: `Wejście ${latestCompletedAttempt.attemptNumber} — ${
+          statusMap[latestCompletedAttempt.status] ??
+          latestCompletedAttempt.status
+        }`,
+        color: latestCompletedAttempt.status === 'COMPLETED' ? 'success' : 'danger',
+      })
+    } else if (
+      order.status === 'COMPLETED' ||
+      order.status === 'NOT_COMPLETED'
+    ) {
+      const completedHistory = [...(order.history ?? [])]
+        .filter((h) => h.statusAfter === order.status)
+        .sort((a, b) => b.changeDate.getTime() - a.changeDate.getTime())[0]
+
+      events.push({
+        id: `order-final-${order.id}`,
+        rawDate:
+          order.completedAt ??
+          order.closedAt ??
+          completedHistory?.changeDate ??
+          order.date,
+        title: `Wejście ${order.attemptNumber} — ${statusMap[order.status] ?? order.status}`,
+        color: order.status === 'COMPLETED' ? 'success' : 'danger',
+      })
+    }
+
+    return events
+      .sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime())
+      .map((e) => ({
+        ...e,
+        date: formatDateTime(e.rawDate),
+      }))
+  }
 
   /* ----------------------------------------------------------
    * 1️⃣ Attempts (visible for everyone)

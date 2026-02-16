@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/app/components/ui/button'
+import DateRangePicker from '@/app/components/DateRangePicker'
 import {
   Popover,
   PopoverContent,
@@ -15,13 +16,16 @@ import {
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
 import { OplOrderStatus, OplOrderType } from '@prisma/client'
-import { useState } from 'react'
+import { format } from 'date-fns'
+import { useEffect, useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type Props = {
   setStatusFilter: (status: OplOrderStatus | null) => void
   setTechnicianFilter: (technician: string | null) => void
   setOrderTypeFilter: (type: OplOrderType | null) => void
+  setDateFrom: (date: string | null) => void
+  setDateTo: (date: string | null) => void
 }
 
 /**
@@ -34,11 +38,17 @@ const OplOrdersFilter = ({
   setStatusFilter,
   setTechnicianFilter,
   setOrderTypeFilter,
+  setDateFrom,
+  setDateTo,
 }: Props) => {
   const [open, setOpen] = useState(false)
   const [statusValue, setStatusValue] = useState<string>('all')
   const [technicianValue, setTechnicianValue] = useState<string>('all')
   const [typeValue, setTypeValue] = useState<string>('all')
+  const [dateFromValue, setDateFromValue] = useState<Date | undefined>(
+    undefined
+  )
+  const [dateToValue, setDateToValue] = useState<Date | undefined>(undefined)
 
   const { data: technicians } = trpc.opl.user.getTechnicians.useQuery({
     status: 'ACTIVE',
@@ -55,11 +65,36 @@ const OplOrdersFilter = ({
     setStatusValue('all')
     setTechnicianValue('all')
     setTypeValue('all')
+    setDateFromValue(undefined)
+    setDateToValue(undefined)
     setStatusFilter(null)
     setTechnicianFilter(null)
     setOrderTypeFilter(null)
+    setDateFrom(null)
+    setDateTo(null)
     setOpen(false)
   }
+
+  useEffect(() => {
+    if (!dateFromValue && !dateToValue) {
+      setDateFrom(null)
+      setDateTo(null)
+      return
+    }
+
+    if (dateFromValue && !dateToValue) {
+      const day = format(dateFromValue, 'yyyy-MM-dd')
+      // Single day filter (no range selected yet).
+      setDateFrom(day)
+      setDateTo(day)
+      return
+    }
+
+    if (dateFromValue && dateToValue) {
+      setDateFrom(format(dateFromValue, 'yyyy-MM-dd'))
+      setDateTo(format(dateToValue, 'yyyy-MM-dd'))
+    }
+  }, [dateFromValue, dateToValue, setDateFrom, setDateTo])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -145,6 +180,17 @@ const OplOrdersFilter = ({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Date range */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Data realizacji</p>
+          <DateRangePicker
+            from={dateFromValue}
+            to={dateToValue}
+            setFrom={setDateFromValue}
+            setTo={setDateToValue}
+          />
         </div>
 
         <div className="pt-1">

@@ -14,6 +14,7 @@ type TechnicianMaterial = {
   name: string
   materialDefinitionId: string
   quantity: number
+  sourceLabel?: string
 }
 
 type Props = {

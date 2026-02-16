@@ -189,6 +189,7 @@ const OplSerialScanInput = ({
             serialNumber: local.serialNumber!,
             category: local.category,
             deviceDefinitionId: local.deviceDefinitionId,
+            sourceLabel: local.sourceLabel,
           })
 
           toast.success('Dodano urządzenie ze stanu technika.')
@@ -293,6 +294,9 @@ const OplSerialScanInput = ({
               <div className="text-xs text-muted-foreground">
                 SN: {d.serialNumber}
               </div>
+              {d.sourceLabel && (
+                <div className="text-xs text-muted-foreground">{d.sourceLabel}</div>
+              )}
             </div>
           ))}
         </div>

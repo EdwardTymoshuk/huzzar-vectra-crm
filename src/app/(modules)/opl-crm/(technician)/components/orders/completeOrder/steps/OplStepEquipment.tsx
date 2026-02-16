@@ -195,6 +195,7 @@ const OplStepEquipment = ({
                       name: device.name,
                       category: device.category,
                       serial: device.serialNumber,
+                      sourceLabel: device.sourceLabel,
                     })
                   }}
                 />

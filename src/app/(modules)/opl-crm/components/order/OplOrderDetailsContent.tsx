@@ -9,6 +9,7 @@ import {
 import React from 'react'
 import { oplDevicesTypeMap } from '../../lib/constants'
 import {
+  isPkiCode,
   shouldShowWorkCodeQuantity,
   toWorkCodeLabel,
 } from '../../utils/order/workCodesPresentation'
@@ -24,6 +25,7 @@ export type OrderWithDetails = {
   completedAt: Date | null
   attemptNumber: number
   operator: string
+  serviceId: string | null
 
   settlementEntries: {
     id: string
@@ -56,6 +58,15 @@ export type OrderWithDetails = {
     }
   }[]
 
+  assignments?: {
+    technicianId: string
+    technician?: {
+      user?: {
+        name?: string | null
+      } | null
+    } | null
+  }[]
+
   failureReason: string | null
   notes: string | null
 }
@@ -64,6 +75,8 @@ type Props = {
   order: OrderWithDetails
   hideTechnician?: boolean
   isConfirmed?: boolean
+  amountMode?: 'full' | 'perTechnician'
+  showTechnicianBreakdown?: boolean
 }
 
 /**
@@ -72,7 +85,11 @@ type Props = {
  * - Shows codes, materials, issued and collected equipment, services, notes, etc.
  * - Automatically handles both INSTALLATION and SERVICE/OUTAGE orders.
  */
-const OplOrderDetailsContent = ({ order }: Props) => {
+const OplOrderDetailsContent = ({
+  order,
+  amountMode = 'full',
+  showTechnicianBreakdown = false,
+}: Props) => {
   const {
     status,
     completedAt,
@@ -83,23 +100,34 @@ const OplOrderDetailsContent = ({ order }: Props) => {
     notes,
     attemptNumber,
     operator,
+    serviceId,
   } = order
 
   // Collected = sprzęt odebrany od klienta
   const collected = assignedEquipment.filter((e) =>
     e.warehouse.history.some(
       (h) =>
-        h.action === 'COLLECTED_FROM_CLIENT' && h.assignedOrderId === order.id
-    )
+        h.action === 'COLLECTED_FROM_CLIENT' && h.assignedOrderId === order.id,
+    ),
   )
 
   const issued = assignedEquipment.filter((e) =>
     e.warehouse.history.some(
       (h) =>
         h.assignedOrderId === order.id &&
-        (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT')
-    )
+        (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT'),
+    ),
   )
+
+  const workCodes = settlementEntries.filter((entry) => !isPkiCode(entry.code))
+  const pkiCodes = settlementEntries.filter((entry) => isPkiCode(entry.code))
+  const technicianCount = Math.max(order.assignments?.length ?? 1, 1)
+  const totalAmount = settlementEntries.reduce(
+    (acc, e) => acc + (e.rate?.amount ?? 0) * (e.quantity ?? 0),
+    0,
+  )
+  const amountToShow =
+    amountMode === 'perTechnician' ? totalAmount / technicianCount : totalAmount
 
   return (
     <div className="space-y-6 text-sm w-full">
@@ -112,18 +140,25 @@ const OplOrderDetailsContent = ({ order }: Props) => {
           />
         )}
         {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
+        <HeaderRow label="Id usługi" value={serviceId ?? '-'} />
         <HeaderRow label="Operator" value={operator} />
       </div>
 
       {/* ===== Work codes ===== */}
       <Section
         title="Kody pracy"
-        list={settlementEntries.map((s) => {
+        list={workCodes.map((s) => {
           const qty = shouldShowWorkCodeQuantity(s.code, s.quantity)
             ? ` x ${s.quantity}`
             : ''
           return `${toWorkCodeLabel(s.code)}${qty}`
         })}
+      />
+
+      {/* ===== PKI ===== */}
+      <Section
+        title="PKI"
+        list={pkiCodes.map((s) => `${toWorkCodeLabel(s.code)} x ${s.quantity}`)}
       />
 
       {/* ===== Issued equipment ===== */}
@@ -166,7 +201,8 @@ const OplOrderDetailsContent = ({ order }: Props) => {
       <Section
         title="Zużyty materiał"
         list={usedMaterials.map(
-          (m) => `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`
+          (m) =>
+            `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`,
         )}
       />
 
@@ -179,15 +215,24 @@ const OplOrderDetailsContent = ({ order }: Props) => {
       {notes && <Section title="Uwagi" list={[notes]} />}
 
       <div className="pt-4 border-t border-border font-semibold">
-        Kwota:{' '}
-        {settlementEntries
-          .reduce(
-            (acc, e) => acc + (e.rate?.amount ?? 0) * (e.quantity ?? 0),
-            0
-          )
-          .toFixed(2)}{' '}
-        zł
+        {amountMode === 'perTechnician' ? 'Kwota : ' : 'Kwota: '}
+        {amountToShow.toFixed(2)} zł
       </div>
+
+      {showTechnicianBreakdown && technicianCount > 0 && (
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {(order.assignments ?? []).map((assignment, idx) => {
+            const techName =
+              assignment.technician?.user?.name ?? `Technik #${idx + 1}`
+
+            return (
+              <div key={`${assignment.technicianId}-${idx}`}>
+                {techName}: {(totalAmount / technicianCount).toFixed(2)} zł
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

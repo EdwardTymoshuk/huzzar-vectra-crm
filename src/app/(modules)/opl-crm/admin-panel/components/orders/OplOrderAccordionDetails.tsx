@@ -49,22 +49,65 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
     id: order.id,
   })
 
-  const technicianId = data?.assignments?.[0]?.technicianId ?? 'self'
+  const primaryAssignment = data?.assignments?.[0]
+  const secondaryAssignment = data?.assignments?.[1]
+
+  const primaryTechnicianId = primaryAssignment?.technicianId ?? 'self'
+  const secondaryTechnicianId = secondaryAssignment?.technicianId
+  const hasSecondTechnician =
+    Boolean(secondaryTechnicianId) &&
+    secondaryTechnicianId !== primaryTechnicianId
+
+  const primarySourceLabel = primaryAssignment
+    ? `Stan technika: ${primaryAssignment.technician.user.name}`
+    : 'Stan technika'
+  const secondarySourceLabel = secondaryAssignment
+    ? `Stan technika: ${secondaryAssignment.technician.user.name}`
+    : null
 
   /* ---------------- Fetch dictionaries / stock ---------------- */
   // NOTE: these hooks must stay at the top-level to preserve hook order
   const { data: materialDefs } =
     trpc.opl.settings.getAllOplMaterialDefinitions.useQuery()
-  const { data: rawMaterials } = trpc.opl.warehouse.getTechnicianStock.useQuery(
+  const { data: rawPrimaryMaterials } =
+    trpc.opl.warehouse.getTechnicianStock.useQuery(
+      {
+        technicianId: primaryTechnicianId,
+        itemType: 'MATERIAL',
+      },
+      {
+        enabled: Boolean(data),
+      }
+    )
+  const { data: rawSecondaryMaterials } =
+    trpc.opl.warehouse.getTechnicianStock.useQuery(
+      {
+        technicianId: secondaryTechnicianId ?? 'self',
+        itemType: 'MATERIAL',
+      },
+      {
+        enabled: Boolean(data && hasSecondTechnician),
+      }
+    )
+
+  const { data: rawPrimaryDevices } = trpc.opl.warehouse.getTechnicianStock.useQuery(
     {
-      technicianId: technicianId,
-      itemType: 'MATERIAL',
+      technicianId: primaryTechnicianId,
+      itemType: 'DEVICE',
+    },
+    {
+      enabled: Boolean(data),
     }
   )
-  const { data: rawDevices } = trpc.opl.warehouse.getTechnicianStock.useQuery({
-    technicianId: technicianId,
-    itemType: 'DEVICE',
-  })
+  const { data: rawSecondaryDevices } = trpc.opl.warehouse.getTechnicianStock.useQuery(
+    {
+      technicianId: secondaryTechnicianId ?? 'self',
+      itemType: 'DEVICE',
+    },
+    {
+      enabled: Boolean(data && hasSecondTechnician),
+    }
+  )
   const { data: workCodeDefs } = trpc.opl.settings.getAllOplRates.useQuery()
 
   /* ---------------- Loading / error states ---------------- */
@@ -86,8 +129,10 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
 
   if (
     !materialDefs ||
-    rawMaterials === undefined ||
-    rawDevices === undefined ||
+    rawPrimaryMaterials === undefined ||
+    rawPrimaryDevices === undefined ||
+    (hasSecondTechnician &&
+      (rawSecondaryMaterials === undefined || rawSecondaryDevices === undefined)) ||
     workCodeDefs === undefined
   ) {
     return (
@@ -104,16 +149,33 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
     data.notes?.toLowerCase().includes('zatwierdzone przez') ?? false
 
   // Technician materials mapped to wizard's structure
-  const techMaterials = rawMaterials.map((m) => ({
-    id: m.id,
-    name: m.name,
-    materialDefinitionId: m.materialDefinitionId ?? '',
-    quantity: m.quantity ?? 0,
-    type: 'MATERIAL' as const,
-  }))
+  const techMaterials = [
+    ...(rawPrimaryMaterials ?? []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      materialDefinitionId: m.materialDefinitionId ?? '',
+      quantity: m.quantity ?? 0,
+      sourceLabel: primarySourceLabel,
+      type: 'MATERIAL' as const,
+    })),
+    ...((rawSecondaryMaterials ?? []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      materialDefinitionId: m.materialDefinitionId ?? '',
+      quantity: m.quantity ?? 0,
+      sourceLabel: secondarySourceLabel ?? undefined,
+      type: 'MATERIAL' as const,
+    })) ?? []),
+  ]
 
   // Devices from technician stock (normal case)
-  const technicianDevices = (rawDevices ?? [])
+  const technicianDevices = [rawPrimaryDevices ?? [], rawSecondaryDevices ?? []]
+    .flatMap((rows, index) => {
+      const sourceLabel =
+        index === 0 ? primarySourceLabel : (secondarySourceLabel ?? undefined)
+
+      return rows.map((row) => ({ ...row, sourceLabel }))
+    })
     .filter(
       (d): d is typeof d & { serialNumber: string } =>
         typeof d.serialNumber === 'string'
@@ -125,6 +187,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
       category: d.category ?? 'OTHER',
       deviceDefinitionId: d.deviceDefinitionId ?? null,
       status: d.status,
+      sourceLabel: d.sourceLabel,
       type: 'DEVICE' as const,
     }))
 
@@ -144,6 +207,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
       category: w.category ?? 'OTHER',
       deviceDefinitionId: w.deviceDefinitionId ?? null,
       status: w.status,
+      sourceLabel: 'Pozycja przypisana w zleceniu',
       type: 'DEVICE' as const,
     }))
 
@@ -191,7 +255,12 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
       {/* -------- LEFT COLUMN: main content -------- */}
       <div className="space-y-4 flex-1">
         <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
-        <OplOrderDetailsContent order={data} isConfirmed={isConfirmed} />
+        <OplOrderDetailsContent
+          order={data}
+          isConfirmed={isConfirmed}
+          amountMode="full"
+          showTechnicianBreakdown
+        />
 
         {(canAdminEdit || canApprove) && (
           <div className="flex flex-wrap gap-2 pt-2">

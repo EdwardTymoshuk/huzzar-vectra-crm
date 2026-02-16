@@ -138,7 +138,7 @@ const TechnicianOplCompletedOrderDetails = ({
       {/* -------- LEFT COLUMN -------- */}
       <div className="space-y-4 flex-1">
         <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
-        <OplOrderDetailsContent order={data} />
+        <OplOrderDetailsContent order={data} amountMode="perTechnician" />
 
         {canShowAmendButton && (
           <div className="flex gap-2 pt-2">

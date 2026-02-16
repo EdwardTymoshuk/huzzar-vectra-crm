@@ -41,6 +41,7 @@ export type CompleteOplOrderState = {
 
 type CompleteOplOrderContextValue = {
   state: CompleteOplOrderState
+  hydrateState: (next: Partial<CompleteOplOrderState>) => void
 
   /* step */
   setStep: (step: number) => void
@@ -146,6 +147,28 @@ export const CompleteOplOrderProvider = ({
 
   const setStep = useCallback((step: number) => {
     setState((prev) => ({ ...prev, step }))
+  }, [])
+
+  const hydrateState = useCallback((next: Partial<CompleteOplOrderState>) => {
+    setState({
+      ...initialState,
+      ...next,
+      step: 0,
+      equipment: {
+        ...initialState.equipment,
+        ...(next.equipment ?? {}),
+        issued: {
+          ...initialState.equipment.issued,
+          ...(next.equipment?.issued ?? {}),
+          items: next.equipment?.issued?.items ?? [],
+        },
+        collected: {
+          ...initialState.equipment.collected,
+          ...(next.equipment?.collected ?? {}),
+          items: next.equipment?.collected?.items ?? [],
+        },
+      },
+    })
   }, [])
 
   const next = useCallback((maxSteps: number) => {
@@ -484,6 +507,7 @@ export const CompleteOplOrderProvider = ({
   const value = useMemo<CompleteOplOrderContextValue>(
     () => ({
       state,
+      hydrateState,
 
       /* step */
       setStep,
@@ -529,6 +553,7 @@ export const CompleteOplOrderProvider = ({
     }),
     [
       state,
+      hydrateState,
       setStep,
       next,
       back,

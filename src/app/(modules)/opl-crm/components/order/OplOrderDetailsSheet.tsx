@@ -15,16 +15,21 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import {
-  shouldShowWorkCodeQuantity,
-  toWorkCodeLabel,
-} from '../../utils/order/workCodesPresentation'
 import CompleteOplOrderWizard from '../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
-import { CompleteOplOrderProvider } from '../../utils/context/order/CompleteOplOrderContext'
 import OrderStatusBadge from '../../../../components/order/OrderStatusBadge'
 import OplOrderTimeline from '../../admin-panel/components/order/OplOrderTimeline'
 import EditOplOrderModal from '../../admin-panel/components/orders/EditOplOrderModal'
-import { oplDevicesTypeMap, oplOrderTypeMap, oplTimeSlotMap } from '../../lib/constants'
+import {
+  oplDevicesTypeMap,
+  oplOrderTypeMap,
+  oplTimeSlotMap,
+} from '../../lib/constants'
+import { CompleteOplOrderProvider } from '../../utils/context/order/CompleteOplOrderContext'
+import {
+  isPkiCode,
+  shouldShowWorkCodeQuantity,
+  toWorkCodeLabel,
+} from '../../utils/order/workCodesPresentation'
 
 type Props = {
   orderId: string | null
@@ -46,13 +51,14 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
     isError,
   } = trpc.opl.order.getOrderById.useQuery(
     { id: orderId ?? '' },
-    { enabled: !!orderId }
+    { enabled: !!orderId },
   )
 
-  const { data: addressNotes = [] } = trpc.opl.order.getAddressNotesForOrder.useQuery(
-    { orderId: orderId ?? '' },
-    { enabled: !!orderId && open }
-  )
+  const { data: addressNotes = [] } =
+    trpc.opl.order.getAddressNotesForOrder.useQuery(
+      { orderId: orderId ?? '' },
+      { enabled: !!orderId && open },
+    )
 
   const deleteMutation = trpc.opl.order.deleteOrder.useMutation({
     onSuccess: () => {
@@ -86,17 +92,29 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
       e.warehouse.history?.some(
         (h) =>
           h.assignedOrderId === order.id &&
-          (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT')
-      )
+          (h.action === 'ASSIGNED_TO_ORDER' || h.action === 'ISSUED_TO_CLIENT'),
+      ),
     ) ?? []
 
   const collectedFromClient =
     order?.assignedEquipment?.filter((e) =>
       e.warehouse.history?.some(
         (h) =>
-          h.assignedOrderId === order.id && h.action === 'COLLECTED_FROM_CLIENT'
-      )
+          h.assignedOrderId === order.id &&
+          h.action === 'COLLECTED_FROM_CLIENT',
+      ),
     ) ?? []
+  const workCodes =
+    order?.settlementEntries?.filter((e) => !isPkiCode(e.code)) ?? []
+  const pkiCodes =
+    order?.settlementEntries?.filter((e) => isPkiCode(e.code)) ?? []
+  const technicianCount = Math.max(order?.assignments?.length ?? 1, 1)
+  const totalAmount =
+    order?.settlementEntries?.reduce(
+      (acc, e) => acc + (e.rate?.amount ?? 0) * (e.quantity ?? 0),
+      0,
+    ) ?? 0
+  const amountPerTechnician = totalAmount / technicianCount
 
   return (
     <>
@@ -283,10 +301,15 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   {addressNotes.length ? (
                     <ul className="space-y-2 normal-case">
                       {addressNotes.map((n) => (
-                        <li key={n.id} className="rounded border border-border p-2">
+                        <li
+                          key={n.id}
+                          className="rounded border border-border p-2"
+                        >
                           <p>{n.note}</p>
                           <p className="text-xs text-muted-foreground">
-                            {n.buildingScope ? `Zakres: ${n.buildingScope} • ` : ''}
+                            {n.buildingScope
+                              ? `Zakres: ${n.buildingScope} • `
+                              : ''}
                             {n.createdBy.name} •{' '}
                             {new Date(n.createdAt).toLocaleString('pl-PL')}
                           </p>
@@ -309,17 +332,33 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     </h3>
                     {order.settlementEntries?.length ? (
                       <ul className="list-disc pl-4">
-                        {order.settlementEntries.map((entry) => (
+                        {workCodes.map((entry) => (
                           <li key={entry.id}>
                             {toWorkCodeLabel(entry.code)}
                             {shouldShowWorkCodeQuantity(
                               entry.code,
-                              entry.quantity
+                              entry.quantity,
                             )
                               ? ` x ${entry.quantity}`
                               : ''}{' '}
-                            (
-                            {entry.rate?.amount?.toFixed(2) ?? '0.00'} zł)
+                            ({entry.rate?.amount?.toFixed(2) ?? '0.00'} zł)
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>Brak</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs text-muted-foreground font-medium">
+                      PKI
+                    </h3>
+                    {pkiCodes.length ? (
+                      <ul className="list-disc pl-4">
+                        {pkiCodes.map((entry) => (
+                          <li key={entry.id}>
+                            {toWorkCodeLabel(entry.code)} x {entry.quantity}
                           </li>
                         ))}
                       </ul>
@@ -386,7 +425,9 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                           <li key={item.id}>
                             {item.warehouse.category && (
                               <span className="font-medium">
-                                {oplDevicesTypeMap[item.warehouse.category]}{' '}
+                                {
+                                  oplDevicesTypeMap[item.warehouse.category]
+                                }{' '}
                               </span>
                             )}
                             {item.warehouse.name.toUpperCase()}
@@ -410,7 +451,9 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                           <li key={item.id}>
                             {item.warehouse.category && (
                               <span className="font-medium">
-                                {oplDevicesTypeMap[item.warehouse.category]}{' '}
+                                {
+                                  oplDevicesTypeMap[item.warehouse.category]
+                                }{' '}
                               </span>
                             )}
                             {item.warehouse.name.toUpperCase()}
@@ -444,16 +487,25 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   </div>
 
                   {/* --- Total --- */}
-                  <div className="font-semibold text-sm">
-                    Kwota:{' '}
-                    {order.settlementEntries
-                      .reduce(
-                        (acc, e) =>
-                          acc + (e.rate?.amount ?? 0) * (e.quantity ?? 0),
-                        0
-                      )
-                      .toFixed(2)}{' '}
-                    zł
+                  <div className="space-y-1">
+                    <div className="font-semibold text-sm">
+                      {isTechnician ? 'Kwota : ' : 'Kwota: '}
+                      {(isTechnician
+                        ? amountPerTechnician
+                        : totalAmount
+                      ).toFixed(2)}{' '}
+                      zł
+                    </div>
+                    {!isTechnician &&
+                      order.assignments.map((assignment, idx) => (
+                        <p
+                          key={`${assignment.technicianId}-${idx}`}
+                          className="text-xs text-muted-foreground normal-case"
+                        >
+                          {assignment.technician.user.name}:{' '}
+                          {amountPerTechnician.toFixed(2)} zł
+                        </p>
+                      ))}
                   </div>
                 </section>
               )}

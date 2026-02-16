@@ -46,6 +46,7 @@ export type OplEquipmentDraftItem = {
   name: string
   category: OplDeviceCategory
   serial: string
+  sourceLabel?: string
 }
 
 type Props = {
@@ -112,6 +113,7 @@ const OplEquipmentDraftRow = ({
       category: device.category,
       deviceDefinitionId: device.deviceDefinitionId,
       warehouseId: device.id,
+      sourceLabel: device.sourceLabel,
     })
     setIsEditingSuggested(false)
     setMismatchDialogOpen(false)
@@ -240,6 +242,12 @@ const OplEquipmentDraftRow = ({
                       <span className="text-muted-foreground">SN</span>
                       <span className="font-medium">{item.serial}</span>
                     </div>
+                    {item.sourceLabel && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Źródło</span>
+                        <span className="font-medium">{item.sourceLabel}</span>
+                      </div>
+                    )}
                   </div>
 
                   <Button
@@ -255,7 +263,7 @@ const OplEquipmentDraftRow = ({
               ) : (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Wybierz urządzenie z Twojego stanu (SN / skaner).
+                    Wybierz urządzenie ze stanu techników (SN / skaner).
                   </p>
 
                   <OplSerialScanInput
