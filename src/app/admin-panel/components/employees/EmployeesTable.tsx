@@ -81,9 +81,13 @@ const EmployeesTable = ({ searchTerm, status }: Props) => {
   const filtered = useMemo(() => {
     return (data || [])
       .filter((u) =>
-        status === 'INACTIVE'
-          ? u.status === 'INACTIVE'
-          : u.status !== 'INACTIVE'
+        status === 'ACTIVE'
+          ? u.status === 'ACTIVE'
+          : status === 'INACTIVE'
+            ? u.status === 'INACTIVE'
+            : status === 'SUSPENDED'
+              ? u.status === 'SUSPENDED'
+              : u.status === status
       )
       .filter(
         (u) =>
