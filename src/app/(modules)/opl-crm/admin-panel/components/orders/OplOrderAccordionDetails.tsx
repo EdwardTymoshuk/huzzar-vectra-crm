@@ -245,7 +245,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
     !isConfirmed
 
   const canAdminEdit =
-    isAdmin &&
+    (isAdmin || isCoordinator) &&
     (data.status === OplOrderStatus.COMPLETED ||
       data.status === OplOrderStatus.NOT_COMPLETED)
 

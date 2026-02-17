@@ -14,12 +14,13 @@ export const locationRouter = router({
 
     switch (user.role) {
       case 'ADMIN':
-      case 'COORDINATOR':
-      case 'WAREHOUSEMAN':
         return ctx.prisma.location.findMany({
           orderBy: { name: 'asc' },
           select: { id: true, name: true },
         })
+      case 'COORDINATOR':
+      case 'WAREHOUSEMAN':
+        return user.locations
       default:
         throw new TRPCError({
           code: 'FORBIDDEN',
@@ -33,14 +34,14 @@ export const locationRouter = router({
     const { user } = ctx
     if (!user) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
-    if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
+    if (user.role === 'ADMIN') {
       return ctx.prisma.location.findMany({
         orderBy: { name: 'asc' },
         select: { id: true, name: true },
       })
     }
 
-    if (user.role === 'WAREHOUSEMAN') {
+    if (user.role === 'WAREHOUSEMAN' || user.role === 'COORDINATOR') {
       return user.locations
     }
 

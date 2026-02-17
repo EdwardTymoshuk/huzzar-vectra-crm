@@ -27,8 +27,41 @@ export function getOplFullOrderTimeline(
       changedBy?: { name: string } | null
     }[]
   },
-  role: Role
+  role: Role,
+  options?: {
+    onOpenOrder?: (orderId: string) => void
+  }
 ) {
+  const humanStatusLabel = (status?: OplOrderStatus) => {
+    if (!status) return 'Aktualizacja'
+    if (status === 'COMPLETED') return 'Skuteczne'
+    if (status === 'NOT_COMPLETED') return 'Nieskuteczne'
+    if (status === 'ASSIGNED') return 'Przypisane do realizacji'
+    if (status === 'PENDING') return 'Oczekujące'
+    return statusMap[status] ?? status
+  }
+
+  const isSystemNote = (note?: string | null) => {
+    const value = note?.toLowerCase() ?? ''
+    if (!value) return true
+    return (
+      value.includes('pierwsze wejście') ||
+      value.includes('ponowne podejście') ||
+      value.includes('utworzono zlecenie') ||
+      value.includes('dodano zlecenie') ||
+      value.includes('zmieniono status przez edycję') ||
+      value.includes('zlecenie poprawione przez technika') ||
+      value.includes('zlecenie zakończone przez technika') ||
+      value.includes('zlecenie oznaczone jako niewykonane przez technika') ||
+      value.includes('zlecenie edytowane przez administratora') ||
+      value.includes('utworzono kolejne podejście') ||
+      value.includes('[solo')
+    )
+  }
+
+  const cleanNote = (note?: string | null) =>
+    (note ?? '').replace(/\s*\[SOLO:[^\]]+\]\s*/gi, '').trim()
+
   const isTechnician = role === 'TECHNICIAN'
   const events: {
     id: string
@@ -64,10 +97,9 @@ export function getOplFullOrderTimeline(
           latestCompletedAttempt.closedAt ??
           latestCompletedAttempt.createdAt ??
           latestCompletedAttempt.date,
-        title: `Wejście ${latestCompletedAttempt.attemptNumber} — ${
-          statusMap[latestCompletedAttempt.status] ??
+        title: `Wejście ${latestCompletedAttempt.attemptNumber} — ${humanStatusLabel(
           latestCompletedAttempt.status
-        }`,
+        )}`,
         color: latestCompletedAttempt.status === 'COMPLETED' ? 'success' : 'danger',
       })
     } else if (
@@ -85,7 +117,7 @@ export function getOplFullOrderTimeline(
           order.closedAt ??
           completedHistory?.changeDate ??
           order.date,
-        title: `Wejście ${order.attemptNumber} — ${statusMap[order.status] ?? order.status}`,
+        title: `Wejście ${order.attemptNumber} — ${humanStatusLabel(order.status)}`,
         color: order.status === 'COMPLETED' ? 'success' : 'danger',
       })
     }
@@ -116,9 +148,7 @@ export function getOplFullOrderTimeline(
       events.push({
         id: `attempt-${a.id}`,
         rawDate: displayDate,
-        title: `Wejście ${a.attemptNumber} — ${
-          statusMap[a.status] ?? a.status
-        }`,
+        title: `Wejście ${a.attemptNumber} — ${humanStatusLabel(a.status)}`,
         color,
         description: (
           <>
@@ -128,14 +158,16 @@ export function getOplFullOrderTimeline(
               </p>
             )}
 
-            {a.failureReason && (
+            {a.status === 'NOT_COMPLETED' && a.failureReason && (
               <p className=" text-muted-foreground text-xs font-medium">
                 Powód: {a.failureReason}
               </p>
             )}
-            {a.notes && (
+            {(a.status === 'COMPLETED' || a.status === 'NOT_COMPLETED') &&
+              a.notes &&
+              !isSystemNote(a.notes) && (
               <p className=" text-xs text-muted-foreground">Uwagi: {a.notes}</p>
-            )}
+              )}
           </>
         ),
       })
@@ -188,14 +220,8 @@ export function getOplFullOrderTimeline(
           color = 'secondary'
         }
         // ✅ Real status changes
-        else if (
-          h.statusBefore &&
-          h.statusAfter &&
-          h.statusBefore !== h.statusAfter
-        ) {
-          title = `ZMIANA STATUSU: ${statusMap[h.statusBefore]} → ${
-            statusMap[h.statusAfter]
-          }`
+        else if (h.statusAfter) {
+          title = humanStatusLabel(h.statusAfter)
           color = 'warning'
         } else {
           title = 'Edycja'
@@ -212,15 +238,50 @@ export function getOplFullOrderTimeline(
               {h.changedBy?.name && (
                 <p className="text-sm">Wykonał: {h.changedBy.name}</p>
               )}
-              {h.notes && (
+              {h.notes && !isSystemNote(h.notes) && (
                 <p className=" text-xs text-muted-foreground">
-                  Uwagi: {h.notes}
+                  Uwagi: {cleanNote(h.notes)}
                 </p>
               )}
             </>
           ),
         })
       }
+    }
+
+    if (order.previousOrder) {
+      events.push({
+        id: `previous-attempt-${order.previousOrder.id}`,
+        rawDate: order.date,
+        title: `Poprzednie wejście (${order.previousOrder.attemptNumber}) — ${humanStatusLabel(
+          order.previousOrder.status
+        )}`,
+        color:
+          order.previousOrder.status === 'COMPLETED'
+            ? 'success'
+            : order.previousOrder.status === 'NOT_COMPLETED'
+              ? 'danger'
+              : 'warning',
+        description: (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              Wykonał:{' '}
+              {order.previousOrder.completedByName ??
+                order.previousOrder.assignedTechnicians
+                  ?.map((t) => t.name)
+                  .join(' + ') ??
+                '-'}
+            </p>
+            <button
+              type="button"
+              onClick={() => options?.onOpenOrder?.(order.previousOrder!.id)}
+              className="text-destructive underline underline-offset-2"
+            >
+              Nr zlecenia: {order.orderNumber}
+            </button>
+          </div>
+        ),
+      })
     }
   }
 

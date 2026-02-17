@@ -1,6 +1,6 @@
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { requireOplModule } from '@/server/middleware/oplMiddleware'
-import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
+import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { parseLocalDate } from '@/utils/dates/parseLocalDate'
 import { getCoordinatesFromAddress } from '@/utils/geocode'
@@ -35,6 +35,8 @@ const completionInputSchema = z.object({
   status: z.nativeEnum(OplOrderStatus),
   notes: z.string().nullable().optional(),
   failureReason: z.string().nullable().optional(),
+  soloCompletion: z.boolean().optional(),
+  soloTechnicianId: z.string().optional(),
   workCodes: z
     .array(z.object({ code: z.string(), quantity: z.number().min(1) }))
     .optional(),
@@ -913,14 +915,15 @@ export const mutationsRouter = router({
     }),
 
   /** ✅ Assign or unassign technician */
-  assignTechnician: adminOnly
+  assignTechnician: adminOrCoord
     .input(
       z.object({
         id: z.string(),
         technicianId: z.string().optional(),
+        technicianIds: z.array(z.string()).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const order = await prisma.oplOrder.findUnique({
         where: { id: input.id },
         include: {
@@ -936,21 +939,36 @@ export const mutationsRouter = router({
       }
 
       let technicianIds: string[] = []
+      const requestedIds = Array.from(
+        new Set(
+          (input.technicianIds && input.technicianIds.length > 0
+            ? input.technicianIds
+            : input.technicianId
+              ? [input.technicianId]
+              : []
+          ).filter(Boolean)
+        )
+      )
 
-      if (input.technicianId) {
-        const tech = await prisma.user.findUnique({
-          where: { id: input.technicianId, role: 'TECHNICIAN' },
+      if (requestedIds.length > 0) {
+        const techs = await prisma.user.findMany({
+          where: {
+            id: { in: requestedIds },
+            role: 'TECHNICIAN',
+          },
           select: { id: true },
         })
 
-        if (!tech) {
+        const foundIds = new Set(techs.map((t) => t.id))
+        const missing = requestedIds.filter((id) => !foundIds.has(id))
+        if (missing.length > 0) {
           throw new TRPCError({
             code: 'NOT_FOUND',
-            message: 'Technik nie istnieje',
+            message: 'Co najmniej jeden technik nie istnieje',
           })
         }
 
-        technicianIds = [tech.id]
+        technicianIds = requestedIds
       }
 
       let lat: number | null | undefined = undefined
@@ -1062,6 +1080,14 @@ export const mutationsRouter = router({
 
       const technicianId = userId
       const warnings: string[] = []
+      const isTeamOrder = order.assignments.length > 1
+      const soloCompletion = Boolean(input.soloCompletion && isTeamOrder)
+      const teamTechnicianIds = new Set(order.assignments.map((a) => a.technicianId))
+      const soloTechnicianId = soloCompletion
+        ? input.soloTechnicianId && teamTechnicianIds.has(input.soloTechnicianId)
+          ? input.soloTechnicianId
+          : technicianId
+        : null
       const equipmentIds =
         input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
       const materials =
@@ -1133,10 +1159,11 @@ export const mutationsRouter = router({
           userId,
           before: order.status,
           after: input.status,
-          note:
+          note: `${
             input.status === OplOrderStatus.COMPLETED
               ? 'Zlecenie zakończone przez technika.'
-              : 'Zlecenie oznaczone jako niewykonane przez technika.',
+              : 'Zlecenie oznaczone jako niewykonane przez technika.'
+          }${soloCompletion ? ` [SOLO:${soloTechnicianId}]` : ''}`,
         })
       })
 
@@ -1175,6 +1202,14 @@ export const mutationsRouter = router({
 
       const technicianId = userId
       const warnings: string[] = []
+      const isTeamOrder = order.assignments.length > 1
+      const soloCompletion = Boolean(input.soloCompletion && isTeamOrder)
+      const teamTechnicianIds = new Set(order.assignments.map((a) => a.technicianId))
+      const soloTechnicianId = soloCompletion
+        ? input.soloTechnicianId && teamTechnicianIds.has(input.soloTechnicianId)
+          ? input.soloTechnicianId
+          : technicianId
+        : null
       const equipmentIds =
         input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
       const materials =
@@ -1245,7 +1280,9 @@ export const mutationsRouter = router({
           userId,
           before: order.status,
           after: input.status,
-          note: 'Zlecenie poprawione przez technika.',
+          note: `Zlecenie poprawione przez technika.${
+            soloCompletion ? ` [SOLO:${soloTechnicianId}]` : ''
+          }`,
         })
       })
 
@@ -1279,6 +1316,14 @@ export const mutationsRouter = router({
 
       const technicianId = order.assignments[0]?.technicianId ?? null
       const warnings: string[] = []
+      const isTeamOrder = order.assignments.length > 1
+      const soloCompletion = Boolean(input.soloCompletion && isTeamOrder)
+      const teamTechnicianIds = new Set(order.assignments.map((a) => a.technicianId))
+      const soloTechnicianId = soloCompletion
+        ? input.soloTechnicianId && teamTechnicianIds.has(input.soloTechnicianId)
+          ? input.soloTechnicianId
+          : technicianId
+        : null
       const equipmentIds =
         input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
       const materials =
@@ -1351,7 +1396,9 @@ export const mutationsRouter = router({
           userId,
           before: order.status,
           after: input.status,
-          note: `Zlecenie edytowane przez administratora/koordynatora.`,
+          note: `Zlecenie edytowane przez administratora/koordynatora.${
+            soloCompletion ? ` [SOLO:${soloTechnicianId}]` : ''
+          }`,
         })
       })
 
@@ -2818,10 +2865,18 @@ export const mutationsRouter = router({
     .use(requireOplModule)
     .input(
       z.object({
-        orderNumber: z.string().trim().min(1),
-        orderAddress: z.string().trim().min(1),
-        failureReason: z.string().trim().min(1),
-        notes: z.string().optional(),
+        subject: z.string().trim().min(1).max(240),
+        body: z.string().trim().min(1).max(10000),
+        attachments: z
+          .array(
+            z.object({
+              filename: z.string().trim().min(1).max(180),
+              contentType: z.string().trim().max(120).optional(),
+              contentBase64: z.string().min(1),
+            })
+          )
+          .max(8)
+          .optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -2834,10 +2889,9 @@ export const mutationsRouter = router({
         await sendOplFailureEmail({
           fromEmail: user.email,
           fromName: user.name,
-          orderNumber: input.orderNumber,
-          orderAddress: input.orderAddress,
-          failureReason: input.failureReason,
-          notes: input.notes,
+          subject: input.subject,
+          body: input.body,
+          attachments: input.attachments,
         })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'UNKNOWN'

@@ -1,6 +1,7 @@
 'use client'
 
 import LoadingOverlay from '@/app/components/LoadingOverlay'
+import { oplNetworkMap, oplTimeSlotMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { OplTechnicianAssignment } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
@@ -21,11 +22,12 @@ import TechniciansList from './TechniciansList'
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
 /** 🎨 Marker colors based on order status */
-const STATUS_COLORS: Record<string, string> = {
-  ASSIGNED: '#26303d',
-  COMPLETED: '#66b266',
-  NOT_COMPLETED: '#E6262D',
-}
+const MARKER_COLORS = {
+  completed: '#22c55e',
+  notCompleted: '#ef4444',
+  unassigned: '#26303d',
+  assigned: '#f59e0b',
+} as const
 
 const PlanningBoard = () => {
   const { selectedDate } = usePlanningContext()
@@ -57,10 +59,14 @@ const PlanningBoard = () => {
         lng: number
         orderNumber: string
         address: string
-        date?: string
-        operator: string
+        dateLabel?: string
+        slotLabel: string
+        networkLabel: string
         status: string
         techniciansLabel: string
+        standard: string
+        notes: string | null
+        failureReason: string | null
         completedByName: string | null
       }
     >()
@@ -88,13 +94,22 @@ const PlanningBoard = () => {
             lng: o.lng,
             orderNumber: o.orderNumber,
             address: o.address,
-            date: o.date ? new Date(o.date).toLocaleDateString('pl-PL') : undefined,
-            operator: o.operator ?? '—',
+            dateLabel: o.date
+              ? new Date(o.date).toLocaleDateString('pl-PL')
+              : undefined,
+            slotLabel: oplTimeSlotMap[slot.timeSlot] ?? slot.timeSlot,
+            networkLabel:
+              o.network && o.network in oplNetworkMap
+                ? oplNetworkMap[o.network]
+                : '-',
             status: o.status,
             techniciansLabel:
               o.assignedTechnicians && o.assignedTechnicians.length > 0
                 ? o.assignedTechnicians.map((t) => t.name).join(' / ')
                 : tech.technicianName,
+            standard: o.standard ?? '-',
+            notes: o.notes ?? null,
+            failureReason: o.failureReason ?? null,
             completedByName: o.completedByName ?? null,
           })
         })
@@ -105,19 +120,22 @@ const PlanningBoard = () => {
       id: o.id,
       lat: o.lat,
       lng: o.lng,
-      label: `${o.orderNumber} • ${o.address}${
-        o.techniciansLabel
-          ? `<br />Technik: ${o.techniciansLabel}`
-          : ''
-      }${
-        o.completedByName &&
-        (o.status === 'COMPLETED' || o.status === 'NOT_COMPLETED')
-          ? `<br />Wykonał: ${o.completedByName}`
-          : ''
-      }`,
-      date: o.date,
-      operator: o.operator,
-      color: STATUS_COLORS[o.status] ?? '#26303d',
+      orderNumber: o.orderNumber,
+      address: o.address,
+      dateLabel: o.dateLabel,
+      slotLabel: o.slotLabel,
+      technicianLabel: o.techniciansLabel || '-',
+      standard: o.standard,
+      networkLabel: o.networkLabel,
+      notes: o.notes,
+      failureReason: o.failureReason,
+      completedByName: o.completedByName,
+      color:
+        o.status === 'COMPLETED'
+          ? MARKER_COLORS.completed
+          : o.status === 'NOT_COMPLETED'
+            ? MARKER_COLORS.notCompleted
+            : MARKER_COLORS.assigned,
     }))
 
     const assignedIds = new Set(byOrderId.keys())
@@ -134,11 +152,20 @@ const PlanningBoard = () => {
         id: o.id,
         lat: o.lat as number,
         lng: o.lng as number,
-        label: `${o.orderNumber} • ${o.city}, ${o.street}<br />
-        Status: nieprzypisane`,
-        date: o.date ? new Date(o.date).toLocaleDateString('pl-PL') : undefined,
-        operator: o.operator ?? '—',
-        color: '#E6262D',
+        orderNumber: o.orderNumber,
+        address: `${o.city}, ${o.street}`,
+        dateLabel: o.date
+          ? new Date(o.date).toLocaleDateString('pl-PL')
+          : undefined,
+        slotLabel: oplTimeSlotMap[o.timeSlot] ?? o.timeSlot,
+        technicianLabel: '-',
+        standard: o.standard ?? '-',
+        networkLabel:
+          o.network && o.network in oplNetworkMap ? oplNetworkMap[o.network] : '-',
+        notes: o.notes ?? null,
+        failureReason: o.failureReason ?? null,
+        completedByName: null,
+        color: MARKER_COLORS.unassigned,
       }))
 
     return [...assignedMarkers, ...unassignedMarkers]
@@ -162,13 +189,26 @@ const PlanningBoard = () => {
     setProcessing(true)
     try {
       const { draggableId, destination } = result
-      const techId =
-        destination.droppableId === 'UNASSIGNED_ORDERS'
-          ? undefined
-          : destination.droppableId
+      const destinationId = destination.droppableId
+
+      const payload =
+        destinationId === 'UNASSIGNED_ORDERS'
+          ? { technicianId: undefined as string | undefined, technicianIds: undefined as string[] | undefined }
+          : destinationId.startsWith('team:')
+            ? {
+                technicianId: undefined as string | undefined,
+                technicianIds: destinationId
+                  .replace('team:', '')
+                  .split('|')
+                  .filter(Boolean),
+              }
+            : {
+                technicianId: destinationId,
+                technicianIds: undefined as string[] | undefined,
+              }
       await assignMutation.mutateAsync({
         id: draggableId,
-        technicianId: techId,
+        ...payload,
       })
     } catch {
       setProcessing(false)

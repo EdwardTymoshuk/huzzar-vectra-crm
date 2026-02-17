@@ -3,19 +3,21 @@ import nodemailer from 'nodemailer'
 type SendOplFailureEmailParams = {
   fromEmail: string
   fromName: string
-  orderNumber: string
-  orderAddress: string
-  failureReason: string
-  notes?: string | null
+  subject: string
+  body: string
+  attachments?: Array<{
+    filename: string
+    contentType?: string
+    contentBase64: string
+  }>
 }
 
 export async function sendOplFailureEmail({
   fromEmail,
   fromName,
-  orderNumber,
-  orderAddress,
-  failureReason,
-  notes,
+  subject,
+  body,
+  attachments = [],
 }: SendOplFailureEmailParams) {
   const host = process.env.EMAIL_HOST?.trim()
   const portRaw = process.env.EMAIL_PORT?.trim()
@@ -41,22 +43,17 @@ export async function sendOplFailureEmail({
     },
   })
 
-  const subject = `${orderNumber} - ${orderAddress}`
-  const text = [
-    `Numer zlecenia: ${orderNumber}`,
-    `Adres: ${orderAddress}`,
-    '',
-    `Powód niewykonania: ${failureReason.trim()}`,
-    `Uwagi: ${notes?.trim() || '-'}`,
-  ].join('\n')
-
   await transporter.sendMail({
     from: `"${fromName}" <${fromEmail || smtpUser}>`,
-    sender: smtpUser,
     to: 'cok.orange@huzzar.com.pl',
     replyTo: fromEmail || smtpUser,
     subject,
-    text,
+    text: body,
+    attachments: attachments.map((file) => ({
+      filename: file.filename,
+      content: Buffer.from(file.contentBase64, 'base64'),
+      contentType: file.contentType || 'application/octet-stream',
+    })),
     headers: {
       'X-Auto-Response-Suppress': 'All',
       Precedence: 'bulk',

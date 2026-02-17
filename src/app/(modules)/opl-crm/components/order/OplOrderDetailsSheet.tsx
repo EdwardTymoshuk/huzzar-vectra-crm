@@ -13,7 +13,7 @@ import { materialUnitMap } from '@/lib/constants'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import CompleteOplOrderWizard from '../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
 import OrderStatusBadge from '../../../../components/order/OrderStatusBadge'
@@ -42,24 +42,30 @@ type Props = {
 const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
   const { isTechnician, isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(orderId)
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAdminEdit, setShowAdminEdit] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setActiveOrderId(orderId)
+  }, [open, orderId])
 
   const {
     data: order,
     isLoading,
     isError,
   } = trpc.opl.order.getOrderById.useQuery(
-    { id: orderId ?? '' },
-    { enabled: !!orderId },
+    { id: activeOrderId ?? '' },
+    { enabled: !!activeOrderId },
   )
 
   const { data: addressNotes = [] } =
     trpc.opl.order.getAddressNotesForOrder.useQuery(
-      { orderId: orderId ?? '' },
-      { enabled: !!orderId && open },
+      { orderId: activeOrderId ?? '' },
+      { enabled: !!activeOrderId && open },
     )
 
   const deleteMutation = trpc.opl.order.deleteOrder.useMutation({
@@ -584,7 +590,15 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                 </section>
               )}
 
-              <OplOrderTimeline order={order} />
+              <OplOrderTimeline
+                order={order}
+                onOpenOrder={(nextOrderId) => {
+                  setShowDeleteDialog(false)
+                  setShowEditModal(false)
+                  setShowAdminEdit(false)
+                  setActiveOrderId(nextOrderId)
+                }}
+              />
             </div>
           )}
         </SheetContent>

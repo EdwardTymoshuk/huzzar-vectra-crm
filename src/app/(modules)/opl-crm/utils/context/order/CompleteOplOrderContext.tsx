@@ -30,6 +30,8 @@ export type CompleteOplOrderState = {
   notes: string
   measurementOpp: string
   measurementGo: string
+  soloCompletion: boolean
+  soloTechnicianId: string
   addressNoteEnabled: boolean
   addressNoteText: string
   addressNoteScope: string
@@ -56,6 +58,8 @@ type CompleteOplOrderContextValue = {
   setNotes: (v: string) => void
   setMeasurementOpp: (v: string) => void
   setMeasurementGo: (v: string) => void
+  setSoloCompletion: (v: boolean) => void
+  setSoloTechnicianId: (v: string) => void
   setAddressNoteEnabled: (v: boolean) => void
   setAddressNoteText: (v: string) => void
   setAddressNoteScope: (v: string) => void
@@ -110,6 +114,8 @@ const initialState: CompleteOplOrderState = {
   notes: '',
   measurementOpp: '',
   measurementGo: '',
+  soloCompletion: false,
+  soloTechnicianId: '',
   addressNoteEnabled: false,
   addressNoteText: '',
   addressNoteScope: '',
@@ -209,6 +215,12 @@ export const CompleteOplOrderProvider = ({
   }, [])
   const setMeasurementGo = useCallback((v: string) => {
     setState((prev) => ({ ...prev, measurementGo: v }))
+  }, [])
+  const setSoloCompletion = useCallback((v: boolean) => {
+    setState((prev) => ({ ...prev, soloCompletion: v }))
+  }, [])
+  const setSoloTechnicianId = useCallback((v: string) => {
+    setState((prev) => ({ ...prev, soloTechnicianId: v }))
   }, [])
   const setAddressNoteEnabled = useCallback((v: boolean) => {
     setState((prev) => ({ ...prev, addressNoteEnabled: v }))
@@ -532,6 +544,8 @@ export const CompleteOplOrderProvider = ({
       setNotes,
       setMeasurementOpp,
       setMeasurementGo,
+      setSoloCompletion,
+      setSoloTechnicianId,
       setAddressNoteEnabled,
       setAddressNoteText,
       setAddressNoteScope,
@@ -576,6 +590,8 @@ export const CompleteOplOrderProvider = ({
       setNotes,
       setMeasurementOpp,
       setMeasurementGo,
+      setSoloCompletion,
+      setSoloTechnicianId,
       setAddressNoteEnabled,
       setAddressNoteText,
       setAddressNoteScope,

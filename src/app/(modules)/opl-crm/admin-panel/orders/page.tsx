@@ -4,12 +4,12 @@ import FloatingActionMenu from '@/app/components/FloatingActionMenu'
 import PageControlBar from '@/app/components/PageControlBar'
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { useRole } from '@/utils/hooks/useRole'
 import { OplOrderStatus, OplOrderType } from '@prisma/client'
 import { useState } from 'react'
-import { MdAdd, MdUploadFile } from 'react-icons/md'
+import { MdAdd } from 'react-icons/md'
 import AddOplOrderModal from '../components/orders/AddOplOrderModal'
-import ImportOrdersModal from '../components/orders/ImportOrdersModal'
 import OplOrdersFilter from '../components/orders/OplOrdersFilter'
 import OplOrdersTable from '../components/orders/OplOrdersTable'
 
@@ -26,24 +26,28 @@ const OplOrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState<OplOrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
   const [orderTypeFilter, setOrderTypeFilter] = useState<OplOrderType | null>(
-    null
+    null,
   )
+  const [ordersTab, setOrdersTab] = useState<
+    'ALL' | 'INSTALLATION' | 'SERVICE'
+  >('ALL')
   const [dateFrom, setDateFrom] = useState<string | null>(null)
   const [dateTo, setDateTo] = useState<string | null>(null)
 
   const [isAddModalOpen, setAddModalOpen] = useState(false)
-  const [isImportModalOpen, setImportModalOpen] = useState(false)
 
   const { isAdmin, isCoordinator, isLoading } = useRole()
   const canManageOrders = !isLoading && (isAdmin || isCoordinator)
+  const resolvedOrderTypeFilter =
+    ordersTab === 'ALL'
+      ? orderTypeFilter
+      : ordersTab === 'INSTALLATION'
+        ? OplOrderType.INSTALLATION
+        : OplOrderType.SERVICE
 
   /** Header actions (visible only on xl screens) */
   const headerActions = canManageOrders ? (
     <div className="flex items-center gap-2">
-      <Button onClick={() => setImportModalOpen(true)} variant="warning">
-        <MdUploadFile className="text-lg" />
-        Wczytaj z Excela
-      </Button>
       <Button onClick={() => setAddModalOpen(true)} variant="success">
         <MdAdd className="text-lg" />
         Dodaj zlecenie
@@ -74,12 +78,32 @@ const OplOrdersPage = () => {
       </PageControlBar>
 
       {/* Main table */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-2 md:px-4">
+        <Tabs
+          value={ordersTab}
+          onValueChange={(value) =>
+            setOrdersTab(value as 'ALL' | 'INSTALLATION' | 'SERVICE')
+          }
+          className="mb-4"
+        >
+          <TabsList className="mx-auto grid h-auto w-full max-w-2xl grid-cols-3 gap-1 p-1">
+            <TabsTrigger value="ALL" className="w-full">
+              Wszystkie
+            </TabsTrigger>
+            <TabsTrigger value="INSTALLATION" className="w-full">
+              Instalacje
+            </TabsTrigger>
+            <TabsTrigger value="SERVICE" className="w-full">
+              Serwisy
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <OplOrdersTable
           searchTerm={searchTerm}
           statusFilter={statusFilter}
           technicianFilter={technicianFilter}
-          orderTypeFilter={orderTypeFilter}
+          orderTypeFilter={resolvedOrderTypeFilter}
           dateFrom={dateFrom}
           dateTo={dateTo}
         />
@@ -92,12 +116,6 @@ const OplOrdersPage = () => {
             position="bottom-right"
             disableOverlay
             actions={[
-              {
-                label: 'Wczytaj z Excela',
-                icon: <MdUploadFile className="text-lg" />,
-                colorClass: 'bg-warning hover:bg-warning/90',
-                onClick: () => setImportModalOpen(true),
-              },
               {
                 label: 'Dodaj zlecenie',
                 icon: <MdAdd className="text-lg" />,
@@ -115,12 +133,6 @@ const OplOrdersPage = () => {
         <AddOplOrderModal
           open={isAddModalOpen}
           onCloseAction={() => setAddModalOpen(false)}
-        />
-      )}
-      {canManageOrders && (
-        <ImportOrdersModal
-          open={isImportModalOpen}
-          onClose={() => setImportModalOpen(false)}
         />
       )}
     </div>

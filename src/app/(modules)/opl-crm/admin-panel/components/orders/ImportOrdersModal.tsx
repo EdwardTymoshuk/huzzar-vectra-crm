@@ -284,7 +284,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     try {
       // 1) Resolve technicians
       const namesToResolve = orders
-        .map((o) => o.assignedToName)
+        .flatMap((o) => o.assignedToNames ?? [])
         .filter((v): v is string => !!v)
 
       const nameToIdMap = await resolveTechniciansByName(namesToResolve)
@@ -295,13 +295,14 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
 
       // 2) Build final payload for bulk import
       const payload = orders.map((o) => {
-        let assignedToId: string | undefined
+        const assignedTechnicianIds = (o.assignedToNames ?? [])
+          .map((name) => nameToIdMap.get(normalizeName(name)))
+          .filter((id): id is string => Boolean(id))
 
-        if (o.assignedToName) {
-          const id = nameToIdMap.get(normalizeName(o.assignedToName))
-          if (id) assignedToId = id
-          else unresolvedTechCount++
-        }
+        const unresolvedForOrder = (o.assignedToNames ?? []).filter(
+          (name) => !nameToIdMap.get(normalizeName(name))
+        ).length
+        unresolvedTechCount += unresolvedForOrder
 
         return {
           operator: o.operator,
@@ -315,7 +316,10 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           city: o.city,
           street: o.street,
           postalCode: o.postalCode,
-          assignedTechnicianIds: assignedToId ? [assignedToId] : undefined,
+          assignedTechnicianIds:
+            assignedTechnicianIds.length > 0
+              ? Array.from(new Set(assignedTechnicianIds))
+              : undefined,
           notes: [
             o.notes?.trim(),
             ...(unresolvedByOrder.get(o.orderNumber)?.length

@@ -74,7 +74,13 @@ function layoutOrders(tech: OplTechnicianAssignment, searchTerm?: string) {
   tech.slots.forEach((slot) => {
     const { start, end } = parseSlot(slot.timeSlot)
     slot.orders.forEach((o) => {
+      const isTeamRow = (tech.teamTechnicianIds?.length ?? 0) > 1
+      const isTeamOrder = (o.assignedTechnicians?.length ?? 0) > 1
+      if (!isTeamRow && isTeamOrder) {
+        return
+      }
       if (
+        !isTeamRow &&
         o.primaryTechnicianId &&
         tech.technicianId &&
         o.primaryTechnicianId !== tech.technicianId
@@ -227,8 +233,10 @@ const TechniciansTimeline = ({
 
               return (
                 <Droppable
-                  key={tech.technicianId ?? tech.technicianName}
-                  droppableId={tech.technicianId ?? 'unassigned'}
+                  key={tech.rowId ?? tech.technicianId ?? tech.technicianName}
+                  droppableId={
+                    tech.dropTargetId ?? tech.technicianId ?? 'unassigned'
+                  }
                   type="ORDER"
                 >
                   {(provided, snapshot) => (

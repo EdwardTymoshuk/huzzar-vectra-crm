@@ -4,6 +4,7 @@ import FloatingActionMenu from '@/app/components/FloatingActionMenu'
 import PageControlBar from '@/app/components/PageControlBar'
 import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { useRole } from '@/utils/hooks/useRole'
 import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useState } from 'react'
@@ -23,16 +24,25 @@ import OrdersTable from '../components/orders/OrdersTable'
 const OrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<VectraOrderStatus | null>(
-    null
+    null,
   )
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
   const [orderTypeFilter, setOrderTypeFilter] =
     useState<VectraOrderType | null>(null)
+  const [ordersTab, setOrdersTab] = useState<
+    'ALL' | 'INSTALLATION' | 'SERVICE'
+  >('ALL')
 
   const [isAddModalOpen, setAddModalOpen] = useState(false)
 
   const { isAdmin, isCoordinator, isLoading } = useRole()
   const canManageOrders = !isLoading && (isAdmin || isCoordinator)
+  const resolvedOrderTypeFilter =
+    ordersTab === 'ALL'
+      ? orderTypeFilter
+      : ordersTab === 'INSTALLATION'
+        ? VectraOrderType.INSTALLATION
+        : VectraOrderType.SERVICE
 
   /** Header actions (visible only on xl screens) */
   const headerActions = canManageOrders ? (
@@ -63,12 +73,32 @@ const OrdersPage = () => {
       </PageControlBar>
 
       {/* Main table */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-2 md:px-4">
+        <Tabs
+          value={ordersTab}
+          onValueChange={(value) =>
+            setOrdersTab(value as 'ALL' | 'INSTALLATION' | 'SERVICE')
+          }
+          className="mb-4"
+        >
+          <TabsList className="mx-auto grid h-auto w-full max-w-2xl grid-cols-3 gap-1 p-1">
+            <TabsTrigger value="ALL" className="w-full">
+              Wszystkie
+            </TabsTrigger>
+            <TabsTrigger value="INSTALLATION" className="w-full">
+              Instalacje
+            </TabsTrigger>
+            <TabsTrigger value="SERVICE" className="w-full">
+              Serwisy
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <OrdersTable
           searchTerm={searchTerm}
           statusFilter={statusFilter}
           technicianFilter={technicianFilter}
-          orderTypeFilter={orderTypeFilter}
+          orderTypeFilter={resolvedOrderTypeFilter}
         />
       </div>
 

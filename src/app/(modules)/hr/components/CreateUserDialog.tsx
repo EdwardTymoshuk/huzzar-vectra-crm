@@ -29,6 +29,7 @@ import {
 import { generateStrongPassword } from '@/utils/passwordGenerator'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { PiArrowsClockwiseBold } from 'react-icons/pi'
@@ -69,6 +70,8 @@ type CreateUserFormValues = z.infer<typeof createUserSchema>
  * - generates temporary password
  */
 const CreateUserDialog = () => {
+  const { data: session } = useSession()
+  const isCoordinator = session?.user?.role === 'COORDINATOR'
   const [open, setOpen] = useState(false)
   const [isSpinning, setIsSpinning] = useState(false)
 
@@ -188,14 +191,20 @@ const CreateUserDialog = () => {
                           <SelectValue placeholder="Wybierz rolę" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="ADMIN">Administrator</SelectItem>
-                          <SelectItem value="COORDINATOR">
-                            Koordynator
-                          </SelectItem>
                           <SelectItem value="TECHNICIAN">Technik</SelectItem>
-                          <SelectItem value="WAREHOUSEMAN">
-                            Magazynier
-                          </SelectItem>
+                          {!isCoordinator && (
+                            <SelectItem value="ADMIN">Administrator</SelectItem>
+                          )}
+                          {!isCoordinator && (
+                            <SelectItem value="COORDINATOR">
+                              Koordynator
+                            </SelectItem>
+                          )}
+                          {!isCoordinator && (
+                            <SelectItem value="WAREHOUSEMAN">
+                              Magazynier
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </FormControl>

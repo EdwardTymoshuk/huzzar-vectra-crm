@@ -2,7 +2,7 @@
 
 import { normalizeUser } from '@/server/core/helpers/users/normalizeUser'
 import { syncModuleUsers } from '@/server/core/helpers/users/syncModuleUsers'
-import { adminOnly } from '@/server/roleHelpers'
+import { adminOnly, adminOrCoord } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { sendNewAccountEmail } from '@/utils/mail/sendNewAccountEmail'
 import { Prisma, Role, UserStatus } from '@prisma/client'
@@ -18,11 +18,30 @@ export const hrUserRouter = router({
   /**
    * Returns all active users with assigned modules.
    */
-  getUsers: adminOnly.query(async ({ ctx }) => {
+  getUsers: adminOrCoord.query(async ({ ctx }) => {
+    const actor = ctx.user
+    if (!actor) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+    const actorModuleIds = new Set(actor.modules.map((m) => m.id))
+    const actorLocationIds = new Set(actor.locations.map((l) => l.id))
+
     const users = await ctx.prisma.user.findMany({
-      where: {
-        deletedAt: null,
-      },
+      where:
+        actor.role === 'COORDINATOR'
+          ? {
+              role: 'TECHNICIAN',
+              modules: {
+                some: {
+                  moduleId: { in: Array.from(actorModuleIds) },
+                },
+              },
+              locations: {
+                some: {
+                  locationId: { in: Array.from(actorLocationIds) },
+                },
+              },
+            }
+          : {},
       include: {
         locations: {
           include: {
@@ -52,10 +71,13 @@ export const hrUserRouter = router({
     return users.map(normalizeUser)
   }),
 
-  getUserById: adminOnly
+  getUserById: adminOrCoord
     .input(z.object({ userId: z.string() }))
-    .query(({ ctx, input }) =>
-      ctx.prisma.user.findUnique({
+    .query(async ({ ctx, input }) => {
+      const actor = ctx.user
+      if (!actor) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      const user = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
         include: {
           locations: true,
@@ -68,12 +90,37 @@ export const hrUserRouter = router({
           },
         },
       })
-    ),
+
+      if (!user) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found.' })
+      }
+
+      if (actor.role === 'COORDINATOR') {
+        if (user.role !== 'TECHNICIAN') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Forbidden' })
+        }
+
+        const actorModuleIds = new Set(actor.modules.map((m) => m.id))
+        const actorLocationIds = new Set(actor.locations.map((l) => l.id))
+        const hasSharedModule = user.modules.some((m) =>
+          actorModuleIds.has(m.moduleId)
+        )
+        const hasSharedLocation = user.locations.some((l) =>
+          actorLocationIds.has(l.locationId)
+        )
+
+        if (!hasSharedModule || !hasSharedLocation) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Forbidden' })
+        }
+      }
+
+      return user
+    }),
 
   /**
    * Creates a new system user and assigns modules.
    */
-  createUser: adminOnly
+  createUser: adminOrCoord
     .input(
       z.object({
         email: z.string().email(),
@@ -86,6 +133,33 @@ export const hrUserRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const actor = ctx.user
+      if (!actor) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      if (actor.role === 'COORDINATOR') {
+        if (input.role !== 'TECHNICIAN') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Koordynator może tworzyć tylko konta techników.',
+          })
+        }
+
+        const actorModuleIds = new Set(actor.modules.map((m) => m.id))
+        const actorLocationIds = new Set(actor.locations.map((l) => l.id))
+        const outsideModules = input.moduleIds.filter((id) => !actorModuleIds.has(id))
+        const outsideLocations = input.locationIds.filter(
+          (id) => !actorLocationIds.has(id)
+        )
+
+        if (outsideModules.length > 0 || outsideLocations.length > 0) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message:
+              'Koordynator może przypisywać tylko swoje moduły i lokalizacje.',
+          })
+        }
+      }
+
       const existing = await ctx.prisma.user.findUnique({
         where: { email: input.email },
       })
@@ -177,7 +251,7 @@ export const hrUserRouter = router({
       return user
     }),
 
-  updateUser: adminOnly
+  updateUser: adminOrCoord
     .input(
       z.object({
         userId: z.string(),
@@ -193,6 +267,9 @@ export const hrUserRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const actor = ctx.user
+      if (!actor) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
       return ctx.prisma.$transaction(async (tx) => {
         /**
          * Ensure user exists.
@@ -204,6 +281,50 @@ export const hrUserRouter = router({
 
         if (!existingUser) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found.' })
+        }
+
+        if (actor.role === 'COORDINATOR') {
+          if (input.role !== 'TECHNICIAN') {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'Koordynator może edytować tylko techników.',
+            })
+          }
+
+          const currentTarget = await tx.user.findUnique({
+            where: { id: input.userId },
+            select: {
+              role: true,
+              modules: { select: { moduleId: true } },
+              locations: { select: { locationId: true } },
+            },
+          })
+
+          if (!currentTarget || currentTarget.role !== 'TECHNICIAN') {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'Koordynator może edytować tylko techników.',
+            })
+          }
+
+          const actorModuleIds = new Set(actor.modules.map((m) => m.id))
+          const actorLocationIds = new Set(actor.locations.map((l) => l.id))
+          const targetInsideScope =
+            currentTarget.modules.every((m) => actorModuleIds.has(m.moduleId)) &&
+            currentTarget.locations.every((l) =>
+              actorLocationIds.has(l.locationId)
+            )
+          const nextInsideScope =
+            input.moduleIds.every((id) => actorModuleIds.has(id)) &&
+            (input.locationIds ?? []).every((id) => actorLocationIds.has(id))
+
+          if (!targetInsideScope || !nextInsideScope) {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message:
+                'Koordynator może zarządzać tylko technikami ze swojego zakresu modułów i lokalizacji.',
+            })
+          }
         }
 
         /**
@@ -350,14 +471,27 @@ export const hrUserRouter = router({
   /**
    * Updates user status (ACTIVE / SUSPENDED / INACTIVE).
    */
-  updateUserStatus: adminOnly
+  updateUserStatus: adminOrCoord
     .input(
       z.object({
         userId: z.string(),
         status: z.nativeEnum(UserStatus),
       })
     )
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const actor = ctx.user
+      if (!actor) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
+      if (actor.role === 'COORDINATOR') {
+        const target = await ctx.prisma.user.findUnique({
+          where: { id: input.userId },
+          select: { role: true },
+        })
+        if (!target || target.role !== 'TECHNICIAN') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Forbidden' })
+        }
+      }
+
       return ctx.prisma.user.update({
         where: { id: input.userId },
         data: { status: input.status },
@@ -369,7 +503,7 @@ export const hrUserRouter = router({
    */
   archiveUser: adminOnly
     .input(z.object({ userId: z.string() }))
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       return ctx.prisma.user.update({
         where: { id: input.userId },
         data: {
@@ -381,19 +515,25 @@ export const hrUserRouter = router({
 
   restoreUser: adminOnly
     .input(z.object({ id: z.string() }))
-    .mutation(({ ctx, input }) =>
-      ctx.prisma.user.update({
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.user.update({
         where: { id: input.id },
         data: { status: 'ACTIVE' },
       })
-    ),
+    }),
 
   /** Toggle active / suspended */
-  toggleUserStatus: adminOnly
+  toggleUserStatus: adminOrCoord
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const actor = ctx.user
+      if (!actor) throw new TRPCError({ code: 'UNAUTHORIZED' })
+
       const user = await ctx.prisma.user.findUnique({ where: { id: input.id } })
       if (!user) throw new TRPCError({ code: 'NOT_FOUND' })
+      if (actor.role === 'COORDINATOR' && user.role !== 'TECHNICIAN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Forbidden' })
+      }
       return ctx.prisma.user.update({
         where: { id: input.id },
         data: { status: user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' },
@@ -410,8 +550,47 @@ export const hrUserRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.force) {
-        await ctx.prisma.user.delete({ where: { id: input.id } })
-        return { ok: true }
+        try {
+          await ctx.prisma.user.delete({ where: { id: input.id } })
+          return { ok: true, hardDeleted: true }
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code !== 'P2003'
+          ) {
+            throw error
+          }
+
+          const purgedEmail = `purged-${input.id}@example.invalid`
+          await ctx.prisma.$transaction(async (tx) => {
+            await tx.globalUserSettings.deleteMany({
+              where: { userId: input.id },
+            })
+
+            await tx.userModule.deleteMany({
+              where: { userId: input.id },
+            })
+
+            await tx.userLocation.deleteMany({
+              where: { userId: input.id },
+            })
+
+            await tx.user.update({
+              where: { id: input.id },
+              data: {
+                name: 'Trwale usunięty użytkownik',
+                email: purgedEmail,
+                phoneNumber: '',
+                password: '',
+                identyficator: null,
+                status: 'DELETED',
+                deletedAt: new Date(),
+              },
+            })
+          })
+
+          return { ok: true, hardDeleted: false }
+        }
       }
 
       const anonEmail = `deleted-${input.id}@example.invalid`

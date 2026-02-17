@@ -15,11 +15,19 @@ import { getOplFullOrderTimeline } from '../../../utils/order/getOplFullOrderTim
 
 type FullOrder = RouterOutputs['opl']['order']['getOrderById']
 
-export default function OplOrderTimeline({ order }: { order: FullOrder }) {
+export default function OplOrderTimeline({
+  order,
+  onOpenOrder,
+}: {
+  order: FullOrder
+  onOpenOrder?: (orderId: string) => void
+}) {
   const { role } = useRole()
 
   const timelineOrder = mapOrderToTimelineVM(order)
-  const allEvents = getOplFullOrderTimeline(timelineOrder, role ?? 'TECHNICIAN')
+  const allEvents = getOplFullOrderTimeline(timelineOrder, role ?? 'TECHNICIAN', {
+    onOpenOrder,
+  })
 
   if (!allEvents.length) return null
 

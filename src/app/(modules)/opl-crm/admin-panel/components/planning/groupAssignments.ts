@@ -25,11 +25,18 @@ export const groupAssignmentsForTeams = (
   const ensureRow = (
     key: string,
     technicianName: string,
-    technicianId: string | null
+    technicianId: string | null,
+    options?: {
+      dropTargetId?: string
+      teamTechnicianIds?: string[]
+    }
   ) => {
     let row = rows.get(key)
     if (!row) {
       row = {
+        rowId: key,
+        dropTargetId: options?.dropTargetId,
+        teamTechnicianIds: options?.teamTechnicianIds,
         technicianName,
         technicianId,
         slots: [],
@@ -70,14 +77,19 @@ export const groupAssignmentsForTeams = (
           ids.forEach((id) => techInTeamOrders.add(id))
 
           const key = `team:${ids.join('|')}`
-          const row = ensureRow(key, names.join(' / '), ids[0] ?? null)
+          const row = ensureRow(key, names.join(' / '), ids[0] ?? null, {
+            dropTargetId: key,
+            teamTechnicianIds: ids,
+          })
           pushToSlot(key, row, slot.timeSlot, order)
           return
         }
 
         if (tech.technicianId) techWithSoloOrders.add(tech.technicianId)
         const key = `tech:${tech.technicianId ?? tech.technicianName}`
-        const row = ensureRow(key, tech.technicianName, tech.technicianId)
+        const row = ensureRow(key, tech.technicianName, tech.technicianId, {
+          dropTargetId: tech.technicianId ?? undefined,
+        })
         pushToSlot(key, row, slot.timeSlot, order)
       })
     })
@@ -90,9 +102,10 @@ export const groupAssignmentsForTeams = (
     const techId = tech.technicianId
     const hasSolo = techId ? techWithSoloOrders.has(techId) : false
     const isTeamOnly = techId ? techInTeamOrders.has(techId) && !hasSolo : false
-
-    if (isTeamOnly) return
-    ensureRow(key, tech.technicianName, tech.technicianId)
+    ensureRow(key, tech.technicianName, tech.technicianId, {
+      dropTargetId: tech.technicianId ?? undefined,
+      teamTechnicianIds: isTeamOnly ? [] : undefined,
+    })
   })
 
   return rowOrder.map((key) => rows.get(key)!).filter(Boolean)

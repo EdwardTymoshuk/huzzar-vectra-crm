@@ -5,7 +5,6 @@ import { hasAnyRole, isTechnician } from './../../../../../utils/auth/role'
 import { sortedOplTimeSlotsByHour } from '@/app/(modules)/opl-crm/lib/constants'
 import { requireOplModule } from '@/server/middleware/oplMiddleware'
 import {
-  adminCoordOrWarehouse,
   adminOrCoord,
   loggedInEveryone,
   technicianOnly,
@@ -14,7 +13,9 @@ import { OplTechnicianAssignment } from '@/types/opl-crm'
 import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
 import { getNextLineOrderNumber } from '@/utils/orders/nextLineOrderNumber'
 import {
+  OplNetworkOeprator,
   OplOrderStatus,
+  OplOrderStandard,
   OplOrderType,
   OplTimeSlot,
   Prisma,
@@ -87,6 +88,7 @@ export const queriesRouter = router({
       }
 
       const { role, id: userId } = ctx.user
+      const allowedLocationIds = new Set(ctx.user.locations.map((l) => l.id))
 
       const filters: Prisma.OplOrderWhereInput = {}
 
@@ -167,6 +169,31 @@ export const queriesRouter = router({
       if (!isTechnician(role) && input.status) filters.status = input.status
       if (input.type) filters.type = input.type
 
+      if (role === 'WAREHOUSEMAN') {
+        filters.status = {
+          in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+        }
+        if (allowedLocationIds.size === 0) {
+          filters.id = '__no_access__'
+        } else {
+          filters.assignments = {
+            some: {
+              technician: {
+                user: {
+                  locations: {
+                    some: {
+                      locationId: {
+                        in: Array.from(allowedLocationIds),
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }
+        }
+      }
+
       /* -------------------------------------------
        * Text search
        * ------------------------------------------- */
@@ -216,6 +243,7 @@ export const queriesRouter = router({
 
   /** ✅ Full order details (with complete attempt chain + full client history) */
   getOrderById: loggedInEveryone
+    .use(requireOplModule)
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
       const order = await ctx.prisma.oplOrder.findUnique({
@@ -238,6 +266,20 @@ export const queriesRouter = router({
                 orderBy: { assignedAt: 'asc' },
                 include: {
                   technician: {
+                    select: oplUserWithCoreBasicSelect,
+                  },
+                },
+              },
+              history: {
+                where: {
+                  statusAfter: {
+                    in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                  },
+                },
+                orderBy: { changeDate: 'desc' },
+                take: 1,
+                include: {
+                  changedBy: {
                     select: oplUserWithCoreBasicSelect,
                   },
                 },
@@ -322,11 +364,78 @@ export const queriesRouter = router({
         })
       }
 
+      const actor = ctx.user
+      if (!actor) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const isAssignedToActor = order.assignments.some(
+        (a) => a.technician.user.id === actor.id
+      )
+      const finalizedByActor = order.history.some(
+        (h) =>
+          h.changedBy.user.id === actor.id &&
+          (h.statusAfter === OplOrderStatus.COMPLETED ||
+            h.statusAfter === OplOrderStatus.NOT_COMPLETED)
+      )
+
+      if (actor.role === 'TECHNICIAN' && !isAssignedToActor && !finalizedByActor) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Brak dostępu do tego zlecenia.',
+        })
+      }
+
+      if (actor.role === 'WAREHOUSEMAN') {
+        const actorLocationIds = new Set(actor.locations.map((l) => l.id))
+        const hasLocationMatch =
+          actorLocationIds.size > 0
+            ? Boolean(
+                await ctx.prisma.oplOrder.findFirst({
+                  where: {
+                    id: input.id,
+                    assignments: {
+                      some: {
+                        technician: {
+                          user: {
+                            locations: {
+                              some: {
+                                locationId: { in: Array.from(actorLocationIds) },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  select: { id: true },
+                })
+              )
+            : false
+
+        if (!hasLocationMatch) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Brak dostępu do tego zlecenia.',
+          })
+        }
+
+        if (
+          order.status !== OplOrderStatus.COMPLETED &&
+          order.status !== OplOrderStatus.NOT_COMPLETED
+        ) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Magazynier ma dostęp tylko do zakończonych zleceń.',
+          })
+        }
+      }
+
       return order
     }),
 
   /** Orders grouped by technician and time-slot for planning board */
-  getAssignedOrders: adminCoordOrWarehouse
+  getAssignedOrders: adminOrCoord
     .input(z.object({ date: z.string().optional() }).optional())
     .query(async ({ input, ctx }): Promise<OplTechnicianAssignment[]> => {
       const target = input?.date
@@ -379,11 +488,15 @@ export const queriesRouter = router({
           orderNumber: true,
           city: true,
           street: true,
+          standard: true,
+          network: true,
           lat: true,
           lng: true,
           timeSlot: true,
           status: true,
           operator: true,
+          notes: true,
+          failureReason: true,
           date: true,
           assignments: {
             select: {
@@ -462,11 +575,15 @@ export const queriesRouter = router({
           orderNumber: string
           city: string
           street: string
+          standard: OplOrderStandard | null
+          network: OplNetworkOeprator
           lat: number | null
           lng: number | null
           timeSlot: OplTimeSlot
           status: OplOrderStatus
           operator: string
+          notes: string | null
+          failureReason: string | null
           date: Date
           primaryTechnicianId: string | null
           assignedTechnicians: { id: string; name: string }[]
@@ -505,6 +622,10 @@ export const queriesRouter = router({
           assignedToId: technicianId,
           operator: data.operator?.trim() || '-',
           date: data.date,
+          standard: data.standard ?? null,
+          network: data.network,
+          notes: data.notes ?? undefined,
+          failureReason: data.failureReason ?? null,
           primaryTechnicianId: data.primaryTechnicianId,
           assignedTechnicians: data.assignedTechnicians,
           completedByName: data.completedByName,
@@ -706,6 +827,9 @@ export const queriesRouter = router({
           street: true,
           operator: true,
           network: true,
+          standard: true,
+          notes: true,
+          failureReason: true,
           timeSlot: true,
           status: true,
           postalCode: true,

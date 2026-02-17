@@ -11,7 +11,7 @@ import {
 } from '@/app/(modules)/opl-crm/utils/order/workCodesPresentation'
 import { formatMeasurementsLine } from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
 import { OplMaterialUnit } from '@prisma/client'
-import { MdKeyboardArrowLeft } from 'react-icons/md'
+import { MdContentCopy, MdKeyboardArrowLeft } from 'react-icons/md'
 import { toast } from 'sonner'
 
 type Props = {
@@ -112,6 +112,11 @@ const OplStepSummary = ({
                 <span className="text-danger">Niewykonane</span>
               )}
             </p>
+            {state.soloCompletion && (
+              <p>
+                <span className="font-semibold">Tryb realizacji:</span> Solo
+              </p>
+            )}
             {state.failureReason && (
               <p>
                 <span className="font-semibold">Powód niewykonania:</span>{' '}
@@ -257,21 +262,25 @@ const OplStepSummary = ({
         )}
       </div>
 
-      <div className="flex gap-3 p-4">
+      <div className="space-y-3 p-4">
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          onClick={handleCopySummary}
+        >
+          <MdContentCopy className="h-4 w-4" />
+          Kopiuj do schowka
+        </Button>
+
+        <div className="flex gap-3">
         <Button variant="outline" className="flex-1 gap-1" onClick={onBack}>
           <MdKeyboardArrowLeft className="h-5 w-5" />
           Wstecz
         </Button>
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={handleCopySummary}
-        >
-          Kopiuj do schowka
-        </Button>
         <Button className="flex-1" onClick={onFinish} disabled={isSubmitting}>
           {isSubmitting ? 'Zakończenie...' : 'Zakończ'}
         </Button>
+        </div>
       </div>
     </div>
   )

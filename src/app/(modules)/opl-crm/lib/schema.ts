@@ -179,6 +179,8 @@ export const baseCompletionInput = {
   status: z.nativeEnum(OplOrderStatus),
   notes: z.string().nullable().optional(),
   failureReason: z.string().nullable().optional(),
+  soloCompletion: z.boolean().optional(),
+  soloTechnicianId: z.string().optional(),
   workCodes: z.array(workCodeSchema).optional(),
   equipmentIds: z.array(z.string()).optional(),
   usedMaterials: z.array(usedMaterialSchema).optional(),

@@ -26,6 +26,7 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplDeviceCategory } from '@prisma/client'
 import { ArrowLeft } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import { useEffect, useMemo, useRef } from 'react'
 import { MdClose } from 'react-icons/md'
 import { toast } from 'sonner'
@@ -92,7 +93,11 @@ const CompleteOplOrderWizard = ({
     setNotes,
     setMeasurementOpp,
     setMeasurementGo,
+    setSoloCompletion,
+    setSoloTechnicianId,
+    reset,
   } = useCompleteOplOrder()
+  const { data: session } = useSession()
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
   const completeMutation = trpc.opl.order.completeOrder.useMutation()
@@ -103,7 +108,8 @@ const CompleteOplOrderWizard = ({
     amendMutation.isPending ||
     adminEditMutation.isPending
 
-  const { step, status, failureReason, notes } = state
+  const { step, status, failureReason, notes, soloCompletion, soloTechnicianId } =
+    state
   const prefilledRef = useRef(false)
 
   const STEPS =
@@ -129,7 +135,13 @@ const CompleteOplOrderWizard = ({
       prefilledRef.current = false
       return
     }
-    if (mode === 'complete') return
+    if (mode === 'complete') {
+      if (!prefilledRef.current) {
+        reset()
+        prefilledRef.current = true
+      }
+      return
+    }
     if (prefilledRef.current) return
 
     const normalizeIncomingCode = (code: string): string => {
@@ -179,6 +191,15 @@ const CompleteOplOrderWizard = ({
       notes: parsedNotes.plainNotes,
       measurementOpp: parsedNotes.measurements.opp,
       measurementGo: parsedNotes.measurements.go,
+      soloCompletion: Boolean(
+        order.history?.find((h) =>
+          h.statusAfter === 'COMPLETED' || h.statusAfter === 'NOT_COMPLETED'
+        )?.notes?.includes('[SOLO]')
+      ),
+      soloTechnicianId:
+        order.history
+          ?.find((h) => h.notes?.includes('[SOLO:'))
+          ?.notes?.match(/\[SOLO:([^\]]+)\]/)?.[1] ?? '',
       workCodes: (order.settlementEntries ?? []).map((entry) => ({
         code: normalizeIncomingCode(entry.code),
         quantity: entry.quantity,
@@ -202,7 +223,7 @@ const CompleteOplOrderWizard = ({
     })
 
     prefilledRef.current = true
-  }, [hydrateState, mode, open, order])
+  }, [hydrateState, mode, open, order, reset])
 
   const resolveMutation = () => {
     if (mode === 'adminEdit') return adminEditMutation
@@ -224,6 +245,24 @@ const CompleteOplOrderWizard = ({
 
     if (!finalStatus) {
       toast.error('Wybierz status zlecenia.')
+      return
+    }
+
+    if (
+      finalStatus === 'COMPLETED' &&
+      (!state.measurementOpp.trim() || !state.measurementGo.trim())
+    ) {
+      toast.error('Uzupełnij pomiary OPP i GO.')
+      return
+    }
+
+    if (
+      finalStatus === 'COMPLETED' &&
+      soloCompletion &&
+      (order.assignments?.length ?? 0) > 1 &&
+      !soloTechnicianId
+    ) {
+      toast.error('Wybierz technika realizującego solo.')
       return
     }
 
@@ -258,6 +297,11 @@ const CompleteOplOrderWizard = ({
           go: state.measurementGo,
         }) || null,
         failureReason: finalFailureReason || null,
+        soloCompletion,
+        soloTechnicianId:
+          soloCompletion && (order.assignments?.length ?? 0) > 1
+            ? soloTechnicianId || session?.user?.id
+            : undefined,
         workCodes: finalStatus === 'COMPLETED' ? workCodes : [],
         equipmentIds: finalStatus === 'COMPLETED' ? equipmentIds : [],
         usedMaterials: finalStatus === 'COMPLETED' ? state.usedMaterials : [],
@@ -348,10 +392,31 @@ const CompleteOplOrderWizard = ({
               setFailureReason={setFailureReason}
               notes={notes}
               setNotes={setNotes}
+              isTeamOrder={(order.assignments?.length ?? 0) > 1}
+              isAdminEditMode={mode === 'adminEdit' && (isAdmin || isCoordinator)}
+              teamTechnicians={order.assignments.map((a) => ({
+                id: a.technician.user.id,
+                name: a.technician.user.name,
+              }))}
+              soloCompletion={soloCompletion}
+              setSoloCompletion={setSoloCompletion}
+              soloTechnicianId={soloTechnicianId}
+              setSoloTechnicianId={setSoloTechnicianId}
               onNext={(data) => {
                 setStatus(data.status)
                 setFailureReason(data.failureReason ?? '')
                 setNotes(data.notes ?? '')
+                if (data.status !== 'COMPLETED') {
+                  setSoloCompletion(false)
+                  setSoloTechnicianId('')
+                }
+                if (
+                  data.status === 'COMPLETED' &&
+                  soloCompletion &&
+                  mode !== 'adminEdit'
+                ) {
+                  setSoloTechnicianId(session?.user?.id ?? '')
+                }
 
                 if (data.finishImmediately) {
                   void handleSubmit({

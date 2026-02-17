@@ -28,6 +28,7 @@ import { NormalizedUser } from '@/server/core/helpers/users/normalizeUser'
 import { generateStrongPassword } from '@/utils/passwordGenerator'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useSession } from 'next-auth/react'
 import type { Role, UserStatus } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -79,6 +80,8 @@ const EditUserDialog = ({
   user: NormalizedUser
   onClose: () => void
 }) => {
+  const { data: session } = useSession()
+  const isCoordinator = session?.user?.role === 'COORDINATOR'
   const [isSpinning, setIsSpinning] = useState(false)
 
   const utils = trpc.useUtils()
@@ -248,10 +251,16 @@ const EditUserDialog = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ADMIN">Administrator</SelectItem>
-                      <SelectItem value="COORDINATOR">Koordynator</SelectItem>
                       <SelectItem value="TECHNICIAN">Technik</SelectItem>
-                      <SelectItem value="WAREHOUSEMAN">Magazynier</SelectItem>
+                      {!isCoordinator && (
+                        <SelectItem value="ADMIN">Administrator</SelectItem>
+                      )}
+                      {!isCoordinator && (
+                        <SelectItem value="COORDINATOR">Koordynator</SelectItem>
+                      )}
+                      {!isCoordinator && (
+                        <SelectItem value="WAREHOUSEMAN">Magazynier</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

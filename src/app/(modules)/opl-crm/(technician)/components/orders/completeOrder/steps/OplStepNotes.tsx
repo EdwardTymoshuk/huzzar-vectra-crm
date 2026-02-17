@@ -45,7 +45,7 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
     state.addressNoteScope,
   )
   const lastSavedAddressSignatureRef = useRef(
-    `${state.addressNoteText.trim()}|${state.addressNoteScope.trim()}`
+    `${state.addressNoteText.trim()}|${state.addressNoteScope.trim()}`,
   )
 
   useEffect(() => {
@@ -76,6 +76,24 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
 
   const handleNext = async () => {
     persistDrafts()
+
+    const opp = measurementOppDraft.trim()
+    const go = measurementGoDraft.trim()
+    const measurementPattern = /^-?\d+(?:[.,]\d+)?$/
+    const areMeasurementsMissing = !opp || !go
+    const areMeasurementsInvalid =
+      (!!opp && !measurementPattern.test(opp)) ||
+      (!!go && !measurementPattern.test(go))
+
+    if (state.status === 'COMPLETED' && areMeasurementsMissing) {
+      toast.error('Uzupełnij pomiary OPP i GO.')
+      return
+    }
+
+    if (state.status === 'COMPLETED' && areMeasurementsInvalid) {
+      toast.error('Podaj poprawne wartości pomiarów (np. 12,3).')
+      return
+    }
 
     if (state.addressNoteEnabled && addressNoteDraft.trim()) {
       const signature = `${addressNoteDraft.trim()}|${addressScopeDraft.trim()}`

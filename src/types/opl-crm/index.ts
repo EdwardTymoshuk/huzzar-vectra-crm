@@ -11,8 +11,10 @@ import {
   OplDeviceCategory,
   OplMaterialUnit,
   OplOrderStatus,
+  OplOrderStandard,
   OplOrderType,
   OplTimeSlot,
+  OplNetworkOeprator,
   OplWarehouseAction,
   OplWarehouseItemType,
   OplWarehouseStatus,
@@ -161,6 +163,9 @@ export type OplDeviceBasic = {
 // -----------------------------
 
 export interface OplTechnicianAssignment {
+  rowId?: string
+  dropTargetId?: string
+  teamTechnicianIds?: string[]
   technicianName: string
   technicianId: string | null
   slots: {
@@ -175,6 +180,9 @@ export interface OplTechnicianAssignment {
       operator: string
       status: OplOrderStatus
       notes?: string
+      failureReason?: string | null
+      standard?: OplOrderStandard | null
+      network?: OplNetworkOeprator
       assignedToId?: string
       primaryTechnicianId?: string | null
       assignedTechnicians?: { id: string; name: string }[]
@@ -200,6 +208,7 @@ export type OplOrderWithAttempts = {
     attemptNumber: number
     status: OplOrderStatus
     failureReason?: string | null
+    completedByName?: string | null
     assignedTechnicians: { id: string; name: string }[]
   } | null
   attempts: {

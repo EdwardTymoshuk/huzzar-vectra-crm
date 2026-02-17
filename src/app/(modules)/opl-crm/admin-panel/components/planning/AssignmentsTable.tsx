@@ -70,15 +70,27 @@ const AssignmentsTable = () => {
     const { source, destination, draggableId } = result
     if (source.droppableId === destination.droppableId) return
 
-    const newTechnicianId =
-      destination.droppableId === 'Nieprzypisany'
-        ? null
-        : destination.droppableId
+    const destinationId = destination.droppableId
+    const payload =
+      destinationId === 'Nieprzypisany'
+        ? { technicianId: undefined as string | undefined, technicianIds: undefined as string[] | undefined }
+        : destinationId.startsWith('team:')
+          ? {
+              technicianId: undefined as string | undefined,
+              technicianIds: destinationId
+                .replace('team:', '')
+                .split('|')
+                .filter(Boolean),
+            }
+          : {
+              technicianId: destinationId,
+              technicianIds: undefined as string[] | undefined,
+            }
 
     try {
       await updateTechnicianMutation.mutateAsync({
         id: draggableId,
-        technicianId: newTechnicianId ?? undefined,
+        ...payload,
       })
       utils.opl.order.getAssignedOrders.invalidate()
     } catch (error) {
@@ -141,7 +153,9 @@ const AssignmentsTable = () => {
           <p className="text-center text-danger">Błąd ładowania danych.</p>
         ) : filteredAssignments.length > 0 ? (
           filteredAssignments.map((technician) => (
-            <div key={technician.technicianId}>
+            <div
+              key={technician.rowId ?? technician.technicianId ?? technician.technicianName}
+            >
               <div className="bg-background py-2 border-b text-center font-bold text-lg">
                 <Highlight
                   highlightClassName="bg-yellow-200"
@@ -151,7 +165,12 @@ const AssignmentsTable = () => {
                 />
               </div>
 
-              <Droppable droppableId={technician.technicianId!} type="ORDER">
+              <Droppable
+                droppableId={
+                  technician.dropTargetId ?? technician.technicianId!
+                }
+                type="ORDER"
+              >
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.droppableProps}>
                     <Table>
@@ -184,6 +203,12 @@ const AssignmentsTable = () => {
                       <TableBody>
                         {technician.slots.flatMap((slot) => {
                           const primaryOrders = slot.orders.filter((order) => {
+                            const isTeamRow =
+                              (technician.teamTechnicianIds?.length ?? 0) > 1
+                            const isTeamOrder =
+                              (order.assignedTechnicians?.length ?? 0) > 1
+                            if (!isTeamRow && isTeamOrder) return false
+                            if (isTeamRow) return true
                             if (
                               !order.primaryTechnicianId ||
                               !technician.technicianId

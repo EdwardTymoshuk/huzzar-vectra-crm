@@ -16,9 +16,16 @@ type Marker = {
   id: string
   lat: number
   lng: number
-  label: string
-  date?: string
-  operator?: string
+  orderNumber: string
+  address: string
+  dateLabel?: string
+  slotLabel?: string
+  technicianLabel?: string
+  standard?: string
+  networkLabel?: string
+  failureReason?: string | null
+  notes?: string | null
+  completedByName?: string | null
   color?: string
 }
 
@@ -46,6 +53,15 @@ function createColorIcon(color: string = '#3b82f6') {
     iconAnchor: [16, 48],
     popupAnchor: [0, -48],
   })
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 }
 
 const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
@@ -98,12 +114,42 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
 
     markers.forEach((m) => {
       const icon = createColorIcon(m.color)
+      const orderNumber = escapeHtml(m.orderNumber)
+      const address = escapeHtml(m.address)
+      const dateRow =
+        m.dateLabel || m.slotLabel
+          ? `<div><b>Data/slot:</b> ${escapeHtml(
+              `${m.dateLabel ?? '-'}${m.slotLabel ? ` • ${m.slotLabel}` : ''}`
+            )}</div>`
+          : ''
+      const technicianRow = `<div><b>Technik:</b> ${escapeHtml(
+        m.technicianLabel || '-'
+      )}</div>`
+      const standardRow = `<div><b>Standard:</b> ${escapeHtml(
+        m.standard || '-'
+      )}</div>`
+      const networkRow = `<div><b>Sieć:</b> ${escapeHtml(m.networkLabel || '-')}</div>`
+      const completedByRow = m.completedByName
+        ? `<div><b>Wykonał:</b> ${escapeHtml(m.completedByName)}</div>`
+        : ''
+      const failureReasonRow = m.failureReason
+        ? `<div><b>Powód nieskutecznego:</b> ${escapeHtml(m.failureReason)}</div>`
+        : ''
+      const notesRow = m.notes
+        ? `<div><b>Uwagi:</b> ${escapeHtml(m.notes)}</div>`
+        : ''
 
       const popupHtml = `
-        <div style="font-size: 13px; line-height: 1.4;">
-          <strong>${m.label}</strong><br/>
-          ${m.date ? `<b>Data:</b> ${m.date}<br/>` : ''}
-          <b>Operator:</b> ${m.operator || '-'}<br/>
+        <div style="font-size: 13px; line-height: 1.45; min-width: 260px;">
+          <div style="font-weight: 700; margin-bottom: 4px;">${orderNumber}</div>
+          <div style="margin-bottom: 6px;">${address}</div>
+          ${dateRow}
+          ${technicianRow}
+          ${standardRow}
+          ${networkRow}
+          ${completedByRow}
+          ${failureReasonRow}
+          ${notesRow}
         </div>
       `
 

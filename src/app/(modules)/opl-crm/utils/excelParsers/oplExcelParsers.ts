@@ -13,7 +13,7 @@ export type ParsedOplOrderFromExcel = {
   city: string
   street: string
   postalCode?: string
-  assignedToName?: string
+  assignedToNames?: string[]
   notes: string
   standard?: OplOrderStandard
   equipmentToDeliver: string[]
@@ -153,7 +153,7 @@ export async function parseOplOrdersFromExcel(
 
     const assigneesRaw =
       col.assignees !== null ? String(row[col.assignees] ?? '').trim() : ''
-    const assignedToName = parseTechnicianName(assigneesRaw)
+    const assignedToNames = parseTechnicianNames(assigneesRaw)
 
     const inputNotes = col.notes !== null ? String(row[col.notes] ?? '').trim() : ''
     const standardsRaw =
@@ -181,7 +181,7 @@ export async function parseOplOrdersFromExcel(
       city,
       street,
       postalCode,
-      assignedToName,
+      assignedToNames,
       notes,
       standard,
       equipmentToDeliver,
@@ -458,14 +458,17 @@ function mapNetwork(networkRaw: string, operatorRaw: string): OplNetworkOeprator
   return 'ORANGE'
 }
 
-function parseTechnicianName(techStr: string): string | undefined {
+function parseTechnicianNames(techStr: string): string[] | undefined {
   if (!techStr) return undefined
-  const first =
-    techStr.split(/[;,/|]+/)[0]?.trim() ??
-    techStr.split(',')[0]?.trim() ??
-    ''
-  const normalized = normalizeName(first)
-  return normalized || undefined
+
+  const list = techStr
+    .replace(/\r/g, '\n')
+    .split(/[;,/|\n]+/)
+    .map((v) => normalizeName(v.trim()))
+    .filter(Boolean)
+
+  const unique = Array.from(new Set(list))
+  return unique.length > 0 ? unique : undefined
 }
 
 const STANDARD_PRIORITY: OplOrderStandard[] = [

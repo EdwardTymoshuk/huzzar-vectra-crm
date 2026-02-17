@@ -14,6 +14,7 @@ import { MdDelete, MdEdit, MdMoreVert, MdRestore } from 'react-icons/md'
 export type HrUserActionsProps = {
   userId: string
   status: UserStatus
+  canArchiveDelete?: boolean
   onEdit: () => void
   onToggleStatus: () => void
   onArchive: () => void
@@ -34,6 +35,7 @@ export type HrUserActionsProps = {
  */
 const HrUserActionsDropdown = ({
   status,
+  canArchiveDelete = true,
   onEdit,
   onToggleStatus,
   onArchive,
@@ -75,14 +77,16 @@ const HrUserActionsDropdown = ({
               )}
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={onArchive}>
-              <MdDelete className="mr-2 h-4 w-4" />
-              Archiwizuj
-            </DropdownMenuItem>
+            {canArchiveDelete && (
+              <DropdownMenuItem onClick={onArchive}>
+                <MdDelete className="mr-2 h-4 w-4" />
+                Archiwizuj
+              </DropdownMenuItem>
+            )}
           </>
         )}
 
-        {isArchived && (
+        {isArchived && canArchiveDelete && (
           <>
             <DropdownMenuItem onClick={onRestore}>
               <MdRestore className="mr-2 h-4 w-4" />
