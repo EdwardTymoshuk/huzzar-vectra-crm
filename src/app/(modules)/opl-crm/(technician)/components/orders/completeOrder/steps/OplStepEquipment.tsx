@@ -138,15 +138,12 @@ const OplStepEquipment = ({
         {/* ============================================================ */}
 
         <Card className="p-4 space-y-4">
-          <h3 className="font-semibold">Wydany sprzęt</h3>
+          <h3 className="font-semibold">Wydanie urządzeń</h3>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="issued-enabled">
-                Wydać sprzęt w tym zleceniu
+                Dodaj urządzenia zainstalowane u klienta
               </Label>
-              <p className="text-xs text-muted-foreground">
-                Dodaj urządzenia po numerze seryjnym lub skanerem.
-              </p>
             </div>
             <Switch
               id="issued-enabled"
@@ -158,8 +155,7 @@ const OplStepEquipment = ({
           {(hasSuggestions ? !issued.skip : issued.enabled) && (
             <>
               <Separator />
-
-              <div className="space-y-3">
+              <div className="divide-y divide-border rounded-md border border-border/70 px-3">
                 {issued.items.map((item) => (
                   <OplEquipmentDraftRow
                     key={item.clientId}
@@ -176,7 +172,7 @@ const OplStepEquipment = ({
               {hasSuggestions ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   className="w-full gap-2"
                   onClick={() => setExtraDeviceDialogOpen(true)}
                 >
@@ -189,13 +185,16 @@ const OplStepEquipment = ({
                   strictSource="WAREHOUSE"
                   devices={technicianDevices}
                   onAdd={(device) => {
+                    const sourceLabel =
+                      'sourceLabel' in device ? device.sourceLabel : undefined
+
                     addIssuedItem({
                       warehouseId: device.id,
                       deviceDefinitionId: device.deviceDefinitionId,
                       name: device.name,
                       category: device.category,
                       serial: device.serialNumber,
-                      sourceLabel: device.sourceLabel,
+                      sourceLabel,
                     })
                   }}
                 />
@@ -209,14 +208,11 @@ const OplStepEquipment = ({
         {/* ============================================================ */}
 
         <Card className="p-4 space-y-4">
-          <h3 className="font-semibold">Odebrany sprzęt</h3>
+          <h3 className="font-semibold">Odbiór urządzeń</h3>
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Odebrać sprzęt od klienta</Label>
-              <p className="text-xs text-muted-foreground">
-                Dodaj urządzenia, które wróciły od klienta.
-              </p>
+              <Label>Dodaj urządzenia odebrane od klienta</Label>
             </div>
             <Switch
               checked={collected.enabled}
@@ -228,12 +224,9 @@ const OplStepEquipment = ({
             <>
               <Separator />
 
-              <div className="space-y-3">
+              <div className="divide-y divide-border rounded-md border border-border/70 px-3">
                 {collected.items.map((item) => (
-                  <div
-                    key={item.clientId}
-                    className="rounded-lg border bg-muted/10 p-3"
-                  >
+                  <div key={item.clientId} className="py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-medium leading-tight">
@@ -261,7 +254,7 @@ const OplStepEquipment = ({
                 ))}
               </div>
 
-              <div className="space-y-2 rounded-lg border bg-muted/10 p-3">
+              <div className="space-y-2 rounded-md bg-muted/10 p-3">
                 <Select
                   value={collectedCategory}
                   onValueChange={(value) =>
@@ -307,7 +300,7 @@ const OplStepEquipment = ({
 
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   className="w-full gap-2"
                   onClick={() => {
                     const name = collectedName.trim()
@@ -317,7 +310,6 @@ const OplStepEquipment = ({
 
                     addCollectedItem({
                       deviceDefinitionId: null,
-                      warehouseId: null,
                       name,
                       category: collectedCategory,
                       serial,

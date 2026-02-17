@@ -176,6 +176,9 @@ export interface OplTechnicianAssignment {
       status: OplOrderStatus
       notes?: string
       assignedToId?: string
+      primaryTechnicianId?: string | null
+      assignedTechnicians?: { id: string; name: string }[]
+      completedByName?: string | null
     }[]
   }[]
 }

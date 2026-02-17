@@ -46,7 +46,18 @@ const RatesList = () => {
       toast.success('Stawka została usunięta.')
       utils.opl.settings.getAllOplRates.invalidate()
     },
-    onError: () => toast.error('Błąd podczas usuwania.'),
+    onError: (err) =>
+      toast.error(err.message || 'Błąd podczas usuwania.'),
+  })
+
+  const normalizeRatesMutation = trpc.opl.settings.normalizeOplRates.useMutation({
+    onSuccess: (summary) => {
+      toast.success(
+        `Naprawiono stawki: scalono ${summary.merged}, przepięto rozliczeń ${summary.rewiredSettlements}, zmieniono kodów ${summary.renamed}.`
+      )
+      utils.opl.settings.getAllOplRates.invalidate()
+    },
+    onError: (err) => toast.error(err.message || 'Nie udało się naprawić stawek.'),
   })
 
   const filtered = useMemo(() => {
@@ -107,12 +118,21 @@ const RatesList = () => {
     <div className="space-y-4 p-2">
       <div className="flex flex-col lg:flex-row justify-between items-center">
         <h2 className="text-lg font-semibold">Lista stawek</h2>
-        <SearchInput
-          className="w-full lg:w-1/2 mt-2 lg:mt-0"
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Szukaj kodu pracy"
-        />
+        <div className="w-full lg:w-1/2 mt-2 lg:mt-0 flex gap-2">
+          <SearchInput
+            className="w-full"
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Szukaj kodu pracy"
+          />
+          <Button
+            variant="outline"
+            onClick={() => normalizeRatesMutation.mutate()}
+            disabled={normalizeRatesMutation.isLoading}
+          >
+            {normalizeRatesMutation.isLoading ? 'Naprawianie...' : 'Napraw kody'}
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-x-auto">
@@ -162,7 +182,7 @@ const RatesList = () => {
               {sorted.map((rate) => (
                 <TableRow key={rate.id}>
                   <TableCell className="uppercase font-medium">
-                    {rate.code}
+                    {rate.code.toUpperCase()}
                   </TableCell>
                   <TableCell>{rate.amount.toFixed(2)} zł</TableCell>
                   <TableCell className="space-x-1 whitespace-nowrap">

@@ -94,10 +94,52 @@ export const queriesRouter = router({
        * Technician access: only orders assigned to him
        * ------------------------------------------- */
       if (isTechnician(role)) {
-        filters.assignments = {
-          some: {
-            technicianId: userId,
-          },
+        const finalStatuses = [
+          OplOrderStatus.COMPLETED,
+          OplOrderStatus.NOT_COMPLETED,
+        ]
+
+        if (
+          input.status === OplOrderStatus.COMPLETED ||
+          input.status === OplOrderStatus.NOT_COMPLETED
+        ) {
+          filters.status = input.status
+          filters.history = {
+            some: {
+              changedById: userId,
+              statusAfter: input.status,
+            },
+          }
+        } else if (
+          input.status === OplOrderStatus.PENDING ||
+          input.status === OplOrderStatus.ASSIGNED
+        ) {
+          filters.status = input.status
+          filters.assignments = {
+            some: {
+              technicianId: userId,
+            },
+          }
+        } else {
+          filters.OR = [
+            {
+              status: { in: [OplOrderStatus.PENDING, OplOrderStatus.ASSIGNED] },
+              assignments: {
+                some: {
+                  technicianId: userId,
+                },
+              },
+            },
+            {
+              status: { in: finalStatuses },
+              history: {
+                some: {
+                  changedById: userId,
+                  statusAfter: { in: finalStatuses },
+                },
+              },
+            },
+          ]
         }
       }
 
@@ -122,7 +164,7 @@ export const queriesRouter = router({
         }
       }
 
-      if (input.status) filters.status = input.status
+      if (!isTechnician(role) && input.status) filters.status = input.status
       if (input.type) filters.type = input.type
 
       /* -------------------------------------------
@@ -295,7 +337,15 @@ export const queriesRouter = router({
        * 1️⃣ Load technicians
        * ------------------------------------------- */
       const techs = await ctx.prisma.user.findMany({
-        where: { role: 'TECHNICIAN' },
+        where: {
+          role: 'TECHNICIAN',
+          status: 'ACTIVE',
+          modules: {
+            some: {
+              module: { code: 'OPL' },
+            },
+          },
+        },
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
       })
@@ -338,6 +388,38 @@ export const queriesRouter = router({
           assignments: {
             select: {
               technicianId: true,
+              assignedAt: true,
+              technician: {
+                select: {
+                  user: {
+                    select: { name: true },
+                  },
+                },
+              },
+            },
+            orderBy: { assignedAt: 'asc' },
+          },
+          history: {
+            where: {
+              statusAfter: {
+                in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+              },
+              changedBy: {
+                user: {
+                  role: 'TECHNICIAN',
+                },
+              },
+            },
+            orderBy: { changeDate: 'desc' },
+            take: 1,
+            select: {
+              changedBy: {
+                select: {
+                  user: {
+                    select: { name: true },
+                  },
+                },
+              },
             },
           },
         },
@@ -345,24 +427,29 @@ export const queriesRouter = router({
       })
 
       /* -------------------------------------------
-       * 3️⃣ Auto-geocoding (bez zmian)
+       * 3️⃣ Auto-geocoding (bounded, concurrent)
        * ------------------------------------------- */
-      for (const o of orders) {
-        if (o.lat === null || o.lng === null) {
-          const address = `${o.street}, ${o.city}, Polska`
+      const missingCoords = orders.filter((o) => o.lat === null || o.lng === null)
+      const MAX_GEOCODES = 20
+      const CONCURRENCY = 3
+
+      await mapWithConcurrency(
+        missingCoords.slice(0, MAX_GEOCODES),
+        CONCURRENCY,
+        async (order) => {
+          const address = `${cleanStreetName(order.street)}, ${order.city}, Polska`
           const coords = await getCoordinatesFromAddress(address)
+          if (!coords) return
 
-          if (coords) {
-            o.lat = coords.lat
-            o.lng = coords.lng
+          order.lat = coords.lat
+          order.lng = coords.lng
 
-            await ctx.prisma.oplOrder.update({
-              where: { id: o.id },
-              data: { lat: coords.lat, lng: coords.lng },
-            })
-          }
+          await ctx.prisma.oplOrder.update({
+            where: { id: order.id },
+            data: { lat: coords.lat, lng: coords.lng },
+          })
         }
-      }
+      )
 
       /* -------------------------------------------
        * 4️⃣ Helper do wrzucania w sloty
@@ -381,6 +468,9 @@ export const queriesRouter = router({
           status: OplOrderStatus
           operator: string
           date: Date
+          primaryTechnicianId: string | null
+          assignedTechnicians: { id: string; name: string }[]
+          completedByName: string | null
         }
       ) => {
         if (!byTech[technicianId]) {
@@ -413,8 +503,11 @@ export const queriesRouter = router({
           lng: data.lng ?? null,
           status: data.status,
           assignedToId: technicianId,
-          operator: data.operator,
+          operator: data.operator?.trim() || '-',
           date: data.date,
+          primaryTechnicianId: data.primaryTechnicianId,
+          assignedTechnicians: data.assignedTechnicians,
+          completedByName: data.completedByName,
         })
       }
 
@@ -422,11 +515,23 @@ export const queriesRouter = router({
        * 5️⃣ Fan-out: jedno zlecenie → wielu techników
        * ------------------------------------------- */
       orders.forEach((o) => {
+        const assignedTechnicians = o.assignments.map((a) => ({
+          id: a.technicianId,
+          name: a.technician.user.name,
+        }))
+        const primaryTechnicianId = o.assignments[0]?.technicianId ?? null
+        const completedByName = o.history[0]?.changedBy.user.name ?? null
+
         o.assignments.forEach((a) => {
           const tech = techs.find((t) => t.id === a.technicianId)
           if (!tech) return
 
-          push(tech.id, tech.name, o)
+          push(tech.id, tech.name, {
+            ...o,
+            primaryTechnicianId,
+            assignedTechnicians,
+            completedByName,
+          })
         })
       })
 
@@ -530,8 +635,13 @@ export const queriesRouter = router({
         status: {
           in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
         },
-        assignments: {
-          some: { technicianId },
+        history: {
+          some: {
+            changedById: technicianId,
+            statusAfter: {
+              in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+            },
+          },
         },
       }
 
@@ -595,9 +705,12 @@ export const queriesRouter = router({
           city: true,
           street: true,
           operator: true,
+          network: true,
           timeSlot: true,
           status: true,
           postalCode: true,
+          lat: true,
+          lng: true,
           date: true,
         },
         orderBy: { timeSlot: 'asc' },
@@ -650,39 +763,49 @@ export const queriesRouter = router({
       const MAX_GEOCODES = 20
       const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
 
-      const head = rows.slice(0, MAX_GEOCODES)
-      const tail = rows.slice(MAX_GEOCODES)
+      const missingRows = rows.filter((r) => r.lat === null || r.lng === null)
+      const head = missingRows.slice(0, MAX_GEOCODES)
 
-      const enrich = async (r: (typeof rows)[number]) => {
+      const enrichAndPersist = async (r: (typeof rows)[number]) => {
         const variants = buildAddressVariants(r)
         const coords = await geocodeWithFallback(variants)
-        return { ...r, lat: coords?.lat ?? null, lng: coords?.lng ?? null }
+        if (!coords) return
+        r.lat = coords.lat
+        r.lng = coords.lng
+        await ctx.prisma.oplOrder.update({
+          where: { id: r.id },
+          data: { lat: coords.lat, lng: coords.lng },
+        })
       }
 
       try {
         // Run initial chunk with limited concurrency; never throw the whole route on single failure
-        const headResults = await mapWithConcurrency(
-          head,
-          CONCURRENCY,
-          async (row) => {
-            try {
-              return await enrich(row)
-            } catch {
-              // Be fail-safe: fallback without coords
-              return { ...row, lat: null, lng: null }
-            }
+        await mapWithConcurrency(head, CONCURRENCY, async (row) => {
+          try {
+            await enrichAndPersist(row)
+          } catch {
+            // Be fail-safe: fallback without coords
           }
-        )
+        })
 
-        const normalizedTail = tail.map((r) => ({ ...r, lat: null, lng: null }))
-        return [...headResults, ...normalizedTail]
+        return rows.map((r) => ({
+          ...r,
+          operator: r.operator?.trim() || '-',
+          lat: r.lat ?? null,
+          lng: r.lng ?? null,
+        }))
       } catch (e) {
-        // HARD FALLBACK: if geocoding infra is down, still return orders without coordinates
+        // HARD FALLBACK: if geocoding infra is down, still return rows without coordinates
         console.error(
           'Geocoding batch failed — returning rows without coordinates',
           e
         )
-        return rows.map((r) => ({ ...r, lat: null, lng: null }))
+        return rows.map((r) => ({
+          ...r,
+          operator: r.operator?.trim() || '-',
+          lat: r.lat ?? null,
+          lng: r.lng ?? null,
+        }))
       }
     }),
 
@@ -905,6 +1028,7 @@ export const queriesRouter = router({
         street: true,
         date: true,
         timeSlot: true,
+        network: true,
         operator: true,
         status: true,
         notes: true,
@@ -939,6 +1063,7 @@ export const queriesRouter = router({
       street: o.street,
       date: o.date,
       timeSlot: o.timeSlot,
+      network: o.network,
       operator: o.operator,
       status: o.status,
       notes: o.notes,

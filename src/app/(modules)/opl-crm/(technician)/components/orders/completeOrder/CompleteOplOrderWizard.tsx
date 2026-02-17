@@ -1,6 +1,10 @@
 'use client'
 
 import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
+import {
+  buildOrderNotesWithMeasurements,
+  parseMeasurementsFromNotes,
+} from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
 import { buildOrderedWorkCodes } from '@/app/(modules)/opl-crm/utils/order/workCodesPresentation'
 import { Button } from '@/app/components/ui/button'
 import {
@@ -86,6 +90,8 @@ const CompleteOplOrderWizard = ({
     setStatus,
     setFailureReason,
     setNotes,
+    setMeasurementOpp,
+    setMeasurementGo,
   } = useCompleteOplOrder()
   const { isAdmin, isCoordinator } = useRole()
   const utils = trpc.useUtils()
@@ -132,6 +138,7 @@ const CompleteOplOrderWizard = ({
       if (code === '3P') return 'I_3P'
       return code
     }
+    const parsedNotes = parseMeasurementsFromNotes(order.notes)
 
     const issuedItems = (order.assignedEquipment ?? [])
       .filter((item) =>
@@ -169,7 +176,9 @@ const CompleteOplOrderWizard = ({
     hydrateState({
       status: order.status,
       failureReason: order.failureReason ?? '',
-      notes: order.notes ?? '',
+      notes: parsedNotes.plainNotes,
+      measurementOpp: parsedNotes.measurements.opp,
+      measurementGo: parsedNotes.measurements.go,
       workCodes: (order.settlementEntries ?? []).map((entry) => ({
         code: normalizeIncomingCode(entry.code),
         quantity: entry.quantity,
@@ -244,7 +253,10 @@ const CompleteOplOrderWizard = ({
       await resolveMutation().mutateAsync({
         orderId: order.id,
         status: finalStatus,
-        notes: finalNotes || null,
+        notes: buildOrderNotesWithMeasurements(finalNotes, {
+          opp: state.measurementOpp,
+          go: state.measurementGo,
+        }) || null,
         failureReason: finalFailureReason || null,
         workCodes: finalStatus === 'COMPLETED' ? workCodes : [],
         equipmentIds: finalStatus === 'COMPLETED' ? equipmentIds : [],
@@ -328,6 +340,8 @@ const CompleteOplOrderWizard = ({
         <div className="flex-1 overflow-y-auto">
           {step === 0 && (
             <OplStepStatus
+              orderNumber={order.orderNumber}
+              orderAddress={`${order.city} ${order.street}`.trim()}
               status={status}
               setStatus={setStatus}
               failureReason={failureReason}

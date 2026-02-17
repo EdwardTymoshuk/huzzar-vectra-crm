@@ -1,9 +1,9 @@
 'use client'
 
 import {
-  parseOrdersFromExcel,
-  type ParsedOrderFromExcel,
-} from '@/app/(modules)/vectra-crm/utils/excelParsers/excelParsers'
+  parseOplOrdersFromExcel,
+  type ParsedOplOrderFromExcel,
+} from '@/app/(modules)/opl-crm/utils/excelParsers/oplExcelParsers'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
 } from '@/app/components/ui/dialog'
 import { normalizeName } from '@/utils/normalizeName'
 import { trpc } from '@/utils/trpc'
+import { OplDeviceCategory } from '@prisma/client'
 import { DragEvent, useState } from 'react'
 import { MdFileUpload } from 'react-icons/md'
 import { toast } from 'sonner'
@@ -40,11 +41,11 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   onClose,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [orders, setOrders] = useState<ParsedOrderFromExcel[]>([])
+  const [orders, setOrders] = useState<ParsedOplOrderFromExcel[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
 
   const utils = trpc.useUtils()
-  const bulkImportMutation = trpc.vectra.order.bulkImport.useMutation()
+  const bulkImportMutation = trpc.opl.order.bulkImport.useMutation()
 
   /** Ensures correct file type */
   const isExcelFile = (file: File) => {
@@ -102,7 +103,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
   /** Parses Excel file into normalized rows */
   const parseExcelFile = async (file: File) => {
     try {
-      const result = await parseOrdersFromExcel(file)
+      const result = await parseOplOrdersFromExcel(file)
       setOrders(result)
       toast.success(`Wczytano ${result.length} rekordów z pliku.`)
     } catch (err) {
@@ -131,7 +132,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     const result = new Map<string, string | undefined>()
     if (uniqueNormalized.length === 0) return result
 
-    const allTechs = await utils.vectra.user.getTechnicians.fetch({
+    const allTechs = await utils.opl.user.getTechnicians.fetch({
       status: 'ACTIVE',
     })
 
@@ -145,6 +146,124 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     }
 
     return result
+  }
+
+  const resolveEquipmentRequirements = async (
+    parsed: ParsedOplOrderFromExcel[]
+  ): Promise<{
+    requirementsByOrder: Map<
+      string,
+      Array<{ deviceDefinitionId: string; quantity: number }>
+    >
+    unresolvedByOrder: Map<string, string[]>
+  }> => {
+    const defs = await utils.opl.settings.getAllOplDeviceDefinitions.fetch()
+
+    const normalizeToken = (value: string) =>
+      value
+        .toUpperCase()
+        .replace(/\./g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    const isCategoryHint = (value: string) =>
+      value.includes('MODEM') ||
+      value.includes('DEKODER') ||
+      value.includes('ONT')
+
+    const matchDefinition = (
+      token: string
+    ): { id: string; category: OplDeviceCategory; name: string } | null => {
+      const normalized = normalizeToken(token)
+      if (!normalized) return null
+
+      const candidates = defs
+        .map((d) => ({
+          id: d.id,
+          category: d.category,
+          name: d.name,
+          normalized: normalizeToken(d.name),
+        }))
+        .filter(
+          (d) =>
+            d.normalized.includes(normalized) || normalized.includes(d.normalized)
+        )
+        .sort((a, b) => b.normalized.length - a.normalized.length)
+
+      if (candidates.length > 0) return candidates[0]
+
+      if (normalized.includes('FUNBOX 3')) {
+        return (
+          defs
+            .map((d) => ({
+              id: d.id,
+              category: d.category,
+              name: d.name,
+              normalized: normalizeToken(d.name),
+            }))
+            .find((d) => d.normalized.includes('FUNBOX 3')) ?? null
+        )
+      }
+
+      return null
+    }
+
+    const requirementsByOrder = new Map<
+      string,
+      Array<{ deviceDefinitionId: string; quantity: number }>
+    >()
+    const unresolvedByOrder = new Map<string, string[]>()
+
+    for (const order of parsed) {
+      if (!order.equipmentToDeliver.length) continue
+
+      const grouped = new Map<string, number>()
+      for (const token of order.equipmentToDeliver) {
+        if (isCategoryHint(token.toUpperCase())) continue
+        const normalizedToken = normalizeToken(token)
+        if (normalizedToken.includes('TERMINAL ONT')) {
+          const ontV9 = defs
+            .map((d) => ({
+              id: d.id,
+              category: d.category,
+              name: d.name,
+              normalized: normalizeToken(d.name),
+            }))
+            .find(
+              (d) =>
+                d.normalized.includes('ONT V9') ||
+                (d.category === 'ONT' && d.normalized.includes('V9'))
+            )
+          if (ontV9) {
+            grouped.set(ontV9.id, (grouped.get(ontV9.id) ?? 0) + 1)
+            continue
+          }
+        }
+
+        const matched = matchDefinition(token)
+        if (!matched) {
+          const list = unresolvedByOrder.get(order.orderNumber) ?? []
+          list.push(token)
+          unresolvedByOrder.set(order.orderNumber, list)
+          continue
+        }
+        grouped.set(matched.id, (grouped.get(matched.id) ?? 0) + 1)
+      }
+
+      if (grouped.size > 0) {
+        requirementsByOrder.set(
+          order.orderNumber,
+          Array.from(grouped.entries()).map(
+            ([deviceDefinitionId, quantity]) => ({
+              deviceDefinitionId,
+              quantity,
+            })
+          )
+        )
+      }
+    }
+
+    return { requirementsByOrder, unresolvedByOrder }
   }
 
   /**
@@ -169,12 +288,14 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         .filter((v): v is string => !!v)
 
       const nameToIdMap = await resolveTechniciansByName(namesToResolve)
+      const { requirementsByOrder, unresolvedByOrder } =
+        await resolveEquipmentRequirements(orders)
 
       let unresolvedTechCount = 0
 
       // 2) Build final payload for bulk import
       const payload = orders.map((o) => {
-        let assignedToId: string | undefined = undefined
+        let assignedToId: string | undefined
 
         if (o.assignedToName) {
           const id = nameToIdMap.get(normalizeName(o.assignedToName))
@@ -185,15 +306,29 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         return {
           operator: o.operator,
           type: o.type,
-          clientId: o.clientId,
+          serviceId: o.serviceId,
+          network: o.network,
+          standard: o.standard,
           orderNumber: o.orderNumber,
           date: o.date,
           timeSlot: o.timeSlot,
           city: o.city,
           street: o.street,
           postalCode: o.postalCode,
-          assignedToId,
-          notes: o.notes,
+          assignedTechnicianIds: assignedToId ? [assignedToId] : undefined,
+          notes: [
+            o.notes?.trim(),
+            ...(unresolvedByOrder.get(o.orderNumber)?.length
+              ? [
+                  `Nierozpoznany sprzęt do wydania:\n${unresolvedByOrder
+                    .get(o.orderNumber)!
+                    .join(', ')}`,
+                ]
+              : []),
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+          equipmentRequirements: requirementsByOrder.get(o.orderNumber),
         }
       })
 
@@ -215,8 +350,21 @@ Inne błędy: ${summary?.otherErrors}`
           `Nie przypisano ${unresolvedTechCount} zleceń — technik nie został odnaleziony.`
         )
       }
+      const unresolved = Array.from(unresolvedByOrder.values()).reduce(
+        (sum, list) => sum + list.length,
+        0
+      )
+      if (unresolved > 0) {
+        toast.warning(
+          `Nie udało się zmapować ${unresolved} pozycji urządzeń do dostarczenia.`
+        )
+      }
 
-      utils.vectra.order.getOrders.invalidate()
+      await Promise.all([
+        utils.opl.order.getOrders.invalidate(),
+        utils.opl.order.getAssignedOrders.invalidate(),
+        utils.opl.order.getUnassignedOrders.invalidate(),
+      ])
       onClose()
     } catch (err) {
       console.error(err)

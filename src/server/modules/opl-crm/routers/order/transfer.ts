@@ -27,6 +27,7 @@ export const transferRouter = router({
         street: true,
         date: true,
         timeSlot: true,
+        network: true,
         operator: true,
         status: true,
         transferToId: true,

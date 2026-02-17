@@ -3,7 +3,7 @@
 import { Card } from '@/app/components/ui/card'
 import { cn } from '@/lib/utils'
 import { Lock } from 'lucide-react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { MdKeyboardArrowRight } from 'react-icons/md'
 import LoaderSpinner from '../LoaderSpinner'
@@ -26,6 +26,7 @@ type Props = {
  * After click, card stays in "hovered" state until navigation.
  */
 const ModuleCard = ({ module }: Props) => {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
 
@@ -94,13 +95,18 @@ const ModuleCard = ({ module }: Props) => {
   if (!module.enabled || !module.href) return card
 
   return (
-    <Link
-      href={module.href}
-      onClick={() => setIsLoading(true)}
+    <button
+      type="button"
       className="block"
+      onMouseEnter={() => router.prefetch(module.href)}
+      onClick={() => {
+        setIsLoading(true)
+        router.push(module.href)
+      }}
+      disabled={isLoading}
     >
       {card}
-    </Link>
+    </button>
   )
 }
 

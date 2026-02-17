@@ -15,7 +15,7 @@ import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
-import { MdAdd, MdDescription, MdHistory, MdUploadFile } from 'react-icons/md'
+import { MdAdd, MdDescription, MdHistory } from 'react-icons/md'
 import { PiUserListFill } from 'react-icons/pi'
 import { TbListSearch } from 'react-icons/tb'
 import WarehouseFilter from './WarehouseFilter'
@@ -27,7 +27,6 @@ interface WarehouseHeaderBarProps {
 
   /** Callbacks for actions */
   onAddManual: () => void
-  onImportExcel: () => void
   onIssue: () => void
   onReturn: () => void
   onStockCheck: () => void
@@ -50,7 +49,6 @@ const WarehouseHeaderBar = ({
   setSearchTerm,
   setCategoryFilter,
   onAddManual,
-  onImportExcel,
   onIssue,
   onReturn,
   onStockCheck,
@@ -65,11 +63,6 @@ const WarehouseHeaderBar = ({
       <Button variant="success" onClick={onAddManual}>
         <MdAdd className="text-lg" />
         <span className="ml-1">Dostawa</span>
-      </Button>
-
-      <Button variant="success" onClick={onImportExcel}>
-        <MdUploadFile className="text-lg" />
-        <span className="ml-1">Import</span>
       </Button>
 
       <Button variant="warning" onClick={onIssue}>

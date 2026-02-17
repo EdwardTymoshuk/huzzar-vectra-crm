@@ -1,9 +1,9 @@
 {
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll": true,
-    "prettier.semi": false,
+    "source.fixAll": "explicit",
+    "prettier.semi": "never",
     "prettier.trailingComma": "none",
-    "prettier.singleQuote": true
+    "prettier.singleQuote": "explicit"
   }
 }

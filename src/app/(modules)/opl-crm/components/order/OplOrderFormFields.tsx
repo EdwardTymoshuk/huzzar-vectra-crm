@@ -63,6 +63,8 @@ type EquipmentRequirementVM = {
   quantity: number
 }
 
+const NO_OPERATOR_VALUE = '__NO_OPERATOR__'
+
 export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   // Cast to allow uniform access (control always exists)
   const { control, setValue, getValues, watch } =
@@ -170,17 +172,22 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              Operator <span className="text-destructive">*</span>
+              Operator
             </FormLabel>
             <Select
-              onValueChange={field.onChange}
-              value={field.value}
+              onValueChange={(value) =>
+                field.onChange(
+                  value === NO_OPERATOR_VALUE ? undefined : value
+                )
+              }
+              value={field.value ?? NO_OPERATOR_VALUE}
               disabled={isOperatorsLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz operatora" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NO_OPERATOR_VALUE}>Brak</SelectItem>
                 {operatorList.map((op) => (
                   <SelectItem key={op} value={op}>
                     {op}
@@ -211,6 +218,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
               <SelectContent>
                 <SelectItem value="ORANGE">Orange</SelectItem>
                 <SelectItem value="SI">SI</SelectItem>
+                <SelectItem value="PSO">PŚO</SelectItem>
               </SelectContent>
             </Select>
 
@@ -539,27 +547,6 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
           )}
         </div>
       )}
-
-      <FormField
-        control={control}
-        name="contractRequired"
-        render={({ field }) => (
-          <FormItem>
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                className="h-5 w-5 accent-primary cursor-pointer"
-              />
-              <FormLabel className="!mt-0 cursor-pointer">
-                Wymagana umowa
-              </FormLabel>
-            </div>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
 
       <FormItem>
         <FormLabel>Sprzęt do wydania</FormLabel>

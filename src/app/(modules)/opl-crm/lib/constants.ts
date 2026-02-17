@@ -4,8 +4,9 @@ import { BadgeVariant } from '@/lib/constants'
 import { PkiDefinition } from '@/types/opl-crm/orders'
 import {
   OplActivationType,
-  OplBaseWorkCode,
   OplDeviceCategory,
+  OplNetworkOeprator,
+  OplOrderStandard,
   OplTimeSlot,
   OplWarehouseAction,
 } from '@prisma/client'
@@ -110,6 +111,12 @@ export const oplOrderTypeMap = {
   OUTAGE: 'Awaria',
 }
 
+export const oplNetworkMap: Record<OplNetworkOeprator, string> = {
+  ORANGE: 'Orange',
+  SI: 'SI',
+  PSO: 'PŚO',
+}
+
 export const oplWarehouseActionMap: Record<
   OplWarehouseAction,
   { label: string; variant: BadgeVariant }
@@ -129,7 +136,7 @@ export const oplWarehouseActionMap: Record<
 }
 
 export const oplOrderStandardOptions: {
-  value: OplBaseWorkCode
+  value: OplOrderStandard
   label: string
 }[] = [
   { value: 'W1', label: 'W1' },
@@ -138,14 +145,16 @@ export const oplOrderStandardOptions: {
   { value: 'W4', label: 'W4' },
   { value: 'W5', label: 'W5' },
   { value: 'W6', label: 'W6' },
-  { value: 'WGH', label: 'WGH' },
-  { value: 'P1P', label: 'P1P' },
-  { value: 'P2P', label: 'P2P' },
-  { value: 'P3P', label: 'P3P' },
-  { value: 'PUTD', label: 'PUTD' },
-  { value: 'DU', label: 'DU' },
   { value: 'ZJD', label: 'ZJD' },
+  { value: 'ZJD1', label: 'ZJD1' },
+  { value: 'ZJD3', label: 'ZJD3' },
+  { value: 'ZJD5', label: 'ZJD5' },
+  { value: 'ZJD30', label: 'ZJD30' },
   { value: 'ZJN', label: 'ZJN' },
+  { value: 'ZJN1', label: 'ZJN1' },
+  { value: 'ZJN3', label: 'ZJN3' },
+  { value: 'ZJN5', label: 'ZJN5' },
+  { value: 'ZJN30', label: 'ZJN30' },
   { value: 'ZJK', label: 'ZJK' },
 ]
 export const oplActivationLabelMap: Record<OplActivationType, string> = {

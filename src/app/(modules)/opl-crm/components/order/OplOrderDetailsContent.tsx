@@ -2,17 +2,19 @@
 
 import { materialUnitMap } from '@/lib/constants'
 import {
+  OplNetworkOeprator,
   OplDeviceCategory,
   OplMaterialUnit,
   OplOrderStatus,
 } from '@prisma/client'
 import React from 'react'
-import { oplDevicesTypeMap } from '../../lib/constants'
+import { oplDevicesTypeMap, oplNetworkMap } from '../../lib/constants'
 import {
   isPkiCode,
   shouldShowWorkCodeQuantity,
   toWorkCodeLabel,
 } from '../../utils/order/workCodesPresentation'
+import { parseMeasurementsFromNotes } from '../../utils/order/notesFormatting'
 
 /**
  * Order details view model used by OplOrderDetailsContent.
@@ -26,6 +28,19 @@ export type OrderWithDetails = {
   attemptNumber: number
   operator: string
   serviceId: string | null
+  network: OplNetworkOeprator
+  standard: string | null
+  clientPhoneNumber: string | null
+
+  equipmentRequirements: {
+    id: string
+    quantity: number
+    deviceDefinition: {
+      id: string
+      name: string
+      category: OplDeviceCategory
+    }
+  }[]
 
   settlementEntries: {
     id: string
@@ -101,6 +116,10 @@ const OplOrderDetailsContent = ({
     attemptNumber,
     operator,
     serviceId,
+    network,
+    standard,
+    clientPhoneNumber,
+    equipmentRequirements,
   } = order
 
   // Collected = sprzęt odebrany od klienta
@@ -128,6 +147,13 @@ const OplOrderDetailsContent = ({
   )
   const amountToShow =
     amountMode === 'perTechnician' ? totalAmount / technicianCount : totalAmount
+  const parsedNotes = parseMeasurementsFromNotes(notes)
+  const measurementLabel =
+    parsedNotes.measurements.opp || parsedNotes.measurements.go
+      ? `OPP: ${parsedNotes.measurements.opp || '-'} dB, GO: ${
+          parsedNotes.measurements.go || '-'
+        } dB`
+      : null
 
   return (
     <div className="space-y-6 text-sm w-full">
@@ -141,8 +167,25 @@ const OplOrderDetailsContent = ({
         )}
         {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
         <HeaderRow label="Id usługi" value={serviceId ?? '-'} />
-        <HeaderRow label="Operator" value={operator} />
+        <HeaderRow label="Operator" value={operator?.trim() || '-'} />
+        <HeaderRow
+          label="Operator sieci"
+          value={oplNetworkMap[network] ?? network}
+        />
+        <HeaderRow label="Standard zlecenia" value={standard ?? '-'} />
+        <HeaderRow label="Nr kontaktowy klienta" value={clientPhoneNumber ?? '-'} />
+        {measurementLabel && <HeaderRow label="Pomiar" value={measurementLabel} />}
       </div>
+
+      <Section
+        title="Sprzęty do wydania"
+        list={equipmentRequirements.map((req) => {
+          const type =
+            oplDevicesTypeMap[req.deviceDefinition.category] ??
+            req.deviceDefinition.category
+          return `${req.deviceDefinition.name} (${type}) x ${req.quantity}`
+        })}
+      />
 
       {/* ===== Work codes ===== */}
       <Section
@@ -212,7 +255,7 @@ const OplOrderDetailsContent = ({
       )}
 
       {/* ===== Notes ===== */}
-      {notes && <Section title="Uwagi" list={[notes]} />}
+      {parsedNotes.plainNotes && <Section title="Uwagi" list={[parsedNotes.plainNotes]} />}
 
       <div className="pt-4 border-t border-border font-semibold">
         {amountMode === 'perTechnician' ? 'Kwota : ' : 'Kwota: '}
@@ -248,7 +291,9 @@ const Section = ({ title, list }: { title: string; list: string[] }) => (
     {list.length ? (
       <ul className="list-none list-inside">
         {list.map((it, idx) => (
-          <li key={`${it}-${idx}`}>{it}</li>
+          <li key={`${it}-${idx}`} className="whitespace-pre-line normal-case">
+            {it}
+          </li>
         ))}
       </ul>
     ) : (

@@ -7,8 +7,9 @@ import { Button } from '@/app/components/ui/button'
 import { useRole } from '@/utils/hooks/useRole'
 import { OplOrderStatus, OplOrderType } from '@prisma/client'
 import { useState } from 'react'
-import { MdAdd } from 'react-icons/md'
+import { MdAdd, MdUploadFile } from 'react-icons/md'
 import AddOplOrderModal from '../components/orders/AddOplOrderModal'
+import ImportOrdersModal from '../components/orders/ImportOrdersModal'
 import OplOrdersFilter from '../components/orders/OplOrdersFilter'
 import OplOrdersTable from '../components/orders/OplOrdersTable'
 
@@ -31,16 +32,23 @@ const OplOrdersPage = () => {
   const [dateTo, setDateTo] = useState<string | null>(null)
 
   const [isAddModalOpen, setAddModalOpen] = useState(false)
+  const [isImportModalOpen, setImportModalOpen] = useState(false)
 
   const { isAdmin, isCoordinator, isLoading } = useRole()
   const canManageOrders = !isLoading && (isAdmin || isCoordinator)
 
   /** Header actions (visible only on xl screens) */
   const headerActions = canManageOrders ? (
-    <Button onClick={() => setAddModalOpen(true)} variant="success">
-      <MdAdd className="text-lg" />
-      Dodaj zlecenie
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button onClick={() => setImportModalOpen(true)} variant="warning">
+        <MdUploadFile className="text-lg" />
+        Wczytaj z Excela
+      </Button>
+      <Button onClick={() => setAddModalOpen(true)} variant="success">
+        <MdAdd className="text-lg" />
+        Dodaj zlecenie
+      </Button>
+    </div>
   ) : null
 
   return (
@@ -85,6 +93,12 @@ const OplOrdersPage = () => {
             disableOverlay
             actions={[
               {
+                label: 'Wczytaj z Excela',
+                icon: <MdUploadFile className="text-lg" />,
+                colorClass: 'bg-warning hover:bg-warning/90',
+                onClick: () => setImportModalOpen(true),
+              },
+              {
                 label: 'Dodaj zlecenie',
                 icon: <MdAdd className="text-lg" />,
                 colorClass: 'bg-success hover:bg-success/90',
@@ -101,6 +115,12 @@ const OplOrdersPage = () => {
         <AddOplOrderModal
           open={isAddModalOpen}
           onCloseAction={() => setAddModalOpen(false)}
+        />
+      )}
+      {canManageOrders && (
+        <ImportOrdersModal
+          open={isImportModalOpen}
+          onClose={() => setImportModalOpen(false)}
         />
       )}
     </div>

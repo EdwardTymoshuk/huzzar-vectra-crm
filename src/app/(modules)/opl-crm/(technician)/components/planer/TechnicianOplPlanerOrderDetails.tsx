@@ -3,6 +3,7 @@
 import LoaderSpinner from '@/app/components/LoaderSpinner'
 import { Alert, AlertDescription } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
+import { oplNetworkMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplOrderStatus } from '@prisma/client'
@@ -97,7 +98,8 @@ const TechnicianOplPlanerOrderDetails = ({
           {order.timeSlot}
         </p>
         <p>
-          <strong>Operator:</strong> {order.operator}
+          <strong>Operator sieci:</strong>{' '}
+          {order.network ? (oplNetworkMap[order.network] ?? order.network) : '-'}
         </p>
         {order.notes && (
           <p className="italic text-muted-foreground">„{order.notes}”</p>

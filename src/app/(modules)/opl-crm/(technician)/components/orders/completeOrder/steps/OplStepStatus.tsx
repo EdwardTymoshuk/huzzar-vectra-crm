@@ -2,12 +2,15 @@
 
 import { Button } from '@/app/components/ui/button'
 import { Textarea } from '@/app/components/ui/textarea'
+import { trpc } from '@/utils/trpc'
 import { OplOrderStatus } from '@prisma/client'
 import { MdKeyboardArrowRight } from 'react-icons/md'
 import { toast } from 'sonner'
 import OplFailureReasonSelect from '../OplFailureReasonSelect'
 
 interface OplStepStatusProps {
+  orderNumber: string
+  orderAddress: string
   status: OplOrderStatus | null
   setStatus: (v: OplOrderStatus) => void
   onNext: (data: {
@@ -31,6 +34,8 @@ interface OplStepStatusProps {
  *   then immediately completes the wizard (skipping further steps).
  */
 const OplStepStatus = ({
+  orderNumber,
+  orderAddress,
   status,
   setStatus,
   failureReason,
@@ -39,6 +44,32 @@ const OplStepStatus = ({
   setNotes,
   onNext,
 }: OplStepStatusProps) => {
+  const sendFailureEmailMutation = trpc.opl.order.sendFailureEmail.useMutation()
+
+  const handleSendFailureEmail = () => {
+    if (!failureReason.trim()) {
+      toast.error('Wybierz powód niewykonania przed wysłaniem maila.')
+      return
+    }
+
+    sendFailureEmailMutation.mutate(
+      {
+        orderNumber,
+        orderAddress,
+        failureReason,
+        notes,
+      },
+      {
+        onSuccess: () => {
+          toast.success('Email do COK został wysłany.')
+        },
+        onError: () => {
+          toast.error('Nie udało się wysłać emaila do COK.')
+        },
+      }
+    )
+  }
+
   const handleSubmit = () => {
     if (status === 'NOT_COMPLETED') {
       if (!failureReason.trim()) {
@@ -115,6 +146,18 @@ const OplStepStatus = ({
                 className="min-h-[80px]"
               />
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleSendFailureEmail}
+              disabled={sendFailureEmailMutation.isPending}
+            >
+              {sendFailureEmailMutation.isPending
+                ? 'Wysyłanie...'
+                : 'Wyślij email do COK'}
+            </Button>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
+import { formatMeasurementsLine } from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
 import { Button } from '@/app/components/ui/button'
 import { Card } from '@/app/components/ui/card'
 import { Input } from '@/app/components/ui/input'
@@ -8,12 +9,8 @@ import { Label } from '@/app/components/ui/label'
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 import { trpc } from '@/utils/trpc'
-import { useEffect, useState } from 'react'
-import {
-  MdEdit,
-  MdKeyboardArrowLeft,
-  MdKeyboardArrowRight,
-} from 'react-icons/md'
+import { useEffect, useRef, useState } from 'react'
+import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md'
 import { toast } from 'sonner'
 
 type Props = {
@@ -26,6 +23,8 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
   const {
     state,
     setNotes,
+    setMeasurementOpp,
+    setMeasurementGo,
     setAddressNoteEnabled,
     setAddressNoteText,
     setAddressNoteScope,
@@ -36,96 +35,136 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
   const [addressNoteDraft, setAddressNoteDraft] = useState(
     state.addressNoteText,
   )
+  const [measurementOppDraft, setMeasurementOppDraft] = useState(
+    state.measurementOpp,
+  )
+  const [measurementGoDraft, setMeasurementGoDraft] = useState(
+    state.measurementGo,
+  )
   const [addressScopeDraft, setAddressScopeDraft] = useState(
     state.addressNoteScope,
   )
-  const [editingOrderNote, setEditingOrderNote] = useState(
-    state.notes.length === 0,
-  )
-  const [editingAddressNote, setEditingAddressNote] = useState(
-    state.addressNoteText.length === 0,
+  const lastSavedAddressSignatureRef = useRef(
+    `${state.addressNoteText.trim()}|${state.addressNoteScope.trim()}`
   )
 
   useEffect(() => {
     setOrderNoteDraft(state.notes)
-    setEditingOrderNote(state.notes.length === 0)
   }, [state.notes])
+
+  useEffect(() => {
+    setMeasurementOppDraft(state.measurementOpp)
+    setMeasurementGoDraft(state.measurementGo)
+  }, [state.measurementGo, state.measurementOpp])
 
   useEffect(() => {
     setAddressNoteDraft(state.addressNoteText)
     setAddressScopeDraft(state.addressNoteScope)
-    setEditingAddressNote(state.addressNoteText.length === 0)
   }, [state.addressNoteText, state.addressNoteScope])
 
-  const handleAddOrderNote = () => {
-    setNotes(orderNoteDraft.trim())
-    setEditingOrderNote(false)
-    toast.success('Dodano uwagę do zlecenia.')
+  const persistMeasurements = () => {
+    setMeasurementOpp(measurementOppDraft.trim())
+    setMeasurementGo(measurementGoDraft.trim())
   }
 
-  const handleAddAddressNote = async () => {
-    if (!addressNoteDraft.trim()) {
-      toast.error('Wpisz treść uwagi do adresu.')
-      return
+  const persistDrafts = () => {
+    persistMeasurements()
+    setNotes(orderNoteDraft.trim())
+    setAddressNoteText(addressNoteDraft.trim())
+    setAddressNoteScope(addressScopeDraft.trim())
+  }
+
+  const handleNext = async () => {
+    persistDrafts()
+
+    if (state.addressNoteEnabled && addressNoteDraft.trim()) {
+      const signature = `${addressNoteDraft.trim()}|${addressScopeDraft.trim()}`
+      if (signature === lastSavedAddressSignatureRef.current) {
+        onNext()
+        return
+      }
+
+      try {
+        await createAddressNote.mutateAsync({
+          orderId,
+          note: addressNoteDraft.trim(),
+          buildingScope: addressScopeDraft.trim() || undefined,
+        })
+        lastSavedAddressSignatureRef.current = signature
+        await utils.opl.order.getAddressNotesForOrder.invalidate({ orderId })
+      } catch {
+        toast.error('Nie udało się zapisać uwagi do adresu.')
+        return
+      }
     }
 
-    try {
-      const note = addressNoteDraft.trim()
-      const scope = addressScopeDraft.trim()
-
-      await createAddressNote.mutateAsync({
-        orderId,
-        note,
-        buildingScope: scope || undefined,
-      })
-
-      setAddressNoteText(note)
-      setAddressNoteScope(scope)
-      setEditingAddressNote(false)
-      await utils.opl.order.getAddressNotesForOrder.invalidate({ orderId })
-      toast.success('Dodano uwagę do adresu.')
-    } catch {
-      toast.error('Nie udało się dodać uwagi do adresu.')
-    }
+    onNext()
   }
 
   return (
     <div className="flex h-full flex-col justify-between">
       <div className="space-y-4 p-4">
         <Card className="space-y-3 p-4">
-          <h3 className="text-base font-semibold">Uwagi do zlecenia</h3>
-          {editingOrderNote ? (
-            <>
-              <p className="text-xs text-muted-foreground">
-                Pole opcjonalne. Widoczne przy tym zleceniu.
-              </p>
-              <Textarea
-                value={orderNoteDraft}
-                onChange={(e) => setOrderNoteDraft(e.target.value)}
-                placeholder="Dodaj uwagę do tego zlecenia (opcjonalnie)"
-                className="min-h-24"
+          <h3 className="text-base font-semibold">Pomiary</h3>
+          <p className="text-xs text-muted-foreground">
+            Podaj wartości dla OPP i GO.
+          </p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="opl-measurement-opp">OPP (dB)</Label>
+              <Input
+                id="opl-measurement-opp"
+                value={measurementOppDraft}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setMeasurementOppDraft(value)
+                  setMeasurementOpp(value.trim())
+                }}
+                placeholder="np. 12,3"
               />
-              <Button
-                type="button"
-                variant="default"
-                onClick={handleAddOrderNote}
-              >
-                Dodaj
-              </Button>
-            </>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Uwaga zapisana</p>
-              <p className="text-sm whitespace-pre-wrap">{state.notes}</p>
-              <Button
-                type="button"
-                variant="warning"
-                onClick={() => setEditingOrderNote(true)}
-              >
-                <MdEdit /> Zmień
-              </Button>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="opl-measurement-go">GO (dB)</Label>
+              <Input
+                id="opl-measurement-go"
+                value={measurementGoDraft}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setMeasurementGoDraft(value)
+                  setMeasurementGo(value.trim())
+                }}
+                placeholder="np. 12,7"
+              />
+            </div>
+          </div>
+          {formatMeasurementsLine({
+            opp: measurementOppDraft,
+            go: measurementGoDraft,
+          }) && (
+            <p className="text-xs text-muted-foreground">
+              {formatMeasurementsLine({
+                opp: measurementOppDraft,
+                go: measurementGoDraft,
+              })}
+            </p>
           )}
+        </Card>
+
+        <Card className="space-y-3 p-4">
+          <h3 className="text-base font-semibold">Uwagi do zlecenia</h3>
+          <p className="text-xs text-muted-foreground">
+            Pole opcjonalne. Widoczne przy tym zleceniu.
+          </p>
+          <Textarea
+            value={orderNoteDraft}
+            onChange={(e) => {
+              const value = e.target.value
+              setOrderNoteDraft(value)
+              setNotes(value.trim())
+            }}
+            placeholder="Dodaj uwagę do tego zlecenia (opcjonalnie)"
+            className="min-h-24"
+          />
         </Card>
 
         <Card className="space-y-4 p-4">
@@ -142,63 +181,36 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
             />
           </div>
 
-          {state.addressNoteEnabled &&
-            (editingAddressNote ? (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="opl-address-note-text">Treść uwagi</Label>
-                  <Textarea
-                    id="opl-address-note-text"
-                    value={addressNoteDraft}
-                    onChange={(e) => setAddressNoteDraft(e.target.value)}
-                    placeholder="Np. Kontakt do administracji: 600 000 000"
-                    className="min-h-24"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="opl-address-note-scope">
-                    Zakres budynków (opcjonalnie)
-                  </Label>
-                  <Input
-                    id="opl-address-note-scope"
-                    value={addressScopeDraft}
-                    onChange={(e) => setAddressScopeDraft(e.target.value)}
-                    placeholder="Np. 1,2,3,10-12 (puste = bieżący numer)"
-                  />
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddAddressNote}
-                  disabled={createAddressNote.isPending}
-                >
-                  Dodaj
-                </Button>
+          {state.addressNoteEnabled && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="opl-address-note-text">Treść uwagi</Label>
+                <Textarea
+                  id="opl-address-note-text"
+                  value={addressNoteDraft}
+                  onChange={(e) => {
+                    setAddressNoteDraft(e.target.value)
+                  }}
+                  placeholder="Np. Kontakt do administracji: 600 000 000"
+                  className="min-h-24"
+                />
               </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Uwaga adresowa zapisana
-                </p>
-                <p className="text-sm whitespace-pre-wrap">
-                  {state.addressNoteText}
-                </p>
-                {state.addressNoteScope && (
-                  <p className="text-xs text-muted-foreground">
-                    Zakres: {state.addressNoteScope}
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingAddressNote(true)}
-                >
-                  Zmień
-                </Button>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="opl-address-note-scope">
+                  Zakres budynków (opcjonalnie)
+                </Label>
+                <Input
+                  id="opl-address-note-scope"
+                  value={addressScopeDraft}
+                  onChange={(e) => {
+                    setAddressScopeDraft(e.target.value)
+                  }}
+                  placeholder="Np. 1,2,3,10-12 (puste = bieżący numer)"
+                />
               </div>
-            ))}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -207,8 +219,12 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
           <MdKeyboardArrowLeft className="h-5 w-5" />
           Wstecz
         </Button>
-        <Button className="flex-1 gap-1" onClick={onNext}>
-          Dalej
+        <Button
+          className="flex-1 gap-1"
+          onClick={handleNext}
+          disabled={createAddressNote.isPending}
+        >
+          {createAddressNote.isPending ? 'Zapisywanie...' : 'Dalej'}
           <MdKeyboardArrowRight className="h-5 w-5" />
         </Button>
       </div>

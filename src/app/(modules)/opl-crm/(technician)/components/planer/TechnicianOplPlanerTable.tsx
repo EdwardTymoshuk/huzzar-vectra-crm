@@ -12,7 +12,12 @@ import { OplIssuedItemDevice } from '@/types/opl-crm'
 import { formatDate } from '@/utils/dates/formatDateTime'
 import { getTimeSlotLabel } from '@/utils/getTimeSlotLabel'
 import { trpc } from '@/utils/trpc'
-import { OplOrderStatus, OplOrderType, OplTimeSlot } from '@prisma/client'
+import {
+  OplNetworkOeprator,
+  OplOrderStatus,
+  OplOrderType,
+  OplTimeSlot,
+} from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { BsSendCheck } from 'react-icons/bs'
@@ -20,7 +25,7 @@ import { CgArrowsExchange } from 'react-icons/cg'
 import { MdVisibility } from 'react-icons/md'
 import { toast } from 'sonner'
 import OplOrderDetailsSheet from '../../../components/order/OplOrderDetailsSheet'
-import { oplOrderTypeMap } from '../../../lib/constants'
+import { oplNetworkMap, oplOrderTypeMap } from '../../../lib/constants'
 import { CompleteOplOrderProvider } from '../../../utils/context/order/CompleteOplOrderContext'
 import TransferOplOrderModal from '../orders/TransferOplOrderModal'
 import CompleteOplOrderWizard from '../orders/completeOrder/CompleteOplOrderWizard'
@@ -39,7 +44,7 @@ export type ActiveOrderRow = {
   street: string
   date: Date
   timeSlot: OplTimeSlot
-  operator: string
+  network: OplNetworkOeprator
   status: OplOrderStatus
   notes: string | null
   technicians: {
@@ -57,7 +62,7 @@ type IncomingTransferRow = {
   street: string
   date: Date
   timeSlot: OplTimeSlot
-  operator: string | null
+  network: OplNetworkOeprator
   status: OplOrderStatus
   transferToId: string | null
   transferPending: boolean
@@ -72,7 +77,7 @@ type PlannerRow = {
   street: string
   date: Date
   timeSlot: OplTimeSlot
-  operator: string
+  network: OplNetworkOeprator
   status: OplOrderStatus
   /** When true, row represents an incoming transfer waiting for acceptance. */
   incoming: boolean
@@ -168,7 +173,7 @@ const TechnicianOplPlanerTable = ({
       street: o.street,
       date: o.date,
       timeSlot: o.timeSlot,
-      operator: o.operator || '—',
+      network: o.network,
       status: o.status,
       incoming: false,
     }))
@@ -182,7 +187,7 @@ const TechnicianOplPlanerTable = ({
         street: t.street,
         date: t.date,
         timeSlot: t.timeSlot,
-        operator: t.operator ?? '—',
+        network: t.network,
         status: 'ASSIGNED',
         incoming: true,
       })
@@ -283,7 +288,7 @@ const TechnicianOplPlanerTable = ({
                       {oplOrderTypeMap[o.type] ?? '—'}
                     </span>
                     <span className="text-xs text-muted-foreground font-normal">
-                      {o.operator}
+                      {oplNetworkMap[o.network] ?? o.network}
                     </span>
                   </div>
 

@@ -21,6 +21,7 @@ import OplOrderTimeline from '../../admin-panel/components/order/OplOrderTimelin
 import EditOplOrderModal from '../../admin-panel/components/orders/EditOplOrderModal'
 import {
   oplDevicesTypeMap,
+  oplNetworkMap,
   oplOrderTypeMap,
   oplTimeSlotMap,
 } from '../../lib/constants'
@@ -30,6 +31,7 @@ import {
   shouldShowWorkCodeQuantity,
   toWorkCodeLabel,
 } from '../../utils/order/workCodesPresentation'
+import { parseMeasurementsFromNotes } from '../../utils/order/notesFormatting'
 
 type Props = {
   orderId: string | null
@@ -108,6 +110,10 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
     order?.settlementEntries?.filter((e) => !isPkiCode(e.code)) ?? []
   const pkiCodes =
     order?.settlementEntries?.filter((e) => isPkiCode(e.code)) ?? []
+  const parsedNotes = parseMeasurementsFromNotes(order?.notes)
+  const measurementLabel = parsedNotes.measurements.opp || parsedNotes.measurements.go
+    ? `OPP: ${parsedNotes.measurements.opp || '-'} dB, GO: ${parsedNotes.measurements.go || '-'} dB`
+    : null
   const technicianCount = Math.max(order?.assignments?.length ?? 1, 1)
   const totalAmount =
     order?.settlementEntries?.reduce(
@@ -187,6 +193,7 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     </h3>
                     <p className="font-medium">{order.orderNumber}</p>
                   </div>
+
                   {order.attemptNumber > 1 && (
                     <div>
                       <h3 className="text-xs text-muted-foreground font-medium">
@@ -209,6 +216,18 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">
+                    Adres
+                  </h3>
+                  <p>
+                    {order.city}, {order.street}
+                    {order.postalCode &&
+                      order.postalCode !== '00-000' &&
+                      ` (${order.postalCode})`}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
                     Typ zlecenia
                   </h3>
                   <p>{oplOrderTypeMap[order.type] ?? order.type}</p>
@@ -226,6 +245,13 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     Przedział czasowy
                   </h3>
                   <p>{oplTimeSlotMap[order.timeSlot] ?? order.timeSlot}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
+                    Nr kontaktowy klienta
+                  </h3>
+                  <p>{order.clientPhoneNumber ?? '—'}</p>
                 </div>
 
                 {!isTechnician && (
@@ -263,19 +289,46 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   <h3 className="text-xs text-muted-foreground font-medium">
                     Operator
                   </h3>
-                  <p>{order.operator}</p>
+                  <p>{order.operator?.trim() || '-'}</p>
                 </div>
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">
-                    Adres
+                    Operator sieci
                   </h3>
-                  <p>
-                    {order.city}, {order.street}
-                    {order.postalCode &&
-                      order.postalCode !== '00-000' &&
-                      ` (${order.postalCode})`}
-                  </p>
+                  <p>{oplNetworkMap[order.network] ?? order.network}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
+                    Standard zlecenia
+                  </h3>
+                  <p>{order.standard ?? '—'}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground font-medium">
+                    Sprzęty do wydania
+                  </h3>
+                  {order.equipmentRequirements?.length ? (
+                    <ul className="list-disc pl-4 normal-case">
+                      {order.equipmentRequirements.map((req) => (
+                        <li key={req.id}>
+                          {req.deviceDefinition.name}{' '}
+                          {req.deviceDefinition.category && (
+                            <span>
+                              (
+                              {oplDevicesTypeMap[req.deviceDefinition.category]}
+                              )
+                            </span>
+                          )}{' '}
+                          x {req.quantity}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Brak</p>
+                  )}
                 </div>
 
                 {order.completedAt && (
@@ -291,8 +344,19 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   <h3 className="text-xs text-muted-foreground font-medium">
                     Uwagi
                   </h3>
-                  <p>{order.notes || '—'}</p>
+                  <p className="whitespace-pre-line normal-case">
+                    {parsedNotes.plainNotes || '—'}
+                  </p>
                 </div>
+
+                {measurementLabel && (
+                  <div>
+                    <h3 className="text-xs text-muted-foreground font-medium">
+                      Pomiar
+                    </h3>
+                    <p>{measurementLabel}</p>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">

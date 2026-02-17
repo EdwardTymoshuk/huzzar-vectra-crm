@@ -37,17 +37,6 @@ const getOrderTotalAmount = (
     0
   )
 
-const getTechnicianShareFromOrder = ({
-  entries,
-  assignmentsCount,
-}: {
-  entries: Array<{ quantity: number; rate: { amount: number } | null }>
-  assignmentsCount: number
-}): number => {
-  const safeAssignmentsCount = Math.max(assignmentsCount, 1)
-  return getOrderTotalAmount(entries) / safeAssignmentsCount
-}
-
 export const metricsRouter = router({
   /**
    * getTechnicianEfficiency
@@ -381,24 +370,58 @@ export const metricsRouter = router({
       const calc = async (start: Date, end: Date) => {
         const rows = await prisma.oplOrder.findMany({
           where: {
-            assignments: {
-              some: {
-                technicianId: technicianId,
-              },
-            },
             date: { gte: start, lte: end },
             status: { in: ['ASSIGNED', 'COMPLETED', 'NOT_COMPLETED'] },
+            OR: [
+              {
+                assignments: {
+                  some: {
+                    technicianId,
+                  },
+                },
+              },
+              {
+                history: {
+                  some: {
+                    changedById: technicianId,
+                    statusAfter: {
+                      in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                    },
+                  },
+                },
+              },
+            ],
           },
-          select: { status: true },
+          select: {
+            status: true,
+            assignments: {
+              where: { technicianId },
+              select: { id: true },
+            },
+            history: {
+              where: {
+                changedById: technicianId,
+                statusAfter: {
+                  in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                },
+              },
+              select: { id: true },
+              take: 1,
+            },
+          },
         })
 
         // Same structure as admin
         const sum = { assigned: 0, completed: 0, failed: 0 }
 
         rows.forEach((o) => {
-          if (o.status === 'ASSIGNED') sum.assigned++
-          else if (o.status === 'COMPLETED') sum.completed++
-          else if (o.status === 'NOT_COMPLETED') sum.failed++
+          if (o.status === 'ASSIGNED' && o.assignments.length > 0) {
+            sum.assigned++
+          } else if (o.status === 'COMPLETED' && o.history.length > 0) {
+            sum.completed++
+          } else if (o.status === 'NOT_COMPLETED' && o.history.length > 0) {
+            sum.failed++
+          }
         })
 
         const total = sum.assigned + sum.completed + sum.failed
@@ -456,28 +479,23 @@ export const metricsRouter = router({
       const sumEarnings = async (start: Date, end: Date): Promise<number> => {
         const orders = await ctx.prisma.oplOrder.findMany({
           where: {
-            assignments: {
-              some: {
-                technicianId: technicianId,
-              },
-            },
             date: { gte: start, lte: end },
             status: 'COMPLETED',
+            history: {
+              some: {
+                changedById: technicianId,
+                statusAfter: OplOrderStatus.COMPLETED,
+              },
+            },
           },
           select: {
-            assignments: {
-              select: { technicianId: true },
-            },
             settlementEntries: { select: { quantity: true, rate: true } },
           },
         })
 
         let total = 0
         for (const o of orders) {
-          total += getTechnicianShareFromOrder({
-            entries: o.settlementEntries,
-            assignmentsCount: o.assignments.length,
-          })
+          total += getOrderTotalAmount(o.settlementEntries)
         }
 
         return Math.round(total * 100) / 100
@@ -519,19 +537,19 @@ export const metricsRouter = router({
         // Fetch orders for the month for this technician
         const orders = await prisma.oplOrder.findMany({
           where: {
-            assignments: {
-              some: {
-                technicianId: technicianId,
-              },
-            },
             date: { gte: start, lte: end },
             status: { in: ['COMPLETED', 'NOT_COMPLETED'] }, // only these affect success rate
+            history: {
+              some: {
+                changedById: technicianId,
+                statusAfter: {
+                  in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                },
+              },
+            },
           },
           select: {
             status: true,
-            assignments: {
-              select: { technicianId: true },
-            },
             // earnings come only from COMPLETED via settlementEntries
             settlementEntries: { select: { quantity: true, rate: true } },
           },
@@ -544,10 +562,7 @@ export const metricsRouter = router({
         for (const o of orders) {
           if (o.status === 'COMPLETED') {
             completed++
-            amount += getTechnicianShareFromOrder({
-              entries: o.settlementEntries,
-              assignmentsCount: o.assignments.length,
-            })
+            amount += getOrderTotalAmount(o.settlementEntries)
           } else if (o.status === 'NOT_COMPLETED') {
             failed++
           }
@@ -598,12 +613,30 @@ export const metricsRouter = router({
 
       const orders = await prisma.oplOrder.findMany({
         where: {
-          assignments: {
-            some: {
-              technicianId: technicianId,
-            },
-          },
           date: { gte: dateFrom, lte: dateTo },
+          OR: [
+            {
+              assignments: {
+                some: {
+                  technicianId,
+                },
+              },
+              status: OplOrderStatus.ASSIGNED,
+            },
+            {
+              history: {
+                some: {
+                  changedById: technicianId,
+                  statusAfter: {
+                    in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                  },
+                },
+              },
+              status: {
+                in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+              },
+            },
+          ],
         },
         select: { date: true, status: true },
       })

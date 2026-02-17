@@ -12,7 +12,7 @@ import { TbListSearch } from 'react-icons/tb'
 
 interface WarehouseFloatingActionsProps {
   onAddManual: () => void
-  onImportExcel: () => void
+  onImportExcel?: () => void
   onIssue: () => void
   onReturn: () => void
   onStockCheck: () => void
@@ -20,6 +20,7 @@ interface WarehouseFloatingActionsProps {
   onTransfer: () => void
   onHistory: () => void
   onReports: () => void
+  showImport?: boolean
 }
 
 const WarehouseFloatingActions = ({
@@ -32,6 +33,7 @@ const WarehouseFloatingActions = ({
   onTransfer,
   onHistory,
   onReports,
+  showImport = true,
 }: WarehouseFloatingActionsProps) => {
   return (
     <FloatingActionMenu
@@ -45,12 +47,16 @@ const WarehouseFloatingActions = ({
           colorClass: 'bg-success hover:bg-success/90',
           onClick: onAddManual,
         },
-        {
-          label: 'Import z Excela',
-          icon: <MdUploadFile />,
-          colorClass: 'bg-success hover:bg-success/90',
-          onClick: onImportExcel,
-        },
+        ...(showImport && onImportExcel
+          ? [
+              {
+                label: 'Import z Excela',
+                icon: <MdUploadFile />,
+                colorClass: 'bg-success hover:bg-success/90',
+                onClick: onImportExcel,
+              },
+            ]
+          : []),
         {
           label: 'Wydaj sprzęt',
           icon: <HiOutlineArrowUpOnSquare />,

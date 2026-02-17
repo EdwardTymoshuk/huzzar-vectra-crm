@@ -28,6 +28,8 @@ export type CompleteOplOrderState = {
   status: OplOrderStatus | null
   failureReason: string
   notes: string
+  measurementOpp: string
+  measurementGo: string
   addressNoteEnabled: boolean
   addressNoteText: string
   addressNoteScope: string
@@ -52,6 +54,8 @@ type CompleteOplOrderContextValue = {
   setStatus: (v: OplOrderStatus) => void
   setFailureReason: (v: string) => void
   setNotes: (v: string) => void
+  setMeasurementOpp: (v: string) => void
+  setMeasurementGo: (v: string) => void
   setAddressNoteEnabled: (v: boolean) => void
   setAddressNoteText: (v: string) => void
   setAddressNoteScope: (v: string) => void
@@ -104,6 +108,8 @@ const initialState: CompleteOplOrderState = {
   status: null,
   failureReason: '',
   notes: '',
+  measurementOpp: '',
+  measurementGo: '',
   addressNoteEnabled: false,
   addressNoteText: '',
   addressNoteScope: '',
@@ -197,6 +203,12 @@ export const CompleteOplOrderProvider = ({
 
   const setNotes = useCallback((v: string) => {
     setState((prev) => ({ ...prev, notes: v }))
+  }, [])
+  const setMeasurementOpp = useCallback((v: string) => {
+    setState((prev) => ({ ...prev, measurementOpp: v }))
+  }, [])
+  const setMeasurementGo = useCallback((v: string) => {
+    setState((prev) => ({ ...prev, measurementGo: v }))
   }, [])
   const setAddressNoteEnabled = useCallback((v: boolean) => {
     setState((prev) => ({ ...prev, addressNoteEnabled: v }))
@@ -518,6 +530,8 @@ export const CompleteOplOrderProvider = ({
       setStatus,
       setFailureReason,
       setNotes,
+      setMeasurementOpp,
+      setMeasurementGo,
       setAddressNoteEnabled,
       setAddressNoteText,
       setAddressNoteScope,
@@ -560,6 +574,8 @@ export const CompleteOplOrderProvider = ({
       setStatus,
       setFailureReason,
       setNotes,
+      setMeasurementOpp,
+      setMeasurementGo,
       setAddressNoteEnabled,
       setAddressNoteText,
       setAddressNoteScope,

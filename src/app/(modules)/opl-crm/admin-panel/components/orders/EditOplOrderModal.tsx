@@ -14,6 +14,7 @@ import { OplOrderFormData } from '@/types/opl-crm'
 import { trpc } from '@/utils/trpc'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { OplOrderStatus } from '@prisma/client'
+import { format } from 'date-fns'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -60,14 +61,14 @@ const EditOplOrderModal = ({ open, orderId, onCloseAction }: Props) => {
     values: order
       ? {
           type: order.type,
-          operator: order.operator,
+          operator: order.operator || undefined,
 
           serviceId: order.serviceId ?? undefined,
 
           network: order.network ?? 'ORANGE',
 
           orderNumber: order.orderNumber,
-          date: new Date(order.date).toISOString().split('T')[0],
+          date: format(new Date(order.date), 'yyyy-MM-dd'),
           timeSlot: order.timeSlot,
 
           city: order.city,

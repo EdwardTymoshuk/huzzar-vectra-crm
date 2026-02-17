@@ -223,6 +223,7 @@ enum OplDeviceSource {
 enum OplNetworkOeprator {
   ORANGE
   SI
+  PSO
 
   @@schema("opl")
 }

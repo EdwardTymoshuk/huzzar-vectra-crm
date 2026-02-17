@@ -4,6 +4,7 @@ import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { parseLocalDate } from '@/utils/dates/parseLocalDate'
 import { getCoordinatesFromAddress } from '@/utils/geocode'
+import { sendOplFailureEmail } from '@/utils/mail/sendOplFailureEmail'
 import { normalizeAdressForSearch } from '@/utils/orders/normalizeAdressForSearch'
 import { prisma } from '@/utils/prisma'
 import {
@@ -62,10 +63,11 @@ const settleCodeMap: Record<string, string> = {
   I_1P: '1P',
   I_2P: '2P',
   I_3P: '3P',
+  '51': 'ZJDD',
 }
 
 const normalizeSettlementCode = (code: string): string =>
-  settleCodeMap[code] ?? code
+  settleCodeMap[code.trim().toUpperCase()] ?? code.trim().toUpperCase()
 
 const createSettlementEntries = async ({
   tx,
@@ -78,19 +80,27 @@ const createSettlementEntries = async ({
 }): Promise<{ warnings: string[] }> => {
   if (!workCodes.length) return { warnings: [] }
 
-  const normalized = workCodes.map((entry) => ({
+  const normalizedInput = workCodes.map((entry) => ({
     code: normalizeSettlementCode(entry.code),
     quantity: entry.quantity,
   }))
 
-  const uniqueCodes = [...new Set(normalized.map((entry) => entry.code))]
+  const uniqueCodes = [...new Set(normalizedInput.map((entry) => entry.code))]
   const availableRates = await tx.oplRateDefinition.findMany({
-    where: { code: { in: uniqueCodes } },
+    where: {
+      OR: uniqueCodes.map((code) => ({
+        code: { equals: code, mode: 'insensitive' },
+      })),
+    },
     select: { code: true },
   })
 
-  const availableSet = new Set(availableRates.map((rate) => rate.code))
-  const missingCodes = uniqueCodes.filter((code) => !availableSet.has(code))
+  const canonicalCodeByUpper = new Map(
+    availableRates.map((rate) => [rate.code.toUpperCase(), rate.code])
+  )
+  const missingCodes = uniqueCodes.filter(
+    (code) => !canonicalCodeByUpper.has(code.toUpperCase())
+  )
 
   const warnings: string[] = []
 
@@ -108,6 +118,13 @@ const createSettlementEntries = async ({
       `Brakujące definicje stawek utworzono z kwotą 0: ${missingCodes.join(', ')}`
     )
   }
+
+  const normalized = normalizedInput.map((entry) => ({
+    code:
+      canonicalCodeByUpper.get(entry.code.toUpperCase()) ??
+      entry.code.toUpperCase(),
+    quantity: entry.quantity,
+  }))
 
   await tx.oplOrderSettlementEntry.createMany({
     data: normalized.map((entry) => ({
@@ -235,10 +252,11 @@ export const mutationsRouter = router({
     .input(
       z.array(
         z.object({
-          operator: z.string(),
+          operator: z.string().optional(),
           type: z.literal('INSTALLATION'),
           serviceId: z.string().optional(),
           network: z.nativeEnum(OplNetworkOeprator),
+          standard: z.nativeEnum(OplOrderStandard).optional(),
           orderNumber: z.string(),
           date: z.string(),
           timeSlot: z.nativeEnum(OplTimeSlot),
@@ -247,6 +265,14 @@ export const mutationsRouter = router({
           postalCode: z.string().optional(),
           assignedTechnicianIds: z.array(z.string()).optional(),
           notes: z.string().optional(),
+          equipmentRequirements: z
+            .array(
+              z.object({
+                deviceDefinitionId: z.string(),
+                quantity: z.number().min(1),
+              })
+            )
+            .optional(),
         })
       )
     )
@@ -340,9 +366,10 @@ export const mutationsRouter = router({
             const created = await tx.oplOrder.create({
               data: {
                 serviceId: o.serviceId ?? null,
-                operator: o.operator,
+                operator: o.operator ?? '',
                 type: o.type,
                 network: o.network,
+                standard: o.standard ?? null,
                 orderNumber,
                 date,
                 timeSlot: o.timeSlot,
@@ -357,6 +384,17 @@ export const mutationsRouter = router({
               },
               select: { id: true },
             })
+
+            if (o.equipmentRequirements?.length) {
+              await tx.oplOrderEquipmentRequirement.createMany({
+                data: o.equipmentRequirements.map((req) => ({
+                  orderId: created.id,
+                  deviceDefinitionId: req.deviceDefinitionId,
+                  quantity: req.quantity,
+                })),
+                skipDuplicates: true,
+              })
+            }
 
             /** -------------------------------------------------------
              * 5. Create technician assignments
@@ -407,7 +445,7 @@ export const mutationsRouter = router({
   createOrder: loggedInEveryone
     .input(
       z.object({
-        operator: z.string(),
+        operator: z.string().optional(),
         type: z.nativeEnum(OplOrderType),
         network: z.nativeEnum(OplNetworkOeprator),
         serviceId: z.string().length(12).optional(),
@@ -433,7 +471,7 @@ export const mutationsRouter = router({
         municipality: z.string().optional(),
 
         /** Contract required (yes / no) */
-        contractRequired: z.boolean().default(false),
+        contractRequired: z.boolean().optional(),
 
         /** Optional suggested equipment to be issued */
         equipmentRequirements: z
@@ -542,7 +580,7 @@ export const mutationsRouter = router({
       const created = await prisma.oplOrder.create({
         data: {
           serviceId: input.serviceId ?? null,
-          operator: input.operator,
+          operator: input.operator ?? '',
           type: input.type,
           network: input.network,
           standard: input.standard ?? null,
@@ -556,7 +594,7 @@ export const mutationsRouter = router({
           city: input.city.trim(),
           street: input.street.trim(),
           postalCode: input.postalCode?.trim() ?? null,
-          contractRequired: input.contractRequired,
+          contractRequired: input.contractRequired ?? false,
           lat,
           lng,
           createdSource: input.createdSource,
@@ -615,7 +653,7 @@ export const mutationsRouter = router({
       z.object({
         id: z.string(),
         type: z.nativeEnum(OplOrderType),
-        operator: z.string(),
+        operator: z.string().optional(),
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(OplTimeSlot),
@@ -746,7 +784,7 @@ export const mutationsRouter = router({
             data: {
               orderNumber: normOrder,
               type: input.type,
-              operator: input.operator,
+              operator: input.operator ?? existing.operator,
               date: parseLocalDate(input.date),
               timeSlot: input.timeSlot,
               notes: input.notes,
@@ -1022,7 +1060,7 @@ export const mutationsRouter = router({
         })
       }
 
-      const technicianId = order.assignments[0]?.technicianId ?? userId
+      const technicianId = userId
       const warnings: string[] = []
       const equipmentIds =
         input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
@@ -1135,7 +1173,7 @@ export const mutationsRouter = router({
         })
       }
 
-      const technicianId = order.assignments[0]?.technicianId ?? userId
+      const technicianId = userId
       const warnings: string[] = []
       const equipmentIds =
         input.status === OplOrderStatus.COMPLETED ? input.equipmentIds ?? [] : []
@@ -2774,5 +2812,58 @@ export const mutationsRouter = router({
         createdAt: created.createdAt,
         createdBy: created.createdBy,
       }
+    }),
+
+  sendFailureEmail: loggedInEveryone
+    .use(requireOplModule)
+    .input(
+      z.object({
+        orderNumber: z.string().trim().min(1),
+        orderAddress: z.string().trim().min(1),
+        failureReason: z.string().trim().min(1),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const user = ctx.user
+      if (!user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      try {
+        await sendOplFailureEmail({
+          fromEmail: user.email,
+          fromName: user.name,
+          orderNumber: input.orderNumber,
+          orderAddress: input.orderAddress,
+          failureReason: input.failureReason,
+          notes: input.notes,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'UNKNOWN'
+
+        if (message === 'SMTP_CONFIG_MISSING' || message === 'SMTP_CONFIG_INVALID_PORT') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message:
+              'Brak konfiguracji SMTP. Ustaw EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS.',
+          })
+        }
+
+        if (message.includes('ECONNREFUSED')) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message:
+              'Brak połączenia z serwerem SMTP. Sprawdź EMAIL_HOST/EMAIL_PORT oraz dostęp do serwera poczty.',
+          })
+        }
+
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Nie udało się wysłać wiadomości email.',
+        })
+      }
+
+      return { success: true }
     }),
 })

@@ -96,7 +96,7 @@ export const operatorSchema = z.object({
 
 export const orderSchema = z.object({
   type: z.nativeEnum(OplOrderType),
-  operator: z.string(),
+  operator: optionalInputString(z.string().max(50).optional()),
 
   serviceId: optionalInputString(
     z.string().length(12, 'Id usługi musi mieć dokładnie 12 znaków').optional()
@@ -132,7 +132,7 @@ export const orderSchema = z.object({
 
   standard: z.nativeEnum(OplOrderStandard).optional(),
   notes: optionalInputString(z.string().optional()),
-  contractRequired: z.boolean().default(false),
+  contractRequired: z.boolean().optional(),
 
   equipmentRequirements: z
     .array(

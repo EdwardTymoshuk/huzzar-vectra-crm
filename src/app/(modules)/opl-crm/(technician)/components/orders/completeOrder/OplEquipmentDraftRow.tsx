@@ -131,7 +131,7 @@ const OplEquipmentDraftRow = ({
   }
 
   return (
-    <div className="rounded-lg border bg-muted/10 p-3">
+    <div className="py-3">
       {/* ---------------------------------------------------------- */}
       {/* DEVICE INFO                                               */}
       {/* ---------------------------------------------------------- */}
@@ -226,8 +226,8 @@ const OplEquipmentDraftRow = ({
           (useSerialPicker ? (
             <div className="space-y-2">
               {item.serial && !isEditingSuggested ? (
-                <div className="rounded-md border bg-background p-3">
-                  <div className="grid grid-cols-1 gap-2 text-sm">
+                <div className="space-y-3 rounded-md bg-muted/20 p-3 text-sm">
+                  <div className="grid grid-cols-1 gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Model</span>
                       <span className="font-medium">
@@ -254,7 +254,7 @@ const OplEquipmentDraftRow = ({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="mt-3 w-full"
+                    className="w-full"
                     onClick={() => setIsEditingSuggested(true)}
                   >
                     Zmień urządzenie

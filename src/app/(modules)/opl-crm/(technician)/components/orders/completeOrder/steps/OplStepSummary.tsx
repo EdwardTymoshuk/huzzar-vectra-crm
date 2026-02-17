@@ -9,8 +9,10 @@ import {
   shouldShowWorkCodeQuantity,
   toWorkCodeLabel,
 } from '@/app/(modules)/opl-crm/utils/order/workCodesPresentation'
+import { formatMeasurementsLine } from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
 import { OplMaterialUnit } from '@prisma/client'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
+import { toast } from 'sonner'
 
 type Props = {
   materialDefs: {
@@ -35,6 +37,10 @@ const OplStepSummary = ({
   isSubmitting = false,
 }: Props) => {
   const { state } = useCompleteOplOrder()
+  const measurementLine = formatMeasurementsLine({
+    opp: state.measurementOpp,
+    go: state.measurementGo,
+  })
   const orderedWorkCodes = buildOrderedWorkCodes(state.workCodes, state.digInput)
   const nonPkiCodes = orderedWorkCodes.filter((c) => !c.code.startsWith('PKI'))
   const pkiCodes = orderedWorkCodes.filter((c) => c.code.startsWith('PKI'))
@@ -46,6 +52,48 @@ const OplStepSummary = ({
     materialDefs.find((m) => m.id === id)?.unit ?? 'PIECE'
 
   const showCollected = state.equipment.collected.items.length > 0
+
+  const handleCopySummary = async () => {
+    const codesLine = nonPkiCodes.length
+      ? `KODY PRACY: ${nonPkiCodes
+          .map((code) => `# ${toWorkCodeLabel(code.code)}`)
+          .join(' ')}`
+      : 'KODY PRACY:'
+
+    const pkiLines = pkiCodes.length
+      ? pkiCodes
+          .map((code) => {
+            const pkiDef = ALL_PKI_DEFS.find((p) => p.code === code.code)
+            const label = pkiDef?.label ?? code.code
+            return `# ${label}`
+          })
+          .join('\n')
+      : ''
+
+    const materialLines = state.usedMaterials.length
+      ? state.usedMaterials
+          .map((m) => {
+            const name = materialNameById(m.id)
+            return `# ${name} - ${m.quantity} ${unitLabel[materialUnitById(m.id)]}`
+          })
+          .join('\n')
+      : ''
+
+    const chunks = [
+      measurementLine ? measurementLine : 'POMIAR:',
+      codesLine,
+      `PKI:${pkiLines ? ` ${pkiLines}` : ''}`.trim(),
+      `MATERIAŁ:${materialLines ? ` ${materialLines}` : ''}`.trim(),
+      `UWAGI: ${state.notes || '-'}`,
+    ]
+
+    try {
+      await navigator.clipboard.writeText(chunks.join('\n'))
+      toast.success('Skopiowano podsumowanie do schowka.')
+    } catch {
+      toast.error('Nie udało się skopiować podsumowania.')
+    }
+  }
 
   return (
     <div className="flex h-full flex-col justify-between">
@@ -76,6 +124,17 @@ const OplStepSummary = ({
                 {state.notes}
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <p className="font-semibold">Pomiary</p>
+            <p className="mt-1 text-sm">
+              {measurementLine
+                ? measurementLine.replace(/^POMIAR:\s*/i, '')
+                : 'Brak pomiaru'}
+            </p>
           </CardContent>
         </Card>
 
@@ -125,9 +184,9 @@ const OplStepSummary = ({
           <Card className="space-y-0">
             <CardContent className="space-y-2 p-4 text-sm">
               <p className="font-semibold">Sprzęt wydany</p>
-              <ul className="space-y-2">
+              <ul className="divide-y divide-border rounded-md border border-border/70 px-3">
                 {state.equipment.issued.items.map((item) => (
-                  <li key={item.clientId} className="rounded border p-2">
+                  <li key={item.clientId} className="py-2">
                     <p className="font-medium">{item.name || '—'}</p>
                     <p className="text-xs text-muted-foreground">
                       Typ: {oplDevicesTypeMap[item.category]}
@@ -146,9 +205,9 @@ const OplStepSummary = ({
           <Card>
             <CardContent className="space-y-2 p-4 text-sm">
               <p className="font-semibold">Sprzęt odebrany od klienta</p>
-              <ul className="space-y-2">
+              <ul className="divide-y divide-border rounded-md border border-border/70 px-3">
                 {state.equipment.collected.items.map((item) => (
-                  <li key={item.clientId} className="rounded border p-2">
+                  <li key={item.clientId} className="py-2">
                     <p className="font-medium">{item.name || '—'}</p>
                     <p className="text-xs text-muted-foreground">
                       Typ: {oplDevicesTypeMap[item.category]}
@@ -202,6 +261,13 @@ const OplStepSummary = ({
         <Button variant="outline" className="flex-1 gap-1" onClick={onBack}>
           <MdKeyboardArrowLeft className="h-5 w-5" />
           Wstecz
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={handleCopySummary}
+        >
+          Kopiuj do schowka
         </Button>
         <Button className="flex-1" onClick={onFinish} disabled={isSubmitting}>
           {isSubmitting ? 'Zakończenie...' : 'Zakończ'}
