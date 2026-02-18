@@ -11,6 +11,8 @@
     "db:prod": "cp .env.local .env && npx prisma db push",
     "db:pull:prod": "cp .env.local .env && npx prisma db pull",
     "db:pull:local": "cp .env.docker .env && npx prisma db pull",
+    "opl:seed:service-rates": "node scripts/seed-opl-service-rates.mjs",
+    "opl:ensure:missing-rates": "node scripts/ensure-opl-missing-rates.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui"
   },

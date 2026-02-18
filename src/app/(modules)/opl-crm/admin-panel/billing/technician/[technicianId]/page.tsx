@@ -1,61 +1,72 @@
 'use client'
 
 import OplTechnicianMonthlyDetails from '@/app/(modules)/opl-crm/components/billing/OplTechnicianMonthlyDetails'
-import LoaderSpinner from '@/app/components/LoaderSpinner'
 import MonthPicker from '@/app/components/MonthPicker'
-import PageControlBar from '@/app/components/PageControlBar'
+import { Button } from '@/app/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { OPL_PATH } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import { OplOrderType } from '@prisma/client'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { use, useEffect, useState } from 'react'
+import { MdKeyboardArrowLeft } from 'react-icons/md'
 
-const OplTechnicianBillingPage = () => {
-  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
+const OplTechnicianBillingDetailsPage = ({
+  params,
+}: {
+  params: Promise<{ technicianId: string }>
+}) => {
+  const { technicianId } = use(params)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromParam = searchParams.get('from')
+
+  const initialMonth = fromParam ? new Date(fromParam) : startOfMonth(new Date())
+  const [selectedMonth, setSelectedMonth] = useState<Date>(initialMonth)
   const [ordersTab, setOrdersTab] = useState<'INSTALLATION' | 'SERVICE'>(
     'INSTALLATION'
   )
-  const { data: session, status } = useSession()
-  const router = useRouter()
 
-  const technicianId = session?.user.id ?? ''
   const from = format(startOfMonth(selectedMonth), 'yyyy-MM-dd')
   const to = format(endOfMonth(selectedMonth), 'yyyy-MM-dd')
 
   useEffect(() => {
-    router.replace(`${OPL_PATH}/?tab=billing&from=${from}&to=${to}`, {
-      scroll: false,
-    })
-  }, [from, to, router])
-
-  if (status === 'loading') {
-    return (
-      <div className="flex justify-center pt-8">
-        <LoaderSpinner />
-      </div>
+    router.replace(
+      `${OPL_PATH}/admin-panel/billing/technician/${technicianId}?from=${from}&to=${to}`,
+      { scroll: false }
     )
-  }
-
-  if (!technicianId) {
-    return (
-      <div className="text-center text-muted-foreground py-8">
-        Nie znaleziono danych technika.
-      </div>
-    )
-  }
+  }, [from, to, technicianId, router])
 
   return (
     <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
-      <PageControlBar title="Moje rozliczenia" className="justify-between">
-        <div className="flex items-center gap-2 self-end">
+      <header
+        className={cn(
+          'flex items-center justify-between w-full border-b bg-background py-2 gap-2 mb-2'
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+            className="flex items-center gap-1"
+          >
+            <MdKeyboardArrowLeft className="w-5 h-5" />
+            <span>Powrót</span>
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-3">
           <MonthPicker
             selected={selectedMonth}
             onChange={(date) => date && setSelectedMonth(date)}
           />
+          <h1 className="text-sm lg:text-lg font-semibold text-primary">
+            Rozliczenie technika
+          </h1>
         </div>
-      </PageControlBar>
+      </header>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         <Tabs
@@ -89,4 +100,4 @@ const OplTechnicianBillingPage = () => {
   )
 }
 
-export default OplTechnicianBillingPage
+export default OplTechnicianBillingDetailsPage

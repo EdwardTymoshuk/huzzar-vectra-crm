@@ -164,6 +164,30 @@ export const oplActivationLabelMap: Record<OplActivationType, string> = {
   UTD: 'UTD',
 }
 
+export const OPL_SERVICE_RATE_DEFAULTS = [
+  { code: 'N-FTTH', amount: 42 },
+  { code: 'N-ZA', amount: 30 },
+  { code: 'NP-FTTH', amount: 90 },
+  { code: 'OZA', amount: 13 },
+  { code: 'SPLIT32', amount: 85 },
+  { code: 'SPLIT64', amount: 127 },
+  { code: 'PKU1', amount: 25 },
+  { code: 'PKU2', amount: 4 },
+  { code: 'PKU3', amount: 1 },
+] as const
+
+export const OPL_SERVICE_CODE_LABELS: Record<string, string> = {
+  'N-FTTH': 'Usunięcie uszkodzeń dla usług FTTH',
+  'N-ZA': 'Usunięcie uszkodzenia FTTH w sieci domowej klienta, wraz z wymianą ZA',
+  'NP-FTTH': 'Usunięcie uszkodzenia FTTH na przyłączu',
+  OZA: 'Odbiór urządzeń końcowych od klienta ZS/ZA',
+  SPLIT32: 'Montaż splitera w OPP z podziałem łącza od 1:4 do 1:32',
+  SPLIT64: 'Montaż splitera w OPP z podziałem łącza 1:64',
+  PKU1: 'Wykonanie przelotu na przyłączu napowietrznym za każdy kolejny przelot.',
+  PKU2: 'Wykonanie dodatkowego wykopu za każdy kolejny metr bieżący wykopu.',
+  PKU3: 'Wciąganie mikrokabla lub kabla za każdy kolejny metr kanalizacji.',
+}
+
 export const oplOrderFailureReasons = [
   'Rezygnacja',
   'Zmiana terminu z przyczyn klienckich',

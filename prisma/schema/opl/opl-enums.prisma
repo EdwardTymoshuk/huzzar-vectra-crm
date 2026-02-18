@@ -181,6 +181,21 @@ enum OplServisType {
   @@schema("opl")
 }
 
+/// Billing codes used in OPL SERVICE order settlements.
+enum OplServiceWorkCode {
+  N_FTTH  @map("N-FTTH")
+  N_ZA    @map("N-ZA")
+  NP_FTTH @map("NP-FTTH")
+  OZA
+  SPLIT32
+  SPLIT64
+  PKU1
+  PKU2
+  PKU3
+
+  @@schema("opl")
+}
+
 enum OplOrderStandard {
   W1
   W2

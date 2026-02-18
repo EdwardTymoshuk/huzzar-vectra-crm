@@ -5,6 +5,7 @@ import { Alert, AlertTitle } from '@/app/components/ui/alert'
 import { Button } from '@/app/components/ui/button'
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -26,6 +27,18 @@ import EditRateDefinitionDialog from './EditRateDefinitionDialog'
 
 type SortField = 'code' | 'amount' | null
 type SortOrder = 'asc' | 'desc' | null
+type RateGroup = 'INSTALLATION' | 'SERVICE' | 'PKI'
+
+const SERVICE_CODES = new Set([
+  'N-FTTH',
+  'N-ZA',
+  'NP-FTTH',
+  'SPLIT32',
+  'SPLIT64',
+  'PKU1',
+  'PKU2',
+  'PKU3',
+])
 
 const RatesList = () => {
   const [editingItem, setEditingItem] = useState<{
@@ -36,6 +49,7 @@ const RatesList = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
+  const [activeGroup, setActiveGroup] = useState<RateGroup>('INSTALLATION')
 
   const utils = trpc.useUtils()
   const { data, isLoading, isError } =
@@ -60,11 +74,23 @@ const RatesList = () => {
     onError: (err) => toast.error(err.message || 'Nie udało się naprawić stawek.'),
   })
 
+  const grouped = useMemo(() => {
+    const source = data ?? []
+    return {
+      INSTALLATION: source.filter((rate) => {
+        const code = rate.code.toUpperCase()
+        return !code.startsWith('PKI') && !SERVICE_CODES.has(code)
+      }),
+      SERVICE: source.filter((rate) => SERVICE_CODES.has(rate.code.toUpperCase())),
+      PKI: source.filter((rate) => rate.code.toUpperCase().startsWith('PKI')),
+    }
+  }, [data])
+
   const filtered = useMemo(() => {
-    return (data ?? []).filter((rate) =>
+    return grouped[activeGroup].filter((rate) =>
       rate.code.toLowerCase().includes(searchTerm.toLowerCase())
     )
-  }, [data, searchTerm])
+  }, [grouped, activeGroup, searchTerm])
 
   const sorted = useMemo(() => {
     if (!sortField || !sortOrder) return filtered
@@ -116,6 +142,24 @@ const RatesList = () => {
 
   return (
     <div className="space-y-4 p-2">
+      <div className="flex flex-col gap-3">
+        <Tabs
+          value={activeGroup}
+          onValueChange={(value) => setActiveGroup(value as RateGroup)}
+          className="w-full"
+        >
+          <TabsList className="mx-auto grid h-auto w-full max-w-2xl grid-cols-3 gap-1 p-1">
+            <TabsTrigger value="INSTALLATION">
+              Instalacje ({grouped.INSTALLATION.length})
+            </TabsTrigger>
+            <TabsTrigger value="SERVICE">
+              Serwis ({grouped.SERVICE.length})
+            </TabsTrigger>
+            <TabsTrigger value="PKI">PKI ({grouped.PKI.length})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       <div className="flex flex-col lg:flex-row justify-between items-center">
         <h2 className="text-lg font-semibold">Lista stawek</h2>
         <div className="w-full lg:w-1/2 mt-2 lg:mt-0 flex gap-2">
