@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { MenuItem } from '@/types'
 import { Menu } from 'lucide-react'
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+import { getMobileNavItemClass } from './navItemStyles'
 
 interface MobileNavProps {
   menuItems: MenuItem[]
@@ -46,7 +47,7 @@ const MobileNav = ({
   )
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 flex justify-stretch bg-secondary border-t border-border ios-safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 flex justify-stretch border-t border-border bg-secondary/95 shadow-[0_-4px_12px_rgba(0,0,0,0.18)] backdrop-blur ios-safe-bottom">
       {visibleItems.map((item) => {
         if (item.key === 'warehouse') {
           return (
@@ -55,14 +56,9 @@ const MobileNav = ({
                 <Button
                   variant="ghost"
                   onClick={() => router.push(`${basePath}/?tab=warehouse`)}
-                  className={cn(
-                    'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 min-h-16 h-full py-4 rounded-none',
-                    activeKey === 'warehouse'
-                      ? 'bg-primary text-primary-foreground hover:bg-primary'
-                      : 'text-primary-foreground hover:text-accent-foreground'
-                  )}
+                  className={getMobileNavItemClass(activeKey === 'warehouse')}
                 >
-                  <item.icon className="h-6 w-6 sm:scale-150" />
+                  <item.icon className="h-5 w-5" />
                   <span>Magazyn</span>
                 </Button>
               ) : (
@@ -88,13 +84,10 @@ const MobileNav = ({
               )
             }
             className={cn(
-              'flex flex-1 flex-col items-center justify-center text-sm sm:text-lg px-2 min-h-16 h-full py-4 rounded-none',
-              isActive
-                ? 'bg-primary text-primary-foreground hover:bg-primary'
-                : 'text-primary-foreground hover:text-accent-foreground'
+              getMobileNavItemClass(isActive)
             )}
           >
-            <item.icon className="h-6 w-6 sm:scale-150" />
+            <item.icon className="h-5 w-5" />
             <span>{item.name}</span>
           </Button>
         )
@@ -106,13 +99,13 @@ const MobileNav = ({
             <Button
               variant="ghost"
               className={cn(
-                'flex flex-col items-center my-auto min-h-16 h-full justify-center text-sm sm:text-base px-2 py-4 rounded-none flex-1',
-                hiddenItems.some((item) => item.key === activeKey)
-                  ? 'bg-primary text-primary-foreground hover:bg-primary my-auto'
-                  : 'text-primary-foreground hover:text-accent-foreground'
+                getMobileNavItemClass(
+                  hiddenItems.some((item) => item.key === activeKey)
+                ),
+                'my-auto'
               )}
             >
-              <Menu className="h-6 w-6 sm:scale-150" />
+              <Menu className="h-5 w-5" />
               <span>Więcej</span>
             </Button>
           </DropdownMenuTrigger>
@@ -138,10 +131,10 @@ const MobileNav = ({
                     'flex items-center gap-2 px-3 py-2 text-sm',
                     isActive
                       ? 'bg-primary text-primary-foreground'
-                      : 'text-foreground'
+                      : 'text-foreground hover:bg-accent'
                   )}
                 >
-                  <item.icon className="h-6 w-6 sm:scale-125" />
+                  <item.icon className="h-5 w-5" />
                   {item.name}
                 </DropdownMenuItem>
               )

@@ -13,6 +13,7 @@ import { trpc } from '@/utils/trpc'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { MdWarehouse } from 'react-icons/md'
+import { getMobileNavItemClass } from './navItemStyles'
 
 interface Props {
   /** Defines navigation path context for technician or admin */
@@ -116,13 +117,10 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
         variant="ghost"
         onClick={() => router.push(`${basePath}/?tab=warehouse`)}
         className={cn(
-          'flex flex-1 flex-col items-center justify-center text-sm font-medium px-2 min-h-16 py-4 rounded-none',
-          isWarehouseSection
-            ? 'bg-primary text-primary-foreground font-semibold'
-            : 'text-primary-foreground hover:text-accent-foreground'
+          getMobileNavItemClass(isWarehouseSection)
         )}
       >
-        <MdWarehouse className="h-6 w-6" />
+        <MdWarehouse className="h-5 w-5" />
         <span>Magazyn</span>
       </Button>
     )
@@ -143,13 +141,10 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
           )
         }
         className={cn(
-          'flex flex-1 flex-col items-center justify-center text-sm font-medium px-2 min-h-16 py-4 rounded-none',
-          isWarehouseSection
-            ? 'bg-primary text-primary-foreground font-semibold'
-            : 'text-primary-foreground hover:text-accent-foreground'
+          getMobileNavItemClass(isWarehouseSection)
         )}
       >
-        <MdWarehouse className="h-6 w-6" />
+        <MdWarehouse className="h-5 w-5" />
         <span>Magazyn</span>
       </Button>
     )
@@ -164,13 +159,10 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
         <Button
           variant="ghost"
           className={cn(
-            'flex flex-col items-center justify-center text-sm font-medium px-2 min-h-16 py-4 rounded-none',
-            isWarehouseSection
-              ? 'bg-primary text-primary-foreground font-semibold'
-              : 'text-primary-foreground hover:text-accent-foreground'
+            getMobileNavItemClass(isWarehouseSection)
           )}
         >
-          <MdWarehouse className="h-6 w-6" />
+          <MdWarehouse className="h-5 w-5" />
           <span>Magazyn</span>
         </Button>
       </DropdownMenuTrigger>
@@ -196,7 +188,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
                 'cursor-pointer text-sm px-3 py-2',
                 isLocActive
                   ? 'bg-primary text-primary-foreground font-semibold'
-                  : 'hover:bg-primary'
+                  : 'hover:bg-accent'
               )}
             >
               {loc.name}

@@ -11,7 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
-import { cn } from '@/lib/utils'
+import { getTopNavItemClass } from './navItemStyles'
 import { MenuItem } from '@/types'
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 
@@ -45,8 +45,10 @@ const TopNav = ({
       <div className="flex items-center gap-1">
         <Logo className="h-auto" widthClass="w-36" />
 
-        <span className="flex items-center text-white font-semibold">|</span>
-        <span className="flex items-center text-white font-semibold text-sm uppercase">
+        <span className="flex items-center text-secondary-foreground font-semibold">
+          |
+        </span>
+        <span className="flex items-center text-secondary-foreground font-semibold text-sm uppercase">
           {moduleLabel}
         </span>
       </div>
@@ -66,12 +68,7 @@ const TopNav = ({
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
-                    className={cn(
-                      'relative text-sm px-3 py-2 rounded-md',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-primary-foreground hover:bg-primary'
-                    )}
+                    className={getTopNavItemClass(isActive)}
                     onClick={() =>
                       router.push(
                         isTechnician

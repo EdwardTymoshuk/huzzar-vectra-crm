@@ -7,8 +7,8 @@ import { Button } from '@/app/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { useRole } from '@/utils/hooks/useRole'
 import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { MdAdd } from 'react-icons/md'
 import AddOrderModal from '../components/orders/AddOrderModal'
 import OrdersFilter from '../components/orders/OrdersFilter'
 import OrdersTable from '../components/orders/OrdersTable'
@@ -46,8 +46,8 @@ const OrdersPage = () => {
 
   /** Header actions (visible only on xl screens) */
   const headerActions = canManageOrders ? (
-    <Button onClick={() => setAddModalOpen(true)} variant="success">
-      <MdAdd className="text-lg" />
+    <Button onClick={() => setAddModalOpen(true)}>
+      <Plus className="h-4 w-4" />
       Dodaj zlecenie
     </Button>
   ) : null
@@ -111,8 +111,9 @@ const OrdersPage = () => {
             actions={[
               {
                 label: 'Dodaj zlecenie',
-                icon: <MdAdd className="text-lg" />,
-                colorClass: 'bg-success hover:bg-success/90',
+                icon: <Plus className="h-4 w-4" />,
+                colorClass:
+                  'bg-primary text-primary-foreground hover:bg-primary-hover',
                 onClick: () => setAddModalOpen(true),
               },
             ]}

@@ -21,6 +21,7 @@ import { useSession } from 'next-auth/react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { MdWarehouse } from 'react-icons/md'
+import { getTopNavItemClass } from './navItemStyles'
 
 interface Props {
   basePath: string
@@ -121,10 +122,9 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
               variant="ghost"
               onClick={() => router.push(`${basePath}/?tab=warehouse`)}
               className={cn(
-                'relative flex items-center gap-2 px-3 py-2',
-                isWarehouseSection
-                  ? 'bg-primary text-primary-foreground font-semibold'
-                  : 'text-primary-foreground hover:bg-primary'
+                'relative flex items-center gap-2',
+                getTopNavItemClass(isWarehouseSection),
+                isWarehouseSection && 'font-semibold'
               )}
             >
               <MdWarehouse className="h-5 w-5 lg:hidden" />
@@ -157,10 +157,9 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
                 )
               }
               className={cn(
-                'relative flex items-center gap-2 px-3 py-2',
-                isWarehouseSection
-                  ? 'bg-primary text-primary-foreground font-semibold'
-                  : 'text-primary-foreground hover:bg-primary'
+                'relative flex items-center gap-2',
+                getTopNavItemClass(isWarehouseSection),
+                isWarehouseSection && 'font-semibold'
               )}
             >
               <MdWarehouse className="h-5 w-5 lg:hidden" />
@@ -187,10 +186,9 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
               <Button
                 variant="ghost"
                 className={cn(
-                  'relative flex items-center gap-2 px-3 py-2',
-                  isWarehouseSection
-                    ? 'bg-primary text-primary-foreground font-semibold'
-                    : 'text-primary-foreground hover:bg-primary'
+                  'relative flex items-center gap-2',
+                  getTopNavItemClass(isWarehouseSection),
+                  isWarehouseSection && 'font-semibold'
                 )}
               >
                 <MdWarehouse className="h-5 w-5 lg:hidden" />
@@ -229,7 +227,7 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
                   'cursor-pointer',
                   isActive
                     ? 'bg-primary text-primary-foreground font-semibold'
-                    : 'hover:bg-primary'
+                    : 'hover:bg-accent'
                 )}
               >
                 {loc.name}

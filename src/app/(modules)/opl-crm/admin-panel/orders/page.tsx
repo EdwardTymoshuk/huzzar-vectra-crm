@@ -7,8 +7,8 @@ import { Button } from '@/app/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { useRole } from '@/utils/hooks/useRole'
 import { OplOrderStatus, OplOrderType } from '@prisma/client'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { MdAdd } from 'react-icons/md'
 import AddOplOrderModal from '../components/orders/AddOplOrderModal'
 import OplOrdersFilter from '../components/orders/OplOrdersFilter'
 import OplOrdersTable from '../components/orders/OplOrdersTable'
@@ -48,8 +48,8 @@ const OplOrdersPage = () => {
   /** Header actions (visible only on xl screens) */
   const headerActions = canManageOrders ? (
     <div className="flex items-center gap-2">
-      <Button onClick={() => setAddModalOpen(true)} variant="success">
-        <MdAdd className="text-lg" />
+      <Button onClick={() => setAddModalOpen(true)}>
+        <Plus className="h-4 w-4" />
         Dodaj zlecenie
       </Button>
     </div>
@@ -118,8 +118,9 @@ const OplOrdersPage = () => {
             actions={[
               {
                 label: 'Dodaj zlecenie',
-                icon: <MdAdd className="text-lg" />,
-                colorClass: 'bg-success hover:bg-success/90',
+                icon: <Plus className="h-4 w-4" />,
+                colorClass:
+                  'bg-primary text-primary-foreground hover:bg-primary-hover',
                 onClick: () => setAddModalOpen(true),
               },
             ]}

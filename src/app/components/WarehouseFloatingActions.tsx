@@ -44,7 +44,8 @@ const WarehouseFloatingActions = ({
         {
           label: 'Dostawa ręczna',
           icon: <MdAdd />,
-          colorClass: 'bg-success hover:bg-success/90',
+          colorClass:
+            'bg-primary text-primary-foreground hover:bg-primary-hover',
           onClick: onAddManual,
         },
         ...(showImport && onImportExcel
@@ -52,7 +53,8 @@ const WarehouseFloatingActions = ({
               {
                 label: 'Import z Excela',
                 icon: <MdUploadFile />,
-                colorClass: 'bg-success hover:bg-success/90',
+                colorClass:
+                  'bg-primary text-primary-foreground hover:bg-primary-hover',
                 onClick: onImportExcel,
               },
             ]
@@ -60,13 +62,15 @@ const WarehouseFloatingActions = ({
         {
           label: 'Wydaj sprzęt',
           icon: <HiOutlineArrowUpOnSquare />,
-          colorClass: 'bg-warning hover:bg-warning/90',
+          colorClass:
+            'bg-primary text-primary-foreground hover:bg-primary-hover',
           onClick: onIssue,
         },
         {
           label: 'Zwrot',
           icon: <HiOutlineArrowDownOnSquare />,
-          colorClass: 'bg-danger hover:bg-danger/90',
+          colorClass:
+            'bg-destructive text-destructive-foreground hover:bg-destructive-hover',
           onClick: onReturn,
         },
         {

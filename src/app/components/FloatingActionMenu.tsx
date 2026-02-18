@@ -6,10 +6,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
+import { buttonVariants } from '@/app/components/ui/button'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { MdAdd } from 'react-icons/md'
 
 /** Type for each action button inside the floating menu. */
 export interface FloatingAction {
@@ -46,8 +47,8 @@ const FloatingActionMenu = ({
   position = 'bottom-right',
   disableOverlay = false,
   size = 56,
-  mainColorClass = 'bg-primary hover:bg-primary/90 shadow-lg',
-  mainIcon = <MdAdd className="text-3xl" />,
+  mainColorClass = 'bg-primary hover:bg-primary-hover text-primary-foreground shadow-lg',
+  mainIcon = <Plus className="h-6 w-6" />,
   mainTooltip,
   disableRotate = false,
 }: FloatingActionMenuProps) => {
@@ -115,8 +116,10 @@ const FloatingActionMenu = ({
                           setOpen(false)
                         }}
                         className={cn(
-                          'flex items-center gap-2 text-white px-3 py-2 rounded-full shadow-lg text-sm transition',
-                          action.colorClass ?? 'bg-primary hover:bg-primary/90'
+                          buttonVariants({ size: 'sm' }),
+                          'h-10 rounded-full px-4 shadow-lg',
+                          action.colorClass ??
+                            'bg-primary text-primary-foreground hover:bg-primary-hover'
                         )}
                       >
                         {action.icon}
@@ -139,7 +142,7 @@ const FloatingActionMenu = ({
                   <motion.button
                     onClick={() => setOpen((v) => !v)}
                     className={cn(
-                      'text-white rounded-full shadow-xl flex items-center justify-center active:scale-95 transition-transform',
+                      'rounded-full shadow-xl flex items-center justify-center active:scale-95 transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                       mainColorClass
                     )}
                     style={{ width: size, height: size }}
@@ -159,7 +162,7 @@ const FloatingActionMenu = ({
               <motion.button
                 onClick={() => setOpen((v) => !v)}
                 className={cn(
-                  'text-white rounded-full shadow-xl flex items-center justify-center active:scale-95 transition-transform',
+                  'rounded-full shadow-xl flex items-center justify-center active:scale-95 transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   mainColorClass
                 )}
                 style={{ width: size, height: size }}

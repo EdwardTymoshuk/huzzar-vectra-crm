@@ -1,5 +1,5 @@
 import { SETTINGS_SECTIONS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { getSettingsNavItemClass } from '../navigation/navItemStyles'
 import { SettingsContext } from '@/types'
 import { Role } from '@prisma/client'
 import { Button } from '../ui/button'
@@ -7,20 +7,6 @@ import { ScrollArea } from '../ui/scroll-area'
 import { Separator } from '../ui/separator'
 
 const SIDEBAR_WIDTH = 256 // 64 * 4
-
-type SectionItem = {
-  key: SettingsContext
-  label: string
-}
-
-const sections: SectionItem[] = [
-  { key: 'CORE', label: 'Ogólne' },
-  { key: 'VECTRA', label: 'Vectra' },
-  { key: 'OPL', label: 'OPL' },
-  { key: 'HR', label: 'Kadry' },
-  { key: 'FLEET', label: 'Flota' },
-  { key: 'TOOLS', label: 'Magazyn narzędzi' },
-]
 
 interface Props {
   value: SettingsContext
@@ -42,8 +28,6 @@ export const SettingsSidebar = ({ value, onChange, role, modules }: Props) => {
     if (section.module && !modules.includes(section.module)) return false
     return true
   })
-
-  console.log(role, visibleSections, modules)
 
   return (
     <aside
@@ -67,12 +51,7 @@ export const SettingsSidebar = ({ value, onChange, role, modules }: Props) => {
                   key={section.key}
                   variant="ghost"
                   onClick={() => onChange(section.key)}
-                  className={cn(
-                    'w-full justify-start',
-                    isActive
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
+                  className={getSettingsNavItemClass(isActive)}
                 >
                   {section.label}
                 </Button>
