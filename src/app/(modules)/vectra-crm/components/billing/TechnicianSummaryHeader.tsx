@@ -49,7 +49,7 @@ const TechnicianSummaryHeader = ({
           <Badge variant="outline">
             Przypisane: <span className="font-bold ml-1">{totalAssigned}</span>
           </Badge>
-          <Badge variant="success">
+          <Badge variant="default">
             Wykonane: <span className="font-bold ml-1">{totalCompleted}</span>
           </Badge>
           <Badge variant="destructive">

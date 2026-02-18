@@ -56,11 +56,10 @@ const OplMaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
     { enabled: !fromLocationId }
   )
 
-  const stock = (
-    fromLocationId ? warehouseQuery.data : technicianQuery.data
-  ) as MaterialRow[] | undefined
-
-  const isLoading = warehouseQuery.isLoading || technicianQuery.isLoading
+  const activeQuery = fromLocationId ? warehouseQuery : technicianQuery
+  const stock = activeQuery.data as MaterialRow[] | undefined
+  const isLoading = activeQuery.isLoading
+  const isError = activeQuery.isError
 
   /** Filter results by search term */
   const visibleMaterials = useMemo(
@@ -124,6 +123,22 @@ const OplMaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
 
   if (isLoading) return <Skeleton className="h-48 w-full" />
 
+  if (isError) {
+    return (
+      <div className="mt-6 rounded-md border p-4 text-sm text-muted-foreground">
+        Nie udało się wczytać materiałów.
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-3"
+          onClick={() => activeQuery.refetch()}
+        >
+          Spróbuj ponownie
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 mt-6">
       <SearchInput
@@ -131,6 +146,12 @@ const OplMaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
         value={searchTerm}
         onChange={setSearchTerm}
       />
+
+      {visibleMaterials.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Brak materiałów do przekazania.
+        </p>
+      )}
 
       {visibleMaterials.map((material) => {
         const alreadyPicked =
@@ -185,7 +206,7 @@ const OplMaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
               </div>
             ) : (
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
                 onClick={() => toggleRow(material.id)}
                 disabled={rowDisabled}

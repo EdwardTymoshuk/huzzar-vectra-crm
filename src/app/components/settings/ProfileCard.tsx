@@ -40,7 +40,7 @@ const ProfileCard = ({ user, onChangePass }: Props) => (
         value={user.identyficator?.toString() ?? '—'}
       />
       <div className="flex w-full justify-end">
-        <Button size="sm" variant="success" onClick={onChangePass}>
+        <Button size="sm" variant="default" onClick={onChangePass}>
           <MdEdit /> Zmień hasło
         </Button>
       </div>

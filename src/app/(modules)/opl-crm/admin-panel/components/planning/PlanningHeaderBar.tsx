@@ -112,7 +112,7 @@ const PlannerHeaderBar = () => {
           {canManage && (
             <>
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
                 onClick={() => setAddOpen(true)}
               >
@@ -120,7 +120,7 @@ const PlannerHeaderBar = () => {
                 Dodaj ręcznie
               </Button>
               <Button
-                variant="warning"
+                variant="default"
                 size="sm"
                 onClick={() => setImportOpen(true)}
               >

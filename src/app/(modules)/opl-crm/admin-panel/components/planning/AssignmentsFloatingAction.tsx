@@ -19,7 +19,7 @@ const AssignmentsFloatingAction = () => {
           {
             label: 'Generuj raport',
             icon: <MdDownload className="text-lg" />,
-            colorClass: 'bg-warning hover:bg-warning/90',
+            colorClass: 'bg-primary text-primary-foreground hover:bg-primary-hover',
             onClick: () => setReportOpen(true),
           },
         ]}

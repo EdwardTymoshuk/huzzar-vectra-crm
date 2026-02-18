@@ -29,13 +29,13 @@ const PlanningFloatingAction = () => {
           {
             label: 'Dodaj ręcznie',
             icon: <MdEdit className="text-lg" />,
-            colorClass: 'bg-success hover:bg-success/90',
+            colorClass: 'bg-primary text-primary-foreground hover:bg-primary-hover',
             onClick: () => setAddModalOpen(true),
           },
           {
             label: 'Wczytaj z Excela',
             icon: <MdUploadFile className="text-lg" />,
-            colorClass: 'bg-warning hover:bg-warning/90',
+            colorClass: 'bg-primary text-primary-foreground hover:bg-primary-hover',
             onClick: () => setImportModalOpen(true),
           },
         ]}

@@ -30,7 +30,7 @@ const TechnicianPlanerToolbar = ({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <Button
-          variant="success"
+          variant="default"
           onClick={onAddOrder}
           className="w-full sm:w-auto whitespace-nowrap"
         >

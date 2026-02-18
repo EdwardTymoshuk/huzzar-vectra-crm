@@ -62,17 +62,17 @@ const WarehouseHeaderBar = ({
   const rightActions = (
     <div className="hidden xl:flex items-center gap-2">
       {/* Main actions on xl+ */}
-      <Button variant="success" onClick={onAddManual}>
+      <Button variant="default" onClick={onAddManual}>
         <MdAdd className="text-lg" />
         <span className="ml-1">Dostawa</span>
       </Button>
 
-      <Button variant="success" onClick={onImportExcel}>
+      <Button variant="default" onClick={onImportExcel}>
         <MdUploadFile className="text-lg" />
         <span className="ml-1">Import</span>
       </Button>
 
-      <Button variant="warning" onClick={onIssue}>
+      <Button variant="default" onClick={onIssue}>
         <HiOutlineArrowUpOnSquare className="text-lg" />
         <span className="ml-1">Wydaj</span>
       </Button>

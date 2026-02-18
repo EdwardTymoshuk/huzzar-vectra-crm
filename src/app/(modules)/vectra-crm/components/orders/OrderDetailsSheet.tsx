@@ -113,7 +113,7 @@ const OrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                   order.status !== 'COMPLETED' &&
                   order.status !== 'NOT_COMPLETED' && (
                     <Button
-                      variant="warning"
+                      variant="default"
                       size="sm"
                       className="w-full"
                       onClick={() => setShowAdminEdit(true)}

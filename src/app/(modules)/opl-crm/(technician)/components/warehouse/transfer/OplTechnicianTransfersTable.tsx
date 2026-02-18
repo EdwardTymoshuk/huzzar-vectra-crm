@@ -182,7 +182,7 @@ const OplTechnicianTransfersTable = () => {
                 </p>
                 <Button
                   size="sm"
-                  variant="warning"
+                  variant="default"
                   onClick={() => {
                     setCancelLoadingId(row.id)
                     cancel.mutate({ itemId: row.id })

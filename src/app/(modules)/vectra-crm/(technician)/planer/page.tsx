@@ -51,7 +51,7 @@ const TechnicianPlanerPage = () => {
           {
             label: 'Dodaj zlecenie',
             icon: <MdAdd className="text-xl" />,
-            colorClass: 'bg-success hover:bg-success/90',
+            colorClass: 'bg-primary text-primary-foreground hover:bg-primary-hover',
             onClick: () => setAddModalOpen(true),
           },
         ]}

@@ -84,7 +84,7 @@ const LocationsSection = ({ title }: { title: string }) => {
 
       <div className="flex justify-end mt-4">
         <AddLocationDialog open={addOpen} onOpenChange={setAddOpen} />
-        <Button onClick={() => setAddOpen(true)} variant="success">
+        <Button onClick={() => setAddOpen(true)} variant="default">
           <MdAdd />
           Dodaj lokalizację
         </Button>

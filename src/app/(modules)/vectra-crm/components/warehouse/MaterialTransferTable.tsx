@@ -185,7 +185,7 @@ const MaterialTransferTable = ({ fromLocationId, onAdd, picked }: Props) => {
               </div>
             ) : (
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
                 onClick={() => toggleRow(material.id)}
                 disabled={rowDisabled}

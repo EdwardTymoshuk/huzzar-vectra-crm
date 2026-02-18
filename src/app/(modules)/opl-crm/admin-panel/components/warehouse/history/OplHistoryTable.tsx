@@ -59,14 +59,14 @@ const OplHistoryTable = ({ entries }: Props) => {
   }, {})
 
   const GRID =
-    'grid grid-cols-[100px_150px_120px_minmax(160px,2fr)_minmax(160px,2fr)_130px_minmax(160px,1fr)_0px]'
+    'grid grid-cols-[120px_130px_170px_170px_minmax(180px,1fr)_90px_minmax(280px,1.8fr)_20px]'
 
   return (
     <div className="w-full overflow-x-auto">
-      <div className="min-w-[1100px]">
+      <div className="min-w-[1310px] w-full">
         {/* Table header row */}
         <div
-          className={`${GRID} gap-2 px-4 py-2 text-sm border-b font-medium text-muted-foreground whitespace-nowrap`}
+          className={`${GRID} w-full items-center gap-2 px-4 py-2 text-sm border-b font-medium text-muted-foreground whitespace-nowrap`}
         >
           <span>Data</span>
           <span>Typ</span>
@@ -101,7 +101,7 @@ const OplHistoryTable = ({ entries }: Props) => {
                 case 'RETURNED':
                   return {
                     from: first.assignedTo?.user.name ?? '—',
-                    to: itemLoc,
+                    to: first.toLocation?.name ?? itemLoc,
                   }
                 case 'RETURNED_TO_OPERATOR':
                   return { from: itemLoc, to: 'Operator' }
@@ -120,7 +120,7 @@ const OplHistoryTable = ({ entries }: Props) => {
               <AccordionItem key={groupKey} value={`item-${index}`}>
                 <AccordionTrigger className="py-4 px-2 hover:bg-muted text-left">
                   <div
-                    className={`${GRID} gap-2 py-2 text-sm text-muted-foreground whitespace-nowrap`}
+                    className={`${GRID} w-full items-center gap-2 py-2 text-sm text-muted-foreground whitespace-nowrap`}
                   >
                     {/* Date + time */}
                     <div>
@@ -134,16 +134,28 @@ const OplHistoryTable = ({ entries }: Props) => {
                       {label}
                     </Badge>
 
-                    <span>{from}</span>
-                    <span>{to}</span>
+                    <span className="block min-w-0 truncate" title={from}>
+                      {from}
+                    </span>
+                    <span className="block min-w-0 truncate" title={to}>
+                      {to}
+                    </span>
 
-                    <span>{first.performedBy?.user.name ?? '—'}</span>
+                    <span
+                      className="block min-w-0 truncate"
+                      title={first.performedBy?.user.name ?? '—'}
+                    >
+                      {first.performedBy?.user.name ?? '—'}
+                    </span>
 
                     <span className="text-xs text-muted-foreground">
                       {group.length}
                     </span>
 
-                    <span className="text-xs text-muted-foreground truncate">
+                    <span
+                      className="block min-w-0 truncate text-xs text-muted-foreground"
+                      title={first.notes ?? '—'}
+                    >
                       {first.notes ? first.notes.slice(0, 60) : '—'}
                     </span>
 

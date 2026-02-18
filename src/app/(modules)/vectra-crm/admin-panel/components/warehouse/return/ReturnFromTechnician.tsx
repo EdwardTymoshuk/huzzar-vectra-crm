@@ -396,7 +396,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
                   ) : (
                     <Button
                       size="sm"
-                      variant="success"
+                      variant="default"
                       onClick={() =>
                         setExpandedRows((prev) => [...prev, materialName])
                       }

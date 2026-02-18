@@ -257,7 +257,7 @@ const LocationTransfersTable = () => {
                     </p>
                     <Button
                       size="sm"
-                      variant="warning"
+                      variant="default"
                       onClick={() => {
                         setLoadingId(transfer.id)
                         cancel.mutate({

@@ -155,7 +155,7 @@ ring-1 ring-muted/20 dark:ring-muted/30
 
       {/* ------------------ ACTIONS ------------------ */}
       <div className="flex justify-end gap-3 pt-2">
-        <Button onClick={onConfirm} disabled={loading} variant="success">
+        <Button onClick={onConfirm} disabled={loading} variant="default">
           {loading ? `${confirmLabel}...` : confirmLabel}
         </Button>
 

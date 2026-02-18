@@ -99,7 +99,7 @@ const AddMaterialDefinitionDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="success">
+        <Button variant="default">
           <MdAdd /> Dodaj materiał
         </Button>
       </DialogTrigger>

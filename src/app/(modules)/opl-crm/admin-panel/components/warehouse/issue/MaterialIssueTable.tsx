@@ -1,12 +1,11 @@
 'use client'
 
-import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
 import SearchInput from '@/app/components/SearchInput'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Skeleton } from '@/app/components/ui/skeleton'
-import { VectraIssuedItemMaterial } from '@/types/vectra-crm'
+import { OplIssuedItemMaterial } from '@/types/opl-crm'
 import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useMemo, useState } from 'react'
@@ -16,8 +15,8 @@ import { toast } from 'sonner'
 
 type Props = {
   technicianId: string
-  onAddMaterial: (material: VectraIssuedItemMaterial) => void
-  issuedMaterials: VectraIssuedItemMaterial[]
+  onAddMaterial: (material: OplIssuedItemMaterial) => void
+  issuedMaterials: OplIssuedItemMaterial[]
 }
 
 const MaterialIssueTable = ({
@@ -33,12 +32,12 @@ const MaterialIssueTable = ({
 
   const activeLocationId = useActiveLocation()
   const { data: warehouseItems, isLoading } =
-    trpc.vectra.warehouse.getAll.useQuery(
+    trpc.opl.warehouse.getAll.useQuery(
       activeLocationId ? { locationId: activeLocationId } : undefined
     )
 
   const { data: deficits = [] } =
-    trpc.vectra.warehouse.getTechnicianDeficits.useQuery({ technicianId })
+    trpc.opl.warehouse.getTechnicianDeficits.useQuery({ technicianId })
   const getDeficit = (defId: string) => {
     return deficits.find((d) => d.materialDefinitionId === defId)?.quantity ?? 0
   }
@@ -54,6 +53,42 @@ const MaterialIssueTable = ({
     )
   }, [warehouseItems, searchTerm])
 
+  const groupedMaterials = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        key: string
+        name: string
+        materialDefinitionId: string | null
+        quantity: number
+        rows: typeof materials
+      }
+    >()
+
+    materials.forEach((item) => {
+      const key = item.materialDefinitionId ?? item.name
+      const existing = groups.get(key)
+
+      if (existing) {
+        existing.quantity += item.quantity
+        existing.rows.push(item)
+        return
+      }
+
+      groups.set(key, {
+        key,
+        name: item.name,
+        materialDefinitionId: item.materialDefinitionId,
+        quantity: item.quantity,
+        rows: [item],
+      })
+    })
+
+    return Array.from(groups.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' })
+    )
+  }, [materials])
+
   const technicianStock = useMemo(() => {
     return (
       warehouseItems?.filter(
@@ -65,14 +100,14 @@ const MaterialIssueTable = ({
     )
   }, [warehouseItems, technicianId])
 
-  // Initialize quantities for new material list
+  // Initialize quantities for visible grouped materials
   useEffect(() => {
     const initial: Record<string, number> = {}
-    materials.forEach((m) => {
-      initial[m.id] = 1
+    groupedMaterials.forEach((m) => {
+      initial[m.key] = 1
     })
     setMaterialQuantities(initial)
-  }, [materials])
+  }, [groupedMaterials])
 
   const toggleRow = (id: string) => {
     setExpandedRows((prev) =>
@@ -80,15 +115,22 @@ const MaterialIssueTable = ({
     )
   }
 
-  const handleAddMaterial = (id: string) => {
-    const item = materials.find((m) => m.id === id)
-    if (!item) return
+  const handleAddMaterial = (groupKey: string) => {
+    const group = groupedMaterials.find((m) => m.key === groupKey)
+    if (!group) return
 
-    const alreadyIssued =
-      issuedMaterials.find((m) => m.id === item.id)?.quantity ?? 0
-    const remaining = item.quantity - alreadyIssued
+    const alreadyIssued = issuedMaterials
+      .filter(
+        (m) =>
+          (group.materialDefinitionId &&
+            m.materialDefinitionId === group.materialDefinitionId) ||
+          m.name === group.name
+      )
+      .reduce((acc, m) => acc + m.quantity, 0)
 
-    const quantityToIssue = materialQuantities[id]
+    const remaining = group.quantity - alreadyIssued
+
+    const quantityToIssue = materialQuantities[groupKey]
     if (
       quantityToIssue == null ||
       quantityToIssue <= 0 ||
@@ -103,26 +145,39 @@ const MaterialIssueTable = ({
       return
     }
 
-    if (!item.materialDefinitionId) {
-      console.error('Material without materialDefinitionId in warehouse!', item)
+    let leftToAllocate = quantityToIssue
+
+    for (const row of group.rows) {
+      if (leftToAllocate <= 0) break
+
+      const issuedInRow =
+        issuedMaterials.find((m) => m.id === row.id)?.quantity ?? 0
+      const rowRemaining = row.quantity - issuedInRow
+      if (rowRemaining <= 0) continue
+
+      const qty = Math.min(leftToAllocate, rowRemaining)
+      onAddMaterial({
+        id: row.id,
+        type: 'MATERIAL',
+        name: row.name,
+        materialDefinitionId: row.materialDefinitionId!,
+        quantity: qty,
+      })
+      leftToAllocate -= qty
+    }
+
+    if (leftToAllocate > 0) {
+      toast.warning('Nie udało się rozdzielić ilości na stany magazynowe.')
       return
     }
 
-    onAddMaterial({
-      id: item.id,
-      type: 'MATERIAL',
-      name: item.name,
-      materialDefinitionId: item.materialDefinitionId,
-      quantity: quantityToIssue,
-    })
-
     setMaterialQuantities((prev) => ({
       ...prev,
-      [id]: 1, // reset input after issuing
+      [groupKey]: 1, // reset input after issuing
     }))
 
     // collapse row after issuing
-    setExpandedRows((prev) => prev.filter((r) => r !== id))
+    setExpandedRows((prev) => prev.filter((r) => r !== groupKey))
   }
 
   if (isLoading) return <Skeleton className="h-48 w-full" />
@@ -135,20 +190,25 @@ const MaterialIssueTable = ({
         onChange={setSearchTerm}
       />
 
-      {materials.map((item) => {
+      {groupedMaterials.map((item) => {
         const alreadyIssued =
-          issuedMaterials.find((m) => m.id === item.id)?.quantity ?? 0
+          issuedMaterials
+            .filter(
+              (m) =>
+                (item.materialDefinitionId &&
+                  m.materialDefinitionId === item.materialDefinitionId) ||
+                m.name === item.name
+            )
+            .reduce((acc, m) => acc + m.quantity, 0)
         const remaining = item.quantity - alreadyIssued
         const isDisabled = remaining <= 0
-        const technicianQuantity = sumTechnicianMaterialStock(
-          technicianStock,
-          technicianId,
-          item.name
-        )
+        const technicianQuantity = technicianStock
+          .filter((stockItem) => stockItem.name === item.name)
+          .reduce((acc, stockItem) => acc + (stockItem.quantity ?? 0), 0)
 
         return (
           <div
-            key={item.id}
+            key={item.key}
             className={`flex justify-between items-center border rounded px-3 py-2 text-sm ${
               isDisabled ? 'opacity-50 pointer-events-none' : ''
             }`}
@@ -169,34 +229,35 @@ const MaterialIssueTable = ({
                   Technik: {technicianQuantity}
                 </Badge>
 
-                {getDeficit(item.materialDefinitionId!) > 0 && (
+                {!!item.materialDefinitionId &&
+                  getDeficit(item.materialDefinitionId) > 0 && (
                   <Badge variant="destructive" className="w-fit">
-                    Deficyt: {getDeficit(item.materialDefinitionId!)}
+                    Deficyt: {getDeficit(item.materialDefinitionId)}
                   </Badge>
                 )}
               </div>
             </span>
 
-            {expandedRows.includes(item.id) ? (
+            {expandedRows.includes(item.key) ? (
               <div className="flex gap-2 items-center">
                 <Input
                   type="number"
                   min={1}
                   max={remaining}
                   className="w-20 h-8 text-sm"
-                  value={materialQuantities[item.id] ?? ''}
+                  value={materialQuantities[item.key] ?? ''}
                   onChange={(e) => {
                     const val = e.target.value
                     setMaterialQuantities((prev) => ({
                       ...prev,
-                      [item.id]: val === '' ? undefined : Number(val),
+                      [item.key]: val === '' ? undefined : Number(val),
                     }))
                   }}
                 />
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => handleAddMaterial(item.id)}
+                  onClick={() => handleAddMaterial(item.key)}
                   disabled={isDisabled}
                   className="transition-all duration-300"
                 >
@@ -205,9 +266,9 @@ const MaterialIssueTable = ({
               </div>
             ) : (
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
-                onClick={() => toggleRow(item.id)}
+                onClick={() => toggleRow(item.key)}
                 disabled={isDisabled}
                 className="transition-all duration-300"
               >

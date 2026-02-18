@@ -41,6 +41,12 @@ interface Props {
    * that are not found in warehouse (Vectra-style).
    */
   strictSource?: 'WAREHOUSE'
+
+  /** Optional custom success toasts per source branch */
+  successMessages?: {
+    local?: string
+    warehouse?: string
+  }
 }
 
 const normalizeSerial = (value: string) =>
@@ -65,6 +71,7 @@ const OplSerialScanInput = ({
   allowedCategories,
   variant = 'inline',
   strictSource,
+  successMessages,
 }: Props) => {
   const [value, setValue] = useState('')
   const [showDD, setShowDD] = useState(false)
@@ -192,7 +199,9 @@ const OplSerialScanInput = ({
             sourceLabel: local.sourceLabel,
           })
 
-          toast.success('Dodano urządzenie ze stanu technika.')
+          toast.success(
+            successMessages?.local ?? 'Dodano urządzenie ze stanu technika.'
+          )
           setValue('')
           setShowDD(false)
           return
@@ -225,7 +234,9 @@ const OplSerialScanInput = ({
           deviceDefinitionId: res.deviceDefinitionId,
         })
 
-        toast.success('Dodano urządzenie z magazynu.')
+        toast.success(
+          successMessages?.warehouse ?? 'Dodano urządzenie z magazynu.'
+        )
         setValue('')
         setShowDD(false)
       } catch (err) {

@@ -143,7 +143,7 @@ const TechnicianOplCompletedOrderDetails = ({
         {canShowAmendButton && (
           <div className="flex gap-2 pt-2">
             <Button
-              variant="success"
+              variant="default"
               onClick={() => setShowCompleteModal(true)}
             >
               <MdEdit className="mr-1" />

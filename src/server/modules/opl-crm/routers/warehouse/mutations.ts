@@ -290,7 +290,7 @@ export const mutationsRouter = router({
         if (item.type === 'DEVICE') {
           const current = await prisma.oplWarehouse.findUnique({
             where: { id: item.id },
-            select: { status: true, locationId: true },
+            select: { status: true, locationId: true, assignedToId: true },
           })
           if (!current) throw new TRPCError({ code: 'NOT_FOUND' })
 
@@ -313,6 +313,8 @@ export const mutationsRouter = router({
               warehouseItemId: item.id,
               action: 'RETURNED',
               performedById: userId,
+              assignedToId: current.assignedToId ?? undefined,
+              toLocationId: input.locationId,
               notes: input.notes,
             },
           })
@@ -377,6 +379,8 @@ export const mutationsRouter = router({
               warehouseItemId: item.id,
               action: 'RETURNED',
               performedById: userId,
+              assignedToId: original.assignedToId ?? undefined,
+              toLocationId: input.locationId,
               quantity: item.quantity,
               notes: input.notes,
             },

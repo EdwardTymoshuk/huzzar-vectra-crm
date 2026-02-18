@@ -2,6 +2,7 @@
 
 import { oplDevicesTypeMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { warehouseFormSchema } from '@/app/(modules)/opl-crm/lib/schema'
+import SearchInput from '@/app/components/SearchInput'
 import { Button } from '@/app/components/ui/button'
 import {
   Command,
@@ -42,6 +43,7 @@ import { ChevronsUpDown } from 'lucide-react'
 import { useRef, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { useForm } from 'react-hook-form'
+import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
 
 const defaultValues: WarehouseFormData = {
@@ -60,6 +62,11 @@ const AddItemForm = ({
 }) => {
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [materialSearchTerm, setMaterialSearchTerm] = useState('')
+  const [expandedMaterialRows, setExpandedMaterialRows] = useState<string[]>([])
+  const [materialQuantities, setMaterialQuantities] = useState<
+    Record<string, number | undefined>
+  >({})
 
   const form = useForm<WarehouseFormData>({
     resolver: zodResolver(warehouseFormSchema),
@@ -78,47 +85,78 @@ const AddItemForm = ({
     { enabled: !!locationId }
   )
 
+  const filteredMaterials = materials
+    .filter((m) =>
+      m.name.toLowerCase().includes(materialSearchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }))
+
+  const toggleMaterialRow = (id: string) => {
+    setExpandedMaterialRows((prev) =>
+      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
+    )
+    setMaterialQuantities((prev) => ({
+      ...prev,
+      [id]: prev[id] ?? 1,
+    }))
+  }
+
+  const handleAddMaterial = (id: string) => {
+    const material = materials.find((m) => m.id === id)
+    if (!material) return
+
+    const quantityToAdd = materialQuantities[id]
+    if (quantityToAdd == null || quantityToAdd <= 0 || isNaN(quantityToAdd)) {
+      toast.warning('Podaj poprawną ilość.')
+      return
+    }
+
+    onAddItem({
+      type: 'MATERIAL',
+      name: material.name,
+      quantity: quantityToAdd,
+    })
+    toast.success('Dodano do listy.')
+
+    setMaterialQuantities((prev) => ({ ...prev, [id]: 1 }))
+    setExpandedMaterialRows((prev) => prev.filter((rowId) => rowId !== id))
+  }
+
   const handleSubmit = (data: WarehouseFormData) => {
-    if (data.type === 'DEVICE') {
-      const serial = data.serialNumber?.trim().toUpperCase()
-      if (!serial) return toast.error('Wpisz numer seryjny.')
+    if (data.type !== 'DEVICE') return
+    const serial = data.serialNumber?.trim().toUpperCase()
+    if (!serial) return toast.error('Wpisz numer seryjny.')
 
-      const alreadyInList = existingItems.some(
-        (i) => i.type === 'DEVICE' && i.serialNumber?.toUpperCase() === serial
-      )
+    const alreadyInList = existingItems.some(
+      (i) => i.type === 'DEVICE' && i.serialNumber?.toUpperCase() === serial
+    )
 
-      const inWarehouse = allWarehouse.find(
-        (i) => i.serialNumber?.toUpperCase() === serial
-      )
+    const inWarehouse = allWarehouse.find(
+      (i) => i.serialNumber?.toUpperCase() === serial
+    )
 
-      if (alreadyInList) {
-        return toast.error('To urządzenie już znajduje się na liście.')
+    if (alreadyInList) {
+      return toast.error('To urządzenie już znajduje się na liście.')
+    }
+
+    if (inWarehouse) {
+      if (inWarehouse.status === 'AVAILABLE') {
+        return toast.error('Urządzenie już znajduje się w magazynie.')
       }
 
-      if (inWarehouse) {
-        if (inWarehouse.status === 'AVAILABLE') {
-          return toast.error('Urządzenie już znajduje się w magazynie.')
-        }
-
-        if (inWarehouse.status === 'ASSIGNED' && inWarehouse.assignedToId) {
-          return toast.error(`Urządzenie jest na stanie technika.`)
-        }
-
-        return toast.error(
-          `Urządzenie jest w stanie: ${devicesStatusMap[inWarehouse.status]}`
-        )
+      if (inWarehouse.status === 'ASSIGNED' && inWarehouse.assignedToId) {
+        return toast.error(`Urządzenie jest na stanie technika.`)
       }
+
+      return toast.error(
+        `Urządzenie jest w stanie: ${devicesStatusMap[inWarehouse.status]}`
+      )
     }
 
     onAddItem(data)
     toast.success('Dodano do listy.')
-
-    if (data.type === 'DEVICE') {
-      form.reset({ ...data, serialNumber: '' })
-      setTimeout(() => serialInputRef.current?.focus(), 50)
-    } else {
-      form.reset({ type: 'MATERIAL', name: '', quantity: 1 })
-    }
+    form.reset({ ...data, serialNumber: '' })
+    setTimeout(() => serialInputRef.current?.focus(), 50)
   }
 
   return (
@@ -259,50 +297,87 @@ const AddItemForm = ({
         )}
 
         {form.watch('type') === 'MATERIAL' && (
-          <div className="flex gap-4 items-end">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem className="w-full">
-                  <FormLabel>Materiał</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz materiał" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {materials.map((m) => (
-                        <SelectItem key={m.id} value={m.name}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="space-y-4">
+            <SearchInput
+              placeholder="Szukaj materiał"
+              value={materialSearchTerm}
+              onChange={setMaterialSearchTerm}
             />
-            <FormField
-              control={form.control}
-              name="quantity"
-              render={({ field }) => (
-                <FormItem className="w-24">
-                  <FormLabel>Ilość</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={1} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            {filteredMaterials.map((material) => {
+              const quantityInList = existingItems
+                .filter(
+                  (
+                    item
+                  ): item is Extract<WarehouseFormData, { type: 'MATERIAL' }> =>
+                    item.type === 'MATERIAL' && item.name === material.name
+                )
+                .reduce((acc, item) => acc + (item.quantity ?? 0), 0)
+
+              return (
+                <div
+                  key={material.id}
+                  className="flex items-center justify-between gap-2 rounded border px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <Highlight
+                      highlightClassName="bg-yellow-200 dark:bg-yellow-700"
+                      searchWords={[materialSearchTerm]}
+                      autoEscape
+                      textToHighlight={material.name}
+                    />
+                    {quantityInList > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Na liście: {quantityInList}
+                      </p>
+                    )}
+                  </div>
+
+                  {expandedMaterialRows.includes(material.id) ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        className="h-8 w-20 text-sm"
+                        value={materialQuantities[material.id] ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setMaterialQuantities((prev) => ({
+                            ...prev,
+                            [material.id]: value === '' ? undefined : Number(value),
+                          }))
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleAddMaterial(material.id)}
+                      >
+                        Dodaj
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => toggleMaterialRow(material.id)}
+                    >
+                      <MdAdd />
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
-        <div className="flex justify-end">
-          <Button type="submit" variant="secondary">
-            Dodaj do listy
-          </Button>
-        </div>
+        {form.watch('type') === 'DEVICE' && (
+          <div className="flex justify-end">
+            <Button type="submit" variant="secondary">
+              Dodaj do listy
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   )

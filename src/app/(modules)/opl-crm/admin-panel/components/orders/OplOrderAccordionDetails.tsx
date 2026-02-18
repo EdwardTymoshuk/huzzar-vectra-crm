@@ -266,7 +266,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
           <div className="flex flex-wrap gap-2 pt-2">
             {canAdminEdit && !isWarehouseman && (
               <Button
-                variant="warning"
+                variant="default"
                 onClick={() => {
                   utils.opl.order.getOrderById.invalidate({ id: order.id })
                   setOpenEdit(true)
@@ -279,7 +279,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
 
             {canApprove && (
               <Button
-                variant="success"
+                variant="default"
                 onClick={async () => {
                   try {
                     const now = new Date()

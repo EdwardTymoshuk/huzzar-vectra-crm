@@ -124,7 +124,7 @@ const TechnicianPlanerOrderDetails = ({
           {orderStatus === VectraOrderStatus.ASSIGNED ? (
             <div className="flex gap-2">
               <Button
-                variant="success"
+                variant="default"
                 onClick={() => setShowCompleteModal(true)}
               >
                 <BsSendCheck className="mr-1" />
@@ -139,7 +139,7 @@ const TechnicianPlanerOrderDetails = ({
             (isAdmin || isCoordinator || canEditAfterCompletion) && (
               <div className="flex gap-2">
                 <Button
-                  variant="success"
+                  variant="default"
                   onClick={() => setShowCompleteModal(true)}
                 >
                   <MdEdit className="mr-1" />

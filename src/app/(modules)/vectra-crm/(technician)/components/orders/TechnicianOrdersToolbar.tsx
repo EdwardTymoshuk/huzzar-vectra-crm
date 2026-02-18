@@ -22,7 +22,7 @@ const TechnicianOrdersToolbar = ({
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button variant="success" onClick={() => setAddModalOpen(true)}>
+        <Button variant="default" onClick={() => setAddModalOpen(true)}>
           <MdAdd /> <span>Dodaj</span>
         </Button>
       </div>

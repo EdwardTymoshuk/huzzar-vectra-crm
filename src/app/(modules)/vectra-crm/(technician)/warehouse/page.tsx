@@ -46,7 +46,7 @@ const TechnicianWarehousePage = () => {
           {
             label: 'Przekaż sprzęt',
             icon: <CgArrowsExchange className="text-lg" />,
-            colorClass: 'bg-warning hover:bg-warning/90',
+            colorClass: 'bg-primary text-primary-foreground hover:bg-primary-hover',
             onClick: () => setTransferOpen(true),
           },
         ]}

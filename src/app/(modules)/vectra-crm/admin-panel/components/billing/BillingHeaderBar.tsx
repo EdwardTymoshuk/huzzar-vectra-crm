@@ -30,7 +30,7 @@ const BillingHeaderBar = ({
   const rightActions = (
     <div className="hidden xl:flex items-center">
       <Button
-        variant="warning"
+        variant="default"
         onClick={onGenerateReport}
         className="flex items-center gap-2"
       >

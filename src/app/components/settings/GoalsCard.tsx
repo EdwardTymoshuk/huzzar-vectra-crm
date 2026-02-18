@@ -70,7 +70,7 @@ const GoalsCard = ({ initialDays, initialRevenue, onSave }: Props) => {
             {!edit && (
               <Button
                 size="sm"
-                variant="success"
+                variant="default"
                 onClick={() => {
                   setDays(initialDays)
                   setRev(initialRevenue)

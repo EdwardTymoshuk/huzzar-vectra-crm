@@ -46,41 +46,41 @@ const WarehouseHistoryHeaderBar = ({
   return (
     <header
       className={cn(
-        'flex flex-col w-full border-b bg-background py-2 gap-2 mb-2',
+        'flex flex-col w-full border-b bg-background py-2 px-2 md:px-4 gap-2 mb-2',
         className
       )}
     >
       {/* --- Desktop layout (md+) --- */}
       <div className="hidden md:flex items-center justify-between w-full">
-        {/* Left: back button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.back()}
-          className="flex items-center gap-1"
-        >
-          <MdKeyboardArrowLeft className="w-5 h-5" />
-          <span>Powrót</span>
-        </Button>
-
-        {/* Right: filters + title */}
-        <div className="flex items-center gap-3">
-          <WarehouseHistoryFilterPopover
-            actions={actions}
-            setActions={setActions}
-            performerId={performerId}
-            setPerformerId={setPerformerId}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
-            locationId={locationId}
-            setLocationId={setLocationId}
-          />
-          <h1 className="text-sm lg:text-lg font-semibold text-primary whitespace-nowrap">
+        {/* Left: back button + title */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+            className="flex items-center gap-1 shrink-0"
+          >
+            <MdKeyboardArrowLeft className="w-5 h-5" />
+            <span>Powrót</span>
+          </Button>
+          <h1 className="text-sm lg:text-lg font-semibold text-primary truncate">
             Historia magazynu
           </h1>
         </div>
+
+        {/* Right: filters */}
+        <WarehouseHistoryFilterPopover
+          actions={actions}
+          setActions={setActions}
+          performerId={performerId}
+          setPerformerId={setPerformerId}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          locationId={locationId}
+          setLocationId={setLocationId}
+        />
       </div>
 
       {/* --- Mobile layout (<md) --- */}

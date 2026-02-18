@@ -318,7 +318,7 @@ const ReturnToOperator = ({ onClose }: Props) => {
                   ) : (
                     <Button
                       size="sm"
-                      variant="success"
+                      variant="default"
                       onClick={() =>
                         setExpandedRows((prev) => [...prev, item.id])
                       }

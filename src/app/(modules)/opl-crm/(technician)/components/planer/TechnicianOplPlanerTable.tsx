@@ -325,7 +325,7 @@ const TechnicianOplPlanerTable = ({
                 <div className="flex gap-2 w-full sm:w-auto">
                   <Button
                     size="sm"
-                    variant="success"
+                    variant="default"
                     className="flex-1 sm:flex-none"
                     onClick={() => accept.mutate({ orderId: o.id })}
                     disabled={accept.isLoading}
@@ -349,7 +349,7 @@ const TechnicianOplPlanerTable = ({
                 <>
                   <Button
                     size="sm"
-                    variant="success"
+                    variant="default"
                     className="w-full sm:w-auto"
                     onClick={() => {
                       setActiveOrderId(o.id)

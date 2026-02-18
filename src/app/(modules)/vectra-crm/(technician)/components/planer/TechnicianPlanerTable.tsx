@@ -305,7 +305,7 @@ const TechnicianPlanerTable = ({
                 <div className="flex gap-2 w-full sm:w-auto">
                   <Button
                     size="sm"
-                    variant="success"
+                    variant="default"
                     className="flex-1 sm:flex-none"
                     onClick={() => accept.mutate({ orderId: o.id })}
                     disabled={accept.isLoading}
@@ -329,7 +329,7 @@ const TechnicianPlanerTable = ({
                 <>
                   <Button
                     size="sm"
-                    variant="success"
+                    variant="default"
                     className="w-full sm:w-auto"
                     onClick={() => setShowComplete(o.id)}
                   >

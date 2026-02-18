@@ -205,7 +205,7 @@ const MaterialIssueTable = ({
               </div>
             ) : (
               <Button
-                variant="success"
+                variant="default"
                 size="sm"
                 onClick={() => toggleRow(item.id)}
                 disabled={isDisabled}

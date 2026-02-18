@@ -2,6 +2,15 @@
 
 import { Button } from '@/app/components/ui/button'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -33,6 +42,8 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
     name: string
   } | null>(null)
   const [editMode, setEditMode] = useState(false)
+  const [hasDraftItems, setHasDraftItems] = useState(false)
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
 
   const utils = trpc.useUtils()
 
@@ -52,12 +63,29 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
   const handleClose = () => {
     setToLocation(null)
     setEditMode(false)
+    setHasDraftItems(false)
+    setConfirmCloseOpen(false)
     onCloseAction()
   }
 
+  const handleAttemptClose = () => {
+    if (hasDraftItems) {
+      setConfirmCloseOpen(true)
+      return
+    }
+    handleClose()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl space-y-4 verflow-y-auto">
+    <>
+      <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleAttemptClose()}>
+      <DialogContent
+        className={
+          toLocation
+            ? 'w-[96vw] max-w-[1500px] h-[92vh] overflow-hidden space-y-4'
+            : 'w-[96vw] max-w-[1100px] space-y-4'
+        }
+      >
         <DialogHeader>
           <DialogTitle>Przekaż sprzęt do innego magazynu</DialogTitle>
         </DialogHeader>
@@ -95,7 +123,7 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
               variant="ghost"
               size="sm"
               className="self-end mb-1"
-              onClick={() => setEditMode(false)}
+              onClick={handleAttemptClose}
             >
               Anuluj
             </Button>
@@ -104,22 +132,42 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
 
         {/* Items picking tabs */}
         {fromLocationId && toLocation && (
-          <LocationTransferItemsTabs
-            fromLocationId={fromLocationId}
-            toLocationId={toLocation.id}
-            onConfirm={(items, notes) =>
-              mutation.mutate({
-                fromLocationId,
-                toLocationId: toLocation.id,
-                notes,
-                items,
-              })
-            }
-            loading={mutation.isLoading}
-          />
+          <div className="h-[calc(92vh-210px)] overflow-hidden">
+            <LocationTransferItemsTabs
+              fromLocationId={fromLocationId}
+              toLocationId={toLocation.id}
+              onConfirm={(items, notes) =>
+                mutation.mutate({
+                  fromLocationId,
+                  toLocationId: toLocation.id,
+                  notes,
+                  items,
+                })
+              }
+              loading={mutation.isLoading}
+              onDraftChange={setHasDraftItems}
+            />
+          </div>
         )}
       </DialogContent>
     </Dialog>
+
+      <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Masz dodane pozycje, które nie zostały przekazane. Czy na pewno chcesz zamknąć?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClose}>
+              Zamknij bez zapisu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 

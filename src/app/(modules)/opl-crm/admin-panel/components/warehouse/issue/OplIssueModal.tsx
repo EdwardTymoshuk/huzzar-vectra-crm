@@ -1,6 +1,15 @@
 'use client'
 
 import OplTechnicianSelector from '@/app/(modules)/opl-crm/components/OplTechnicianSelector'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -29,16 +38,35 @@ const OplIssueModal = ({ open, onCloseAction }: Props) => {
   const [selectedTechnician, setSelectedTechnician] =
     useState<TechnicianLiteVM | null>(null)
   const [editMode, setEditMode] = useState(false)
+  const [hasDraftItems, setHasDraftItems] = useState(false)
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
 
-  const handleClose = () => {
+  const resetAndClose = () => {
     setSelectedTechnician(null)
     setEditMode(false)
+    setHasDraftItems(false)
+    setConfirmCloseOpen(false)
     onCloseAction()
   }
 
+  const handleAttemptClose = () => {
+    if (hasDraftItems) {
+      setConfirmCloseOpen(true)
+      return
+    }
+    resetAndClose()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl space-y-4 overflow-y-auto">
+    <>
+      <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleAttemptClose()}>
+      <DialogContent
+        className={
+          selectedTechnician
+            ? 'w-[96vw] max-w-[1500px] h-[92vh] overflow-hidden space-y-4'
+            : 'w-[96vw] max-w-[1100px] space-y-4'
+        }
+      >
         <DialogHeader>
           <DialogTitle>Wydanie sprzętu do technika</DialogTitle>
         </DialogHeader>
@@ -81,7 +109,7 @@ const OplIssueModal = ({ open, onCloseAction }: Props) => {
               variant="ghost"
               size="sm"
               className="self-end mb-1"
-              onClick={() => setEditMode(false)}
+              onClick={handleAttemptClose}
             >
               Anuluj
             </Button>
@@ -90,13 +118,33 @@ const OplIssueModal = ({ open, onCloseAction }: Props) => {
 
         {/* Issue tabs always visible once technician selected */}
         {selectedTechnician && (
-          <IssueItemsTabs
-            technicianId={selectedTechnician.id}
-            onCloseAction={onCloseAction}
-          />
+          <div className="h-[calc(92vh-210px)] overflow-hidden">
+            <IssueItemsTabs
+              technicianId={selectedTechnician.id}
+              onCloseAction={resetAndClose}
+              onDraftChange={setHasDraftItems}
+            />
+          </div>
         )}
       </DialogContent>
     </Dialog>
+
+      <AlertDialog open={confirmCloseOpen} onOpenChange={setConfirmCloseOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Masz dodane pozycje, które nie zostały wydane. Czy na pewno chcesz zamknąć?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={resetAndClose}>
+              Zamknij bez zapisu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
