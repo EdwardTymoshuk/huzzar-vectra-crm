@@ -50,6 +50,22 @@ export const cleanStreetName = (street: string): string =>
   street.replace(/^(ul\.|al\.|pl\.)\s+/i, '').trim()
 
 /**
+ * Removes flat/service-lokal suffixes from street strings for geocoding.
+ * Example: "LEMA 4/LU313" -> "LEMA 4"
+ */
+export const stripStreetUnit = (street: string): string =>
+  street
+    .replace(/\s+(\d+[A-Z]?)\s*\/\s*[A-Z0-9-]+$/i, ' $1')
+    .replace(/\s*\/\s*[A-Z0-9-]+$/i, '')
+    .replace(
+      /\s*\/\s*(LU|LOK|L|M|M\.|LOKAL)\s*[A-Z0-9-]+$/i,
+      ''
+    )
+    .replace(/\s+(LU|LOK|L|M|M\.|LOKAL)\s*[A-Z0-9-]+$/i, '')
+    .replace(/\s+LOKAL\s+[A-Z0-9-]+$/i, '')
+    .trim()
+
+/**
  * Geocodes a human-readable address to Lat/Lng using Nominatim.
  * Returns `null` on failure (never throws).
  */

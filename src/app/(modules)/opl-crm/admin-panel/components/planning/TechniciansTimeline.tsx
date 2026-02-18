@@ -22,6 +22,7 @@ type Props = {
   assignments: OplTechnicianAssignment[]
   onUnassign: (orderId: string) => void
   searchTerm?: string
+  onOrderClick?: (orderId: string) => void
 }
 
 /** Timeline configuration constants */
@@ -138,6 +139,7 @@ const TechniciansTimeline = ({
   assignments,
   onUnassign,
   searchTerm = '',
+  onOrderClick,
 }: Props) => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -256,16 +258,23 @@ const TechniciansTimeline = ({
                       }}
                     >
                       {/* Sticky technician name (left) */}
-                      <div className="border-r p-2 font-semibold flex text-xs items-start justify-start whitespace-nowrap bg-muted sticky left-0 z-20">
+                      <div
+                        className="border-r p-2 font-semibold flex text-xs items-start justify-start bg-muted sticky left-0 z-20 overflow-hidden"
+                        title={tech.technicianName}
+                      >
                         {matchSearch(searchTerm, tech.technicianName) ? (
-                          <Highlight
-                            searchWords={[searchTerm]}
-                            textToHighlight={tech.technicianName}
-                            autoEscape
-                            highlightClassName="bg-yellow-200"
-                          />
+                          <span className="block w-full truncate leading-tight">
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={tech.technicianName}
+                              autoEscape
+                              highlightClassName="bg-yellow-200"
+                            />
+                          </span>
                         ) : (
-                          tech.technicianName
+                          <span className="block w-full truncate leading-tight">
+                            {tech.technicianName}
+                          </span>
                         )}
                       </div>
 
@@ -354,6 +363,7 @@ const TechniciansTimeline = ({
                                           setSelectedOrderId(order.id)
                                           setIsSheetOpen(true)
                                         }}
+                                        onClick={() => onOrderClick?.(order.id)}
                                       >
                                         {/* Disabled overlay for locked orders (prevents interaction without affecting colors) */}
                                         {locked && (

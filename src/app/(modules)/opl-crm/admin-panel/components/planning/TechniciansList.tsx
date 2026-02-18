@@ -15,6 +15,7 @@ type Props = {
   setProcessing: (v: boolean) => void
   assignments: OplTechnicianAssignment[]
   isLoading: boolean
+  onOrderClick?: (orderId: string) => void
 }
 
 /**
@@ -24,7 +25,12 @@ type Props = {
  * - Uses date and searchTerm from PlanningContext (global).
  * - No local header (handled by PageControlBar).
  */
-const TechniciansList = ({ setProcessing, assignments, isLoading }: Props) => {
+const TechniciansList = ({
+  setProcessing,
+  assignments,
+  isLoading,
+  onOrderClick,
+}: Props) => {
   const { searchTerm } = usePlanningContext()
 
   const trpcUtils = trpc.useUtils()
@@ -97,6 +103,7 @@ const TechniciansList = ({ setProcessing, assignments, isLoading }: Props) => {
         <TechniciansTimeline
           assignments={filteredAssignments}
           onUnassign={unassignOrder}
+          onOrderClick={onOrderClick}
         />
       )}
     </div>
@@ -110,29 +117,32 @@ const TechniciansList = ({ setProcessing, assignments, isLoading }: Props) => {
  */
 const TechniciansListSkeleton = () => (
   <div className="w-full overflow-x-auto border rounded-md bg-background shadow-inner">
-    <div
-      className="grid border-b bg-muted font-medium text-sm sticky top-0 z-10"
-      style={{ gridTemplateColumns: `200px repeat(15, 100px)` }}
-    >
-      {Array.from({ length: 15 }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className="h-10 w-[100px] border-r rounded-none border-gray-300"
-        />
-      ))}
-    </div>
-    {Array.from({ length: 10 }).map((_, i) => (
+    <div className="min-w-[1250px]">
+      <div
+        className="grid border-b bg-muted font-medium text-sm sticky top-0 z-10"
+        style={{ gridTemplateColumns: `200px repeat(14, 75px)` }}
+      >
+        <Skeleton className="h-10 w-full border-r rounded-none" />
+        {Array.from({ length: 14 }).map((_, i) => (
+          <Skeleton
+            key={i}
+            className="h-10 w-full border-r rounded-none border-gray-300"
+          />
+        ))}
+      </div>
+      {Array.from({ length: 10 }).map((_, i) => (
       <div
         key={i}
         className="grid border-b text-sm"
-        style={{ gridTemplateColumns: `200px repeat(14, 100px)` }}
+        style={{ gridTemplateColumns: `200px repeat(14, 75px)` }}
       >
-        <Skeleton className="h-10 w-full border-r rounded-none" />
-        <div className="col-span-13 flex items-center">
-          <Skeleton className="h-8 w-full mx-2" />
+        <Skeleton className="h-12 w-full border-r rounded-none" />
+        <div className="col-span-14 flex items-center px-2">
+          <Skeleton className="h-7 w-40 rounded-md" />
         </div>
       </div>
-    ))}
+      ))}
+    </div>
   </div>
 )
 

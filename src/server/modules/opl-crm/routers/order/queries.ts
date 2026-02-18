@@ -10,7 +10,11 @@ import {
   technicianOnly,
 } from '@/server/roleHelpers'
 import { OplTechnicianAssignment } from '@/types/opl-crm'
-import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
+import {
+  cleanStreetName,
+  getCoordinatesFromAddress,
+  stripStreetUnit,
+} from '@/utils/geocode'
 import { getNextLineOrderNumber } from '@/utils/orders/nextLineOrderNumber'
 import {
   OplNetworkOeprator,
@@ -62,6 +66,10 @@ async function mapWithConcurrency<T, R>(
   await Promise.all(workers)
   return ret
 }
+
+/** Street endings that often break geocoding precision (local/unit suffixes). */
+const SUSPICIOUS_STREET_SUFFIX_REGEX =
+  /(?:\/\s*(?:LU|LOK|L|M|M\.|LOKAL)\s*[A-Z0-9-]+|\d+[A-Z]?\s*\/\s*[A-Z0-9-]+)\s*$/i
 
 /* -----------------------------------------------------------
  * queriesRouter
@@ -543,16 +551,48 @@ export const queriesRouter = router({
        * 3️⃣ Auto-geocoding (bounded, concurrent)
        * ------------------------------------------- */
       const missingCoords = orders.filter((o) => o.lat === null || o.lng === null)
-      const MAX_GEOCODES = 20
+      const suspiciousCoords = orders.filter((o) =>
+        SUSPICIOUS_STREET_SUFFIX_REGEX.test(o.street)
+      )
+      const MAX_GEOCODES = 60
       const CONCURRENCY = 3
 
+      const geocodeTargets = Array.from(
+        new Map(
+          [...suspiciousCoords, ...missingCoords].map((order) => [order.id, order])
+        ).values()
+      )
+
       await mapWithConcurrency(
-        missingCoords.slice(0, MAX_GEOCODES),
+        geocodeTargets.slice(0, MAX_GEOCODES),
         CONCURRENCY,
         async (order) => {
-          const address = `${cleanStreetName(order.street)}, ${order.city}, Polska`
-          const coords = await getCoordinatesFromAddress(address)
-          if (!coords) return
+          const cleanStreet = cleanStreetName(order.street)
+          const strippedStreet = stripStreetUnit(cleanStreet)
+          const variants = [
+            `${cleanStreet}, ${order.city}, Polska`,
+            ...(strippedStreet !== cleanStreet
+              ? [`${strippedStreet}, ${order.city}, Polska`]
+              : []),
+            `${order.city}, Polska`,
+          ]
+
+          let coords = null as { lat: number; lng: number } | null
+          for (const address of variants) {
+            coords = await getCoordinatesFromAddress(address)
+            if (coords) break
+          }
+          if (!coords) {
+            if (SUSPICIOUS_STREET_SUFFIX_REGEX.test(order.street)) {
+              order.lat = null
+              order.lng = null
+              await ctx.prisma.oplOrder.update({
+                where: { id: order.id },
+                data: { lat: null, lng: null },
+              })
+            }
+            return
+          }
 
           order.lat = coords.lat
           order.lng = coords.lng
@@ -860,6 +900,7 @@ export const queriesRouter = router({
       /** Build address variants for robust geocoding when postal code is missing/placeholder. */
       const buildAddressVariants = (r: (typeof rows)[number]): string[] => {
         const street = cleanStreetName(r.street)
+        const strippedStreet = stripStreetUnit(street)
         const city = (r.city ?? '').trim()
         const pc = isUsablePostalCode(r.postalCode)
           ? r.postalCode!.trim()
@@ -869,8 +910,12 @@ export const queriesRouter = router({
         if (street && city && pc)
           variants.push(`${street}, ${pc}, ${city}, Polska`)
         if (street && city) variants.push(`${street}, ${city}, Polska`)
+        if (strippedStreet && strippedStreet !== street && city && pc)
+          variants.push(`${strippedStreet}, ${pc}, ${city}, Polska`)
+        if (strippedStreet && strippedStreet !== street && city)
+          variants.push(`${strippedStreet}, ${city}, Polska`)
         if (city) variants.push(`${city}, Polska`)
-        return variants
+        return Array.from(new Set(variants))
       }
 
       /** Try multiple address variants until one returns coordinates. */
@@ -884,16 +929,31 @@ export const queriesRouter = router({
 
       /* --------------- main --------------- */
 
-      const MAX_GEOCODES = 20
+      const MAX_GEOCODES = 60
       const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
 
       const missingRows = rows.filter((r) => r.lat === null || r.lng === null)
-      const head = missingRows.slice(0, MAX_GEOCODES)
+      const suspiciousRows = rows.filter((r) =>
+        SUSPICIOUS_STREET_SUFFIX_REGEX.test(r.street)
+      )
+      const head = Array.from(
+        new Map([...suspiciousRows, ...missingRows].map((r) => [r.id, r])).values()
+      ).slice(0, MAX_GEOCODES)
 
       const enrichAndPersist = async (r: (typeof rows)[number]) => {
         const variants = buildAddressVariants(r)
         const coords = await geocodeWithFallback(variants)
-        if (!coords) return
+        if (!coords) {
+          if (SUSPICIOUS_STREET_SUFFIX_REGEX.test(r.street)) {
+            r.lat = null
+            r.lng = null
+            await ctx.prisma.oplOrder.update({
+              where: { id: r.id },
+              data: { lat: null, lng: null },
+            })
+          }
+          return
+        }
         r.lat = coords.lat
         r.lng = coords.lng
         await ctx.prisma.oplOrder.update({

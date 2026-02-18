@@ -33,6 +33,7 @@ const PlanningBoard = () => {
   const { selectedDate } = usePlanningContext()
   const utils = trpc.useUtils()
   const [isProcessing, setProcessing] = useState(false)
+  const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null)
   const selectedDateKey = format(selectedDate, 'yyyy-MM-dd')
 
   /** 🔹 Fetch data for both assigned & unassigned orders */
@@ -228,6 +229,7 @@ const PlanningBoard = () => {
                 setProcessing={setProcessing}
                 assignments={assigned}
                 isLoading={isAssignedLoading}
+                onOrderClick={setFocusedOrderId}
               />
             </div>
           </section>
@@ -238,6 +240,7 @@ const PlanningBoard = () => {
               <MapView
                 mapKey={`planning-map-${selectedDateKey}-${markers.length}`}
                 markers={markers}
+                focusOrderId={focusedOrderId}
               />
             </div>
           </section>
@@ -249,6 +252,7 @@ const PlanningBoard = () => {
             <OrdersList
               orders={unassigned}
               isLoading={isUnassignedLoading}
+              onOrderClick={setFocusedOrderId}
             />
           </div>
         </section>

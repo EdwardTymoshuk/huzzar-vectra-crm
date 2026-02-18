@@ -29,6 +29,7 @@ type UnassignedOrder = {
 type Props = {
   orders: UnassignedOrder[]
   isLoading: boolean
+  onOrderClick?: (orderId: string) => void
 }
 
 /**
@@ -37,7 +38,7 @@ type Props = {
  * Displays unassigned orders (drag-and-drop).
  * Each order row: Date | Slot | Operator | Address | Order number
  */
-const OrdersList = ({ orders, isLoading }: Props) => {
+const OrdersList = ({ orders, isLoading, onOrderClick }: Props) => {
   const { searchTerm } = usePlanningContext()
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -119,6 +120,7 @@ const OrdersList = ({ orders, isLoading }: Props) => {
                           {...drag.dragHandleProps}
                           role="row"
                           tabIndex={0}
+                          onClick={() => onOrderClick?.(order.id)}
                           onDoubleClick={() => handleOpenDetails(order.id)}
                           className="grid grid-cols-5 items-center px-3 py-2 text-xs border-b cursor-grab active:cursor-grabbing hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary select-none transition"
                         >

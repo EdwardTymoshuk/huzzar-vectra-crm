@@ -32,6 +32,7 @@ type Marker = {
 type Props = {
   mapKey: string
   markers?: Marker[]
+  focusOrderId?: string | null
 }
 
 const DEFAULT_CENTER: [number, number] = [54.352, 18.646]
@@ -64,10 +65,11 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;')
 }
 
-const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
+const MapView: React.FC<Props> = ({ mapKey, markers = [], focusOrderId }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<LeafletMap | null>(null)
   const tileRef = useRef<TileLayer | null>(null)
+  const markerRefs = useRef<Map<string, L.Marker>>(new Map())
 
   // Initialize map once
   useEffect(() => {
@@ -111,6 +113,7 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
     map.eachLayer((layer) => {
       if (layer !== tileRef.current) map.removeLayer(layer)
     })
+    markerRefs.current.clear()
 
     markers.forEach((m) => {
       const icon = createColorIcon(m.color)
@@ -153,7 +156,9 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
         </div>
       `
 
-      L.marker([m.lat, m.lng], { icon }).addTo(map).bindPopup(popupHtml)
+      const marker = L.marker([m.lat, m.lng], { icon })
+      marker.addTo(map).bindPopup(popupHtml)
+      markerRefs.current.set(m.id, marker)
     })
 
     if (markers.length > 0) {
@@ -165,6 +170,20 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [] }) => {
       map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: false })
     }
   }, [markers])
+
+  useEffect(() => {
+    if (!focusOrderId) return
+    const map = mapRef.current
+    if (!map) return
+    const marker = markerRefs.current.get(focusOrderId)
+    if (!marker) return
+
+    map.panTo(marker.getLatLng(), {
+      animate: true,
+      duration: 0.45,
+    })
+    marker.openPopup()
+  }, [focusOrderId])
 
   return (
     <div
