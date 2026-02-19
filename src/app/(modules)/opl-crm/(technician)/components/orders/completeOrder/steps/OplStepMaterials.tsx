@@ -4,12 +4,13 @@ import OplMaterialsSection from '@/app/(modules)/opl-crm/(technician)/components
 import { ALL_BASE_CODES } from '@/app/(modules)/opl-crm/utils/order/completeOrderHelper'
 import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
 import { Button } from '@/app/components/ui/button'
-import { OplMaterialUnit } from '@prisma/client'
+import { OplMaterialUnit, OplOrderType } from '@prisma/client'
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md'
 
 type Props = {
   onBack: () => void
   onNext: () => void
+  orderType: OplOrderType
   materialDefs: {
     id: string
     name: string
@@ -27,6 +28,7 @@ type Props = {
 const OplStepMaterials = ({
   onBack,
   onNext,
+  orderType,
   materialDefs,
   techMaterials,
 }: Props) => {
@@ -50,6 +52,7 @@ const OplStepMaterials = ({
           materialDefs={materialDefs}
           technicianStock={techMaterials}
           baseCode={baseCode}
+          orderType={orderType}
         />
       </div>
 

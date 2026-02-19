@@ -10,11 +10,12 @@ import {
   toWorkCodeLabel,
 } from '@/app/(modules)/opl-crm/utils/order/workCodesPresentation'
 import { formatMeasurementsLine } from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
-import { OplMaterialUnit } from '@prisma/client'
+import { OplMaterialUnit, OplOrderType } from '@prisma/client'
 import { MdContentCopy, MdKeyboardArrowLeft } from 'react-icons/md'
 import { toast } from 'sonner'
 
 type Props = {
+  orderType: OplOrderType
   materialDefs: {
     id: string
     name: string
@@ -31,6 +32,7 @@ const unitLabel: Record<OplMaterialUnit, string> = {
 }
 
 const OplStepSummary = ({
+  orderType,
   materialDefs,
   onBack,
   onFinish,
@@ -43,7 +45,18 @@ const OplStepSummary = ({
   })
   const orderedWorkCodes = buildOrderedWorkCodes(state.workCodes, state.digInput)
   const nonPkiCodes = orderedWorkCodes.filter((c) => !c.code.startsWith('PKI'))
-  const pkiCodes = orderedWorkCodes.filter((c) => c.code.startsWith('PKI'))
+  const pkuCodes =
+    orderType === 'SERVICE'
+      ? nonPkiCodes.filter((c) => c.code.toUpperCase().startsWith('PKU'))
+      : []
+  const serviceMainCodes =
+    orderType === 'SERVICE'
+      ? nonPkiCodes.filter((c) => !c.code.toUpperCase().startsWith('PKU'))
+      : nonPkiCodes
+  const pkiCodes =
+    orderType === 'INSTALLATION'
+      ? orderedWorkCodes.filter((c) => c.code.startsWith('PKI'))
+      : []
 
   const materialNameById = (id: string) =>
     materialDefs.find((m) => m.id === id)?.name ?? 'Nieznany materiał'
@@ -54,8 +67,8 @@ const OplStepSummary = ({
   const showCollected = state.equipment.collected.items.length > 0
 
   const handleCopySummary = async () => {
-    const codesLine = nonPkiCodes.length
-      ? `KODY PRACY: ${nonPkiCodes
+    const codesLine = serviceMainCodes.length
+      ? `KODY PRACY: ${serviceMainCodes
           .map((code) => `# ${toWorkCodeLabel(code.code)}`)
           .join(' ')}`
       : 'KODY PRACY:'
@@ -82,7 +95,20 @@ const OplStepSummary = ({
     const chunks = [
       measurementLine ? measurementLine : 'POMIAR:',
       codesLine,
-      `PKI:${pkiLines ? ` ${pkiLines}` : ''}`.trim(),
+      ...(orderType === 'SERVICE'
+        ? [
+            `PKU:${
+              pkuCodes.length
+                ? ` ${pkuCodes
+                    .map((code) => `# ${toWorkCodeLabel(code.code)} x ${code.quantity}`)
+                    .join(' ')}`
+                : ''
+            }`.trim(),
+          ]
+        : []),
+      ...(orderType === 'INSTALLATION'
+        ? [`PKI:${pkiLines ? ` ${pkiLines}` : ''}`.trim()]
+        : []),
       `MATERIAŁ:${materialLines ? ` ${materialLines}` : ''}`.trim(),
       `UWAGI: ${state.notes || '-'}`,
     ]
@@ -146,9 +172,9 @@ const OplStepSummary = ({
         <Card>
           <CardContent className="space-y-2 p-4">
             <p className="font-semibold">Kody pracy</p>
-            {nonPkiCodes.length ? (
+            {serviceMainCodes.length ? (
               <div className="flex flex-wrap gap-2">
-                {nonPkiCodes.map((code) => (
+                {serviceMainCodes.map((code) => (
                   <Button
                     key={code.code}
                     variant="secondary"
@@ -167,23 +193,40 @@ const OplStepSummary = ({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="space-y-2 p-4 text-sm">
-            <p className="font-semibold">Zużyte materiały</p>
-            {state.usedMaterials.length ? (
+        {orderType === 'SERVICE' && pkuCodes.length > 0 && (
+          <Card>
+            <CardContent className="space-y-2 p-4 text-sm">
+              <p className="font-semibold">PKU</p>
               <ul className="list-none space-y-1">
-                {state.usedMaterials.map((m) => (
-                  <li key={m.id}>
-                    {materialNameById(m.id)} x {m.quantity}{' '}
-                    {unitLabel[materialUnitById(m.id)]}
+                {pkuCodes.map((code) => (
+                  <li key={code.code}>
+                    {toWorkCodeLabel(code.code)} x {code.quantity}
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-muted-foreground">Brak</p>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {orderType === 'INSTALLATION' && pkiCodes.length > 0 && (
+          <Card>
+            <CardContent className="space-y-2 p-4 text-sm">
+              <p className="font-semibold">PKI</p>
+              <ul className="list-none space-y-1">
+                {pkiCodes.map((code) => {
+                  const pkiName =
+                    ALL_PKI_DEFS.find((p) => p.code === code.code)?.label ??
+                    code.code
+                  return (
+                    <li key={code.code}>
+                      {pkiName} x {code.quantity}
+                    </li>
+                  )
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         {state.equipment.issued.items.length > 0 && (
           <Card className="space-y-0">
@@ -227,25 +270,23 @@ const OplStepSummary = ({
           </Card>
         )}
 
-        {pkiCodes.length > 0 && (
-          <Card>
-            <CardContent className="space-y-2 p-4 text-sm">
-              <p className="font-semibold">PKI</p>
+        <Card>
+          <CardContent className="space-y-2 p-4 text-sm">
+            <p className="font-semibold">Zużyte materiały</p>
+            {state.usedMaterials.length ? (
               <ul className="list-none space-y-1">
-                {pkiCodes.map((code) => {
-                  const pkiName =
-                    ALL_PKI_DEFS.find((p) => p.code === code.code)?.label ??
-                    code.code
-                  return (
-                    <li key={code.code}>
-                      {pkiName} x {code.quantity}
-                    </li>
-                  )
-                })}
+                {state.usedMaterials.map((m) => (
+                  <li key={m.id}>
+                    {materialNameById(m.id)} x {m.quantity}{' '}
+                    {unitLabel[materialUnitById(m.id)]}
+                  </li>
+                ))}
               </ul>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <p className="text-muted-foreground">Brak</p>
+            )}
+          </CardContent>
+        </Card>
 
         {state.addressNoteText && (
           <Card>

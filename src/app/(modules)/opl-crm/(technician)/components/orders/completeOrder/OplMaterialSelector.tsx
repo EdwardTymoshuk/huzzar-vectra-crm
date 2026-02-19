@@ -4,7 +4,7 @@ import SearchableSelector from '@/app/components/fields/SearchableSelector'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { materialUnitMap } from '@/lib/constants'
-import { OplMaterialUnit } from '@prisma/client'
+import { OplMaterialUnit, OplOrderType } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import { MdAdd, MdDelete, MdOutlineAutoAwesome, MdRemove } from 'react-icons/md'
 
@@ -28,6 +28,7 @@ type Props = {
   materials: MaterialRow[]
   technicianStock: StockRow[]
   baseCode?: string
+  orderType: OplOrderType
 }
 
 const FREQUENT_BY_BASE: Record<string, string[]> = {
@@ -132,6 +133,7 @@ const OplMaterialSelector = ({
   materials,
   technicianStock,
   baseCode,
+  orderType,
 }: Props) => {
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(
     null,
@@ -274,7 +276,9 @@ const OplMaterialSelector = ({
           <div className="flex items-center gap-2">
             <MdOutlineAutoAwesome className="h-5 w-5 text-primary" />
             <p className="font-medium">
-              Najczęściej używane przy {baseCode ?? 'standard'}
+              {orderType === 'SERVICE'
+                ? 'Najczęściej używane dla serwisu'
+                : `Najczęściej używane przy ${baseCode ?? 'standardzie'}`}
             </p>
           </div>
 

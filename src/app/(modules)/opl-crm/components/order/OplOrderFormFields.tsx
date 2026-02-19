@@ -154,7 +154,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz typ zlecenia" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background">
                 <SelectItem value="INSTALLATION">Instalacja</SelectItem>
                 <SelectItem value="SERVICE">Serwis</SelectItem>
                 <SelectItem value="OUTAGE">Awaria</SelectItem>
@@ -186,7 +186,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz operatora" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background">
                 <SelectItem value={NO_OPERATOR_VALUE}>Brak</SelectItem>
                 {operatorList.map((op) => (
                   <SelectItem key={op} value={op}>
@@ -215,7 +215,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                 <SelectValue placeholder="Wybierz operatora sieci" />
               </SelectTrigger>
 
-              <SelectContent>
+              <SelectContent className="bg-background">
                 <SelectItem value="ORANGE">Orange</SelectItem>
                 <SelectItem value="SI">SI</SelectItem>
                 <SelectItem value="PSO">PŚO</SelectItem>
@@ -288,39 +288,41 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         )}
       />
 
-      {/* Order standard */}
-      <FormField
-        control={control}
-        name="standard"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              Standard zlecenia<span className="text-destructive">*</span>
-            </FormLabel>
+      {/* Order standard (not required for SERVICE) */}
+      {type !== 'SERVICE' && (
+        <FormField
+          control={control}
+          name="standard"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Standard zlecenia<span className="text-destructive">*</span>
+              </FormLabel>
 
-            <Select
-              value={field.value ?? undefined}
-              onValueChange={(value) =>
-                field.onChange(value as OplOrderStandard)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz standard" />
-              </SelectTrigger>
+              <Select
+                value={field.value ?? undefined}
+                onValueChange={(value) =>
+                  field.onChange(value as OplOrderStandard)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz standard" />
+                </SelectTrigger>
 
-              <SelectContent>
-                {oplOrderStandardOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectContent className="bg-background">
+                  {oplOrderStandardOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Date */}
       <FormField
@@ -374,7 +376,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz przedział czasowy" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background">
                 {oplTimeSlotOptions.map((slot) => (
                   <SelectItem key={slot.value} value={slot.value}>
                     {slot.label}
@@ -448,7 +450,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                     <SelectValue placeholder="Wybierz technika" />
                   </SelectTrigger>
 
-                  <SelectContent>
+                  <SelectContent className="bg-background">
                     {isTechLoading ? (
                       <div className="px-4 py-2">
                         <LoaderSpinner />
@@ -529,7 +531,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                       <SelectValue placeholder="Wybierz drugiego technika" />
                     </SelectTrigger>
 
-                    <SelectContent>
+                    <SelectContent className="bg-background">
                       {technicians
                         ?.filter((t) => t.id !== assignedTechnicianIds[0])
                         .map((tech) => (

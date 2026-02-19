@@ -35,6 +35,7 @@ import OplStepMaterials from './steps/OplStepMaterials'
 import OplStepNotes from './steps/OplStepNotes'
 import OplStepStatus from './steps/OplStepStatus'
 import OplStepSummary from './steps/OplStepSummary'
+import OplStepServiceCodes from './steps/OplStepServiceCodes'
 import OplStepWorkCodes from './steps/OplStepWorkCodes'
 
 const STEPS_INSTALLATION = [
@@ -46,7 +47,14 @@ const STEPS_INSTALLATION = [
   'Podsumowanie',
 ]
 
-const STEPS_SERVICE = ['Status', 'Odbiór sprzętu', 'Materiały', 'Uwagi', 'Podsumowanie']
+const STEPS_SERVICE = [
+  'Status',
+  'Kody pracy i PKU',
+  'Urządzenia zainstalowane i odebrane',
+  'Materiały',
+  'Uwagi',
+  'Podsumowanie',
+]
 
 type FullOrder = RouterOutputs['opl']['order']['getOrderById']
 
@@ -95,7 +103,6 @@ const CompleteOplOrderWizard = ({
     setMeasurementGo,
     setSoloCompletion,
     setSoloTechnicianId,
-    reset,
   } = useCompleteOplOrder()
   const { data: session } = useSession()
   const { isAdmin, isCoordinator } = useRole()
@@ -132,16 +139,9 @@ const CompleteOplOrderWizard = ({
 
   useEffect(() => {
     if (!open) {
-      prefilledRef.current = false
       return
     }
-    if (mode === 'complete') {
-      if (!prefilledRef.current) {
-        reset()
-        prefilledRef.current = true
-      }
-      return
-    }
+    if (mode === 'complete') return
     if (prefilledRef.current) return
 
     const normalizeIncomingCode = (code: string): string => {
@@ -223,7 +223,7 @@ const CompleteOplOrderWizard = ({
     })
 
     prefilledRef.current = true
-  }, [hydrateState, mode, open, order, reset])
+  }, [hydrateState, mode, open, order])
 
   const resolveMutation = () => {
     if (mode === 'adminEdit') return adminEditMutation
@@ -250,14 +250,6 @@ const CompleteOplOrderWizard = ({
 
     if (
       finalStatus === 'COMPLETED' &&
-      (!state.measurementOpp.trim() || !state.measurementGo.trim())
-    ) {
-      toast.error('Uzupełnij pomiary OPP i GO.')
-      return
-    }
-
-    if (
-      finalStatus === 'COMPLETED' &&
       soloCompletion &&
       (order.assignments?.length ?? 0) > 1 &&
       !soloTechnicianId
@@ -266,7 +258,10 @@ const CompleteOplOrderWizard = ({
       return
     }
 
-    const workCodes = buildOrderedWorkCodes(state.workCodes, state.digInput)
+    const workCodes =
+      orderType === 'INSTALLATION'
+        ? buildOrderedWorkCodes(state.workCodes, state.digInput)
+        : state.workCodes
     const equipmentIds = state.equipment.issued.items
       .map((item) => {
         if (item.warehouseId) return item.warehouseId
@@ -462,6 +457,7 @@ const CompleteOplOrderWizard = ({
                   onNext={() => {
                     next(STEPS.length)
                   }}
+                  orderType={orderType}
                   materialDefs={materialDefs}
                   techMaterials={techMaterials}
                 />
@@ -469,6 +465,7 @@ const CompleteOplOrderWizard = ({
               {step === 4 && (
                 <OplStepNotes
                   orderId={order.id}
+                  orderType={orderType}
                   onBack={handleBack}
                   onNext={() => {
                     next(STEPS.length)
@@ -477,6 +474,7 @@ const CompleteOplOrderWizard = ({
               )}
               {step === 5 && (
                 <OplStepSummary
+                  orderType={orderType}
                   materialDefs={materialDefs}
                   onBack={handleBack}
                   onFinish={() => {
@@ -491,33 +489,42 @@ const CompleteOplOrderWizard = ({
           {orderType !== 'INSTALLATION' && (
             <>
               {step === 1 && (
+                <OplStepServiceCodes
+                  onBack={handleBack}
+                  onNext={() => {
+                    next(STEPS.length)
+                  }}
+                />
+              )}
+
+              {step === 2 && (
                 <OplStepEquipment
                   onBack={handleBack}
                   onNext={() => {
                     next(STEPS.length)
                   }}
-                  suggestedIssued={mapEquipmentRequirementsToSuggested(
-                    order.equipmentRequirements
-                  )}
+                  suggestedIssued={[]}
                   mode={mode}
                   technicianDevices={normalizedDevices}
                 />
               )}
 
-              {step === 2 && (
+              {step === 3 && (
                 <OplStepMaterials
                   onBack={handleBack}
                   onNext={() => {
                     next(STEPS.length)
                   }}
+                  orderType={orderType}
                   materialDefs={materialDefs}
                   techMaterials={techMaterials}
                 />
               )}
 
-              {step === 3 && (
+              {step === 4 && (
                 <OplStepNotes
                   orderId={order.id}
+                  orderType={orderType}
                   onBack={handleBack}
                   onNext={() => {
                     next(STEPS.length)
@@ -525,8 +532,9 @@ const CompleteOplOrderWizard = ({
                 />
               )}
 
-              {step === 4 && (
+              {step === 5 && (
                 <OplStepSummary
+                  orderType={orderType}
                   materialDefs={materialDefs}
                   onBack={handleBack}
                   onFinish={() => {

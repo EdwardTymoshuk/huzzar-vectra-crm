@@ -9,17 +9,19 @@ import { Label } from '@/app/components/ui/label'
 import { Switch } from '@/app/components/ui/switch'
 import { Textarea } from '@/app/components/ui/textarea'
 import { trpc } from '@/utils/trpc'
+import { OplOrderType } from '@prisma/client'
 import { useEffect, useRef, useState } from 'react'
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md'
 import { toast } from 'sonner'
 
 type Props = {
   orderId: string
+  orderType: OplOrderType
   onBack: () => void
   onNext: () => void
 }
 
-const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
+const OplStepNotes = ({ orderId, orderType, onBack, onNext }: Props) => {
   const {
     state,
     setNotes,
@@ -85,12 +87,20 @@ const OplStepNotes = ({ orderId, onBack, onNext }: Props) => {
       (!!opp && !measurementPattern.test(opp)) ||
       (!!go && !measurementPattern.test(go))
 
-    if (state.status === 'COMPLETED' && areMeasurementsMissing) {
+    if (
+      orderType === 'INSTALLATION' &&
+      state.status === 'COMPLETED' &&
+      areMeasurementsMissing
+    ) {
       toast.error('Uzupełnij pomiary OPP i GO.')
       return
     }
 
-    if (state.status === 'COMPLETED' && areMeasurementsInvalid) {
+    if (
+      orderType === 'INSTALLATION' &&
+      state.status === 'COMPLETED' &&
+      areMeasurementsInvalid
+    ) {
       toast.error('Podaj poprawne wartości pomiarów (np. 12,3).')
       return
     }

@@ -188,6 +188,18 @@ export const OPL_SERVICE_CODE_LABELS: Record<string, string> = {
   PKU3: 'Wciąganie mikrokabla lub kabla za każdy kolejny metr kanalizacji.',
 }
 
+export const OPL_SERVICE_WORK_CODES = [
+  { code: 'N-FTTH', description: OPL_SERVICE_CODE_LABELS['N-FTTH'] },
+  { code: 'N-ZA', description: OPL_SERVICE_CODE_LABELS['N-ZA'] },
+  { code: 'NP-FTTH', description: OPL_SERVICE_CODE_LABELS['NP-FTTH'] },
+  { code: 'OZA', description: OPL_SERVICE_CODE_LABELS.OZA },
+  { code: 'SPLIT32', description: OPL_SERVICE_CODE_LABELS.SPLIT32 },
+  { code: 'SPLIT64', description: OPL_SERVICE_CODE_LABELS.SPLIT64 },
+  { code: 'PKU1', description: OPL_SERVICE_CODE_LABELS.PKU1 },
+  { code: 'PKU2', description: OPL_SERVICE_CODE_LABELS.PKU2 },
+  { code: 'PKU3', description: OPL_SERVICE_CODE_LABELS.PKU3 },
+] as const
+
 export const oplOrderFailureReasons = [
   'Rezygnacja',
   'Zmiana terminu z przyczyn klienckich',

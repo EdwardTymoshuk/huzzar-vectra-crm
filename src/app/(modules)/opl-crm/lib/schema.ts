@@ -94,58 +94,72 @@ export const operatorSchema = z.object({
  * Order creation schema
  * -------------------------------------------------------------------------- */
 
-export const orderSchema = z.object({
-  type: z.nativeEnum(OplOrderType),
-  operator: optionalInputString(z.string().max(50).optional()),
+const orderSchemaBase = z.object({
+    type: z.nativeEnum(OplOrderType),
+    operator: optionalInputString(z.string().max(50).optional()),
 
-  serviceId: optionalInputString(
-    z.string().length(12, 'Id usługi musi mieć dokładnie 12 znaków').optional()
-  ),
+    serviceId: optionalInputString(
+      z
+        .string()
+        .length(12, 'Id usługi musi mieć dokładnie 12 znaków')
+        .optional()
+    ),
 
-  network: z.nativeEnum(OplNetworkOeprator).default('ORANGE'),
-  orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),
-  date: z.string().min(1, 'Data jest wymagana'),
+    network: z.nativeEnum(OplNetworkOeprator).default('ORANGE'),
+    orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),
+    date: z.string().min(1, 'Data jest wymagana'),
 
-  clientPhoneNumber: optionalInputString(
-    z
-      .string()
-      .min(7, 'Numer telefonu musi mieć min. 7 znaków')
-      .max(20, 'Numer telefonu jest za długi')
-      .refine((val) => /^(\+48)?\d{9}$/.test(val), {
-        message: 'Nieprawidłowy numer telefonu',
-      })
-      .optional()
-  ),
+    clientPhoneNumber: optionalInputString(
+      z
+        .string()
+        .min(7, 'Numer telefonu musi mieć min. 7 znaków')
+        .max(20, 'Numer telefonu jest za długi')
+        .refine((val) => /^(\+48)?\d{9}$/.test(val), {
+          message: 'Nieprawidłowy numer telefonu',
+        })
+        .optional()
+    ),
 
-  timeSlot: z.nativeEnum(OplTimeSlot),
-  city: z.string().min(2, 'Miasto jest wymagane'),
-  street: z.string().min(3, 'Adres jest wymagany'),
+    timeSlot: z.nativeEnum(OplTimeSlot),
+    city: z.string().min(2, 'Miasto jest wymagane'),
+    street: z.string().min(3, 'Adres jest wymagany'),
 
-  postalCode: optionalInputString(
-    z.string().max(6, 'Kod pocztowy jest za długi').optional()
-  ),
+    postalCode: optionalInputString(
+      z.string().max(6, 'Kod pocztowy jest za długi').optional()
+    ),
 
-  assignedTechnicianIds: z
-    .array(z.string())
-    .min(1, 'Wybierz przynajmniej jednego technika')
-    .max(2, 'Można przypisać maksymalnie dwóch techników'),
+    assignedTechnicianIds: z
+      .array(z.string())
+      .min(1, 'Wybierz przynajmniej jednego technika')
+      .max(2, 'Można przypisać maksymalnie dwóch techników'),
 
-  standard: z.nativeEnum(OplOrderStandard).optional(),
-  notes: optionalInputString(z.string().optional()),
-  contractRequired: z.boolean().optional(),
+    standard: z.nativeEnum(OplOrderStandard).optional(),
+    notes: optionalInputString(z.string().optional()),
+    contractRequired: z.boolean().optional(),
 
-  equipmentRequirements: z
-    .array(
-      z.object({
-        deviceDefinitionId: z.string(),
-        quantity: z.coerce.number().min(1),
-      })
-    )
-    .optional(),
+    equipmentRequirements: z
+      .array(
+        z.object({
+          deviceDefinitionId: z.string(),
+          quantity: z.coerce.number().min(1),
+        })
+      )
+      .optional(),
 
-  status: z.nativeEnum(OplOrderStatus),
+    status: z.nativeEnum(OplOrderStatus),
 })
-export const technicianOrderSchema = orderSchema.omit({
+
+export const orderSchema = orderSchemaBase
+  .superRefine((data, ctx) => {
+    if (data.type === OplOrderType.INSTALLATION && !data.standard) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['standard'],
+        message: 'Standard zlecenia jest wymagany dla instalacji',
+      })
+    }
+  })
+export const technicianOrderSchema = orderSchemaBase.omit({
   postalCode: true,
   assignedTechnicianIds: true,
 })
