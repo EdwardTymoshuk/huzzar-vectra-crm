@@ -278,7 +278,7 @@ const OplSerialScanInput = ({
             className="[text-transform:uppercase]"
           />
 
-          {isTechnician && (
+          {(isTechnician || isAdmin || isCoordinator) && (
             <InputGroupButton onClick={() => setScannerOpen(true)}>
               <ScanLine className="h-4 w-4" />
             </InputGroupButton>

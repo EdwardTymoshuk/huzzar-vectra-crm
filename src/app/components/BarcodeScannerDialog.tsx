@@ -8,7 +8,8 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { BrowserMultiFormatReader } from '@zxing/browser'
-import { useEffect, useRef } from 'react'
+import { ScanLine, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 interface Props {
   open: boolean
@@ -25,28 +26,60 @@ interface Props {
 const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
+  const lastEmitRef = useRef<{ value: string; ts: number } | null>(null)
+  const [detectedCodes, setDetectedCodes] = useState<string[]>([])
+  const [selectedCode, setSelectedCode] = useState<string>('')
 
   useEffect(() => {
-    if (!open || !videoRef.current) return
+    if (!open) return
 
-    const reader = new BrowserMultiFormatReader()
-    readerRef.current = reader
+    // Reset session state on open.
+    setDetectedCodes([])
+    setSelectedCode('')
+    lastEmitRef.current = null
+  }, [open])
 
-    reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-      if (!result) return
-
-      playBeep()
-      vibrate()
-
-      onScan(result.getText())
+  useEffect(() => {
+    if (!open) {
       stopCamera()
-      onClose()
-    })
-
-    return () => {
-      stopCamera()
+      return
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    const start = async () => {
+      if (!videoRef.current) return
+
+      const reader = new BrowserMultiFormatReader()
+      readerRef.current = reader
+
+      reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+        if (!result) return
+
+        const code = result.getText().trim()
+        if (!code) return
+
+        // Debounce very fast repeats from same frame.
+        const now = Date.now()
+        if (
+          lastEmitRef.current &&
+          lastEmitRef.current.value === code &&
+          now - lastEmitRef.current.ts < 900
+        ) {
+          return
+        }
+        lastEmitRef.current = { value: code, ts: now }
+
+        setDetectedCodes((prev) => {
+          if (prev.includes(code)) return prev
+          playBeep()
+          vibrate()
+          return [code, ...prev].slice(0, 12)
+        })
+        setSelectedCode((prev) => prev || code)
+      })
+    }
+    void start()
+
+    return () => stopCamera()
   }, [open])
 
   /**
@@ -109,21 +142,120 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
     }
   }
 
+  const hasCodes = detectedCodes.length > 0
+  const canApply = Boolean(selectedCode)
+  const selectedLabel = useMemo(
+    () => detectedCodes.find((code) => code === selectedCode) ?? selectedCode,
+    [detectedCodes, selectedCode]
+  )
+
+  const handleApply = () => {
+    if (!selectedCode) return
+    onScan(selectedCode)
+    onClose()
+  }
+
+  const handleDeleteCode = (code: string) => {
+    setDetectedCodes((prev) => prev.filter((value) => value !== code))
+    setSelectedCode((prev) => (prev === code ? '' : prev))
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="p-0 overflow-hidden">
+      <DialogContent className="p-0 overflow-hidden max-w-md">
         <DialogHeader className="px-4 pt-4">
           <DialogTitle>Skanuj kod</DialogTitle>
         </DialogHeader>
 
-        <video
-          ref={videoRef}
-          className="w-full h-[320px] object-cover bg-black"
-          playsInline
-        />
+        <div className="px-4">
+          <div className="relative overflow-hidden rounded-md border border-border">
+            <video
+              ref={videoRef}
+              className="w-full h-[300px] object-cover bg-black"
+              playsInline
+            />
 
-        <div className="p-4">
-          <Button variant="outline" className="w-full" onClick={onClose}>
+            {/* Center guide line */}
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2">
+              <div className="h-[2px] bg-primary/85 shadow-[0_0_10px_hsl(var(--primary))]" />
+            </div>
+
+            {/* Subtle frame */}
+            <div className="pointer-events-none absolute inset-3 border border-primary/40 rounded-md" />
+          </div>
+        </div>
+
+        <div className="px-4 pb-4 space-y-3">
+          <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground mb-2">
+              Wykryte kody ({detectedCodes.length})
+            </p>
+
+            {hasCodes ? (
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                {detectedCodes.map((code) => {
+                  const active = selectedCode === code
+                  return (
+                    <div
+                      key={code}
+                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+                        active
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border bg-background'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="flex-1 text-left text-sm font-mono truncate"
+                        onClick={() => setSelectedCode(code)}
+                        title={code}
+                      >
+                        {code}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-danger hover:text-danger"
+                        onClick={() => handleDeleteCode(code)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Zeskanuj kod i wybierz właściwy z listy.
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDetectedCodes([])
+                setSelectedCode('')
+              }}
+              disabled={!hasCodes}
+            >
+              Wyczyść listę
+            </Button>
+            <Button
+              type="button"
+              onClick={handleApply}
+              disabled={!canApply}
+              title={selectedLabel}
+            >
+              Wybierz kod
+            </Button>
+          </div>
+
+          <Button variant="outline" className="w-full gap-2" onClick={onClose}>
+            <ScanLine className="h-4 w-4" />
             Anuluj
           </Button>
         </div>

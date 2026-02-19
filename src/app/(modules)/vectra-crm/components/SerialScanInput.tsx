@@ -383,7 +383,7 @@ const SerialScanInput = ({
               autoFocus
             />
 
-            {isTechnician && (
+            {(isTechnician || isAdmin || isCoordinator) && (
               <InputGroupButton
                 type="button"
                 onClick={() => setScannerOpen(true)}
@@ -424,7 +424,7 @@ const SerialScanInput = ({
               autoFocus
             />
 
-            {isTechnician && (
+            {(isTechnician || isAdmin || isCoordinator) && (
               <InputGroupButton
                 type="button"
                 onClick={() => setScannerOpen(true)}
