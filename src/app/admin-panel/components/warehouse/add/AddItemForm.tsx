@@ -96,6 +96,14 @@ const AddItemForm = ({
       }
 
       if (inWarehouse) {
+        if (inWarehouse.status === 'RETURNED_TO_OPERATOR') {
+          onAddItem(data)
+          toast.success('Dodano do listy.')
+          form.reset({ ...data, serialNumber: '' })
+          setTimeout(() => serialInputRef.current?.focus(), 50)
+          return
+        }
+
         if (inWarehouse.status === 'AVAILABLE') {
           return toast.error('Urządzenie już znajduje się w magazynie.')
         }
