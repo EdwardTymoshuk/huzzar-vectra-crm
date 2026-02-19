@@ -225,6 +225,105 @@ export const metricsRouter = router({
         }))
     }),
 
+  /** Completed installations/services/outages by month (all-time trend + monthly success rate). */
+  getCompletedMonthlyVolumeAllTime: adminOrCoord.query(async ({ ctx }) => {
+    const rows = await ctx.prisma.vectraOrder.findMany({
+      where: {
+        status: {
+          in: [VectraOrderStatus.COMPLETED, VectraOrderStatus.NOT_COMPLETED],
+        },
+        type: {
+          in: [
+            VectraOrderType.INSTALLATION,
+            VectraOrderType.SERVICE,
+            VectraOrderType.OUTAGE,
+          ],
+        },
+      },
+      select: {
+        date: true,
+        type: true,
+        status: true,
+      },
+      orderBy: { date: 'asc' },
+    })
+
+    const grouped = new Map<
+      string,
+      {
+        installations: number
+        services: number
+        outages: number
+        total: number
+        installationsBase: number
+        servicesBase: number
+        outagesBase: number
+      }
+    >()
+
+    for (const row of rows) {
+      const monthKey = `${row.date.getFullYear()}-${String(
+        row.date.getMonth() + 1
+      ).padStart(2, '0')}`
+
+      const current = grouped.get(monthKey) ?? {
+        installations: 0,
+        services: 0,
+        outages: 0,
+        total: 0,
+        installationsBase: 0,
+        servicesBase: 0,
+        outagesBase: 0,
+      }
+
+      if (row.type === VectraOrderType.INSTALLATION) {
+        current.installationsBase += 1
+        if (row.status === VectraOrderStatus.COMPLETED) {
+          current.installations += 1
+          current.total += 1
+        }
+      }
+
+      if (row.type === VectraOrderType.SERVICE) {
+        current.servicesBase += 1
+        if (row.status === VectraOrderStatus.COMPLETED) {
+          current.services += 1
+          current.total += 1
+        }
+      }
+
+      if (row.type === VectraOrderType.OUTAGE) {
+        current.outagesBase += 1
+        if (row.status === VectraOrderStatus.COMPLETED) {
+          current.outages += 1
+          current.total += 1
+        }
+      }
+
+      grouped.set(monthKey, current)
+    }
+
+    return Array.from(grouped.entries()).map(([month, values]) => ({
+      month,
+      installations: values.installations,
+      services: values.services,
+      outages: values.outages,
+      total: values.total,
+      installationsSuccessRate:
+        values.installationsBase > 0
+          ? Math.round((values.installations / values.installationsBase) * 100)
+          : 0,
+      servicesSuccessRate:
+        values.servicesBase > 0
+          ? Math.round((values.services / values.servicesBase) * 100)
+          : 0,
+      outagesSuccessRate:
+        values.outagesBase > 0
+          ? Math.round((values.outages / values.outagesBase) * 100)
+          : 0,
+    }))
+  }),
+
   /** Aggregated order stats for a given period */
   getOrderStats: adminOrCoord
     .input(

@@ -242,6 +242,81 @@ export const metricsRouter = router({
         }))
     }),
 
+  /** Completed installations/services by month (all-time trend + monthly success rate). */
+  getCompletedMonthlyVolumeAllTime: adminOrCoord.query(async ({ ctx }) => {
+    const rows = await ctx.prisma.oplOrder.findMany({
+      where: {
+        status: {
+          in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+        },
+        type: { in: [OplOrderType.INSTALLATION, OplOrderType.SERVICE] },
+      },
+      select: {
+        date: true,
+        type: true,
+        status: true,
+      },
+      orderBy: { date: 'asc' },
+    })
+
+    const grouped = new Map<
+      string,
+      {
+        installations: number
+        services: number
+        total: number
+        installationsBase: number
+        servicesBase: number
+      }
+    >()
+
+    for (const row of rows) {
+      const monthKey = `${row.date.getFullYear()}-${String(
+        row.date.getMonth() + 1
+      ).padStart(2, '0')}`
+
+      const current = grouped.get(monthKey) ?? {
+        installations: 0,
+        services: 0,
+        total: 0,
+        installationsBase: 0,
+        servicesBase: 0,
+      }
+
+      if (row.type === OplOrderType.INSTALLATION) {
+        current.installationsBase += 1
+        if (row.status === OplOrderStatus.COMPLETED) {
+          current.installations += 1
+          current.total += 1
+        }
+      }
+      if (row.type === OplOrderType.SERVICE) {
+        current.servicesBase += 1
+        if (row.status === OplOrderStatus.COMPLETED) {
+          current.services += 1
+          current.total += 1
+        }
+      }
+
+      grouped.set(monthKey, current)
+    }
+
+    return Array.from(grouped.entries()).map(([month, values]) => ({
+      month,
+      installations: values.installations,
+      services: values.services,
+      total: values.total,
+      installationsSuccessRate:
+        values.installationsBase > 0
+          ? Math.round((values.installations / values.installationsBase) * 100)
+          : 0,
+      servicesSuccessRate:
+        values.servicesBase > 0
+          ? Math.round((values.services / values.servicesBase) * 100)
+          : 0,
+    }))
+  }),
+
   /** Aggregated order stats for a given period */
   getOrderStats: adminOrCoord
     .input(

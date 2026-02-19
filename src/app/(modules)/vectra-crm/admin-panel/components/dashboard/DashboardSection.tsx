@@ -1,6 +1,7 @@
 'use client'
 
 import { VectraOrderType } from '@prisma/client'
+import CompletedMonthlyTypeChart from './CompletedMonthlyTypeChart'
 import OrderStatsSection from './OrderStatsSection'
 import TechnicianEfficiencyTable from './TechnicianEfficiencyTable'
 
@@ -27,6 +28,9 @@ const DashboardSection = ({ label, date, range, orderType }: Props) => {
 
       {/* PieChart + KPIs */}
       <OrderStatsSection date={date} range={range} orderType={orderType} />
+
+      {/* Monthly volume + success trend (all-time) */}
+      <CompletedMonthlyTypeChart orderType={orderType} />
 
       {/* Ranking */}
       <TechnicianEfficiencyTable

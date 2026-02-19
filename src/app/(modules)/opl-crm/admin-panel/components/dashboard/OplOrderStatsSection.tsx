@@ -3,51 +3,40 @@
 import { Badge } from '@/app/components/ui/badge'
 import { Card } from '@/app/components/ui/card'
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { buildDateParam } from '@/utils/dates/buildDateParam'
+import { resolveDateRange } from '@/utils/dates/resolveDateRange'
+import { trpc } from '@/utils/trpc'
+import { OplOrderType } from '@prisma/client'
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
-import { buildDateParam } from '@/utils/dates/buildDateParam'
-import { resolveDateRange } from '@/utils/dates/resolveDateRange'
-import { trpc } from '@/utils/trpc'
-import { VectraOrderType } from '@prisma/client'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
-import { useState } from 'react'
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
-import SuccessChart from './SuccessChart'
-import InProgressOrdersDialog from './src/app/admin-panel/components/dashboard/InProgressOrdersDialog'
+import OplInProgressOrdersDialog from './OplInProgressOrdersDialog'
+import OplSuccessChart from './OplSuccessChart'
 
 type Props = {
   date: Date | undefined
   range: 'day' | 'month' | 'year'
-  orderType: VectraOrderType
+  orderType: OplOrderType
 }
 
 const COLORS = ['#16a34a', '#dc2626']
 
-/**
- * OrderStatsSection
- * ------------------------------------------------------------------
- * Renders:
- *  - Pie chart (completed vs failed)
- *  - KPI cards (received, completed, failed)
- *  - Success chart on the right side
- */
-const OrderStatsSection = ({ date, range, orderType }: Props) => {
+const OplOrderStatsSection = ({ date, range, orderType }: Props) => {
   const [openDialog, setOpenDialog] = useState(false)
-
   const dateParam = buildDateParam(date, range)
   const { dateFrom, dateTo } = resolveDateRange(date, range)
 
-  const { data, isLoading, isError } = trpc.vectra.order.getOrderStats.useQuery(
-    {
-      date: dateParam,
-      range,
-      orderType,
-    }
-  )
+  const { data, isLoading, isError } = trpc.opl.order.getOrderStats.useQuery({
+    date: dateParam,
+    range,
+    orderType,
+  })
 
   const formatChange = (val: number) => {
     const Icon = val >= 0 ? ArrowUpRight : ArrowDownRight
@@ -88,19 +77,15 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
     prevInProgress,
   } = data
 
-  const received = total
-  const successRate =
-    received > 0 ? Math.round((completed / received) * 100) : 0
-
+  const successRate = total > 0 ? Math.round((completed / total) * 100) : 0
   const variant =
     successRate >= 90
       ? 'success'
       : successRate >= 70
       ? 'warning'
       : 'destructive'
-  // Pie chart data with fallback (Recharts does not render all-zero pies)
-  const isAllZero = completed === 0 && failed === 0
 
+  const isAllZero = completed === 0 && failed === 0
   const pieData = isAllZero
     ? [
         { name: 'Wykonane', value: 1 },
@@ -111,17 +96,13 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
         { name: 'Niewykonane', value: failed },
       ]
 
-  // detect mobile screen
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 480
-
   const innerR = isMobile ? 40 : 70
   const outerR = isMobile ? 60 : 100
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 mb-4 h-auto">
-      {/* LEFT COLUMN: Pie + KPI cards */}
       <div className="flex w-full lg:w-1/3 gap-4 h-full">
-        {/* Pie chart */}
         <Card className="flex flex-col items-center justify-center w-full h-auto">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -147,33 +128,27 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
           </div>
         </Card>
 
-        {/* KPI cards */}
         <div className="flex flex-col gap-3 h-full">
-          {/* Received */}
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Otrzymane</p>
-            <p className="text-2xl font-bold">{received}</p>
-            {formatChange(percentDiff(received, prevTotal))}
+            <p className="text-2xl font-bold">{total}</p>
+            {formatChange(percentDiff(total, prevTotal))}
           </Card>
 
-          {/* Completed */}
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Wykonane</p>
             <p className="text-xl font-bold text-success">{completed}</p>
             {formatChange(percentDiff(completed, prevCompleted))}
           </Card>
 
-          {/* Failed */}
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Niewykonane</p>
             <p className="text-xl font-bold text-danger">{failed}</p>
             {formatChange(percentDiff(failed, prevFailed))}
           </Card>
 
-          {/* In Progress (ASSIGNED) */}
           <Card className="p-3 text-center">
             <p className="text-xs text-muted-foreground">W realizacji</p>
-
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -189,18 +164,16 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
             {formatChange(percentDiff(inProgress, prevInProgress))}
           </Card>
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Success chart */}
       <div className="w-full lg:w-2/3 h-auto">
-        <SuccessChart date={date} range={range} orderType={orderType} />
+        <OplSuccessChart date={date} range={range} orderType={orderType} />
       </div>
 
-      <InProgressOrdersDialog
+      <OplInProgressOrdersDialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
         dateFrom={dateFrom}
@@ -211,4 +184,4 @@ const OrderStatsSection = ({ date, range, orderType }: Props) => {
   )
 }
 
-export default OrderStatsSection
+export default OplOrderStatsSection

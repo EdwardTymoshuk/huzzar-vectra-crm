@@ -6,7 +6,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog'
-import OrderDetailsSheet from '@/app/(modules)/vectra-crm/components/orders/OrderDetailsSheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import {
   Table,
@@ -16,8 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/app/components/ui/table'
+import OplOrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import { trpc } from '@/utils/trpc'
-import { VectraOrderType } from '@prisma/client'
+import { OplOrderType } from '@prisma/client'
 import { useState } from 'react'
 
 type Props = {
@@ -25,16 +25,10 @@ type Props = {
   onClose: () => void
   dateFrom?: Date
   dateTo?: Date
-  orderType: VectraOrderType
+  orderType: OplOrderType
 }
 
-/**
- * InProgressOrdersDialog
- * --------------------------------------------------
- * Displays list of in-progress (ASSIGNED) orders
- * for given order type and date range.
- */
-const InProgressOrdersDialog = ({
+const OplInProgressOrdersDialog = ({
   open,
   onClose,
   dateFrom,
@@ -42,7 +36,7 @@ const InProgressOrdersDialog = ({
   orderType,
 }: Props) => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const { data, isLoading } = trpc.vectra.order.getAllInProgress.useQuery(
+  const { data, isLoading } = trpc.opl.order.getAllInProgress.useQuery(
     {
       dateFrom,
       dateTo,
@@ -55,7 +49,7 @@ const InProgressOrdersDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Zlecenia w realizacji</DialogTitle>
         </DialogHeader>
@@ -96,7 +90,9 @@ const InProgressOrdersDialog = ({
                       {o.city}, {o.street}
                     </TableCell>
                     <TableCell className="text-center text-primary">
-                      {o.assignedTo?.name ?? '-'}
+                      {o.technicians?.length
+                        ? o.technicians.map((t) => t.name).join(' / ')
+                        : '-'}
                     </TableCell>
                   </TableRow>
                 ))
@@ -106,7 +102,7 @@ const InProgressOrdersDialog = ({
         )}
       </DialogContent>
 
-      <OrderDetailsSheet
+      <OplOrderDetailsSheet
         orderId={selectedOrderId}
         open={Boolean(selectedOrderId)}
         onClose={() => setSelectedOrderId(null)}
@@ -115,4 +111,4 @@ const InProgressOrdersDialog = ({
   )
 }
 
-export default InProgressOrdersDialog
+export default OplInProgressOrdersDialog
