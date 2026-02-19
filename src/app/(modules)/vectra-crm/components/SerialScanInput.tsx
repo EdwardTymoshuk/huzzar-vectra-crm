@@ -11,9 +11,9 @@ import { VectraIssuedItemDevice } from '@/types/vectra-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { VectraDeviceCategory, VectraWarehouseStatus } from '@prisma/client'
-import { ScanLine } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useCallback, useMemo, useState } from 'react'
+import { MdQrCodeScanner } from 'react-icons/md'
 import { toast } from 'sonner'
 import BarcodeScannerDialog from '../../../components/BarcodeScannerDialog'
 
@@ -389,7 +389,7 @@ const SerialScanInput = ({
                 onClick={() => setScannerOpen(true)}
                 aria-label="Scan barcode"
               >
-                <ScanLine className="h-4 w-4" />
+                <MdQrCodeScanner className="h-4 w-4" />
               </InputGroupButton>
             )}
           </InputGroup>
@@ -430,7 +430,7 @@ const SerialScanInput = ({
                 onClick={() => setScannerOpen(true)}
                 aria-label="Scan barcode"
               >
-                <ScanLine className="h-4 w-4" />
+                <MdQrCodeScanner className="h-4 w-4" />
               </InputGroupButton>
             )}
           </InputGroup>

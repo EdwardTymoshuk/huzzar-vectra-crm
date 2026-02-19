@@ -8,8 +8,9 @@ import {
   DialogTitle,
 } from '@/app/components/ui/dialog'
 import { BrowserMultiFormatReader } from '@zxing/browser'
-import { ScanLine, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { MdDeleteOutline, MdQrCodeScanner } from 'react-icons/md'
+import { toast } from 'sonner'
 
 interface Props {
   open: boolean
@@ -25,6 +26,7 @@ interface Props {
  */
 const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
   const lastEmitRef = useRef<{ value: string; ts: number } | null>(null)
   const [detectedCodes, setDetectedCodes] = useState<string[]>([])
@@ -46,41 +48,48 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
     }
 
     const start = async () => {
-      if (!videoRef.current) return
+      if (!videoEl) return
 
       const reader = new BrowserMultiFormatReader()
       readerRef.current = reader
 
-      reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-        if (!result) return
+      try {
+        await reader.decodeFromVideoDevice(undefined, videoEl, (result) => {
+          if (!result) return
 
-        const code = result.getText().trim()
-        if (!code) return
+          const code = result.getText().trim()
+          if (!code) return
 
-        // Debounce very fast repeats from same frame.
-        const now = Date.now()
-        if (
-          lastEmitRef.current &&
-          lastEmitRef.current.value === code &&
-          now - lastEmitRef.current.ts < 900
-        ) {
-          return
-        }
-        lastEmitRef.current = { value: code, ts: now }
+          // Debounce very fast repeats from same frame.
+          const now = Date.now()
+          if (
+            lastEmitRef.current &&
+            lastEmitRef.current.value === code &&
+            now - lastEmitRef.current.ts < 900
+          ) {
+            return
+          }
+          lastEmitRef.current = { value: code, ts: now }
 
-        setDetectedCodes((prev) => {
-          if (prev.includes(code)) return prev
-          playBeep()
-          vibrate()
-          return [code, ...prev].slice(0, 12)
+          setDetectedCodes((prev) => {
+            if (prev.includes(code)) return prev
+            playBeep()
+            vibrate()
+            return [code, ...prev].slice(0, 12)
+          })
+          setSelectedCode((prev) => prev || code)
         })
-        setSelectedCode((prev) => prev || code)
-      })
+      } catch (error) {
+        console.error('Camera start failed:', error)
+        toast.error(
+          'Nie udało się uruchomić kamery. Sprawdź uprawnienia do aparatu.'
+        )
+      }
     }
     void start()
 
     return () => stopCamera()
-  }, [open])
+  }, [open, videoEl])
 
   /**
    * Stops all active video tracks to release camera properly.
@@ -170,9 +179,14 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
         <div className="px-4">
           <div className="relative overflow-hidden rounded-md border border-border">
             <video
-              ref={videoRef}
+              ref={(el) => {
+                videoRef.current = el
+                setVideoEl(el)
+              }}
               className="w-full h-[300px] object-cover bg-black"
               playsInline
+              autoPlay
+              muted
             />
 
             {/* Center guide line */}
@@ -219,7 +233,7 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
                         className="h-7 w-7 text-danger hover:text-danger"
                         onClick={() => handleDeleteCode(code)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <MdDeleteOutline className="h-4 w-4" />
                       </Button>
                     </div>
                   )
@@ -255,7 +269,7 @@ const BarcodeScannerDialog = ({ open, onScan, onClose }: Props) => {
           </div>
 
           <Button variant="outline" className="w-full gap-2" onClick={onClose}>
-            <ScanLine className="h-4 w-4" />
+            <MdQrCodeScanner className="h-4 w-4" />
             Anuluj
           </Button>
         </div>

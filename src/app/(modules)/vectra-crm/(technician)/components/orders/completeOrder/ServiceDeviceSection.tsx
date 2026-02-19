@@ -16,8 +16,8 @@ import {
   VectraDeviceSource,
   VectraServiceType,
 } from '@prisma/client'
-import { ScanLine } from 'lucide-react'
 import { useState } from 'react'
+import { MdQrCodeScanner } from 'react-icons/md'
 
 import BarcodeScannerDialog from '@/app/components/BarcodeScannerDialog'
 import {
@@ -164,7 +164,7 @@ const ServiceDeviceSection = ({
               size="sm"
               className="h-full"
             >
-              <ScanLine className="h-6 w-6" size={30} />
+              <MdQrCodeScanner className="h-6 w-6" />
             </InputGroupButton>
           </InputGroup>
         </div>

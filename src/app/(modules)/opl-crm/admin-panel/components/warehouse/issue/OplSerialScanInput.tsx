@@ -12,9 +12,9 @@ import { OplDeviceBasic, OplIssuedItemDevice } from '@/types/opl-crm'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplDeviceCategory, OplWarehouseStatus } from '@prisma/client'
-import { ScanLine } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useCallback, useMemo, useState } from 'react'
+import { MdQrCodeScanner } from 'react-icons/md'
 import { toast } from 'sonner'
 
 interface Props {
@@ -280,7 +280,7 @@ const OplSerialScanInput = ({
 
           {(isTechnician || isAdmin || isCoordinator) && (
             <InputGroupButton onClick={() => setScannerOpen(true)}>
-              <ScanLine className="h-4 w-4" />
+              <MdQrCodeScanner className="h-4 w-4" />
             </InputGroupButton>
           )}
         </InputGroup>
