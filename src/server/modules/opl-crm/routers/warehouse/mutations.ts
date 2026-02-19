@@ -53,12 +53,57 @@ export const mutationsRouter = router({
             })
           }
 
+          const normalizedSerial = item.serialNumber?.trim().toUpperCase()
+
+          if (normalizedSerial) {
+            const existingDevice = await prisma.oplWarehouse.findUnique({
+              where: { serialNumber: normalizedSerial },
+            })
+
+            if (existingDevice) {
+              if (existingDevice.status !== 'RETURNED_TO_OPERATOR') {
+                throw new TRPCError({
+                  code: 'BAD_REQUEST',
+                  message: `Urządzenie o numerze seryjnym ${normalizedSerial} już istnieje`,
+                })
+              }
+
+              await prisma.oplWarehouse.update({
+                where: { id: existingDevice.id },
+                data: {
+                  itemType: 'DEVICE',
+                  name: item.name,
+                  category: item.category ?? 'OTHER',
+                  quantity: 1,
+                  price: def.price,
+                  warningAlert: def.warningAlert,
+                  alarmAlert: def.alarmAlert,
+                  status: 'AVAILABLE',
+                  assignedToId: null,
+                  locationId: activeLocationId,
+                },
+              })
+
+              await prisma.oplWarehouseHistory.create({
+                data: {
+                  warehouseItemId: existingDevice.id,
+                  action: 'RECEIVED',
+                  performedById: userId,
+                  notes: input.notes || undefined,
+                  toLocationId: activeLocationId,
+                },
+              })
+
+              continue
+            }
+          }
+
           const created = await prisma.oplWarehouse.create({
             data: {
               itemType: 'DEVICE',
               name: item.name,
-              category: item.category,
-              serialNumber: item.serialNumber?.trim().toUpperCase(),
+              category: item.category ?? 'OTHER',
+              serialNumber: normalizedSerial,
               quantity: 1,
               price: def.price,
               warningAlert: def.warningAlert,
