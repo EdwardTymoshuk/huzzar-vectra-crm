@@ -1,7 +1,100 @@
+'use client'
+
+import DashboardHeaderBar from '@/app/(modules)/vectra-crm/admin-panel/components/dashboard/DashboardHeaderBar'
+import { buildDateParam } from '@/utils/dates/buildDateParam'
+import { trpc } from '@/utils/trpc'
+import { useState } from 'react'
+import { OplDashboardStatsSkeleton } from '../components/dashboard/OplDashboardStatsSkeleton'
+import { OplEarningsKpisSkeleton } from '../components/dashboard/OplEarningsKpisSkeleton'
+import OplTechActiveQueueKpis from '../components/dashboard/OplTechActiveQueueKpis'
+import OplTechEarningsKpis from '../components/dashboard/OplTechEarningsKpis'
+import OplTechOrderStatsSection from '../components/dashboard/OplTechOrderStatsSection'
+
 const OplDashboardPage = () => {
+  const [selectedDay, setSelectedDay] = useState<Date>(new Date())
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
+  const [selectedYear, setSelectedYear] = useState<Date>(new Date())
+  const [range, setRange] = useState<'day' | 'month' | 'year'>('month')
+
+  const getSelectedDate = (): Date | undefined => {
+    if (range === 'day') return selectedDay
+    if (range === 'month') return selectedMonth
+    return selectedYear
+  }
+
+  const selectedDate = getSelectedDate()
+  const dateParam = buildDateParam(selectedDate, range)
+
+  const techStats = trpc.opl.order.getTechOrderStats.useQuery({
+    date: dateParam,
+    range,
+  })
+
+  const successTrend = trpc.opl.order.getTechSuccessOverTime.useQuery({
+    date: selectedDate ?? new Date(),
+    range,
+  })
+
+  const earnings = trpc.opl.order.getTechEarningsKpis.useQuery({
+    date: dateParam,
+    range,
+  })
+
+  const goals = trpc.core.user.getGoals.useQuery()
+  const activeOrders = trpc.opl.order.getTechnicianActiveOrders.useQuery()
+
+  const handleChangeDate = (date: Date | undefined) => {
+    if (!date) return
+    if (range === 'day') setSelectedDay(date)
+    else if (range === 'month') setSelectedMonth(date)
+    else setSelectedYear(date)
+  }
+
+  const isLoading =
+    techStats.isLoading || successTrend.isLoading || earnings.isLoading
+  const hasAllData = !!techStats.data && !!successTrend.data && !!earnings.data
+  const isError =
+    techStats.isError ||
+    successTrend.isError ||
+    earnings.isError ||
+    goals.isError ||
+    activeOrders.isError
+
   return (
-    <div>
-      <h1>Opl crm dashboard</h1>
+    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
+      <DashboardHeaderBar
+        selectedDate={selectedDate}
+        onChangeDate={handleChangeDate}
+        range={range}
+        onChangeRange={setRange}
+      />
+
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        {isLoading || isError || !hasAllData ? (
+          <>
+            <OplDashboardStatsSkeleton />
+            <OplEarningsKpisSkeleton />
+          </>
+        ) : (
+          <>
+            <OplTechActiveQueueKpis activeOrders={activeOrders.data ?? []} />
+
+            <OplTechOrderStatsSection
+              date={selectedDate}
+              range={range}
+              data={techStats.data}
+              successData={successTrend.data ?? []}
+            />
+
+            <OplTechEarningsKpis
+              date={selectedDate}
+              range={range}
+              data={earnings.data}
+              goals={goals.data ?? null}
+            />
+          </>
+        )}
+      </div>
     </div>
   )
 }
