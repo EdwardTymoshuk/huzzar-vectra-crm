@@ -46,7 +46,7 @@ const ClientRoutingHandlerTechnician = ({
     )
 
   if (isWarehouseman) {
-    redirect('/admin-panel?tab=warehouse')
+    redirect('/opl-crm/admin-panel?tab=warehouse')
   }
 
   const getActiveKeyFromPathname = (pathname: string): string => {

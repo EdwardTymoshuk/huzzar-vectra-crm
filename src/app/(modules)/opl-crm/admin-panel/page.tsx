@@ -10,7 +10,7 @@ import { redirect } from 'next/navigation'
  * Redirects to the correct tab based on user role
  */
 const AdminPanelRootPage = () => {
-  const { isWarehouseman, isLoading } = useRole()
+  const { isWarehouseman, isTechnician, isLoading } = useRole()
 
   if (isLoading)
     return (
@@ -19,9 +19,10 @@ const AdminPanelRootPage = () => {
       </div>
     )
 
-  if (isWarehouseman) return redirect('/admin-panel?tab=warehouse')
+  if (isTechnician) return redirect('/opl-crm?tab=dashboard')
+  if (isWarehouseman) return redirect('/opl-crm/admin-panel?tab=warehouse')
 
-  return redirect('/admin-panel?tab=dashboard')
+  return redirect('/opl-crm/admin-panel?tab=dashboard')
 }
 
 export default AdminPanelRootPage

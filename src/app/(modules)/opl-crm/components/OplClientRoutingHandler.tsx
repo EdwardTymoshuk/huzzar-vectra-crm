@@ -39,7 +39,7 @@ const OplClientRoutingHandler = ({
 }) => {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { isWarehouseman, isLoading } = useRole()
+  const { isWarehouseman, isTechnician, isLoading } = useRole()
 
   if (isLoading) {
     return (
@@ -68,6 +68,10 @@ const OplClientRoutingHandler = ({
     '/warehouse/history',
     '/billing/technician/',
   ].some((sub) => pathname.includes(sub))
+
+  if (isTechnician) {
+    redirect('/opl-crm?tab=dashboard')
+  }
 
   if (isWarehouseman && !['orders', 'warehouse'].includes(activeTab)) {
     redirect('/opl-crm/admin-panel/warehouse')
