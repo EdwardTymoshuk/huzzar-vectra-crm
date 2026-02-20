@@ -78,13 +78,13 @@ const OplOrdersPage = () => {
       </PageControlBar>
 
       {/* Main table */}
-      <div className="flex-1 overflow-y-auto px-2 md:px-4">
+      <div className="flex-1 min-h-0 overflow-hidden px-2 md:px-4 flex flex-col">
         <Tabs
           value={ordersTab}
           onValueChange={(value) =>
             setOrdersTab(value as 'ALL' | 'INSTALLATION' | 'SERVICE')
           }
-          className="mb-4"
+          className="mb-4 shrink-0"
         >
           <TabsList className="mx-auto grid h-auto w-full max-w-2xl grid-cols-3 gap-1 p-1">
             <TabsTrigger value="ALL" className="w-full">
@@ -99,14 +99,16 @@ const OplOrdersPage = () => {
           </TabsList>
         </Tabs>
 
-        <OplOrdersTable
-          searchTerm={searchTerm}
-          statusFilter={statusFilter}
-          technicianFilter={technicianFilter}
-          orderTypeFilter={resolvedOrderTypeFilter}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-        />
+        <div className="flex-1 min-h-0">
+          <OplOrdersTable
+            searchTerm={searchTerm}
+            statusFilter={statusFilter}
+            technicianFilter={technicianFilter}
+            orderTypeFilter={resolvedOrderTypeFilter}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+          />
+        </div>
       </div>
 
       {/* Floating actions (below xl) */}

@@ -196,13 +196,13 @@ const OrdersTableInner = ({
 
   /* ---------------------------- Render ---------------------------- */
   return (
-    <div>
+    <div className="h-full min-h-0 flex flex-col">
       {/* Scroll wrapper */}
-      <div className="w-full overflow-x-auto uppercase">
-        <div className="w-full min-w-fit md:min-w-[1100px]">
+      <div className="w-full min-h-0 flex-1 overflow-x-auto uppercase">
+        <div className="w-full min-w-fit md:min-w-[1100px] h-full min-h-0 flex flex-col">
           {/* Header row */}
           <div
-            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-xs uppercase text-start font-semibold text-muted-foreground select-none`}
+            className={`${GRID} gap-2 px-4 py-2 border-b min-w-min text-xs uppercase text-start font-semibold text-muted-foreground select-none shrink-0 sticky top-0 z-20 bg-background`}
           >
             <span>Typ</span>
             <span
@@ -264,125 +264,127 @@ const OrdersTableInner = ({
             <span>Akcje</span>
           </div>
 
-          {/* Data states */}
-          {isLoading ? (
-            <div className="w-full py-10 flex items-center justify-center">
-              <LoaderSpinner />
-            </div>
-          ) : isError ? (
-            <p className="py-10 text-center text-danger">
-              Błąd ładowania danych.
-            </p>
-          ) : !orders.length ? (
-            <p className="py-10 text-center text-muted-foreground">
-              Brak zrealizowanych zleceń do wyświetlenia.
-            </p>
-          ) : (
-            <Accordion type="multiple">
-              {orders.map((o) => {
-                const open = openRowId === o.id
-                return (
-                  <AccordionItem key={o.id} value={o.id} className="min-w-fit">
-                    <AccordionTrigger
-                      className="text-xs font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
-                      asChild
-                    >
-                      <div
-                        onClick={() => setOpenRowId(open ? null : o.id)}
-                        className={`${GRID} w-full gap-2 items-center text-start`}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {/* Data states */}
+            {isLoading ? (
+              <div className="w-full py-10 flex items-center justify-center">
+                <LoaderSpinner />
+              </div>
+            ) : isError ? (
+              <p className="py-10 text-center text-danger">
+                Błąd ładowania danych.
+              </p>
+            ) : !orders.length ? (
+              <p className="py-10 text-center text-muted-foreground">
+                Brak zrealizowanych zleceń do wyświetlenia.
+              </p>
+            ) : (
+              <Accordion type="multiple">
+                {orders.map((o) => {
+                  const open = openRowId === o.id
+                  return (
+                    <AccordionItem key={o.id} value={o.id} className="min-w-fit">
+                      <AccordionTrigger
+                        className="text-xs font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
+                        asChild
                       >
-                        <span>
-                          {orderTypeMap[o.type]
-                            .trim()
-                            .split('')[0]
-                            .toUpperCase()}
-                        </span>
-                        <span>{new Date(o.date).toLocaleDateString()}</span>
-                        <span>
-                          {o.assignedTo ? o.assignedTo.user.name : '-'}
-                        </span>
-                        <span>{o.clientId}</span>
-                        <span
-                          className="min-w-0 whitespace-normal break-words"
-                          title={o.orderNumber}
+                        <div
+                          onClick={() => setOpenRowId(open ? null : o.id)}
+                          className={`${GRID} w-full gap-2 items-center text-start`}
                         >
-                          <Highlight
-                            searchWords={[searchTerm]}
-                            textToHighlight={o.orderNumber}
-                            autoEscape
-                          />
-                        </span>
-                        <span
-                          className="min-w-0 w-full whitespace-normal break-words"
-                          title={`${o.city}, ${o.street}`}
-                        >
-                          <Highlight
-                            searchWords={[searchTerm]}
-                            textToHighlight={`${o.city}, ${o.street}`}
-                            autoEscape
-                          />
-                        </span>
-                        <span>
-                          <OrderStatusBadge status={o.status} compact />
-                        </span>
-                        <span>
-                          {o.createdSource === 'PLANNER' ? (
-                            <span className="text-success font-semibold">
-                              P
-                            </span>
-                          ) : (
-                            <span className="text-warning font-semibold">
-                              R
-                            </span>
-                          )}
-                        </span>
+                          <span>
+                            {orderTypeMap[o.type]
+                              .trim()
+                              .split('')[0]
+                              .toUpperCase()}
+                          </span>
+                          <span>{new Date(o.date).toLocaleDateString()}</span>
+                          <span>
+                            {o.assignedTo ? o.assignedTo.user.name : '-'}
+                          </span>
+                          <span>{o.clientId}</span>
+                          <span
+                            className="min-w-0 whitespace-normal break-words"
+                            title={o.orderNumber}
+                          >
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={o.orderNumber}
+                              autoEscape
+                            />
+                          </span>
+                          <span
+                            className="min-w-0 w-full whitespace-normal break-words"
+                            title={`${o.city}, ${o.street}`}
+                          >
+                            <Highlight
+                              searchWords={[searchTerm]}
+                              textToHighlight={`${o.city}, ${o.street}`}
+                              autoEscape
+                            />
+                          </span>
+                          <span>
+                            <OrderStatusBadge status={o.status} compact />
+                          </span>
+                          <span>
+                            {o.createdSource === 'PLANNER' ? (
+                              <span className="text-success font-semibold">
+                                P
+                              </span>
+                            ) : (
+                              <span className="text-warning font-semibold">
+                                R
+                              </span>
+                            )}
+                          </span>
 
-                        {/* 🔹 Row actions */}
-                        <span className="text-right">
-                          {!readOnly && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="icon" variant="ghost">
-                                  <PiDotsThreeOutlineVerticalFill className="w-5 h-5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent className="bg-background">
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setEditingOrder(o)
-                                    setIsEditModalOpen(true)
-                                  }}
-                                >
-                                  <MdEdit className="mr-2 w-4 h-4 text-success" />
-                                  Edytuj
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setOrderToDelete(o)
-                                    setIsDeleteModalOpen(true)
-                                  }}
-                                  className="text-danger"
-                                >
-                                  <MdDelete className="mr-2 w-4 h-4 text-danger" />
-                                  Usuń
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </span>
-                      </div>
-                    </AccordionTrigger>
+                          {/* 🔹 Row actions */}
+                          <span className="text-right">
+                            {!readOnly && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="ghost">
+                                    <PiDotsThreeOutlineVerticalFill className="w-5 h-5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="bg-background">
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingOrder(o)
+                                      setIsEditModalOpen(true)
+                                    }}
+                                  >
+                                    <MdEdit className="mr-2 w-4 h-4 text-success" />
+                                    Edytuj
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setOrderToDelete(o)
+                                      setIsDeleteModalOpen(true)
+                                    }}
+                                    className="text-danger"
+                                  >
+                                    <MdDelete className="mr-2 w-4 h-4 text-danger" />
+                                    Usuń
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
 
-                    <AccordionContent className="bg-muted/40 px-4 py-3">
-                      <OrderAccordionDetails order={{ id: o.id }} />
-                    </AccordionContent>
-                  </AccordionItem>
-                )
-              })}
-            </Accordion>
-          )}
+                      <AccordionContent className="bg-muted/40 px-4 py-3">
+                        <OrderAccordionDetails order={{ id: o.id }} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  )
+                })}
+              </Accordion>
+            )}
+          </div>
         </div>
       </div>
 
