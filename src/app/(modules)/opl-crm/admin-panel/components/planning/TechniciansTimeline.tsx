@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { OplTechnicianAssignment } from '@/types/opl-crm'
 import { matchSearch } from '@/utils/searchUtils'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
@@ -27,7 +27,7 @@ type Props = {
 
 /** Timeline configuration constants */
 const HOUR_START = 8
-const HOUR_END = 21
+const HOUR_END = 20
 const HOURS = Array.from(
   { length: HOUR_END - HOUR_START + 1 },
   (_, i) => HOUR_START + i
@@ -143,10 +143,20 @@ const TechniciansTimeline = ({
 }: Props) => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   const LANE_HEIGHT = 30
   const LANE_GAP = 6
-  const HOUR_WIDTH = 75
+  const HOUR_WIDTH = isMobile ? 52 : 75
+  const TECH_COL_WIDTH = isMobile ? 124 : 200
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const apply = () => setIsMobile(media.matches)
+    apply()
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
+  }, [])
 
   /**
    * Utility: determines whether order should be locked from drag & unassign.
@@ -199,15 +209,17 @@ const TechniciansTimeline = ({
           <div
             className="relative"
             style={{
-              width: `${200 + HOURS.length * HOUR_WIDTH}px`,
-              minWidth: '100%',
+              width: `${TECH_COL_WIDTH + HOURS.length * HOUR_WIDTH}px`,
             }}
           >
             {/* ---------------------------------------------------
              * Fixed Header (hours) + Fixed Left Column (Technicians)
              * --------------------------------------------------- */}
             <div className="flex border-b font-medium text-xs sticky top-0 z-30 bg-muted items-center ">
-              <div className="w-[200px] flex-shrink-0 border-r py-2 my-auto text-center bg-muted sticky left-0 z-40">
+              <div
+                className="flex-shrink-0 border-r py-2 my-auto text-center bg-muted sticky left-0 z-40"
+                style={{ width: `${TECH_COL_WIDTH}px` }}
+              >
                 TECHNIK
               </div>
               <div
@@ -252,7 +264,7 @@ const TechniciansTimeline = ({
                           'bg-muted/70 ring-2 ring-secondary scale-y-105'
                       )}
                       style={{
-                        gridTemplateColumns: `200px repeat(${HOURS.length}, ${HOUR_WIDTH}px)`,
+                        gridTemplateColumns: `${TECH_COL_WIDTH}px repeat(${HOURS.length}, ${HOUR_WIDTH}px)`,
                         height: `${rowHeight}px`,
                         minHeight: `${rowHeight}px`,
                       }}
@@ -261,6 +273,7 @@ const TechniciansTimeline = ({
                       <div
                         className="border-r p-2 font-semibold flex text-xs items-start justify-start bg-muted sticky left-0 z-20 overflow-hidden"
                         title={tech.technicianName}
+                        style={{ width: `${TECH_COL_WIDTH}px` }}
                       >
                         {matchSearch(searchTerm, tech.technicianName) ? (
                           <span className="block w-full truncate leading-tight">
@@ -279,7 +292,10 @@ const TechniciansTimeline = ({
                       </div>
 
                       {/* Hour grid + draggable orders */}
-                      <div className="relative col-span-13 h-full">
+                      <div
+                        className="relative h-full"
+                        style={{ gridColumn: `2 / span ${HOURS.length}` }}
+                      >
                         {HOURS.map((_, i) => (
                           <div
                             key={i}

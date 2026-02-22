@@ -14,6 +14,9 @@ import { VectraWarehouseItemType } from '@prisma/client'
 interface Props {
   searchTerm: string
   categoryFilter: string | null
+  value?: 'devices' | 'materials'
+  onValueChange?: (value: 'devices' | 'materials') => void
+  hideTabsList?: boolean
 }
 
 /**
@@ -22,15 +25,30 @@ interface Props {
  * Shared between Admin/Coordinator and Technician views.
  * Automatically picks correct table based on user role.
  */
-const WarehouseTabs = ({ searchTerm, categoryFilter }: Props) => {
+const WarehouseTabs = ({
+  searchTerm,
+  categoryFilter,
+  value,
+  onValueChange,
+  hideTabsList = false,
+}: Props) => {
   const { isTechnician } = useRole()
 
   return (
-    <Tabs defaultValue="devices" className="w-full pb-4">
-      <TabsList className="w-full grid grid-cols-2 mb-2">
-        <TabsTrigger value="devices">Urządzenia</TabsTrigger>
-        <TabsTrigger value="materials">Materiały</TabsTrigger>
-      </TabsList>
+    <Tabs
+      value={value}
+      onValueChange={(next) =>
+        onValueChange?.(next as 'devices' | 'materials')
+      }
+      defaultValue={value ? undefined : 'devices'}
+      className="w-full pb-4"
+    >
+      {!hideTabsList && (
+        <TabsList className="w-full grid grid-cols-2 mb-2">
+          <TabsTrigger value="devices">Urządzenia</TabsTrigger>
+          <TabsTrigger value="materials">Materiały</TabsTrigger>
+        </TabsList>
+      )}
 
       <TabsContent value="devices">
         {isTechnician ? (

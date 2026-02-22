@@ -47,9 +47,30 @@ const OplTechnicianBillingPage = () => {
   }
 
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
-      <PageControlBar title="Moje rozliczenia" className="justify-between">
-        <div className="flex items-center gap-2 self-end">
+    <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
+      <PageControlBar
+        title="Moje rozliczenia"
+        centerContent={
+          <Tabs
+            value={ordersTab}
+            onValueChange={(value) =>
+              setOrdersTab(value as 'INSTALLATION' | 'SERVICE')
+            }
+            className="shrink-0"
+          >
+            <TabsList className="grid h-auto w-[280px] grid-cols-2 gap-1 p-1">
+              <TabsTrigger value="INSTALLATION" className="w-full">
+                Instalacje
+              </TabsTrigger>
+              <TabsTrigger value="SERVICE" className="w-full">
+                Serwisy
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+        enableHorizontalScroll
+      >
+        <div className="flex items-center justify-end min-w-[220px]">
           <MonthPicker
             selected={selectedMonth}
             onChange={(date) => date && setSelectedMonth(date)}
@@ -58,23 +79,6 @@ const OplTechnicianBillingPage = () => {
       </PageControlBar>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        <Tabs
-          value={ordersTab}
-          onValueChange={(value) =>
-            setOrdersTab(value as 'INSTALLATION' | 'SERVICE')
-          }
-          className="mb-4"
-        >
-          <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2 gap-1 p-1">
-            <TabsTrigger value="INSTALLATION" className="w-full">
-              Instalacje
-            </TabsTrigger>
-            <TabsTrigger value="SERVICE" className="w-full">
-              Serwisy
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <OplTechnicianMonthlyDetails
           technicianId={technicianId}
           selectedMonth={selectedMonth}

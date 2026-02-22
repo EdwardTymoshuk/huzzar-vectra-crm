@@ -56,9 +56,34 @@ const OplOrdersPage = () => {
   ) : null
 
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
+    <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
       {/* Header: now with xl-only actions */}
-      <PageControlBar title="Zlecenia" rightActions={headerActions}>
+      <PageControlBar
+        title="Zlecenia"
+        rightActions={headerActions}
+        centerContent={
+          <Tabs
+            value={ordersTab}
+            onValueChange={(value) =>
+              setOrdersTab(value as 'ALL' | 'INSTALLATION' | 'SERVICE')
+            }
+            className="shrink-0"
+          >
+            <TabsList className="grid h-auto grid-cols-3 gap-1 p-1 w-[360px]">
+              <TabsTrigger value="ALL" className="w-full">
+                Wszystkie
+              </TabsTrigger>
+              <TabsTrigger value="INSTALLATION" className="w-full">
+                Instalacje
+              </TabsTrigger>
+              <TabsTrigger value="SERVICE" className="w-full">
+                Serwisy
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+        enableHorizontalScroll
+      >
         <div className="flex flex-row items-center justify-between gap-2 min-w-0">
           <OplOrdersFilter
             setStatusFilter={setStatusFilter}
@@ -79,26 +104,6 @@ const OplOrdersPage = () => {
 
       {/* Main table */}
       <div className="flex-1 min-h-0 overflow-hidden px-2 md:px-4 flex flex-col">
-        <Tabs
-          value={ordersTab}
-          onValueChange={(value) =>
-            setOrdersTab(value as 'ALL' | 'INSTALLATION' | 'SERVICE')
-          }
-          className="mb-4 shrink-0"
-        >
-          <TabsList className="mx-auto grid h-auto w-full max-w-2xl grid-cols-3 gap-1 p-1">
-            <TabsTrigger value="ALL" className="w-full">
-              Wszystkie
-            </TabsTrigger>
-            <TabsTrigger value="INSTALLATION" className="w-full">
-              Instalacje
-            </TabsTrigger>
-            <TabsTrigger value="SERVICE" className="w-full">
-              Serwisy
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <div className="flex-1 min-h-0">
           <OplOrdersTable
             searchTerm={searchTerm}

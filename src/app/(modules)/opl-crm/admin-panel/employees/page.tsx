@@ -21,32 +21,40 @@ import EmployeesTable from '../components/employees/OplEmployeesTable'
  */
 const OplEmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
+  const [employeesTab, setEmployeesTab] = useState<
+    'active' | 'blocked' | 'archived'
+  >('active')
 
   const { isWarehouseman, isLoading } = useRole()
   if (isLoading) return null
   if (isWarehouseman) return <UnauthorizedPage />
 
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
+    <div className="flex flex-col w-full flex-1 min-h-0 pb-2 overflow-hidden">
       {/* Header */}
-      <EmployeesHeaderBar searchTerm={searchTerm} onSearch={setSearchTerm} />
+      <EmployeesHeaderBar
+        searchTerm={searchTerm}
+        onSearch={setSearchTerm}
+        centerContent={
+          <Tabs
+            value={employeesTab}
+            onValueChange={(value) =>
+              setEmployeesTab(value as 'active' | 'blocked' | 'archived')
+            }
+            className="shrink-0"
+          >
+            <TabsList className="grid h-auto grid-cols-3 gap-1 p-1 w-[360px]">
+              <TabsTrigger value="active">Aktywni</TabsTrigger>
+              <TabsTrigger value="blocked">Zablokowani</TabsTrigger>
+              <TabsTrigger value="archived">Zarchiwizowani</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+      />
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-2 md:px-4">
-        <Tabs defaultValue="active" className="w-full mt-2">
-          <div className="w-full flex justify-center mb-2">
-            <TabsList className="w-full md:w-2/3 lg:w-1/3 justify-center">
-              <TabsTrigger value="active" className="w-full">
-                Aktywni
-              </TabsTrigger>
-              <TabsTrigger value="blocked" className="w-full">
-                Zablokowani
-              </TabsTrigger>
-              <TabsTrigger value="archived" className="w-full">
-                Zarchiwizowani
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        <Tabs value={employeesTab} className="w-full mt-2">
 
           <TabsContent value="active" className="space-y-2">
             <EmployeesTable searchTerm={searchTerm} status="ACTIVE" />

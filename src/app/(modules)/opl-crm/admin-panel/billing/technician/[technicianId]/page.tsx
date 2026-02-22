@@ -39,7 +39,7 @@ const OplTechnicianBillingDetailsPage = ({
   }, [from, to, technicianId, router])
 
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
+    <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
       <header
         className={cn(
           'flex items-center justify-between w-full border-b bg-background py-2 gap-2 mb-2'

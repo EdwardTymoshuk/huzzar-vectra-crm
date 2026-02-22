@@ -31,7 +31,7 @@ const OplDashboardPage = () => {
   }
 
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] overflow-hidden">
+    <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
       <DashboardHeaderBar
         selectedDate={getSelectedDate()}
         onChangeDate={handleChangeDate}

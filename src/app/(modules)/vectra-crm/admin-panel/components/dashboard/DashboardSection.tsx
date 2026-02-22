@@ -24,7 +24,9 @@ type Props = {
 const DashboardSection = ({ label, date, range, orderType }: Props) => {
   return (
     <section className="mt-2">
-      <h2 className="text-lg font-semibold mb-3 text-primary">{label}</h2>
+      <h2 className="text-lg font-semibold mb-3 text-secondary dark:text-primary">
+        {label}
+      </h2>
 
       {/* PieChart + KPIs */}
       <OrderStatsSection date={date} range={range} orderType={orderType} />

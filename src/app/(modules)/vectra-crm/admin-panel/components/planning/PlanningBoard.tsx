@@ -128,16 +128,16 @@ const PlanningBoard = () => {
 
       <DragDropContext onDragEnd={handleDragEnd} enableDefaultSensors>
         {/* 🔹 Top section: schedule + map */}
-        <div className="flex flex-col md:flex-row flex-[7] h-[70%] min-h-[70%] overflow-hidden gap-4 w-full">
+        <div className="flex flex-col md:flex-row flex-[7] min-h-0 md:h-[70%] md:min-h-[70%] overflow-hidden gap-4 w-full">
           {/* Schedule (left panel) */}
-          <section className="flex flex-col flex-shrink-0 md:max-w-[70%] w-full md:w-auto overflow-hidden">
-            <div className="flex-1 overflow-y-auto px-2">
+          <section className="flex flex-col flex-1 min-h-0 min-w-0 flex-shrink-0 w-full md:flex-none md:max-w-[70%] md:w-auto overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto px-2">
               <TechniciansList setProcessing={setProcessing} />
             </div>
           </section>
 
-          {/* Map (right panel, fills remaining space) */}
-          <section className="flex flex-1 overflow-hidden">
+          {/* Map (desktop only; mobile focuses on timeline/list usability) */}
+          <section className="hidden md:flex md:flex-1 overflow-hidden">
             <div className="flex-1 relative overflow-hidden rounded-lg border">
               <MapView
                 mapKey={`planning-map-${selectedDate.toISOString()}-${
@@ -150,8 +150,8 @@ const PlanningBoard = () => {
         </div>
 
         {/* 🔹 Bottom section: unassigned orders */}
-        <section className="flex flex-col flex-[3] h-[30%] min-h-[30%] overflow-hidden">
-          <div className="flex-1 max-h-full overflow-y-auto pb-2">
+        <section className="flex flex-col flex-[3] min-h-0 md:h-[30%] md:min-h-[30%] overflow-hidden">
+          <div className="flex-1 min-h-0 max-h-full overflow-y-auto pb-2">
             <OrdersList />
           </div>
         </section>

@@ -18,6 +18,7 @@ import {
 import { MdAdd, MdDescription, MdHistory } from 'react-icons/md'
 import { PiUserListFill } from 'react-icons/pi'
 import { TbListSearch } from 'react-icons/tb'
+import { ReactNode } from 'react'
 import WarehouseFilter from './WarehouseFilter'
 
 interface WarehouseHeaderBarProps {
@@ -34,6 +35,7 @@ interface WarehouseHeaderBarProps {
   onTransfer: () => void
   onHistory: () => void
   onReports: () => void
+  centerContent?: ReactNode
 }
 
 /**
@@ -56,6 +58,7 @@ const WarehouseHeaderBar = ({
   onTransfer,
   onHistory,
   onReports,
+  centerContent,
 }: WarehouseHeaderBarProps) => {
   const rightActions = (
     <div className="hidden xl:flex items-center gap-2">
@@ -140,14 +143,19 @@ const WarehouseHeaderBar = ({
   )
 
   return (
-    <PageControlBar title="Magazyn" rightActions={rightActions}>
-      <div className="flex items-center justify-between md:justify-end gap-2 w-full">
+    <PageControlBar
+      title="Magazyn"
+      rightActions={rightActions}
+      centerContent={centerContent}
+      enableHorizontalScroll
+    >
+      <div className="flex items-center justify-between md:justify-end gap-2 w-full min-w-[340px]">
         <WarehouseFilter setCategoryFilter={setCategoryFilter} />
         <SearchInput
           placeholder="Szukaj urządzenia lub materiału..."
           value={searchTerm}
           onChange={setSearchTerm}
-          className="max-w-60"
+          className="max-w-60 min-w-[220px]"
         />
       </div>
     </PageControlBar>

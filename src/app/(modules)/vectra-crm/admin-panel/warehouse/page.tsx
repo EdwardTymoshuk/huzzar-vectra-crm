@@ -1,6 +1,7 @@
 'use client'
 
 import WarehouseTabs from '@/app/(modules)/vectra-crm/components/warehouse/WarehouseTabs'
+import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { VECTRA_PATH } from '@/lib/constants'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -21,6 +22,9 @@ import LocationTransfersTable from '../components/warehouse/warehouseLocalizatio
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [warehouseTab, setWarehouseTab] = useState<'devices' | 'materials'>(
+    'devices',
+  )
 
   const [isAddOpen, setAddOpen] = useState(false)
   const [isImportOpen, setImportOpen] = useState(false)
@@ -34,12 +38,26 @@ const WarehousePage = () => {
   const router = useRouter()
 
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
+    <div className="flex flex-col w-full flex-1 min-h-0 pb-2 overflow-hidden">
       {/* Header */}
       <WarehouseHeaderBar
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         setCategoryFilter={setCategoryFilter}
+        centerContent={
+          <Tabs
+            value={warehouseTab}
+            onValueChange={(value) =>
+              setWarehouseTab(value as 'devices' | 'materials')
+            }
+            className="shrink-0"
+          >
+            <TabsList className="grid h-auto grid-cols-2 gap-1 p-1 w-[260px]">
+              <TabsTrigger value="devices">Urządzenia</TabsTrigger>
+              <TabsTrigger value="materials">Materiały</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
         onAddManual={() => setAddOpen(true)}
         onImportExcel={() => setImportOpen(true)}
         onIssue={() => setIssueOpen(true)}
@@ -62,6 +80,9 @@ const WarehousePage = () => {
         <WarehouseTabs
           searchTerm={searchTerm}
           categoryFilter={categoryFilter}
+          value={warehouseTab}
+          onValueChange={setWarehouseTab}
+          hideTabsList
         />
 
         {/* FAB only for < xl */}

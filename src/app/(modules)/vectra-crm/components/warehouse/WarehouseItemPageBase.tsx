@@ -82,7 +82,7 @@ const WarehouseItemPageBase = ({
 
   // ------------------ Render -----------------------
   return (
-    <div className="flex flex-col w-full h-[calc(100dvh-143px)] md:h-[calc(100dvh-80px)] pb-2 overflow-hidden">
+    <div className="flex flex-col w-full flex-1 min-h-0 pb-2 overflow-hidden">
       <WarehouseItemHeaderBar title={title} />
 
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
