@@ -346,7 +346,15 @@ export const queriesRouter = router({
         : new Date()
 
       const techs = await ctx.prisma.user.findMany({
-        where: { role: 'TECHNICIAN' },
+        where: {
+          role: 'TECHNICIAN',
+          status: 'ACTIVE',
+          modules: {
+            some: {
+              module: { code: 'VECTRA' },
+            },
+          },
+        },
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
       })

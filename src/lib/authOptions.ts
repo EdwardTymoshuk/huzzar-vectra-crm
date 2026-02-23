@@ -38,6 +38,9 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) throw new Error('Użytkownik nie istnieje')
+        if (user.status !== 'ACTIVE') {
+          throw new Error('Konto użytkownika jest nieaktywne')
+        }
 
         const locations =
           user.role === 'ADMIN' || user.role === 'COORDINATOR'
@@ -129,6 +132,11 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    // Shorter rolling session for operational accounts (tech/admin panels).
+    maxAge: 60 * 60 * 12, // 12h
+    updateAge: 60 * 30, // refresh token claims every 30 min
+  },
   secret: process.env.NEXTAUTH_SECRET,
 }

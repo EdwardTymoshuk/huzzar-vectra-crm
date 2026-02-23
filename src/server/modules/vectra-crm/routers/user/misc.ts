@@ -144,6 +144,7 @@ export const miscUserRouter = router({
           active: true,
           user: {
             role: 'TECHNICIAN',
+            status: 'ACTIVE',
             name: {
               contains: cleaned,
               mode: 'insensitive',

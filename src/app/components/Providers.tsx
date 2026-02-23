@@ -7,6 +7,7 @@ import { ReactNode, useState } from 'react'
 import { SearchProvider } from '../context/SearchContext'
 import ClientToaster from './ClientToaster'
 import Noop from './Noop'
+import SessionExpiryToastWatcher from './SessionExpiryToastWatcher'
 import { ThemeProvider } from './ThemeProvider'
 
 const Providers = ({ children }: { children: ReactNode }) => {
@@ -17,7 +18,10 @@ const Providers = ({ children }: { children: ReactNode }) => {
       <SessionProvider>
         <SearchProvider>
           <Noop>
-            <ThemeProvider>{children}</ThemeProvider>
+            <ThemeProvider>
+              <SessionExpiryToastWatcher />
+              {children}
+            </ThemeProvider>
           </Noop>
         </SearchProvider>
       </SessionProvider>
