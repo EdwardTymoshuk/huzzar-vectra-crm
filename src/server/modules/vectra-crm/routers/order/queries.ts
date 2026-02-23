@@ -706,9 +706,7 @@ export const queriesRouter = router({
             select: vectraUserSlimSelect,
           },
         },
-        orderBy: {
-          date: 'asc',
-        },
+        orderBy: [{ date: 'desc' }, { timeSlot: 'desc' }],
       })
 
       return orders.map((o) => ({

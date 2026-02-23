@@ -1056,9 +1056,7 @@ export const queriesRouter = router({
             },
           },
         },
-        orderBy: {
-          date: 'asc',
-        },
+        orderBy: [{ date: 'desc' }, { timeSlot: 'desc' }],
       })
 
       return orders.map((o) => ({
