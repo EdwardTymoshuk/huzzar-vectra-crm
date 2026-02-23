@@ -14,14 +14,11 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { VectraOrderStatus, VectraOrderType } from '@prisma/client'
 import { useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type Props = {
-  setStatusFilter: (status: VectraOrderStatus | null) => void
   setTechnicianFilter: (technician: string | null) => void
-  setOrderTypeFilter: (type: VectraOrderType | null) => void
 }
 
 /**
@@ -31,14 +28,10 @@ type Props = {
  * Automatically closes after selecting or clearing filters.
  */
 const OrdersFilter = ({
-  setStatusFilter,
   setTechnicianFilter,
-  setOrderTypeFilter,
 }: Props) => {
   const [open, setOpen] = useState(false)
-  const [statusValue, setStatusValue] = useState<string>('all')
   const [technicianValue, setTechnicianValue] = useState<string>('all')
-  const [typeValue, setTypeValue] = useState<string>('all')
 
   const { data: technicians } = trpc.vectra.user.getTechnicians.useQuery({
     status: 'ACTIVE',
@@ -52,12 +45,8 @@ const OrdersFilter = ({
 
   /** Clears filters and closes popover */
   const clearFilters = () => {
-    setStatusValue('all')
     setTechnicianValue('all')
-    setTypeValue('all')
-    setStatusFilter(null)
     setTechnicianFilter(null)
-    setOrderTypeFilter(null)
     setOpen(false)
   }
 
@@ -70,57 +59,6 @@ const OrdersFilter = ({
       </PopoverTrigger>
 
       <PopoverContent className="w-72 bg-background space-y-3 p-4">
-        {/* Order type */}
-        <div>
-          <p className="text-sm font-medium mb-1">Typ zlecenia</p>
-          <Select
-            value={typeValue}
-            onValueChange={(value) =>
-              handleChange(() => {
-                setTypeValue(value)
-                setOrderTypeFilter(
-                  value === 'all' ? null : (value as VectraOrderType)
-                )
-              })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Typ zlecenia" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="INSTALLATION">Instalacja</SelectItem>
-              <SelectItem value="SERVICE">Serwis</SelectItem>
-              <SelectItem value="OUTAGE">Awaria</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Status */}
-        <div>
-          <p className="text-sm font-medium mb-1">Status</p>
-          <Select
-            value={statusValue}
-            onValueChange={(value) =>
-              handleChange(() => {
-                setStatusValue(value)
-                setStatusFilter(
-                  value === 'all' ? null : (value as VectraOrderStatus)
-                )
-              })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Wybierz status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="COMPLETED">Wykonane</SelectItem>
-              <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Technician */}
         <div>
           <p className="text-sm font-medium mb-1">Technik</p>

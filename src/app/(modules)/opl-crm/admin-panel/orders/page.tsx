@@ -23,14 +23,10 @@ import OplOrdersTable from '../components/orders/OplOrdersTable'
  */
 const OplOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<OplOrderStatus | null>(null)
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null)
-  const [orderTypeFilter, setOrderTypeFilter] = useState<OplOrderType | null>(
-    null,
-  )
   const [ordersTab, setOrdersTab] = useState<
-    'ALL' | 'INSTALLATION' | 'SERVICE'
-  >('ALL')
+    'INSTALLATION' | 'SERVICE' | 'FAILED'
+  >('INSTALLATION')
   const [dateFrom, setDateFrom] = useState<string | null>(null)
   const [dateTo, setDateTo] = useState<string | null>(null)
 
@@ -39,11 +35,13 @@ const OplOrdersPage = () => {
   const { isAdmin, isCoordinator, isLoading } = useRole()
   const canManageOrders = !isLoading && (isAdmin || isCoordinator)
   const resolvedOrderTypeFilter =
-    ordersTab === 'ALL'
-      ? orderTypeFilter
+    ordersTab === 'FAILED'
+      ? null
       : ordersTab === 'INSTALLATION'
         ? OplOrderType.INSTALLATION
         : OplOrderType.SERVICE
+  const resolvedStatusFilter =
+    ordersTab === 'FAILED' ? OplOrderStatus.NOT_COMPLETED : OplOrderStatus.COMPLETED
 
   /** Header actions (visible only on xl screens) */
   const headerActions = canManageOrders ? (
@@ -65,19 +63,19 @@ const OplOrdersPage = () => {
           <Tabs
             value={ordersTab}
             onValueChange={(value) =>
-              setOrdersTab(value as 'ALL' | 'INSTALLATION' | 'SERVICE')
+              setOrdersTab(value as 'INSTALLATION' | 'SERVICE' | 'FAILED')
             }
             className="shrink-0"
           >
             <TabsList className="grid h-auto grid-cols-3 gap-1 p-1 w-[360px]">
-              <TabsTrigger value="ALL" className="w-full">
-                Wszystkie
-              </TabsTrigger>
               <TabsTrigger value="INSTALLATION" className="w-full">
                 Instalacje
               </TabsTrigger>
               <TabsTrigger value="SERVICE" className="w-full">
                 Serwisy
+              </TabsTrigger>
+              <TabsTrigger value="FAILED" className="w-full">
+                Nieskuteczne
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -86,9 +84,7 @@ const OplOrdersPage = () => {
       >
         <div className="flex flex-row items-center justify-between gap-2 min-w-0">
           <OplOrdersFilter
-            setStatusFilter={setStatusFilter}
             setTechnicianFilter={setTechnicianFilter}
-            setOrderTypeFilter={setOrderTypeFilter}
             setDateFrom={setDateFrom}
             setDateTo={setDateTo}
           />
@@ -107,7 +103,7 @@ const OplOrdersPage = () => {
         <div className="flex-1 min-h-0">
           <OplOrdersTable
             searchTerm={searchTerm}
-            statusFilter={statusFilter}
+            statusFilter={resolvedStatusFilter}
             technicianFilter={technicianFilter}
             orderTypeFilter={resolvedOrderTypeFilter}
             dateFrom={dateFrom}

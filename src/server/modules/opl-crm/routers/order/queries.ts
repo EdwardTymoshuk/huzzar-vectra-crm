@@ -707,6 +707,7 @@ export const queriesRouter = router({
         sortField: z.enum(['date', 'status']).optional(),
         sortOrder: z.enum(['asc', 'desc']).optional(),
         assignedToId: z.string().optional(),
+        assignedTechnicianIdsAll: z.array(z.string()).min(2).max(2).optional(),
         type: z.nativeEnum(OplOrderType).optional(),
         status: z.nativeEnum(OplOrderStatus).optional(),
         dateFrom: z.string().optional(),
@@ -721,7 +722,25 @@ export const queriesRouter = router({
         },
       }
 
-      if (input.assignedToId) {
+      if (input.assignedTechnicianIdsAll?.length === 2) {
+        const [t1, t2] = input.assignedTechnicianIdsAll
+        filters.AND = [
+          {
+            assignments: {
+              some: {
+                technicianId: t1,
+              },
+            },
+          },
+          {
+            assignments: {
+              some: {
+                technicianId: t2,
+              },
+            },
+          },
+        ]
+      } else if (input.assignedToId) {
         filters.assignments = {
           some: {
             technicianId: input.assignedToId,

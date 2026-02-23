@@ -137,13 +137,26 @@ const OplOrdersTableInner = ({
   /* ---------------------------- Data ------------------------------ */
   const debouncedSearch = useDebounce(searchTerm, 300)
   const itemsPerPage = 100 // ✅ fixed per page
+  const { data: teams = [] } = trpc.opl.user.getTeams.useQuery({ activeOnly: true })
+
+  const resolvedTeamPair = useMemo(() => {
+    if (!technicianFilter?.startsWith('team:')) return null
+    const teamId = technicianFilter.slice(5)
+    const team = teams.find((t) => t.id === teamId)
+    if (!team) return null
+    return [team.technician1Id, team.technician2Id] as [string, string]
+  }, [technicianFilter, teams])
 
   const { data, isLoading, isError } =
     trpc.opl.order.getRealizedOrders.useQuery({
       page: currentPage,
       limit: itemsPerPage,
       ...(sortField ? { sortField, sortOrder: sortOrder ?? 'asc' } : {}),
-      assignedToId: technicianFilter ?? undefined,
+      assignedToId:
+        technicianFilter && !technicianFilter.startsWith('team:')
+          ? technicianFilter
+          : undefined,
+      assignedTechnicianIdsAll: resolvedTeamPair ?? undefined,
       type: orderTypeFilter ?? undefined,
       status: statusFilter ?? undefined,
       dateFrom: dateFrom ?? undefined,

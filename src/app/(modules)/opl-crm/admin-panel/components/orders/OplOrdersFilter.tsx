@@ -15,15 +15,12 @@ import {
   SelectValue,
 } from '@/app/components/ui/select'
 import { trpc } from '@/utils/trpc'
-import { OplOrderStatus, OplOrderType } from '@prisma/client'
 import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
 import { MdFilterList } from 'react-icons/md'
 
 type Props = {
-  setStatusFilter: (status: OplOrderStatus | null) => void
-  setTechnicianFilter: (technician: string | null) => void
-  setOrderTypeFilter: (type: OplOrderType | null) => void
+  setTechnicianFilter: (technicianOrTeam: string | null) => void
   setDateFrom: (date: string | null) => void
   setDateTo: (date: string | null) => void
 }
@@ -35,16 +32,12 @@ type Props = {
  * Automatically closes after selecting or clearing filters.
  */
 const OplOrdersFilter = ({
-  setStatusFilter,
   setTechnicianFilter,
-  setOrderTypeFilter,
   setDateFrom,
   setDateTo,
 }: Props) => {
   const [open, setOpen] = useState(false)
-  const [statusValue, setStatusValue] = useState<string>('all')
   const [technicianValue, setTechnicianValue] = useState<string>('all')
-  const [typeValue, setTypeValue] = useState<string>('all')
   const [dateFromValue, setDateFromValue] = useState<Date | undefined>(
     undefined
   )
@@ -53,6 +46,7 @@ const OplOrdersFilter = ({
   const { data: technicians } = trpc.opl.user.getTechnicians.useQuery({
     status: 'ACTIVE',
   })
+  const { data: teams } = trpc.opl.user.getTeams.useQuery({ activeOnly: true })
 
   /** Helper: updates filter and closes popover */
   const handleChange = (fn: () => void) => {
@@ -62,14 +56,10 @@ const OplOrdersFilter = ({
 
   /** Clears filters and closes popover */
   const clearFilters = () => {
-    setStatusValue('all')
     setTechnicianValue('all')
-    setTypeValue('all')
     setDateFromValue(undefined)
     setDateToValue(undefined)
-    setStatusFilter(null)
     setTechnicianFilter(null)
-    setOrderTypeFilter(null)
     setDateFrom(null)
     setDateTo(null)
     setOpen(false)
@@ -105,60 +95,9 @@ const OplOrdersFilter = ({
       </PopoverTrigger>
 
       <PopoverContent className="w-72 bg-background space-y-3 p-4">
-        {/* Order type */}
+        {/* Technician / Team */}
         <div>
-          <p className="text-sm font-medium mb-1">Typ zlecenia</p>
-          <Select
-            value={typeValue}
-            onValueChange={(value) =>
-              handleChange(() => {
-                setTypeValue(value)
-                setOrderTypeFilter(
-                  value === 'all' ? null : (value as OplOrderType)
-                )
-              })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Typ zlecenia" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="INSTALLATION">Instalacja</SelectItem>
-              <SelectItem value="SERVICE">Serwis</SelectItem>
-              <SelectItem value="OUTAGE">Awaria</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Status */}
-        <div>
-          <p className="text-sm font-medium mb-1">Status</p>
-          <Select
-            value={statusValue}
-            onValueChange={(value) =>
-              handleChange(() => {
-                setStatusValue(value)
-                setStatusFilter(
-                  value === 'all' ? null : (value as OplOrderStatus)
-                )
-              })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Wybierz status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="COMPLETED">Wykonane</SelectItem>
-              <SelectItem value="NOT_COMPLETED">Niewykonane</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Technician */}
-        <div>
-          <p className="text-sm font-medium mb-1">Technik</p>
+          <p className="text-sm font-medium mb-1">Technik / Ekipa</p>
           <Select
             value={technicianValue}
             onValueChange={(value) =>
@@ -169,10 +108,19 @@ const OplOrdersFilter = ({
             }
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Wybierz technika" />
+              <SelectValue placeholder="Wybierz technika lub ekipę" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Wszyscy</SelectItem>
+              {!!teams?.length && (
+                <>
+                  {teams.map((team) => (
+                    <SelectItem key={`team-${team.id}`} value={`team:${team.id}`}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
               {technicians?.map((tech) => (
                 <SelectItem key={tech.id} value={tech.id}>
                   {tech.name}
