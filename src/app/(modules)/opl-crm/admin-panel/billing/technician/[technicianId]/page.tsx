@@ -2,10 +2,10 @@
 
 import OplTechnicianMonthlyDetails from '@/app/(modules)/opl-crm/components/billing/OplTechnicianMonthlyDetails'
 import MonthPicker from '@/app/components/MonthPicker'
+import PageControlBar from '@/app/components/PageControlBar'
 import { Button } from '@/app/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { OPL_PATH } from '@/lib/constants'
-import { cn } from '@/lib/utils'
 import { OplOrderType } from '@prisma/client'
 import { endOfMonth, format, startOfMonth } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -40,12 +40,9 @@ const OplTechnicianBillingDetailsPage = ({
 
   return (
     <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
-      <header
-        className={cn(
-          'flex items-center justify-between w-full border-b bg-background py-2 gap-2 mb-2'
-        )}
-      >
-        <div className="flex items-center gap-2">
+      <PageControlBar
+        title="Rozliczenie technika"
+        leftStart={
           <Button
             variant="ghost"
             size="sm"
@@ -55,37 +52,36 @@ const OplTechnicianBillingDetailsPage = ({
             <MdKeyboardArrowLeft className="w-5 h-5" />
             <span>Powrót</span>
           </Button>
-        </div>
-
-        <div className="flex items-center gap-3">
+        }
+        centerContent={
+          <Tabs
+            value={ordersTab}
+            onValueChange={(value) =>
+              setOrdersTab(value as 'INSTALLATION' | 'SERVICE')
+            }
+            className="shrink-0"
+          >
+            <TabsList className="grid h-auto w-[280px] grid-cols-2 gap-1 p-1">
+              <TabsTrigger value="INSTALLATION" className="w-full">
+                Instalacje
+              </TabsTrigger>
+              <TabsTrigger value="SERVICE" className="w-full">
+                Serwisy
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+        enableHorizontalScroll
+      >
+        <div className="flex items-center justify-end min-w-[220px]">
           <MonthPicker
             selected={selectedMonth}
             onChange={(date) => date && setSelectedMonth(date)}
           />
-          <h1 className="text-sm lg:text-lg font-semibold text-primary">
-            Rozliczenie technika
-          </h1>
         </div>
-      </header>
+      </PageControlBar>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        <Tabs
-          value={ordersTab}
-          onValueChange={(value) =>
-            setOrdersTab(value as 'INSTALLATION' | 'SERVICE')
-          }
-          className="mb-4"
-        >
-          <TabsList className="mx-auto grid h-auto w-full max-w-xl grid-cols-2 gap-1 p-1">
-            <TabsTrigger value="INSTALLATION" className="w-full">
-              Instalacje
-            </TabsTrigger>
-            <TabsTrigger value="SERVICE" className="w-full">
-              Serwisy
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <OplTechnicianMonthlyDetails
           technicianId={technicianId}
           selectedMonth={selectedMonth}

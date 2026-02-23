@@ -223,7 +223,7 @@ const PlanningBoard = () => {
         {/* 🔹 Top section: schedule + map */}
         <div className="flex flex-col md:flex-row flex-[7] min-h-0 md:h-[70%] md:min-h-[70%] overflow-hidden gap-4 w-full">
           {/* Schedule (left panel) */}
-          <section className="flex flex-col flex-1 min-h-0 min-w-0 flex-shrink-0 w-full md:flex-none md:max-w-[70%] md:w-auto overflow-hidden">
+          <section className="flex flex-col flex-1 min-h-0 min-w-0 flex-shrink-0 w-full md:flex-none md:w-auto overflow-hidden">
             <div className="flex-1 min-h-0 overflow-y-auto px-2">
               <TechniciansList
                 setProcessing={setProcessing}

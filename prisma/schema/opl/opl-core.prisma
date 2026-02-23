@@ -15,9 +15,35 @@ model OplUser {
   warehouseHistoryAssigned  OplWarehouseHistory[]          @relation("OplWHAssignedTo")
   warehouseHistoryPerformed OplWarehouseHistory[]          @relation("OplWHPerformedBy")
   addressNotesCreated       OplAddressNote[]               @relation("OplAddressNotesByUser")
+  primaryTeams             OplTeam[]                      @relation("OplTeamPrimaryTechnician")
+  secondaryTeams           OplTeam[]                      @relation("OplTeamSecondaryTechnician")
+  teamsCreated             OplTeam[]                      @relation("OplTeamCreatedBy")
 
   orderAssignments OplOrderAssignment[] @relation("OplOrderAssignmentsByTechnician")
 
+  @@schema("opl")
+}
+
+model OplTeam {
+  id String @id @default(uuid())
+
+  name   String?
+  active Boolean @default(true)
+
+  technician1Id String
+  technician2Id String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdById String?
+
+  technician1 OplUser  @relation("OplTeamPrimaryTechnician", fields: [technician1Id], references: [userId])
+  technician2 OplUser  @relation("OplTeamSecondaryTechnician", fields: [technician2Id], references: [userId])
+  createdBy   OplUser? @relation("OplTeamCreatedBy", fields: [createdById], references: [userId])
+
+  @@index([technician1Id])
+  @@index([technician2Id])
+  @@index([active])
   @@schema("opl")
 }
 

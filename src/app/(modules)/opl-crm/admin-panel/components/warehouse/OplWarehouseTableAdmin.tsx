@@ -79,6 +79,11 @@ const OplWarehouseTableAdmin = ({
       }
     )
 
+  const { data: deficitsSummary = [] } =
+    trpc.opl.warehouse.getMaterialDeficitsSummary.useQuery(undefined, {
+      enabled: itemType === 'MATERIAL',
+    })
+
   const searched = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     if (!data) return []
@@ -123,6 +128,20 @@ const OplWarehouseTableAdmin = ({
     const start = (currentPage - 1) * itemsPerPage
     return sorted.slice(start, start + itemsPerPage)
   }, [sorted, currentPage, itemsPerPage])
+
+  const surplusByMaterialName = useMemo(
+    () =>
+      new Map(
+        (deficitsSummary ?? []).map((d) => [d.materialName, d.quantity] as const)
+      ),
+    [deficitsSummary]
+  )
+
+  const hasAnyMaterialSurplus =
+    itemType === 'MATERIAL' &&
+    pageItems.some(
+      (item) => isMaterial(item) && (surplusByMaterialName.get(item.name) ?? 0) > 0
+    )
 
   const handleSort = (field: 'name' | 'category') => {
     if (sortField !== field) {
@@ -310,6 +329,7 @@ const OplWarehouseTableAdmin = ({
                 </div>
               </TableHead>
               <TableHead>Ilość dostępna</TableHead>
+              {hasAnyMaterialSurplus && <TableHead>Nadstan</TableHead>}
               <TableHead>Cena j.</TableHead>
               <TableHead>Wartość</TableHead>
               <TableHead />
@@ -318,7 +338,7 @@ const OplWarehouseTableAdmin = ({
           <TableBody>
             {pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={hasAnyMaterialSurplus ? 6 : 5}>
                   <p className="py-6 text-center text-muted-foreground">
                     Brak pozycji w tej kategorii.
                   </p>
@@ -347,6 +367,18 @@ const OplWarehouseTableAdmin = ({
                     <TableCell>
                       <Badge variant={variant}>{item.quantity}</Badge>
                     </TableCell>
+                    {hasAnyMaterialSurplus && (
+                      <TableCell>
+                        {(() => {
+                          const surplus = surplusByMaterialName.get(item.name) ?? 0
+                          return surplus > 0 ? (
+                            <Badge variant="destructive">{surplus}</Badge>
+                          ) : (
+                            '—'
+                          )
+                        })()}
+                      </TableCell>
+                    )}
                     <TableCell>{item.price.toFixed(2)} zł</TableCell>
                     <TableCell>{value.toFixed(2)} zł</TableCell>
                     <TableCell>

@@ -121,7 +121,7 @@ export const adminMenu: MenuItem[] = [
   },
   {
     key: 'employees',
-    name: 'Pracownicy',
+    name: 'Technicy',
     icon: MdPeopleAlt,
     href: '/admin-panel/employees',
   },

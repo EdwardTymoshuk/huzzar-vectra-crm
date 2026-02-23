@@ -3,6 +3,19 @@
 import { DbTx } from '@/types'
 import { OplMaterialUnit } from '@prisma/client'
 
+const buildRestoreToTechnicianNote = ({
+  orderNumber,
+  performerName,
+}: {
+  orderNumber?: string | null
+  performerName?: string | null
+}) =>
+  [
+    'Przywrócenie na stan technika z powodu edycji zakończonego zlecenia.',
+    `Zlecenie: ${orderNumber ?? '—'}.`,
+    `Wykonał: ${performerName ?? '—'}.`,
+  ].join(' ')
+
 export interface ReconcileMaterialInput {
   id: string
   quantity: number
@@ -44,6 +57,22 @@ export async function reconcileOrderMaterials({
   newMaterials: ReconcileMaterialInput[]
 }): Promise<{ warnings: string[] }> {
   const warnings: string[] = []
+
+  const [order, performer] = await Promise.all([
+    tx.oplOrder.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true },
+    }),
+    tx.oplUser.findUnique({
+      where: { userId: editorId },
+      select: { user: { select: { name: true } } },
+    }),
+  ])
+
+  const restoreNote = buildRestoreToTechnicianNote({
+    orderNumber: order?.orderNumber,
+    performerName: performer?.user?.name,
+  })
 
   if (!technicianId) {
     // Orders without technician assignment should not adjust material stock
@@ -118,6 +147,7 @@ export async function reconcileOrderMaterials({
             quantity: remainingToRestore,
             performedById: editorId,
             assignedOrderId: orderId,
+            notes: restoreNote,
             actionDate: new Date(),
           },
         })
@@ -140,6 +170,7 @@ export async function reconcileOrderMaterials({
           quantity: prev.quantity,
           performedById: editorId,
           assignedOrderId: orderId,
+          notes: restoreNote,
           actionDate: new Date(),
         },
       })

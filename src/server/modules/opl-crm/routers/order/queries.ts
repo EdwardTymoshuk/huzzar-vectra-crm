@@ -796,12 +796,9 @@ export const queriesRouter = router({
         status: {
           in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
         },
-        history: {
+        assignments: {
           some: {
-            changedById: technicianId,
-            statusAfter: {
-              in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
-            },
+            technicianId,
           },
         },
       }
@@ -1219,6 +1216,7 @@ export const queriesRouter = router({
         standard: true,
 
         assignments: {
+          orderBy: { assignedAt: 'asc' },
           select: {
             technician: {
               select: {

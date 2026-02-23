@@ -2,6 +2,19 @@
 
 import { DbTx } from '@/types'
 
+const buildRestoreToTechnicianNote = ({
+  orderNumber,
+  performerName,
+}: {
+  orderNumber?: string | null
+  performerName?: string | null
+}) =>
+  [
+    'Przywrócenie na stan technika z powodu edycji zakończonego zlecenia.',
+    `Zlecenie: ${orderNumber ?? '—'}.`,
+    `Wykonał: ${performerName ?? '—'}.`,
+  ].join(' ')
+
 export const validateDeviceUsage = async (
   tx: DbTx,
   params: {
@@ -68,6 +81,22 @@ export const removeDeviceFromOrder = async (
     performedById: string
   }
 ) => {
+  const [order, performer] = await Promise.all([
+    tx.oplOrder.findUnique({
+      where: { id: params.orderId },
+      select: { orderNumber: true },
+    }),
+    tx.oplUser.findUnique({
+      where: { userId: params.performedById },
+      select: { user: { select: { name: true } } },
+    }),
+  ])
+
+  const restoreNote = buildRestoreToTechnicianNote({
+    orderNumber: order?.orderNumber,
+    performerName: performer?.user?.name,
+  })
+
   const device = await tx.oplWarehouse.findUnique({
     where: { id: params.deviceId },
     select: {
@@ -90,6 +119,7 @@ export const removeDeviceFromOrder = async (
             action: 'RETURNED_TO_TECHNICIAN',
             assignedOrderId: params.orderId,
             performedById: params.performedById,
+            notes: restoreNote,
             actionDate: new Date(),
           },
         },

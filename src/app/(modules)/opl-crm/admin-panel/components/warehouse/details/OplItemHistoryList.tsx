@@ -60,7 +60,7 @@ const mapAction = (
     case 'RETURNED_TO_OPERATOR':
       return { label: 'Zwrot do operatora', variant: 'danger' }
     case 'RETURNED_TO_TECHNICIAN':
-      return { label: 'Zwrot do technika', variant: 'danger' }
+      return { label: 'Przywrócenie do technika', variant: 'danger' }
     case 'COLLECTED_FROM_CLIENT':
       return { label: 'Odbiór od klienta', variant: 'secondary' }
     default:

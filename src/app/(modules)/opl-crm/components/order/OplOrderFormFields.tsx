@@ -32,12 +32,13 @@ import { OplOrderStandard, OplOrderStatus } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { Minus, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Control, UseFormReturn } from 'react-hook-form'
 import {
   oplOrderStandardOptions,
   oplTimeSlotOptions,
 } from '../../lib/constants'
+import { getSuggestedOplTeamPartnerId } from '../../lib/teamSuggestions'
 
 /**
  * OplOrderFormFields – unified form fields component for both Admin and Technician views.
@@ -96,6 +97,22 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   const { data: technicians, isLoading: isTechLoading } = isAdmin
     ? trpc.opl.user.getTechnicians.useQuery({ status: 'ACTIVE' })
     : { data: [], isLoading: false }
+  const { data: oplTeams } = isAdmin
+    ? trpc.opl.user.getTeams.useQuery({ activeOnly: true })
+    : { data: [] }
+
+  const suggestedSecondTechnicianId = useMemo(
+    () =>
+      getSuggestedOplTeamPartnerId(
+        (oplTeams as Array<{
+          technician1Id: string
+          technician2Id: string
+          active?: boolean
+        }> | undefined) ?? [],
+        assignedTechnicianIds?.[0]
+      ),
+    [oplTeams, assignedTechnicianIds]
+  )
 
   useEffect(() => {
     if (!isAdmin) return
@@ -440,10 +457,27 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                   value={field.value}
                   onValueChange={(value) => {
                     field.onChange(value)
-                    setValue('assignedTechnicianIds', [value], {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
+                    const hasSecondTechnician = assignedTechnicianIds.length > 1
+                    const currentSecond = assignedTechnicianIds[1]
+                    const suggestedSecond = getSuggestedOplTeamPartnerId(
+                      (oplTeams as Array<{
+                        technician1Id: string
+                        technician2Id: string
+                        active?: boolean
+                      }> | undefined) ?? [],
+                      value
+                    )
+
+                    setValue(
+                      'assignedTechnicianIds',
+                      hasSecondTechnician
+                        ? [value, currentSecond || suggestedSecond || '']
+                        : [value],
+                      {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      }
+                    )
                   }}
                 >
                   <SelectTrigger>
@@ -486,7 +520,10 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                         if (e.target.checked) {
                           setValue(
                             'assignedTechnicianIds',
-                            [assignedTechnicianIds[0], ''],
+                            [
+                              assignedTechnicianIds[0],
+                              suggestedSecondTechnicianId ?? '',
+                            ],
                             { shouldDirty: true, shouldValidate: true }
                           )
                         } else {
@@ -541,6 +578,12 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                         ))}
                     </SelectContent>
                   </Select>
+
+                  {!field.value && suggestedSecondTechnicianId ? (
+                    <p className="text-xs text-muted-foreground">
+                      Podpowiedź drugiego technika uzupełniana jest automatycznie na podstawie ekipy.
+                    </p>
+                  ) : null}
 
                   <FormMessage />
                 </FormItem>

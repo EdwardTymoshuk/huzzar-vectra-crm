@@ -817,4 +817,27 @@ export const queriesRouter = router({
         },
       }))
     }),
+
+  /** 🔍 Global material deficits summary (sum by material across technicians) */
+  getMaterialDeficitsSummary: adminCoordOrWarehouse.query(async () => {
+    const rows = await prisma.oplTechnicianMaterialDeficit.groupBy({
+      by: ['materialDefinitionId'],
+      _sum: { quantity: true },
+    })
+    const ids = rows.map((r) => r.materialDefinitionId)
+    const defs =
+      ids.length > 0
+        ? await prisma.oplMaterialDefinition.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, name: true },
+          })
+        : []
+    const nameById = new Map(defs.map((d) => [d.id, d.name]))
+
+    return rows.map((r) => ({
+      materialDefinitionId: r.materialDefinitionId,
+      materialName: nameById.get(r.materialDefinitionId) ?? '',
+      quantity: r._sum.quantity ?? 0,
+    }))
+  }),
 })

@@ -55,6 +55,14 @@ const getOrderTotalAmount = (
 ): number =>
   entries.reduce((sum, entry) => sum + (entry.rate?.amount ?? 0) * entry.quantity, 0)
 
+const getTechnicianShareAmount = (
+  orderAmount: number,
+  effectiveTechnicianIds: string[]
+): number => {
+  const divisor = Math.max(1, effectiveTechnicianIds.length)
+  return orderAmount / divisor
+}
+
 export const reportsRouter = router({
   /** Monthly billing summary (codes × qty / amount per technician). */
   getBillingMonthlySummary: adminOrCoord
@@ -155,13 +163,18 @@ export const reportsRouter = router({
 
           const row = map[technicianId]
 
+          const orderAmount = getOrderTotalAmount(order.settlementEntries)
+          row.totalAmount += getTechnicianShareAmount(
+            orderAmount,
+            effectiveTechnicianIds
+          )
+
           for (const entry of order.settlementEntries) {
             const code = normalizeCode(entry.code)
             if (!code) continue
 
             allCodesSet.add(code)
             row.codes[code] = (row.codes[code] ?? 0) + entry.quantity
-            row.totalAmount += (entry.rate?.amount ?? 0) * entry.quantity
           }
         }
       }
@@ -269,6 +282,7 @@ export const reportsRouter = router({
               quantity: number
               rate: { amount: number } | null
             }>
+            technicianAmount: number
           }>
           amount: number
         }
@@ -303,11 +317,18 @@ export const reportsRouter = router({
           street: order.street,
           status: order.status,
           settlementEntries: order.settlementEntries,
+          technicianAmount: 0,
         })
 
         const orderAmount = getOrderTotalAmount(order.settlementEntries)
-        days[dayKey].amount += orderAmount
-        totalAmount += orderAmount
+        const technicianAmount = getTechnicianShareAmount(
+          orderAmount,
+          effectiveTechnicianIds
+        )
+        days[dayKey].amount += technicianAmount
+        totalAmount += technicianAmount
+        days[dayKey].orders[days[dayKey].orders.length - 1]!.technicianAmount =
+          technicianAmount
 
         for (const entry of order.settlementEntries) {
           const code = normalizeCode(entry.code)

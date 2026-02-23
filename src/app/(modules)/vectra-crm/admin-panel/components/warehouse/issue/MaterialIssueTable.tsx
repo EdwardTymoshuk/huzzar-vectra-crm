@@ -37,12 +37,6 @@ const MaterialIssueTable = ({
       activeLocationId ? { locationId: activeLocationId } : undefined
     )
 
-  const { data: deficits = [] } =
-    trpc.vectra.warehouse.getTechnicianDeficits.useQuery({ technicianId })
-  const getDeficit = (defId: string) => {
-    return deficits.find((d) => d.materialDefinitionId === defId)?.quantity ?? 0
-  }
-
   const materials = useMemo(() => {
     return (
       warehouseItems?.filter(
@@ -168,12 +162,6 @@ const MaterialIssueTable = ({
                 <Badge variant="outline" className="w-fit">
                   Technik: {technicianQuantity}
                 </Badge>
-
-                {getDeficit(item.materialDefinitionId!) > 0 && (
-                  <Badge variant="destructive" className="w-fit">
-                    Deficyt: {getDeficit(item.materialDefinitionId!)}
-                  </Badge>
-                )}
               </div>
             </span>
 

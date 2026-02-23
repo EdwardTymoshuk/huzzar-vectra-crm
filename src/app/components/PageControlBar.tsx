@@ -10,6 +10,7 @@ interface PageControlBarProps {
   children?: ReactNode
   centerContent?: ReactNode
   className?: string
+  leftStart?: ReactNode
   rightActions?: ReactNode
   enableHorizontalScroll?: boolean
 }
@@ -29,6 +30,7 @@ const PageControlBar = ({
   children,
   centerContent,
   className,
+  leftStart,
   rightActions,
   enableHorizontalScroll = false,
 }: PageControlBarProps) => {
@@ -95,11 +97,12 @@ const PageControlBar = ({
       )}
     >
       <div className="flex items-center gap-2 w-fit lg:w-auto shrink-0">
+        {leftStart && <div className="flex items-center gap-2">{leftStart}</div>}
         <h1 className="text-lg font-semibold text-secondary dark:text-primary whitespace-nowrap">
           {title}
         </h1>
 
-        <Separator orientation="vertical" />
+        {(leftStart || rightActions) && <Separator orientation="vertical" />}
 
         {rightActions && (
           <div className="hidden xl:flex items-center gap-2 ml-4">

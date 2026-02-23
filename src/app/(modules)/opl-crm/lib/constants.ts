@@ -130,7 +130,7 @@ export const oplWarehouseActionMap: Record<
   ISSUED_TO_CLIENT: { label: 'Wydanie klientowi', variant: 'warning' },
   ASSIGNED_TO_ORDER: { label: 'Przypisanie do zlecenia', variant: 'success' },
   RETURNED_TO_TECHNICIAN: {
-    label: 'Zwrot do technika',
+    label: 'Przywrócenie do technika',
     variant: 'danger',
   },
 }

@@ -11,6 +11,7 @@ import { useRole } from '@/utils/hooks/useRole'
 import { useState } from 'react'
 import EmployeesHeaderBar from '../components/employees/OplEmployeesHeaderBar'
 import EmployeesTable from '../components/employees/OplEmployeesTable'
+import OplTeamsTable from '../components/employees/OplTeamsTable'
 
 /**
  * OplEmployeesPage (Admin)
@@ -22,7 +23,7 @@ import EmployeesTable from '../components/employees/OplEmployeesTable'
 const OplEmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [employeesTab, setEmployeesTab] = useState<
-    'active' | 'blocked' | 'archived'
+    'active' | 'blocked' | 'archived' | 'teams'
   >('active')
 
   const { isWarehouseman, isLoading } = useRole()
@@ -39,14 +40,15 @@ const OplEmployeesPage = () => {
           <Tabs
             value={employeesTab}
             onValueChange={(value) =>
-              setEmployeesTab(value as 'active' | 'blocked' | 'archived')
+              setEmployeesTab(value as 'active' | 'blocked' | 'archived' | 'teams')
             }
             className="shrink-0"
           >
-            <TabsList className="grid h-auto grid-cols-3 gap-1 p-1 w-[360px]">
+            <TabsList className="grid h-auto grid-cols-4 gap-1 p-1 w-[480px]">
               <TabsTrigger value="active">Aktywni</TabsTrigger>
               <TabsTrigger value="blocked">Zablokowani</TabsTrigger>
               <TabsTrigger value="archived">Zarchiwizowani</TabsTrigger>
+              <TabsTrigger value="teams">Ekipy</TabsTrigger>
             </TabsList>
           </Tabs>
         }
@@ -66,6 +68,10 @@ const OplEmployeesPage = () => {
 
           <TabsContent value="archived" className="space-y-2">
             <EmployeesTable searchTerm={searchTerm} status="INACTIVE" />
+          </TabsContent>
+
+          <TabsContent value="teams" className="space-y-2">
+            <OplTeamsTable searchTerm={searchTerm} />
           </TabsContent>
         </Tabs>
       </div>

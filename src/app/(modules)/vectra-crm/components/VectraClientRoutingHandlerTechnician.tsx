@@ -10,6 +10,12 @@ import { redirect, usePathname, useSearchParams } from 'next/navigation'
 
 const module = platformModules.find((m) => m.code === 'VECTRA')!
 
+const normalizeTechnicianTab = (tab: string | null | undefined) => {
+  if (!tab) return tab
+  if (tab === 'planning' || tab === 'planner') return 'planer'
+  return tab
+}
+
 // Technician pages
 const pages: Record<string, React.ComponentType> = {
   dashboard: dynamic(
@@ -58,8 +64,8 @@ const VectraClientRoutingHandlerTechnician = ({
     return 'dashboard'
   }
 
-  const activeTab =
-    searchParams.get('tab') || getActiveKeyFromPathname(pathname)
+  const activeTab = normalizeTechnicianTab(searchParams.get('tab')) ||
+    getActiveKeyFromPathname(pathname)
 
   const isSubPage = [
     '/orders/details/',

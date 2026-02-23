@@ -71,6 +71,24 @@ const settleCodeMap: Record<string, string> = {
 const normalizeSettlementCode = (code: string): string =>
   settleCodeMap[code.trim().toUpperCase()] ?? code.trim().toUpperCase()
 
+const preserveValidatedTechnicianOrder = (
+  requestedIds: string[] | undefined,
+  validIds: string[]
+): string[] => {
+  if (!requestedIds?.length) return []
+  const validSet = new Set(validIds)
+  const seen = new Set<string>()
+  const ordered: string[] = []
+
+  for (const id of requestedIds) {
+    if (!id || seen.has(id) || !validSet.has(id)) continue
+    seen.add(id)
+    ordered.push(id)
+  }
+
+  return ordered
+}
+
 const createSettlementEntries = async ({
   tx,
   orderId,
@@ -344,6 +362,7 @@ export const mutationsRouter = router({
             /** -------------------------------------------------------
              * 3. Resolve technicians (0..N)
              * ------------------------------------------------------ */
+            const requestedTechnicianIds = o.assignedTechnicianIds ?? []
             const technicianIds =
               o.assignedTechnicianIds && o.assignedTechnicianIds.length > 0
                 ? (
@@ -354,11 +373,17 @@ export const mutationsRouter = router({
                       },
                       select: { id: true },
                     })
-                  ).map((t) => t.id)
+                  )
                 : []
+            const orderedTechnicianIds = Array.isArray(technicianIds)
+              ? preserveValidatedTechnicianOrder(
+                  requestedTechnicianIds,
+                  technicianIds.map((t) => t.id)
+                )
+              : []
 
             const status =
-              technicianIds.length > 0
+              orderedTechnicianIds.length > 0
                 ? OplOrderStatus.ASSIGNED
                 : OplOrderStatus.PENDING
 
@@ -401,9 +426,9 @@ export const mutationsRouter = router({
             /** -------------------------------------------------------
              * 5. Create technician assignments
              * ------------------------------------------------------ */
-            if (technicianIds.length > 0) {
+            if (orderedTechnicianIds.length > 0) {
               await tx.oplOrderAssignment.createMany({
-                data: technicianIds.map((technicianId, idx) => ({
+                data: orderedTechnicianIds.map((technicianId, idx) => ({
                   orderId: created.id,
                   technicianId,
                   assignedAt: new Date(Date.now() + idx),
@@ -561,7 +586,8 @@ export const mutationsRouter = router({
         previousOrderId = lastAttempt.id
       }
 
-      const technicianIds =
+      const requestedTechnicianIds = input.assignedTechnicianIds ?? []
+      const technicianUsers =
         input.assignedTechnicianIds && input.assignedTechnicianIds.length > 0
           ? (
               await prisma.user.findMany({
@@ -571,8 +597,12 @@ export const mutationsRouter = router({
                 },
                 select: { id: true },
               })
-            ).map((t) => t.id)
+            )
           : []
+      const technicianIds = preserveValidatedTechnicianOrder(
+        requestedTechnicianIds,
+        technicianUsers.map((t) => t.id)
+      )
 
       const status =
         technicianIds.length > 0
@@ -757,7 +787,8 @@ export const mutationsRouter = router({
           if (lng === undefined) lng = null
         }
 
-        const technicianIds =
+        const requestedTechnicianIds = input.assignedTechnicianIds ?? []
+        const technicianUsers =
           input.assignedTechnicianIds && input.assignedTechnicianIds.length > 0
             ? (
                 await prisma.user.findMany({
@@ -767,8 +798,12 @@ export const mutationsRouter = router({
                   },
                   select: { id: true },
                 })
-              ).map((t) => t.id)
+              )
             : []
+        const technicianIds = preserveValidatedTechnicianOrder(
+          requestedTechnicianIds,
+          technicianUsers.map((t) => t.id)
+        )
 
         const isFinalizedOrder =
           existing.status === OplOrderStatus.COMPLETED ||

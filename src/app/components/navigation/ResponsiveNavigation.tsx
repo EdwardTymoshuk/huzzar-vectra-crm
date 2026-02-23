@@ -29,8 +29,16 @@ const ResponsiveNavigation = ({
 
   const menuItems = isTechnician ? technicianMenu : adminMenu
 
+  const normalizeTabKey = (tab: string | null) => {
+    if (!tab) return tab
+    if (isTechnician && (tab === 'planning' || tab === 'planner')) {
+      return 'planer'
+    }
+    return tab
+  }
+
   const activeKey = useMemo(() => {
-    const tab = searchParams.get('tab')
+    const tab = normalizeTabKey(searchParams.get('tab'))
 
     /** Warehouseman always works in tab-based navigation */
     if (isWarehouseman) {
@@ -46,7 +54,7 @@ const ResponsiveNavigation = ({
     const match = menuItems.find((item) => pathname.includes(item.key))
 
     return match?.key ?? 'dashboard'
-  }, [pathname, searchParams, menuItems, isWarehouseman])
+  }, [pathname, searchParams, menuItems, isWarehouseman, isTechnician])
 
   const sharedProps = {
     menuItems,

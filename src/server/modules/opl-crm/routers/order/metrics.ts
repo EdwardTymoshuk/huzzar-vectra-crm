@@ -37,6 +37,51 @@ const getOrderTotalAmount = (
     0
   )
 
+const SOLO_TECHNICIAN_REGEX = /\[SOLO:([^\]]+)\]/i
+
+const parseSoloTechnicianId = (note?: string | null): string | null => {
+  if (!note) return null
+  const match = note.match(SOLO_TECHNICIAN_REGEX)
+  return match?.[1]?.trim() || null
+}
+
+const extractEffectiveTechnicianIds = ({
+  assignmentIds,
+  history,
+}: {
+  assignmentIds: string[]
+  history: Array<{
+    statusAfter: OplOrderStatus
+    notes: string | null
+    changeDate: Date
+  }>
+}): string[] => {
+  if (!assignmentIds.length) return []
+
+  const completionEvent = [...history]
+    .filter(
+      (entry) =>
+        entry.statusAfter === OplOrderStatus.COMPLETED ||
+        entry.statusAfter === OplOrderStatus.NOT_COMPLETED
+    )
+    .sort((a, b) => b.changeDate.getTime() - a.changeDate.getTime())[0]
+
+  const soloTechnicianId = parseSoloTechnicianId(completionEvent?.notes)
+  if (soloTechnicianId && assignmentIds.includes(soloTechnicianId)) {
+    return [soloTechnicianId]
+  }
+
+  return assignmentIds
+}
+
+const getTechnicianShareAmount = (
+  orderAmount: number,
+  effectiveTechnicianIds: string[]
+): number => {
+  const divisor = Math.max(1, effectiveTechnicianIds.length)
+  return orderAmount / divisor
+}
+
 export const metricsRouter = router({
   /**
    * getTechnicianEfficiency
@@ -556,21 +601,38 @@ export const metricsRouter = router({
           where: {
             date: { gte: start, lte: end },
             status: 'COMPLETED',
-            history: {
+            assignments: {
               some: {
-                changedById: technicianId,
-                statusAfter: OplOrderStatus.COMPLETED,
+                technicianId,
               },
             },
           },
           select: {
+            assignments: { select: { technicianId: true } },
+            history: {
+              where: {
+                statusAfter: {
+                  in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                },
+              },
+              select: { statusAfter: true, notes: true, changeDate: true },
+              orderBy: { changeDate: 'desc' },
+            },
             settlementEntries: { select: { quantity: true, rate: true } },
           },
         })
 
         let total = 0
         for (const o of orders) {
-          total += getOrderTotalAmount(o.settlementEntries)
+          const effectiveTechnicianIds = extractEffectiveTechnicianIds({
+            assignmentIds: o.assignments.map((a) => a.technicianId),
+            history: o.history,
+          })
+          if (!effectiveTechnicianIds.includes(technicianId)) continue
+          total += getTechnicianShareAmount(
+            getOrderTotalAmount(o.settlementEntries),
+            effectiveTechnicianIds
+          )
         }
 
         return Math.round(total * 100) / 100
@@ -614,17 +676,24 @@ export const metricsRouter = router({
           where: {
             date: { gte: start, lte: end },
             status: { in: ['COMPLETED', 'NOT_COMPLETED'] }, // only these affect success rate
-            history: {
+            assignments: {
               some: {
-                changedById: technicianId,
-                statusAfter: {
-                  in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
-                },
+                technicianId,
               },
             },
           },
           select: {
             status: true,
+            assignments: { select: { technicianId: true } },
+            history: {
+              where: {
+                statusAfter: {
+                  in: [OplOrderStatus.COMPLETED, OplOrderStatus.NOT_COMPLETED],
+                },
+              },
+              select: { statusAfter: true, notes: true, changeDate: true },
+              orderBy: { changeDate: 'desc' },
+            },
             // earnings come only from COMPLETED via settlementEntries
             settlementEntries: { select: { quantity: true, rate: true } },
           },
@@ -635,9 +704,20 @@ export const metricsRouter = router({
         let failed = 0
 
         for (const o of orders) {
+          const effectiveTechnicianIds = extractEffectiveTechnicianIds({
+            assignmentIds: o.assignments.map((a) => a.technicianId),
+            history: o.history,
+          })
+          if (!effectiveTechnicianIds.includes(technicianId)) {
+            continue
+          }
+
           if (o.status === 'COMPLETED') {
             completed++
-            amount += getOrderTotalAmount(o.settlementEntries)
+            amount += getTechnicianShareAmount(
+              getOrderTotalAmount(o.settlementEntries),
+              effectiveTechnicianIds
+            )
           } else if (o.status === 'NOT_COMPLETED') {
             failed++
           }

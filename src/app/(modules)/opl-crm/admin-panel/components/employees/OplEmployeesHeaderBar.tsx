@@ -24,12 +24,12 @@ const OplEmployeesHeaderBar = ({
 }: OplEmployeesHeaderBarProps) => {
   return (
     <PageControlBar
-      title="Pracownicy"
+      title="Technicy"
       centerContent={centerContent}
       enableHorizontalScroll
     >
       <SearchInput
-        placeholder="Szukaj pracownika"
+        placeholder="Szukaj technika"
         value={searchTerm}
         onChange={onSearch}
         className="w-56 md:w-64 min-w-[224px]"

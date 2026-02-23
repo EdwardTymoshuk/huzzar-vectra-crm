@@ -108,7 +108,7 @@ const OplHistoryTable = ({ entries }: Props) => {
                 case 'COLLECTED_FROM_CLIENT':
                   return { from: 'Klient', to: itemLoc }
                 case 'RECEIVED':
-                  return { from: '—', to: first.toLocation?.name ?? '—' }
+                  return { from: 'Dystrybutor', to: 'Magazyn' }
                 default:
                   return { from: '—', to: '—' }
               }

@@ -192,11 +192,6 @@ const OplTechnicianMonthlyDetails = ({
                   </TableHeader>
                   <TableBody>
                     {day.orders.map((order, index) => {
-                      const amount = order.settlementEntries.reduce(
-                        (sum, entry) => sum + (entry.rate?.amount ?? 0) * entry.quantity,
-                        0
-                      )
-
                       return (
                         <TableRow key={order.id}>
                           <TableCell>{index + 1}</TableCell>
@@ -223,7 +218,9 @@ const OplTechnicianMonthlyDetails = ({
                               </TableCell>
                             )
                           })}
-                          <TableCell>{amount.toFixed(2)} zł</TableCell>
+                          <TableCell>
+                            {(order.technicianAmount ?? 0).toFixed(2)} zł
+                          </TableCell>
                           <TableCell>
                             <Button
                               variant="outline"
