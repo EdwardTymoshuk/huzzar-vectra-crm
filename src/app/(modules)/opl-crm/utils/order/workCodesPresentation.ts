@@ -65,7 +65,9 @@ export const buildOrderedWorkCodes = (
   const existingDig = value.filter((v) => DIG_CODES.has(v.code))
   const derivedDig = Object.entries(
     digInput ? calculateDigAddons(digInput) : {}
-  ).map(([code, quantity]) => ({ code, quantity }))
+  )
+    .filter(([, quantity]) => (quantity ?? 0) > 0)
+    .map(([code, quantity]) => ({ code, quantity }))
 
   // Prefer derived DIG when DIG input is present; otherwise keep already selected DIG entries.
   const withDig = [
@@ -75,6 +77,7 @@ export const buildOrderedWorkCodes = (
 
   const merged = new Map<string, number>()
   for (const item of withDig) {
+    if ((item.quantity ?? 0) <= 0) continue
     merged.set(item.code, (merged.get(item.code) ?? 0) + (item.quantity || 0))
   }
 
@@ -86,6 +89,7 @@ export const buildOrderedWorkCodes = (
   }
 
   return Array.from(merged.entries())
+    .filter(([, quantity]) => quantity > 0)
     .map(([code, quantity]) => ({ code, quantity }))
     .sort((a, b) => {
       const bucketDiff = getBucket(a.code) - getBucket(b.code)

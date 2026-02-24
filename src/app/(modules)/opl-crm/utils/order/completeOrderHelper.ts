@@ -73,7 +73,10 @@ export const getPrimaryBaseCodes = (
   if (standard.startsWith('ZJN')) return ['ZJN', 'ZJDEW', 'W4', 'ZJD']
   if (standard.startsWith('ZJK')) return ['ZJK', 'ZJDEW', 'W4', 'ZJD']
 
-  if (/^W[1-6]$/.test(standard))
+  if (standard === 'W1' || standard === 'W2' || standard === 'W3')
+    return [standard as OplBaseWorkCode, 'W4', 'ZJD', 'ZJN']
+
+  if (/^W[4-6]$/.test(standard))
     return [standard as OplBaseWorkCode, 'ZJD', 'ZJDEW', 'ZJN']
 
   return ['DU', 'P1P', 'P2P', 'P3P']

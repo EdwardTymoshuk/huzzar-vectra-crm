@@ -139,6 +139,7 @@ const OplMaterialSelector = ({
     null,
   )
   const [quantityInput, setQuantityInput] = useState<string>('1')
+  const [quickQtyById, setQuickQtyById] = useState<Record<string, string>>({})
 
   const stockById = useMemo(() => {
     const map = new Map<string, number>()
@@ -269,6 +270,26 @@ const OplMaterialSelector = ({
     setSelected(selected.filter((m) => m.id !== id))
   }
 
+  const getQuickQty = (materialId: string): string => quickQtyById[materialId] ?? '1'
+
+  const setQuickQty = (materialId: string, raw: string) => {
+    if (raw === '') {
+      setQuickQtyById((prev) => ({ ...prev, [materialId]: '' }))
+      return
+    }
+
+    const digitsOnly = raw.replace(/[^\d]/g, '')
+    const normalized = digitsOnly.replace(/^0+(\d)/, '$1')
+    setQuickQtyById((prev) => ({ ...prev, [materialId]: normalized }))
+  }
+
+  const handleQuickAdd = (materialId: string) => {
+    const parsedQty = Number(getQuickQty(materialId))
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) return
+    addMaterial(materialId, parsedQty)
+    setQuickQtyById((prev) => ({ ...prev, [materialId]: '1' }))
+  }
+
   return (
     <div className="space-y-4">
       {priorityRows.length > 0 && (
@@ -308,9 +329,23 @@ const OplMaterialSelector = ({
                     ))}
                   </div>
                   {selectedQty <= 0 ? (
-                    <Button size="sm" onClick={() => addMaterial(row.id, 1)}>
-                      Dodaj
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        className="h-8 w-20"
+                        value={getQuickQty(row.id)}
+                        onChange={(e) => setQuickQty(row.id, e.target.value)}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleQuickAdd(row.id)}
+                        disabled={Number(getQuickQty(row.id)) <= 0}
+                      >
+                        Dodaj
+                      </Button>
+                    </div>
                   ) : (
                     <div className="flex items-center gap-1">
                       <Button

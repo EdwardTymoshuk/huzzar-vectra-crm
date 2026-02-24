@@ -72,8 +72,15 @@ const OplStepNotes = ({ orderId, orderType, onBack, onNext }: Props) => {
   const persistDrafts = () => {
     persistMeasurements()
     setNotes(orderNoteDraft.trim())
-    setAddressNoteText(addressNoteDraft.trim())
-    setAddressNoteScope(addressScopeDraft.trim())
+    if (state.addressNoteEnabled) {
+      setAddressNoteText(addressNoteDraft.trim())
+      setAddressNoteScope(addressScopeDraft.trim())
+      return
+    }
+
+    // When the switch is off, do not carry address-note data to summary/next step.
+    setAddressNoteText('')
+    setAddressNoteScope('')
   }
 
   const handleNext = async () => {

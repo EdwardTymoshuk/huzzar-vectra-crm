@@ -288,7 +288,7 @@ const OplStepSummary = ({
           </CardContent>
         </Card>
 
-        {state.addressNoteText && (
+        {state.addressNoteEnabled && state.addressNoteText && (
           <Card>
             <CardContent className="space-y-1 p-4 text-sm">
               <p className="font-semibold">Uwaga do adresu</p>
