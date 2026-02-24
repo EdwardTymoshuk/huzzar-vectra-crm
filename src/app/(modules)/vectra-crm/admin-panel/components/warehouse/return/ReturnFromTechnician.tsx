@@ -3,16 +3,20 @@
 import VectraTechnicianSelector from '@/app/(modules)/vectra-crm/components/VectraTechnicianSelector'
 import { sumTechnicianMaterialStock } from '@/app/(modules)/vectra-crm/lib/warehouse'
 import SearchInput from '@/app/components/SearchInput'
+import { devicesTypeMap } from '@/app/(modules)/vectra-crm/lib/constants'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select'
+import { Textarea } from '@/app/components/ui/textarea'
 import {
   VectraIssuedItemDevice,
   VectraIssuedItemMaterial,
@@ -22,9 +26,9 @@ import { trpc } from '@/utils/trpc'
 import { VectraWarehouseStatus } from '@prisma/client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Highlight from 'react-highlight-words'
+import { FaTrashAlt } from 'react-icons/fa'
 import { MdAdd } from 'react-icons/md'
 import { toast } from 'sonner'
-import WarehouseSelectedItemsPanel from '../../../../components/warehouse/WarehouseSelectedItemsPanel'
 
 type Props = {
   onClose: () => void
@@ -35,9 +39,6 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
 
   // State
   const [technicianId, setTechnicianId] = useState<string | null>(null)
-  const [returnType, setReturnType] = useState<'DEVICE' | 'MATERIAL' | null>(
-    null
-  )
   const [serial, setSerial] = useState('')
   const [search, setSearch] = useState('')
   const [expandedRows, setExpandedRows] = useState<string[]>([])
@@ -45,6 +46,7 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
     Record<string, number | undefined>
   >({})
   const [loading, setLoading] = useState(false)
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
   const [issuedDevices, setIssuedDevices] = useState<VectraIssuedItemDevice[]>(
     []
@@ -179,20 +181,11 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
   }
 
   // Remove item from return list
-  const handleRemoveItem = (index: number) => {
-    const all = [...issuedDevices, ...issuedMaterials]
-    const item = all[index]
-    if (item.type === 'DEVICE') {
-      setIssuedDevices((prev) => prev.filter((d) => d.id !== item.id))
-    } else {
-      setIssuedMaterials((prev) => prev.filter((m) => m.name !== item.name))
-    }
-  }
-
-  // Clear all return items
   const handleClearAll = () => {
     setIssuedDevices([])
     setIssuedMaterials([])
+    setNotes('')
+    setClearConfirmOpen(false)
   }
 
   // Validate and add device by serial number
@@ -281,151 +274,283 @@ const ReturnFromTechnician = ({ onClose }: Props) => {
         onChange={(tech) => {
           setTechnicianId(tech?.id ?? null)
           setSearch('')
-          setReturnType(null)
           setSerial('')
+          setIssuedDevices([])
+          setIssuedMaterials([])
+          setNotes('')
         }}
       />
 
-      {/* Type selector */}
       {technicianId && (
-        <Select
-          value={returnType ?? ''}
-          onValueChange={(val) => setReturnType(val as 'DEVICE' | 'MATERIAL')}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Co chcesz zwrócić?" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="DEVICE">Urządzenie</SelectItem>
-            <SelectItem value="MATERIAL">Materiał</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
+        <div className="grid h-full min-h-0 gap-4 grid-rows-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.6fr)_minmax(300px,0.6fr)]">
+          <section className="rounded-xl border p-4 overflow-y-auto">
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-base font-semibold">Urządzenia</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Wpisz lub zeskanuj numer seryjny urządzenia do zwrotu.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    ref={serialInputRef}
+                    placeholder="Wpisz lub zeskanuj numer seryjny urządzenia"
+                    value={serial}
+                    onChange={(e) => setSerial(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        validateAndAddDevice()
+                      }
+                    }}
+                  />
+                  <Button variant="secondary" onClick={validateAndAddDevice}>
+                    Dodaj
+                  </Button>
+                </div>
+              </div>
 
-      {/* Device return input */}
-      {technicianId && returnType === 'DEVICE' && (
-        <div className="flex gap-2">
-          <Input
-            placeholder="Wpisz lub zeskanuj numer seryjny urządzenia"
-            value={serial}
-            onChange={(e) => setSerial(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                validateAndAddDevice()
-              }
-            }}
-          />
-          <Button variant="secondary" onClick={validateAndAddDevice}>
-            Dodaj
-          </Button>
-        </div>
-      )}
+              <div className="border-t pt-4 space-y-3">
+                <div>
+                  <h3 className="text-base font-semibold">Materiały</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Wyszukaj materiał i dodaj ilość do zwrotu.
+                  </p>
+                </div>
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Szukaj materiał"
+                />
 
-      {/* Material return list */}
-      {technicianId && returnType === 'MATERIAL' && (
-        <div className="space-y-3">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Szukaj materiał"
-          />
+                {assignedMaterialNames.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Brak materiałów przypisanych do technika.
+                  </p>
+                ) : (
+                  assignedMaterialNames.map((materialName) => {
+                    const assignedQty = sumTechnicianMaterialStock(
+                      warehouse,
+                      technicianId!,
+                      materialName
+                    )
+                    const alreadyReturned = issuedMaterials
+                      .filter((m) => m.name === materialName)
+                      .reduce((sum, m) => sum + m.quantity, 0)
+                    const remainingQty = assignedQty - alreadyReturned
 
-          {assignedMaterialNames.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Brak materiałów przypisanych do technika.
-            </p>
-          ) : (
-            assignedMaterialNames.map((materialName) => {
-              const assignedQty = sumTechnicianMaterialStock(
-                warehouse,
-                technicianId!,
-                materialName
-              )
-              const alreadyReturned = issuedMaterials.find(
-                (m) => m.name === materialName
-              )
-              const remainingQty =
-                assignedQty - (alreadyReturned?.quantity || 0)
-
-              return (
-                <div
-                  key={materialName}
-                  className={`flex justify-between items-center border rounded px-3 py-2 text-sm ${
-                    remainingQty === 0 ? 'opacity-50 pointer-events-none' : ''
-                  }`}
-                >
-                  <div className="flex flex-col">
-                    <Highlight
-                      highlightClassName="bg-yellow-200"
-                      searchWords={[search]}
-                      autoEscape
-                      textToHighlight={materialName}
-                    />
-                    <Badge className="w-fit" variant="secondary">
-                      Ilość: {remainingQty}
-                    </Badge>
-                  </div>
-                  {expandedRows.includes(materialName) ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min={1}
-                        max={remainingQty}
-                        className="w-20 h-8 text-sm"
-                        value={materialQuantities[materialName] ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setMaterialQuantities((prev) => ({
-                            ...prev,
-                            [materialName]:
-                              val === ''
-                                ? undefined
-                                : Math.min(Number(val), remainingQty),
-                          }))
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleAddMaterial(materialName)}
+                    return (
+                      <div
+                        key={materialName}
+                        className={`flex justify-between items-center border rounded px-3 py-2 text-sm ${
+                          remainingQty === 0
+                            ? 'opacity-50 pointer-events-none'
+                            : ''
+                        }`}
                       >
-                        Dodaj
+                        <div className="flex flex-col">
+                          <Highlight
+                            highlightClassName="bg-yellow-200"
+                            searchWords={[search]}
+                            autoEscape
+                            textToHighlight={materialName}
+                          />
+                          <Badge className="w-fit" variant="secondary">
+                            Ilość: {remainingQty}
+                          </Badge>
+                        </div>
+                        {expandedRows.includes(materialName) ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={remainingQty}
+                              className="w-20 h-8 text-sm"
+                              value={materialQuantities[materialName] ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setMaterialQuantities((prev) => ({
+                                  ...prev,
+                                  [materialName]:
+                                    val === ''
+                                      ? undefined
+                                      : Math.min(Number(val), remainingQty),
+                                }))
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleAddMaterial(materialName)}
+                            >
+                              Dodaj
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() =>
+                              setExpandedRows((prev) => [...prev, materialName])
+                            }
+                          >
+                            <MdAdd />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold">Urządzenia</h3>
+              <span className="text-muted-foreground">({issuedDevices.length})</span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {issuedDevices.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-1">
+                  Brak urządzeń do zwrotu.
+                </p>
+              ) : (
+                <div className="space-y-2 pr-1">
+                  {issuedDevices.map((d) => (
+                    <div
+                      key={d.id}
+                      className="rounded-md border p-2.5 flex items-start justify-between gap-2"
+                    >
+                      <div className="text-sm">
+                        <p className="font-semibold leading-tight">{d.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Typ: {devicesTypeMap[d.category]} | SN: {d.serialNumber}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-danger hover:text-danger hover:bg-danger/10"
+                        onClick={() =>
+                          setIssuedDevices((prev) =>
+                            prev.filter((item) => item.id !== d.id)
+                          )
+                        }
+                      >
+                        <FaTrashAlt className="h-4 w-4" />
                       </Button>
                     </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() =>
-                        setExpandedRows((prev) => [...prev, materialName])
-                      }
-                    >
-                      <MdAdd />
-                    </Button>
-                  )}
+                  ))}
                 </div>
-              )
-            })
-          )}
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold">Materiały</h3>
+              <span className="text-muted-foreground">
+                ({new Set(issuedMaterials.map((m) => m.name)).size})
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {issuedMaterials.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-1">
+                  Brak materiałów do zwrotu.
+                </p>
+              ) : (
+                <div className="space-y-2 pr-1">
+                  {Array.from(
+                    issuedMaterials.reduce(
+                      (acc, m) => {
+                        const current = acc.get(m.name) ?? 0
+                        acc.set(m.name, current + m.quantity)
+                        return acc
+                      },
+                      new Map<string, number>()
+                    )
+                  ).map(([name, quantity]) => (
+                    <div
+                      key={name}
+                      className="rounded-md border p-2.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="text-sm">
+                        <p className="font-semibold leading-tight">{name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Ilość: <Badge variant="outline">{quantity}</Badge>
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-danger hover:text-danger hover:bg-danger/10"
+                        onClick={() =>
+                          setIssuedMaterials((prev) =>
+                            prev.filter((item) => item.name !== name)
+                          )
+                        }
+                      >
+                        <FaTrashAlt className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="xl:col-span-3 rounded-xl border p-4">
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm text-muted-foreground">
+                  Uwagi do zwrotu (opcjonalnie)
+                </label>
+                <Textarea
+                  rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Np. powód zwrotu lub numer dokumentu"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setClearConfirmOpen(true)}
+                  disabled={
+                    issuedDevices.length === 0 && issuedMaterials.length === 0
+                  }
+                >
+                  Wyczyść
+                </Button>
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={handleReturn}
+                  disabled={loading}
+                >
+                  {loading ? 'Zwracanie...' : 'Zwróć'}
+                </Button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 
-      {/* Summary list and return button */}
-      {(issuedDevices.length > 0 || issuedMaterials.length > 0) && (
-        <WarehouseSelectedItemsPanel
-          items={[...issuedDevices, ...issuedMaterials]}
-          onRemoveItem={handleRemoveItem}
-          onClearAll={handleClearAll}
-          onConfirm={handleReturn}
-          confirmLabel="Zwróć"
-          title="Do zwrotu"
-          showNotes
-          notes={notes}
-          setNotes={setNotes}
-          loading={loading}
-        />
-      )}
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Czy na pewno chcesz wyczyścić wszystkie pozycje do zwrotu?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearAll}>Wyczyść</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

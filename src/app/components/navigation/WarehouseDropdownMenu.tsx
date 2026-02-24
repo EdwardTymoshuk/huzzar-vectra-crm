@@ -84,7 +84,11 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
   const isWarehouseSection =
     currentTab === 'warehouse' ||
     pathname.includes('/admin-panel/warehouse/details') ||
-    pathname.includes('/admin-panel/warehouse/history')
+    pathname.includes('/admin-panel/warehouse/history') ||
+    pathname.includes('/admin-panel/warehouse/issue') ||
+    pathname.includes('/admin-panel/warehouse/receive') ||
+    pathname.includes('/admin-panel/warehouse/return') ||
+    pathname.includes('/admin-panel/warehouse/transfer')
 
   /**
    * Force location context for non-admin users with exactly one assigned location.

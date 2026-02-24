@@ -66,6 +66,10 @@ const OplClientRoutingHandler = ({
   const isSubPage = [
     '/warehouse/details/',
     '/warehouse/history',
+    '/warehouse/issue',
+    '/warehouse/receive',
+    '/warehouse/return',
+    '/warehouse/transfer',
     '/billing/technician/',
   ].some((sub) => pathname.includes(sub))
 

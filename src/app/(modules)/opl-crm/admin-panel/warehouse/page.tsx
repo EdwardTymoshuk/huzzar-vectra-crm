@@ -11,12 +11,8 @@ import OplReportsDialog from '../components/warehouse/OplReportsDialog'
 import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFromTechniciansSection'
 import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
 import WarehouseSummaryCard from '../components/warehouse/WarehouseSummaryCard'
-import AddModal from '../components/warehouse/add/AddModal'
 import OplDeviceCheckSheet from '../components/warehouse/deviceCheck/OplDeviceCheckSheet'
-import OplIssueModal from '../components/warehouse/issue/OplIssueModal'
-import OplReturnModal from '../components/warehouse/return/OplReturnModal'
 import OplTechnicianStockSheet from '../components/warehouse/technicianStock/OplTechnicianStockSheet'
-import OplLocationTransferModal from '../components/warehouse/warehouseLocalizations/OplLocationTransferModal'
 
 const WarehousePage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -25,15 +21,41 @@ const WarehousePage = () => {
     'devices',
   )
 
-  const [isAddOpen, setAddOpen] = useState(false)
-  const [isIssueOpen, setIssueOpen] = useState(false)
-  const [isReturnOpen, setReturnOpen] = useState(false)
+  const [isNavigatingAdd, setIsNavigatingAdd] = useState(false)
+  const [isNavigatingReturn, setIsNavigatingReturn] = useState(false)
   const [isStockOpen, setStockOpen] = useState(false)
   const [isSerialOpen, setSerialOpen] = useState(false)
-  const [isTransferOpen, setTransferOpen] = useState(false)
+  const [isNavigatingTransfer, setIsNavigatingTransfer] = useState(false)
   const [isReportsOpen, setReportsOpen] = useState(false)
+  const [isNavigatingIssue, setIsNavigatingIssue] = useState(false)
+  const [isNavigatingHistory, setIsNavigatingHistory] = useState(false)
 
   const router = useRouter()
+
+  const goToIssuePage = () => {
+    setIsNavigatingIssue(true)
+    router.push(`${OPL_PATH}/admin-panel/warehouse/issue`)
+  }
+
+  const goToReceivePage = () => {
+    setIsNavigatingAdd(true)
+    router.push(`${OPL_PATH}/admin-panel/warehouse/receive`)
+  }
+
+  const goToReturnPage = () => {
+    setIsNavigatingReturn(true)
+    router.push(`${OPL_PATH}/admin-panel/warehouse/return`)
+  }
+
+  const goToTransferPage = () => {
+    setIsNavigatingTransfer(true)
+    router.push(`${OPL_PATH}/admin-panel/warehouse/transfer`)
+  }
+
+  const goToHistoryPage = () => {
+    setIsNavigatingHistory(true)
+    router.push(`${OPL_PATH}/admin-panel/warehouse/history`)
+  }
 
   return (
     <div className="flex flex-col w-full flex-1 min-h-0 pb-2 overflow-hidden">
@@ -56,16 +78,19 @@ const WarehousePage = () => {
             </TabsList>
           </Tabs>
         }
-        onAddManual={() => setAddOpen(true)}
-        onIssue={() => setIssueOpen(true)}
-        onReturn={() => setReturnOpen(true)}
+        onAddManual={goToReceivePage}
+        onIssue={goToIssuePage}
+        onReturn={goToReturnPage}
         onStockCheck={() => setStockOpen(true)}
         onSerialCheck={() => setSerialOpen(true)}
-        onTransfer={() => setTransferOpen(true)}
-        onHistory={() =>
-          router.push(`${OPL_PATH}/admin-panel/warehouse/history`)
-        }
+        onTransfer={goToTransferPage}
+        onHistory={goToHistoryPage}
         onReports={() => setReportsOpen(true)}
+        addLoading={isNavigatingAdd}
+        issueLoading={isNavigatingIssue}
+        returnLoading={isNavigatingReturn}
+        transferLoading={isNavigatingTransfer}
+        historyLoading={isNavigatingHistory}
       />
 
       {/* Page content */}
@@ -85,15 +110,13 @@ const WarehousePage = () => {
         {/* FAB only for < xl */}
         <div className="xl:hidden">
           <WarehouseFloatingActions
-            onAddManual={() => setAddOpen(true)}
-            onIssue={() => setIssueOpen(true)}
-            onReturn={() => setReturnOpen(true)}
+            onAddManual={goToReceivePage}
+            onIssue={goToIssuePage}
+            onReturn={goToReturnPage}
             onStockCheck={() => setStockOpen(true)}
             onSerialCheck={() => setSerialOpen(true)}
-            onTransfer={() => setTransferOpen(true)}
-            onHistory={() =>
-              router.push(`${OPL_PATH}/admin-panel/warehouse/history`)
-            }
+            onTransfer={goToTransferPage}
+            onHistory={goToHistoryPage}
             onReports={() => setReportsOpen(true)}
             showImport={false}
           />
@@ -101,26 +124,11 @@ const WarehousePage = () => {
       </div>
 
       {/* All modals */}
-      <AddModal open={isAddOpen} onCloseAction={() => setAddOpen(false)} />
-      <OplIssueModal
-        open={isIssueOpen}
-        onCloseAction={() => setIssueOpen(false)}
-      />
-
-      <OplReturnModal
-        open={isReturnOpen}
-        onCloseAction={() => setReturnOpen(false)}
-      />
       <OplTechnicianStockSheet open={isStockOpen} setOpen={setStockOpen} />
       <OplDeviceCheckSheet
         open={isSerialOpen}
         onClose={() => setSerialOpen(false)}
       />
-      <OplLocationTransferModal
-        open={isTransferOpen}
-        onCloseAction={() => setTransferOpen(false)}
-      />
-
       <OplReportsDialog
         open={isReportsOpen}
         onClose={() => setReportsOpen(false)}

@@ -31,57 +31,43 @@ const MaterialIssueTable = ({
   const [expandedRows, setExpandedRows] = useState<string[]>([])
 
   const activeLocationId = useActiveLocation()
-  const { data: warehouseItems, isLoading } =
+  const { data: warehouseItems, isLoading: isWarehouseLoading } =
     trpc.opl.warehouse.getAll.useQuery(
       activeLocationId ? { locationId: activeLocationId } : undefined
     )
+  const { data: materialDefinitions = [], isLoading: isDefinitionsLoading } =
+    trpc.opl.warehouse.getDefinitionsWithStock.useQuery(
+      activeLocationId
+        ? { itemType: 'MATERIAL', locationId: activeLocationId }
+        : ({ itemType: 'MATERIAL' } as const)
+    )
 
-  const materials = useMemo(() => {
+  const materialRows = useMemo(() => {
     return (
       warehouseItems?.filter(
-        (item) =>
-          item.itemType === 'MATERIAL' &&
-          item.status === 'AVAILABLE' &&
-          item.name.toLowerCase().includes(searchTerm.toLowerCase())
+        (item) => item.itemType === 'MATERIAL' && item.status === 'AVAILABLE'
       ) || []
     )
-  }, [warehouseItems, searchTerm])
+  }, [warehouseItems])
 
   const groupedMaterials = useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        key: string
-        name: string
-        materialDefinitionId: string | null
-        quantity: number
-        rows: typeof materials
-      }
-    >()
-
-    materials.forEach((item) => {
-      const key = item.materialDefinitionId ?? item.name
-      const existing = groups.get(key)
-
-      if (existing) {
-        existing.quantity += item.quantity
-        existing.rows.push(item)
-        return
-      }
-
-      groups.set(key, {
-        key,
-        name: item.name,
-        materialDefinitionId: item.materialDefinitionId,
-        quantity: item.quantity,
-        rows: [item],
+    return materialDefinitions
+      .filter((item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .map((def) => ({
+        key: def.name,
+        name: def.name,
+        quantity: def.quantity,
+        rows: materialRows.filter((row) => row.name === def.name),
+      }))
+      .sort((a, b) => {
+        const aAvailable = a.quantity > 0 ? 1 : 0
+        const bAvailable = b.quantity > 0 ? 1 : 0
+        if (aAvailable !== bAvailable) return bAvailable - aAvailable
+        return a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' })
       })
-    })
-
-    return Array.from(groups.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' })
-    )
-  }, [materials])
+  }, [materialDefinitions, materialRows, searchTerm])
 
   const technicianStock = useMemo(() => {
     return (
@@ -114,12 +100,7 @@ const MaterialIssueTable = ({
     if (!group) return
 
     const alreadyIssued = issuedMaterials
-      .filter(
-        (m) =>
-          (group.materialDefinitionId &&
-            m.materialDefinitionId === group.materialDefinitionId) ||
-          m.name === group.name
-      )
+      .filter((m) => m.name === group.name)
       .reduce((acc, m) => acc + m.quantity, 0)
 
     const remaining = group.quantity - alreadyIssued
@@ -150,11 +131,15 @@ const MaterialIssueTable = ({
       if (rowRemaining <= 0) continue
 
       const qty = Math.min(leftToAllocate, rowRemaining)
+      if (!row.materialDefinitionId) {
+        toast.warning(`Materiał "${row.name}" nie ma definicji.`)
+        return
+      }
       onAddMaterial({
         id: row.id,
         type: 'MATERIAL',
         name: row.name,
-        materialDefinitionId: row.materialDefinitionId!,
+        materialDefinitionId: row.materialDefinitionId,
         quantity: qty,
       })
       leftToAllocate -= qty
@@ -174,10 +159,11 @@ const MaterialIssueTable = ({
     setExpandedRows((prev) => prev.filter((r) => r !== groupKey))
   }
 
-  if (isLoading) return <Skeleton className="h-48 w-full" />
+  if (isWarehouseLoading || isDefinitionsLoading)
+    return <Skeleton className="h-48 w-full" />
 
   return (
-    <div className="space-y-4 mt-6">
+    <div className="space-y-4">
       <SearchInput
         placeholder="Szukaj materiał"
         value={searchTerm}
@@ -187,12 +173,7 @@ const MaterialIssueTable = ({
       {groupedMaterials.map((item) => {
         const alreadyIssued =
           issuedMaterials
-            .filter(
-              (m) =>
-                (item.materialDefinitionId &&
-                  m.materialDefinitionId === item.materialDefinitionId) ||
-                m.name === item.name
-            )
+            .filter((m) => m.name === item.name)
             .reduce((acc, m) => acc + m.quantity, 0)
         const remaining = item.quantity - alreadyIssued
         const isDisabled = remaining <= 0

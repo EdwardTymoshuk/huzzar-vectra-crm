@@ -11,21 +11,11 @@ import {
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog'
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/app/components/ui/accordion'
-import { Badge } from '@/app/components/ui/badge'
+  Badge,
+} from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Textarea } from '@/app/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/app/components/ui/tabs'
 import {
   OplDeviceBasic,
   OplIssuedItemDevice,
@@ -60,8 +50,6 @@ const IssueOplItemsTabs = ({
   const [materials, setMaterials] = useState<OplIssuedItemMaterial[]>([])
   const [notes, setNotes] = useState('')
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
-  const [devicesOpen, setDevicesOpen] = useState(true)
-  const [materialsOpen, setMaterialsOpen] = useState(true)
 
   useEffect(() => {
     onDraftChange?.(
@@ -111,20 +99,6 @@ const IssueOplItemsTabs = ({
       category: d.category ?? 'OTHER',
       deviceDefinitionId: d.deviceDefinitionId,
     }))
-  const openCount = Number(devicesOpen) + Number(materialsOpen)
-  const devicesListHeightClass =
-    !devicesOpen
-      ? 'max-h-0'
-      : openCount === 2
-        ? 'max-h-[22vh]'
-        : 'max-h-[46vh]'
-  const materialsListHeightClass =
-    !materialsOpen
-      ? 'max-h-0'
-      : openCount === 2
-        ? 'max-h-[22vh]'
-        : 'max-h-[46vh]'
-
   const handleAddDevice = (device: OplIssuedItemDevice) => {
     if (!devices.find((d) => d.id === device.id)) {
       setDevices((prev) => [...prev, device])
@@ -201,172 +175,117 @@ const IssueOplItemsTabs = ({
   }
 
   return (
-    <div className="grid h-full gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-      <section className="rounded-xl border p-4 overflow-y-auto">
-        <Tabs defaultValue="devices" className="w-full space-y-4">
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger
-              value="devices"
-              className="data-[state=active]:rounded-md"
-            >
-              Urządzenia
-            </TabsTrigger>
-            <TabsTrigger
-              value="materials"
-              className="data-[state=active]:rounded-md"
-            >
-              Materiały
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="devices" className="space-y-4">
+    <div className="grid h-full min-h-0 gap-4 grid-rows-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.6fr)_minmax(300px,0.6fr)]">
+      <section className="rounded-xl border p-4 min-h-0 overflow-y-auto">
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-base font-semibold">Urządzenia</h3>
+              <p className="text-sm text-muted-foreground">
+                Wpisz lub zeskanuj numer seryjny urządzenia do wydania.
+              </p>
+            </div>
             <OplSerialScanInput
               onAdd={handleAddDevice}
               devices={availableDevices}
               isDeviceUsed={(id) => devices.some((d) => d.id === id)}
             />
-          </TabsContent>
+          </div>
 
-          <TabsContent value="materials" className="space-y-4">
+          <div className="border-t pt-4 space-y-3">
+            <div>
+              <h3 className="text-base font-semibold">Materiały</h3>
+              <p className="text-sm text-muted-foreground">
+                Wyszukaj materiał i dodaj ilość do wydania.
+              </p>
+            </div>
             <MaterialIssueTable
               onAddMaterial={handleAddMaterial}
               issuedMaterials={materials}
               technicianId={technicianId}
             />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </section>
 
-      <section className="rounded-xl border p-4 flex flex-col min-h-0">
-        <h3 className="text-base font-semibold mb-3">Wydane pozycje</h3>
-
-        <div className="mb-4 flex min-h-0 flex-1 flex-col gap-3">
-        <Accordion
-          type="multiple"
-          value={devicesOpen ? ['devices'] : []}
-          onValueChange={(value) => setDevicesOpen(value.includes('devices'))}
-          className={cn(
-            'border rounded-lg px-3 overflow-hidden',
-            devicesOpen && openCount >= 1 ? 'min-h-0 flex-1' : 'shrink-0'
-          )}
-        >
-          <AccordionItem
-            value="devices"
-            className={cn(
-              'border-none',
-              devicesOpen && openCount >= 1 && 'flex h-full flex-col'
-            )}
-          >
-            <AccordionTrigger className="py-3 text-base font-semibold">
-              Urządzenia <span className="text-muted-foreground">({devices.length})</span>
-            </AccordionTrigger>
-            <AccordionContent
-              className={cn(devicesOpen && openCount >= 1 && 'flex-1 min-h-0')}
-            >
-              {devices.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-1">
-                  Brak wydanych urządzeń.
-                </p>
-              ) : (
-                <div
-                  className={cn(
-                    'space-y-2 pr-1 overflow-y-auto',
-                    devicesListHeightClass
-                  )}
-                >
-                  {devices.map((d) => (
-                    <div
-                      key={d.id}
-                      className="rounded-md border p-2.5 flex items-start justify-between gap-2"
-                    >
-                      <div className="text-sm">
-                        <p className="font-semibold leading-tight">
-                          {d.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Typ: {oplDevicesTypeMap[d.category]} | SN: {d.serialNumber}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-danger hover:text-danger hover:bg-danger/10"
-                        onClick={() => removeDevice(d.id)}
-                      >
-                        <FaTrashAlt className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-
-        <Accordion
-          type="multiple"
-          value={materialsOpen ? ['materials'] : []}
-          onValueChange={(value) => setMaterialsOpen(value.includes('materials'))}
-          className={cn(
-            'border rounded-lg px-3 overflow-hidden',
-            materialsOpen && openCount >= 1 ? 'min-h-0 flex-1' : 'shrink-0'
-          )}
-        >
-          <AccordionItem
-            value="materials"
-            className={cn(
-              'border-none',
-              materialsOpen && openCount >= 1 && 'flex h-full flex-col'
-            )}
-          >
-            <AccordionTrigger className="py-3 text-base font-semibold">
-              Materiały <span className="text-muted-foreground">({materials.length})</span>
-            </AccordionTrigger>
-            <AccordionContent
-              className={cn(
-                materialsOpen && openCount >= 1 && 'flex-1 min-h-0'
-              )}
-            >
-              {materials.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-1">
-                  Brak wydanych materiałów.
-                </p>
-              ) : (
-                <div
-                  className={cn(
-                    'space-y-2 pr-1 overflow-y-auto',
-                    materialsListHeightClass
-                  )}
-                >
-                  {materials.map((m) => (
-                    <div
-                      key={m.id}
-                      className="rounded-md border p-2.5 flex items-center justify-between gap-2"
-                    >
-                      <div className="text-sm">
-                        <p className="font-semibold leading-tight">{m.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Ilość: <Badge variant="outline">{m.quantity}</Badge>
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-danger hover:text-danger hover:bg-danger/10"
-                        onClick={() => removeMaterial(m.id)}
-                      >
-                        <FaTrashAlt className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+      <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold">Wydane urządzenia</h3>
+          <span className="text-muted-foreground">({devices.length})</span>
         </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {devices.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-1">
+              Brak wydanych urządzeń.
+            </p>
+          ) : (
+            <div className="space-y-2 pr-1">
+              {devices.map((d) => (
+                <div
+                  key={d.id}
+                  className="rounded-md border p-2.5 flex items-start justify-between gap-2"
+                >
+                  <div className="text-sm">
+                    <p className="font-semibold leading-tight">{d.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Typ: {oplDevicesTypeMap[d.category]} | SN: {d.serialNumber}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-danger hover:text-danger hover:bg-danger/10"
+                    onClick={() => removeDevice(d.id)}
+                  >
+                    <FaTrashAlt className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
-        <div className="mt-auto space-y-3">
+      <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold">Wydane materiały</h3>
+          <span className="text-muted-foreground">({materials.length})</span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {materials.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-1">
+              Brak wydanych materiałów.
+            </p>
+          ) : (
+            <div className="space-y-2 pr-1">
+              {materials.map((m) => (
+                <div
+                  key={m.id}
+                  className="rounded-md border p-2.5 flex items-center justify-between gap-2"
+                >
+                  <div className="text-sm">
+                    <p className="font-semibold leading-tight">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ilość: <Badge variant="outline">{m.quantity}</Badge>
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-danger hover:text-danger hover:bg-danger/10"
+                    onClick={() => removeMaterial(m.id)}
+                  >
+                    <FaTrashAlt className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="xl:col-span-3 rounded-xl border p-4">
+        <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-sm text-muted-foreground">
               Uwagi do wydania (opcjonalnie)
@@ -397,21 +316,21 @@ const IssueOplItemsTabs = ({
             </Button>
           </div>
         </div>
-
-        <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Czy na pewno chcesz wyczyścić wszystkie pozycje do wydania?
-              </AlertDialogTitle>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Anuluj</AlertDialogCancel>
-              <AlertDialogAction onClick={handleClearAll}>Wyczyść</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </section>
+
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Czy na pewno chcesz wyczyścić wszystkie pozycje do wydania?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearAll}>Wyczyść</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -15,6 +15,7 @@ import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
 } from 'react-icons/hi2'
+import { ImSpinner2 } from 'react-icons/im'
 import { MdAdd, MdDescription, MdHistory } from 'react-icons/md'
 import { PiUserListFill } from 'react-icons/pi'
 import { TbListSearch } from 'react-icons/tb'
@@ -35,6 +36,11 @@ interface WarehouseHeaderBarProps {
   onTransfer: () => void
   onHistory: () => void
   onReports: () => void
+  addLoading?: boolean
+  issueLoading?: boolean
+  returnLoading?: boolean
+  transferLoading?: boolean
+  historyLoading?: boolean
   centerContent?: ReactNode
 }
 
@@ -58,18 +64,31 @@ const WarehouseHeaderBar = ({
   onTransfer,
   onHistory,
   onReports,
+  addLoading = false,
+  issueLoading = false,
+  returnLoading = false,
+  transferLoading = false,
+  historyLoading = false,
   centerContent,
 }: WarehouseHeaderBarProps) => {
   const rightActions = (
     <div className="hidden xl:flex items-center gap-2">
       {/* Main actions on xl+ */}
-      <Button variant="default" onClick={onAddManual}>
-        <MdAdd className="text-lg" />
+      <Button variant="default" onClick={onAddManual} disabled={addLoading}>
+        {addLoading ? (
+          <ImSpinner2 className="text-lg animate-spin" />
+        ) : (
+          <MdAdd className="text-lg" />
+        )}
         <span className="ml-1">Dostawa</span>
       </Button>
 
-      <Button variant="default" onClick={onIssue}>
-        <HiOutlineArrowUpOnSquare className="text-lg" />
+      <Button variant="default" onClick={onIssue} disabled={issueLoading}>
+        {issueLoading ? (
+          <ImSpinner2 className="text-lg animate-spin" />
+        ) : (
+          <HiOutlineArrowUpOnSquare className="text-lg" />
+        )}
         <span className="ml-1">Wydaj</span>
       </Button>
 
@@ -81,10 +100,19 @@ const WarehouseHeaderBar = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 bg-background">
-          <DropdownMenuItem onClick={onReturn} className="hover:cursor-pointer">
+          <DropdownMenuItem
+            onClick={onReturn}
+            disabled={returnLoading}
+            className="hover:cursor-pointer"
+          >
             <div className="flex items-center gap-2">
               <HiOutlineArrowDownOnSquare className="text-lg" />
-              <span>Zwrot</span>
+              <span className="flex items-center gap-2">
+                Zwrot
+                {returnLoading ? (
+                  <ImSpinner2 className="text-sm animate-spin" />
+                ) : null}
+              </span>
             </div>
           </DropdownMenuItem>
 
@@ -110,11 +138,17 @@ const WarehouseHeaderBar = ({
 
           <DropdownMenuItem
             onClick={onTransfer}
+            disabled={transferLoading}
             className="hover:cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <CgArrowsExchangeAlt className="text-lg" />
-              <span>Przekazanie</span>
+              <span className="flex items-center gap-2">
+                Przekazanie
+                {transferLoading ? (
+                  <ImSpinner2 className="text-sm animate-spin" />
+                ) : null}
+              </span>
             </div>
           </DropdownMenuItem>
 
@@ -130,11 +164,17 @@ const WarehouseHeaderBar = ({
 
           <DropdownMenuItem
             onClick={onHistory}
+            disabled={historyLoading}
             className="hover:cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <MdHistory className="text-lg" />
-              <span>Historia magazynu</span>
+              <span className="flex items-center gap-2">
+                Historia magazynu
+                {historyLoading ? (
+                  <ImSpinner2 className="text-sm animate-spin" />
+                ) : null}
+              </span>
             </div>
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -13,24 +13,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/app/components/ui/accordion'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select'
 import { Textarea } from '@/app/components/ui/textarea'
-import { cn } from '@/lib/utils'
 import {
   OplDeviceBasic,
   OplIssuedItemDevice,
@@ -55,9 +41,6 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
   const utils = trpc.useUtils()
 
   const [technicianId, setTechnicianId] = useState<string | null>(null)
-  const [returnType, setReturnType] = useState<'DEVICE' | 'MATERIAL' | null>(
-    null
-  )
   const [search, setSearch] = useState('')
   const [expandedRows, setExpandedRows] = useState<string[]>([])
   const [materialQuantities, setMaterialQuantities] = useState<
@@ -72,8 +55,6 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
   >([])
   const [notes, setNotes] = useState('')
 
-  const [devicesOpen, setDevicesOpen] = useState(true)
-  const [materialsOpen, setMaterialsOpen] = useState(true)
 
   const { data: technicians = [] } = trpc.opl.user.getTechnicians.useQuery({
     status: 'ACTIVE',
@@ -281,20 +262,6 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
     }
   }
 
-  const openCount = Number(devicesOpen) + Number(materialsOpen)
-  const devicesListHeightClass =
-    !devicesOpen
-      ? 'max-h-0'
-      : openCount === 2
-        ? 'max-h-[22vh]'
-        : 'max-h-[46vh]'
-  const materialsListHeightClass =
-    !materialsOpen
-      ? 'max-h-0'
-      : openCount === 2
-        ? 'max-h-[22vh]'
-        : 'max-h-[46vh]'
-
   const groupedIssuedMaterials = issuedMaterials.reduce<
     Record<string, { name: string; quantity: number }>
   >((acc, item) => {
@@ -304,7 +271,7 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
   }, {})
 
   return (
-    <div className="grid h-full gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+    <div className="grid h-full min-h-0 gap-4 grid-rows-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.6fr)_minmax(300px,0.6fr)]">
       <section className="rounded-xl border p-4 overflow-y-auto">
         <div className="space-y-4">
           <OplTechnicianSelector
@@ -312,7 +279,6 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
             onChange={(tech) => {
               setTechnicianId(tech?.id ?? null)
               setSearch('')
-              setReturnType(null)
               setIssuedDevices([])
               setIssuedMaterials([])
               setNotes('')
@@ -320,23 +286,6 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
           />
 
           {technicianId && (
-            <Select
-              value={returnType ?? ''}
-              onValueChange={(val) =>
-                setReturnType(val as 'DEVICE' | 'MATERIAL')
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Co chcesz zwrócić?" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="DEVICE">Urządzenie</SelectItem>
-                <SelectItem value="MATERIAL">Materiał</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          {technicianId && returnType === 'DEVICE' && (
             <OplSerialScanInput
               onAdd={handleAddDevice}
               devices={availableReturnDevices}
@@ -350,8 +299,14 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
             />
           )}
 
-          {technicianId && returnType === 'MATERIAL' && (
-            <div className="space-y-3">
+          {technicianId && (
+            <div className="border-t pt-4 space-y-3">
+              <div>
+                <h3 className="text-base font-semibold">Materiały</h3>
+                <p className="text-sm text-muted-foreground">
+                  Wyszukaj materiał i dodaj ilość do zwrotu.
+                </p>
+              </div>
               <SearchInput
                 value={search}
                 onChange={setSearch}
@@ -441,138 +396,86 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
         </div>
       </section>
 
-      <section className="rounded-xl border p-4 flex flex-col min-h-0">
-        <h3 className="text-base font-semibold mb-3">Do zwrotu</h3>
-
-        <div className="mb-4 flex min-h-0 flex-1 flex-col gap-3">
-          <Accordion
-            type="multiple"
-            value={devicesOpen ? ['devices'] : []}
-            onValueChange={(value) => setDevicesOpen(value.includes('devices'))}
-            className={cn(
-              'border rounded-lg px-3 overflow-hidden',
-              devicesOpen && openCount >= 1 ? 'min-h-0 flex-1' : 'shrink-0'
-            )}
-          >
-            <AccordionItem
-              value="devices"
-              className={cn(
-                'border-none',
-                devicesOpen && openCount >= 1 && 'flex h-full flex-col'
-              )}
-            >
-              <AccordionTrigger className="py-3 text-base font-semibold">
-                Urządzenia{' '}
-                <span className="text-muted-foreground">({issuedDevices.length})</span>
-              </AccordionTrigger>
-              <AccordionContent
-                className={cn(devicesOpen && openCount >= 1 && 'flex-1 min-h-0')}
-              >
-                {issuedDevices.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">
-                    Brak urządzeń do zwrotu.
-                  </p>
-                ) : (
-                  <div
-                    className={cn(
-                      'space-y-2 pr-1 overflow-y-auto',
-                      devicesListHeightClass
-                    )}
-                  >
-                    {issuedDevices.map((d) => (
-                      <div
-                        key={d.id}
-                        className="rounded-md border p-2.5 flex items-start justify-between gap-2"
-                      >
-                        <div className="text-sm">
-                          <p className="font-semibold leading-tight">{d.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Typ: {oplDevicesTypeMap[d.category]} | SN: {d.serialNumber}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-danger hover:text-danger hover:bg-danger/10"
-                          onClick={() => removeDevice(d.id)}
-                        >
-                          <FaTrashAlt className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          <Accordion
-            type="multiple"
-            value={materialsOpen ? ['materials'] : []}
-            onValueChange={(value) =>
-              setMaterialsOpen(value.includes('materials'))
-            }
-            className={cn(
-              'border rounded-lg px-3 overflow-hidden',
-              materialsOpen && openCount >= 1 ? 'min-h-0 flex-1' : 'shrink-0'
-            )}
-          >
-            <AccordionItem
-              value="materials"
-              className={cn(
-                'border-none',
-                materialsOpen && openCount >= 1 && 'flex h-full flex-col'
-              )}
-            >
-              <AccordionTrigger className="py-3 text-base font-semibold">
-                Materiały{' '}
-                <span className="text-muted-foreground">
-                  ({Object.keys(groupedIssuedMaterials).length})
-                </span>
-              </AccordionTrigger>
-              <AccordionContent
-                className={cn(materialsOpen && openCount >= 1 && 'flex-1 min-h-0')}
-              >
-                {Object.keys(groupedIssuedMaterials).length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">
-                    Brak materiałów do zwrotu.
-                  </p>
-                ) : (
-                  <div
-                    className={cn(
-                      'space-y-2 pr-1 overflow-y-auto',
-                      materialsListHeightClass
-                    )}
-                  >
-                    {Object.values(groupedIssuedMaterials).map((m) => (
-                      <div
-                        key={m.name}
-                        className="rounded-md border p-2.5 flex items-center justify-between gap-2"
-                      >
-                        <div className="text-sm">
-                          <p className="font-semibold leading-tight">{m.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Ilość: <Badge variant="outline">{m.quantity}</Badge>
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-danger hover:text-danger hover:bg-danger/10"
-                          onClick={() => removeMaterialByName(m.name)}
-                        >
-                          <FaTrashAlt className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+      <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold">Urządzenia</h3>
+          <span className="text-muted-foreground">({issuedDevices.length})</span>
         </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {issuedDevices.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-1">
+              Brak urządzeń do zwrotu.
+            </p>
+          ) : (
+            <div className="space-y-2 pr-1">
+              {issuedDevices.map((d) => (
+                <div
+                  key={d.id}
+                  className="rounded-md border p-2.5 flex items-start justify-between gap-2"
+                >
+                  <div className="text-sm">
+                    <p className="font-semibold leading-tight">{d.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Typ: {oplDevicesTypeMap[d.category]} | SN: {d.serialNumber}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-danger hover:text-danger hover:bg-danger/10"
+                    onClick={() => removeDevice(d.id)}
+                  >
+                    <FaTrashAlt className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
-        <div className="mt-auto space-y-3">
+      <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold">Materiały</h3>
+          <span className="text-muted-foreground">
+            ({Object.keys(groupedIssuedMaterials).length})
+          </span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {Object.keys(groupedIssuedMaterials).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-1">
+              Brak materiałów do zwrotu.
+            </p>
+          ) : (
+            <div className="space-y-2 pr-1">
+              {Object.values(groupedIssuedMaterials).map((m) => (
+                <div
+                  key={m.name}
+                  className="rounded-md border p-2.5 flex items-center justify-between gap-2"
+                >
+                  <div className="text-sm">
+                    <p className="font-semibold leading-tight">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ilość: <Badge variant="outline">{m.quantity}</Badge>
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-danger hover:text-danger hover:bg-danger/10"
+                    onClick={() => removeMaterialByName(m.name)}
+                  >
+                    <FaTrashAlt className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="xl:col-span-3 rounded-xl border p-4">
+        <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-sm text-muted-foreground">
               Uwagi do zwrotu (opcjonalnie)
@@ -603,21 +506,21 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
             </Button>
           </div>
         </div>
-
-        <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Czy na pewno chcesz wyczyścić wszystkie pozycje do zwrotu?
-              </AlertDialogTitle>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Anuluj</AlertDialogCancel>
-              <AlertDialogAction onClick={handleClearAll}>Wyczyść</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </section>
+
+      <AlertDialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Czy na pewno chcesz wyczyścić wszystkie pozycje do zwrotu?
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearAll}>Wyczyść</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -82,7 +82,11 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
   const isWarehouseSection =
     currentTab === 'warehouse' ||
     pathname.includes('/warehouse/details') ||
-    pathname.includes('/warehouse/history')
+    pathname.includes('/warehouse/history') ||
+    pathname.includes('/warehouse/issue') ||
+    pathname.includes('/warehouse/receive') ||
+    pathname.includes('/warehouse/return') ||
+    pathname.includes('/warehouse/transfer')
 
   /**
    * Force location context for non-admin users with exactly one assigned location.
