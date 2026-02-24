@@ -44,14 +44,16 @@ const GoalsCard = ({ initialDays, initialRevenue, onSave }: Props) => {
   }, [initialDays, initialRevenue, edit])
 
   return (
-    <Card className="flex-1">
-      <CardHeader className="flex flex-row justify-start items-center text-primary">
-        <CardTitle>Cele na miesiąc</CardTitle>
+    <Card className="w-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xl md:text-2xl text-primary">
+          Cele na miesiąc
+        </CardTitle>
       </CardHeader>
 
       {/* view mode */}
       {!edit && (
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           <ReadonlyRow
             label="Dni robocze"
             value={initialDays?.toString() ?? 'Brak'}
@@ -66,11 +68,12 @@ const GoalsCard = ({ initialDays, initialRevenue, onSave }: Props) => {
                 : 'Brak'
             }
           />
-          <div className="flex w-full justify-end">
+          <div className="flex w-full justify-stretch sm:justify-end pt-1">
             {!edit && (
               <Button
                 size="sm"
                 variant="default"
+                className="w-full sm:w-auto gap-1.5"
                 onClick={() => {
                   setDays(initialDays)
                   setRev(initialRevenue)
@@ -106,14 +109,15 @@ const GoalsCard = ({ initialDays, initialRevenue, onSave }: Props) => {
             disabled={saving}
           />
 
-          <div className="flex gap-2">
-            <Button onClick={handleSave} disabled={saving}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
               {saving ? 'Zapisywanie…' : 'Zapisz'}
             </Button>
             <Button
               variant="secondary"
               onClick={() => setEdit(false)}
               disabled={saving}
+              className="w-full sm:w-auto"
             >
               Anuluj
             </Button>

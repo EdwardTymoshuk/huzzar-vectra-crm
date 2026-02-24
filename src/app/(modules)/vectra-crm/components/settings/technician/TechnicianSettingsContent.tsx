@@ -40,7 +40,7 @@ const TechnicianSettingsContent = () => {
     <>
       <PageHeader title="Ustawienia" />
 
-      <div className="mt-6 space-y-6">
+      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:gap-6 xl:grid-cols-2">
         <ProfileCard
           user={user ?? {}}
           onChangePass={() => setShowDialog(true)}

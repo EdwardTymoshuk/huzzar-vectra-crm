@@ -11,9 +11,13 @@ const ReadonlyRow = ({
   label: string
   value: React.ReactNode
 }) => (
-  <div className="flex justify-between text-sm">
-    <span className="font-semibold">{label}:</span>
-    <span>{value}</span>
+  <div className="grid grid-cols-1 gap-0.5 text-sm sm:grid-cols-[minmax(130px,auto)_1fr] sm:gap-2 sm:items-start">
+    <span className="font-semibold text-foreground/90 break-words">
+      {label}:
+    </span>
+    <span className="break-words text-muted-foreground sm:text-foreground">
+      {value}
+    </span>
   </div>
 )
 

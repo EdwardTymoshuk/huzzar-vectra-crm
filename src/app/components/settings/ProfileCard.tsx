@@ -23,11 +23,11 @@ type Props = {
 }
 
 const ProfileCard = ({ user, onChangePass }: Props) => (
-  <Card className="flex-1">
-    <CardHeader className="flex flex-row justify-start items-center text-primary">
-      <CardTitle>Moje dane</CardTitle>
+  <Card className="w-full">
+    <CardHeader className="pb-3">
+      <CardTitle className="text-xl md:text-2xl text-primary">Moje dane</CardTitle>
     </CardHeader>
-    <CardContent className="space-y-2">
+    <CardContent className="space-y-3">
       <ReadonlyRow label="Imię i nazwisko" value={user.name ?? '—'} />
       <ReadonlyRow label="E-mail" value={user.email ?? '—'} />
       <ReadonlyRow label="Telefon" value={user.phoneNumber ?? '—'} />
@@ -39,8 +39,13 @@ const ProfileCard = ({ user, onChangePass }: Props) => (
         label="Nr identyfikator"
         value={user.identyficator?.toString() ?? '—'}
       />
-      <div className="flex w-full justify-end">
-        <Button size="sm" variant="default" onClick={onChangePass}>
+      <div className="flex w-full justify-stretch sm:justify-end pt-1">
+        <Button
+          size="sm"
+          variant="default"
+          onClick={onChangePass}
+          className="w-full sm:w-auto gap-1.5"
+        >
           <MdEdit /> Zmień hasło
         </Button>
       </div>

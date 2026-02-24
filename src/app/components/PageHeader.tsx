@@ -1,7 +1,7 @@
 const PageHeader = ({ title }: { title: string }) => {
   return (
-    <div className="p-2 w-full flex items-center justify-center md:justify-start text-primary">
-      <h1 className="font-semibold text-2xl text-center h-fit">{title}</h1>
+    <div className="px-2 py-2 w-full flex items-center justify-start text-primary">
+      <h1 className="font-semibold text-xl sm:text-2xl leading-tight">{title}</h1>
     </div>
   )
 }
