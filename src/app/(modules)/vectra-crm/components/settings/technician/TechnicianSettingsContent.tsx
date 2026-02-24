@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import PageHeader from '@/app/components/PageHeader'
+import PageControlBar from '@/app/components/PageControlBar'
 import GoalsCard from '@/app/components/settings/GoalsCard'
 import ProfileCard from '@/app/components/settings/ProfileCard'
 import ChangePasswordDialog from '../../../../../components/settings/ChangePasswordDialog'
@@ -38,24 +38,26 @@ const TechnicianSettingsContent = () => {
 
   return (
     <>
-      <PageHeader title="Ustawienia" />
+      <PageControlBar title="Moje ustawienia" />
 
-      <div className="mt-4 grid grid-cols-1 gap-4 md:mt-6 md:gap-6 xl:grid-cols-2">
-        <ProfileCard
-          user={user ?? {}}
-          onChangePass={() => setShowDialog(true)}
-        />
+      <div className="pb-6">
+        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+          <ProfileCard
+            user={user ?? {}}
+            onChangePass={() => setShowDialog(true)}
+          />
 
-        <GoalsCard
-          initialDays={goalsQuery.data?.workingDaysGoal}
-          initialRevenue={goalsQuery.data?.revenueGoal}
-          onSave={(days, income) =>
-            goalsMutation.mutateAsync({
-              workDays: days,
-              incomeGoal: income,
-            })
-          }
-        />
+          <GoalsCard
+            initialDays={goalsQuery.data?.workingDaysGoal}
+            initialRevenue={goalsQuery.data?.revenueGoal}
+            onSave={(days, income) =>
+              goalsMutation.mutateAsync({
+                workDays: days,
+                incomeGoal: income,
+              })
+            }
+          />
+        </div>
       </div>
 
       <ChangePasswordDialog

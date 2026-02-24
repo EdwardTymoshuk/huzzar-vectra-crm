@@ -1,5 +1,7 @@
 'use client'
 
+import OplTechnicianSettingsContent from '@/app/(modules)/opl-crm/components/settings/technician/TechnicianSettingsContent'
+import VectraTechnicianSettingsContent from '@/app/(modules)/vectra-crm/components/settings/technician/TechnicianSettingsContent'
 import MaxWidthWrapper from '@/app/components/MaxWidthWrapper'
 import UnauthorizedPage from '@/app/components/UnauthorizedPage'
 import PlatformLayout from '@/app/components/root/PlatformLayout'
@@ -18,14 +20,31 @@ import { SettingsSidebar } from '../components/settings/SettingsSidebar'
 const SettingsPage = () => {
   const { user, role, modules, isLoading } = useUser()
 
-  if (!user || !role) return <UnauthorizedPage />
   if (isLoading) return null
+  if (!user || !role) return <UnauthorizedPage />
 
   const [section, setSection] = useState<SettingsContext>(
     role === 'TECHNICIAN' ? 'PROFILE' : 'CORE'
   )
-
+  const isTechnician = role === 'TECHNICIAN'
   const moduleCodes = modules.map((m) => m.code)
+  const hasOplModule = moduleCodes.includes('OPL')
+
+  if (isTechnician) {
+    return (
+      <PlatformLayout>
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-4 pt-0">
+            {hasOplModule ? (
+              <OplTechnicianSettingsContent />
+            ) : (
+              <VectraTechnicianSettingsContent />
+            )}
+          </div>
+        </div>
+      </PlatformLayout>
+    )
+  }
 
   return (
     <PlatformLayout>
@@ -36,7 +55,7 @@ const SettingsPage = () => {
         modules={moduleCodes}
       />
 
-      <div className="flex-1 overflow-y-auto ml-64">
+      <div className="ml-64 flex-1 overflow-y-auto">
         <MaxWidthWrapper className="px-4 pt-0">
           <SettingsContent section={section} role={role} />
         </MaxWidthWrapper>
