@@ -119,11 +119,11 @@ const OplStepNotes = ({ orderId, orderType, onBack, onNext }: Props) => {
         return
       }
 
-      try {
+    try {
         await createAddressNote.mutateAsync({
           orderId,
           note: addressNoteDraft.trim(),
-          buildingScope: addressScopeDraft.trim() || undefined,
+          buildingScope: addressScopeDraft.trim() || '',
         })
         lastSavedAddressSignatureRef.current = signature
         await utils.opl.order.getAddressNotesForOrder.invalidate({ orderId })

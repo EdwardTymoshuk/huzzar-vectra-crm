@@ -140,6 +140,7 @@ const OplMaterialSelector = ({
   )
   const [quantityInput, setQuantityInput] = useState<string>('1')
   const [quickQtyById, setQuickQtyById] = useState<Record<string, string>>({})
+  const [editingRow, setEditingRow] = useState<string | null>(null)
 
   const stockById = useMemo(() => {
     const map = new Map<string, number>()
@@ -328,55 +329,41 @@ const OplMaterialSelector = ({
                       </p>
                     ))}
                   </div>
-                  {selectedQty <= 0 ? (
+                  {editingRow === row.id ? (
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         min={1}
                         inputMode="numeric"
                         className="h-8 w-20"
-                        value={getQuickQty(row.id)}
+                        value={quickQtyById[row.id] ?? '1'}
                         onChange={(e) => setQuickQty(row.id, e.target.value)}
                       />
                       <Button
                         size="sm"
-                        onClick={() => handleQuickAdd(row.id)}
+                        onClick={() => {
+                          handleQuickAdd(row.id)
+                          setEditingRow(null)
+                        }}
                         disabled={Number(getQuickQty(row.id)) <= 0}
                       >
                         Dodaj
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingRow(null)
+                          setQuickQtyById((prev) => ({ ...prev, [row.id]: '1' }))
+                        }}
+                      >
+                        Anuluj
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant={selectedQty === 1 ? 'ghost' : 'outline'}
-                        className="h-8 w-8"
-                        onClick={() =>
-                          setMaterialQty(
-                            row.id,
-                            selectedQty === 1 ? 0 : selectedQty - 1,
-                          )
-                        }
-                      >
-                        {selectedQty === 1 ? (
-                          <MdDelete className="text-danger h-4 w-4" />
-                        ) : (
-                          <MdRemove className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <div className="w-8 text-center text-sm font-semibold">
-                        {selectedQty}
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() => setMaterialQty(row.id, selectedQty + 1)}
-                      >
-                        <MdAdd className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button size="sm" onClick={() => setEditingRow(row.id)}>
+                      Dodaj
+                    </Button>
                   )}
                 </div>
               )
