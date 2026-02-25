@@ -24,6 +24,18 @@ import { reconcileOrderMaterials } from '../_helpers/reconcileOrderMaterials'
 
 type DbTx = Prisma.TransactionClient | PrismaClient
 
+function sanitizeWorkCodesForVectraPion(
+  workCodes?: { code: string; quantity: number }[]
+) {
+  if (!workCodes?.length) return workCodes
+
+  return workCodes.map((entry) =>
+    entry.code.toLowerCase().includes('pion')
+      ? { ...entry, quantity: Math.max(0, Math.min(1, entry.quantity)) }
+      : entry
+  )
+}
+
 async function canTechnicianAmend(
   tx: typeof prisma,
   orderId: string,
@@ -1035,6 +1047,7 @@ export const mutationsRouter = router({
       }
 
       await prisma.$transaction(async (tx) => {
+        const sanitizedWorkCodes = sanitizeWorkCodesForVectraPion(input.workCodes)
         /* -------------------------------------------------------------------
          * 1️⃣  Update order main info (status, notes, failure reason)
          * ------------------------------------------------------------------- */
@@ -1061,9 +1074,9 @@ export const mutationsRouter = router({
         /* -------------------------------------------------------------------
          * 3️⃣  Save settlement entries (work codes) if order is completed
          * ------------------------------------------------------------------- */
-        if (input.status === OrderStatus.COMPLETED && input.workCodes?.length) {
+        if (input.status === OrderStatus.COMPLETED && sanitizedWorkCodes?.length) {
           await tx.orderSettlementEntry.createMany({
-            data: input.workCodes.map((entry) => ({
+            data: sanitizedWorkCodes.map((entry) => ({
               orderId: input.orderId,
               code: entry.code,
               quantity: entry.quantity,
@@ -1529,6 +1542,7 @@ export const mutationsRouter = router({
       await canTechnicianAmend(prisma, input.orderId, userId)
 
       await prisma.$transaction(async (tx) => {
+        const sanitizedWorkCodes = sanitizeWorkCodesForVectraPion(input.workCodes)
         /* -------------------------------------------------------------------
          * Step 1️⃣ — Clear previous non-collected equipment, services, work codes
          * ------------------------------------------------------------------- */
@@ -1569,9 +1583,9 @@ export const mutationsRouter = router({
         /* -------------------------------------------------------------------
          * Step 3️⃣ — Rewrite work codes
          * ------------------------------------------------------------------- */
-        if (input.status === OrderStatus.COMPLETED && input.workCodes?.length) {
+        if (input.status === OrderStatus.COMPLETED && sanitizedWorkCodes?.length) {
           await tx.orderSettlementEntry.createMany({
-            data: input.workCodes.map((w) => ({
+            data: sanitizedWorkCodes.map((w) => ({
               orderId: input.orderId,
               code: w.code,
               quantity: w.quantity,
@@ -1917,6 +1931,7 @@ export const mutationsRouter = router({
       if (!adminId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
       await prisma.$transaction(async (tx) => {
+        const sanitizedWorkCodes = sanitizeWorkCodesForVectraPion(input.workCodes)
         /* -------------------------------------------------------------------
          * Step 1️⃣ — Clear ALL order-related records
          * -------------------------------------------------------------------
@@ -1965,9 +1980,9 @@ export const mutationsRouter = router({
         /* -------------------------------------------------------------------
          * Step 4️⃣ — Apply work codes
          * ------------------------------------------------------------------- */
-        if (input.status === OrderStatus.COMPLETED && input.workCodes?.length) {
+        if (input.status === OrderStatus.COMPLETED && sanitizedWorkCodes?.length) {
           await tx.orderSettlementEntry.createMany({
-            data: input.workCodes.map((w) => ({
+            data: sanitizedWorkCodes.map((w) => ({
               orderId: input.orderId,
               code: w.code,
               quantity: w.quantity,

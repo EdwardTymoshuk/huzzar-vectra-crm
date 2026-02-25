@@ -90,8 +90,12 @@ const InstallationSection = ({
                 variant="ghost"
                 className="rounded-none px-3"
                 onClick={() =>
-                  onChangeAction({ ...value, pion: value.pion + 1 })
+                  onChangeAction({
+                    ...value,
+                    pion: Math.min(1, value.pion + 1),
+                  })
                 }
+                disabled={value.pion >= 1}
               >
                 +
               </Button>
