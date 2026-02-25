@@ -604,9 +604,6 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
                             .filter(Boolean)
                             .join(', ')}
                         </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {suggestion.source === 'local' ? 'CRM' : 'Mapa (OSM)'}
-                        </div>
                       </button>
                     ))}
                   </div>
