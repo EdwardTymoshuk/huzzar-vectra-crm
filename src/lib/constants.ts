@@ -370,11 +370,7 @@ export const mapServiceToCode = (
   if (service.type === 'NET')
     return rates.find((r) => r.code.includes('NET'))?.code || null
   if (service.type === 'TEL')
-    return (
-      rates.find((r) => r.code.includes('TEL'))?.code ||
-      rates.find((r) => r.code.includes('NET'))?.code ||
-      null
-    )
+    return rates.find((r) => r.code.includes('TEL'))?.code || null
   if (service.type === 'ATV')
     return rates.find((r) => r.code.includes('1-way'))?.code || null
   return null
