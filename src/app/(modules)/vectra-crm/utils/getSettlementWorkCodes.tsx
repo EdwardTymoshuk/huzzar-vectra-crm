@@ -72,7 +72,7 @@ export const getSettlementWorkCodes = (
     const pionCode =
       rates.find((r) => r.code.toLowerCase().includes('pion'))?.code || null
     if (pionCode && install.pion) {
-      workCodeMap[pionCode] = install.pion
+      workCodeMap[pionCode] = Math.min(1, install.pion)
     }
 
     const listwaCode =

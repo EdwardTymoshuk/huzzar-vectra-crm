@@ -23,6 +23,20 @@ import { processEquipmentDelta } from '../../services/orderEquipmentDelta'
 import { reconcileOrderMaterials } from '../../services/orderMaterialsReconciliation'
 import { mapServicesWithDeviceTypes } from '../../services/orderServicesMapper'
 
+const sanitizeVectraWorkCodes = (
+  workCodes?: Array<{ code: string; quantity: number }>
+) => {
+  if (!workCodes?.length) return []
+
+  return workCodes.map((entry) => {
+    const isPionCode = entry.code.toLowerCase().includes('pion')
+    return {
+      ...entry,
+      quantity: isPionCode ? Math.min(1, Math.max(0, entry.quantity)) : entry.quantity,
+    }
+  })
+}
+
 export const mutationsRouter = router({
   /** Bulk import of installation orders from Excel */
   bulkImport: adminOrCoord
@@ -733,6 +747,7 @@ export const mutationsRouter = router({
           message: 'Brak dodanych kodów pracy dla instalacji',
         })
       }
+      const sanitizedWorkCodes = sanitizeVectraWorkCodes(input.workCodes)
 
       await prisma.$transaction(async (tx) => {
         /* -------------------------------------------------------------------
@@ -763,10 +778,10 @@ export const mutationsRouter = router({
          * ------------------------------------------------------------------- */
         if (
           input.status === VectraOrderStatus.COMPLETED &&
-          input.workCodes?.length
+          sanitizedWorkCodes.length
         ) {
           await tx.vectraOrderSettlementEntry.createMany({
-            data: input.workCodes.map((entry) => ({
+            data: sanitizedWorkCodes.map((entry) => ({
               orderId: input.orderId,
               code: entry.code,
               quantity: entry.quantity,
@@ -1225,6 +1240,7 @@ export const mutationsRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const { id: userId } = getCoreUserOrThrow(ctx)
+      const sanitizedWorkCodes = sanitizeVectraWorkCodes(input.workCodes)
 
       if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
@@ -1271,10 +1287,10 @@ export const mutationsRouter = router({
          * ------------------------------------------------------------------- */
         if (
           input.status === VectraOrderStatus.COMPLETED &&
-          input.workCodes?.length
+          sanitizedWorkCodes.length
         ) {
           await tx.vectraOrderSettlementEntry.createMany({
-            data: input.workCodes.map((w) => ({
+            data: sanitizedWorkCodes.map((w) => ({
               orderId: input.orderId,
               code: w.code,
               quantity: w.quantity,
@@ -1619,6 +1635,7 @@ export const mutationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const adminId = ctx.user?.id
       const adminName = ctx.user?.name
+      const sanitizedWorkCodes = sanitizeVectraWorkCodes(input.workCodes)
       if (!adminId) throw new TRPCError({ code: 'UNAUTHORIZED' })
 
       await prisma.$transaction(async (tx) => {
@@ -1669,10 +1686,10 @@ export const mutationsRouter = router({
          * ------------------------------------------------------------------- */
         if (
           input.status === VectraOrderStatus.COMPLETED &&
-          input.workCodes?.length
+          sanitizedWorkCodes.length
         ) {
           await tx.vectraOrderSettlementEntry.createMany({
-            data: input.workCodes.map((w) => ({
+            data: sanitizedWorkCodes.map((w) => ({
               orderId: input.orderId,
               code: w.code,
               quantity: w.quantity,
