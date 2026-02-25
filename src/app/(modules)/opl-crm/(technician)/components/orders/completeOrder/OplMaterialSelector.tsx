@@ -35,6 +35,7 @@ const FREQUENT_BY_BASE: Record<string, string[]> = {
   ZJD: [
     'OSŁONKA SPAWU ŚWIATŁ.OS-45',
     'PIGTAIL 652 0,9 SC/APC DŁ.2,5M',
+    'PIGTAIL 652 0,9 SC/APC DŁ.3M',
     'GNI.ŚWIATŁ.ABON-2xSCA',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/25M/BIAŁY',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/35M/BIAŁY',
@@ -58,6 +59,7 @@ const FREQUENT_BY_BASE: Record<string, string[]> = {
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/45M/BIAŁY',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/55M/BIAŁY',
     'PIGTAIL 652 0,9 SC/APC DŁ.2,5M',
+    'PIGTAIL 652 0,9 SC/APC DŁ.3M',
     'KAB.ABON.SC/APC/657B3/1M/BIAŁY',
     'KAB.ABON.SC/APC/657B3/3M/BIAŁY',
     'KAB.ABON.SC/APC/657B3/5M/BIAŁY',
@@ -68,6 +70,7 @@ const FREQUENT_BY_BASE: Record<string, string[]> = {
     'KAB.ABON.SC/APC/657B3/5M/BIAŁY',
     'OSŁONKA SPAWU ŚWIATŁ.OS-45',
     'PIGTAIL 652 0,9 SC/APC DŁ.2,5M',
+    'PIGTAIL 652 0,9 SC/APC DŁ.3M',
     'GNI.ŚWIATŁ.ABON-2xSCA',
   ],
   W5: [
@@ -76,6 +79,7 @@ const FREQUENT_BY_BASE: Record<string, string[]> = {
     'KAB.ABON.SC/APC/657B3/5M/BIAŁY',
     'OSŁONKA SPAWU ŚWIATŁ.OS-45',
     'PIGTAIL 652 0,9 SC/APC DŁ.2,5M',
+    'PIGTAIL 652 0,9 SC/APC DŁ.3M',
     'GNI.ŚWIATŁ.ABON-2xSCA',
     'PRZEW.KOMP.UTP LSOH 100OM 4X2X0,5 KAT.5E',
     'WTYK MODULARNY PRZEW.PŁ.WM 8P8C FD RJ45',
@@ -87,6 +91,7 @@ const FREQUENT_BY_BASE: Record<string, string[]> = {
     'KAB.ABON.MADC 3,5MM ZŁĄCZ.SC/APC DŁ.150M',
     'OSŁONKA SPAWU ŚWIATŁ.OS-45',
     'PIGTAIL 652 0,9 SC/APC DŁ.2,5M',
+    'PIGTAIL 652 0,9 SC/APC DŁ.3M',
     'GNI.ŚWIATŁ.ABON-2xSCA',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/25M/BIAŁY',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/35M/BIAŁY',
@@ -100,6 +105,7 @@ const FREQUENT_BY_BASE: Record<string, string[]> = {
   DEFAULT: [
     'OSŁONKA SPAWU ŚWIATŁ.OS-45',
     'PIGTAIL 652 0,9 SC/APC DŁ.2,5M',
+    'PIGTAIL 652 0,9 SC/APC DŁ.3M',
     'GNI.ŚWIATŁ.ABON-2xSCA',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/25M/BIAŁY',
     'GNI.ŚWIATŁ-PIGT/B3/1XAPC/1J/35M/BIAŁY',
@@ -314,9 +320,9 @@ const OplMaterialSelector = ({
               return (
                 <div
                   key={`fav-${row.id}`}
-                  className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
+                  className="flex flex-col sm:flex-row gap-3 rounded-md border bg-background px-3 py-2"
                 >
-                  <div className="min-w-0">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium break-words">
                       {row.name}
                     </p>
@@ -324,44 +330,57 @@ const OplMaterialSelector = ({
                       Stan: {available} {materialUnitMap[row.unit]}
                     </p>
                     {availableBySource.map(([source, qty]) => (
-                      <p key={`${row.id}-${source}`} className="text-xs text-muted-foreground">
+                      <p
+                        key={`${row.id}-${source}`}
+                        className="text-xs text-muted-foreground"
+                      >
                         {source}: {qty} {materialUnitMap[row.unit]}
                       </p>
                     ))}
                   </div>
+
                   {editingRow === row.id ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                       <Input
                         type="number"
                         min={1}
                         inputMode="numeric"
-                        className="h-8 w-20"
+                        className="h-8 w-full sm:w-20"
                         value={quickQtyById[row.id] ?? '1'}
                         onChange={(e) => setQuickQty(row.id, e.target.value)}
                       />
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          handleQuickAdd(row.id)
-                          setEditingRow(null)
-                        }}
-                        disabled={Number(getQuickQty(row.id)) <= 0}
-                      >
-                        Dodaj
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingRow(null)
-                          setQuickQtyById((prev) => ({ ...prev, [row.id]: '1' }))
-                        }}
-                      >
-                        Anuluj
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2 sm:auto-cols-min sm:grid-flow-col">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            handleQuickAdd(row.id)
+                            setEditingRow(null)
+                          }}
+                          disabled={Number(getQuickQty(row.id)) <= 0}
+                        >
+                          Dodaj
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingRow(null)
+                            setQuickQtyById((prev) => ({
+                              ...prev,
+                              [row.id]: '1',
+                            }))
+                          }}
+                        >
+                          Anuluj
+                        </Button>
+                      </div>
                     </div>
                   ) : (
-                    <Button size="sm" onClick={() => setEditingRow(row.id)}>
+                    <Button
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      onClick={() => setEditingRow(row.id)}
+                    >
                       Dodaj
                     </Button>
                   )}
@@ -383,7 +402,7 @@ const OplMaterialSelector = ({
         />
 
         {selectedMaterialId && selectedMaterial && (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,90px,auto] sm:items-end">
+          <div className="space-y-2">
             <div className="min-w-0">
               <p className="text-sm font-semibold break-words">
                 {selectedMaterial.name}
@@ -393,35 +412,51 @@ const OplMaterialSelector = ({
                 {materialUnitMap[selectedMaterial.unit]}
               </p>
               {availableQtyBySource.map(([source, qty]) => (
-                <p key={`${selectedMaterial.id}-${source}`} className="text-xs text-muted-foreground">
+                <p
+                  key={`${selectedMaterial.id}-${source}`}
+                  className="text-xs text-muted-foreground"
+                >
                   {source}: {qty} {materialUnitMap[selectedMaterial.unit]}
                 </p>
               ))}
             </div>
 
-            <Input
-              type="number"
-              min={1}
-              value={quantityInput}
-              onChange={(e) => {
-                const raw = e.target.value
-                if (raw === '') {
-                  setQuantityInput('')
-                  return
-                }
+            <div className="flex w-full flex-col gap-2">
+              <Input
+                type="number"
+                min={1}
+                value={quantityInput}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (raw === '') {
+                    setQuantityInput('')
+                    return
+                  }
 
-                const digitsOnly = raw.replace(/[^\d]/g, '')
-                const normalized = digitsOnly.replace(/^0+(\d)/, '$1')
-                setQuantityInput(normalized)
-              }}
-            />
+                  const digitsOnly = raw.replace(/[^\d]/g, '')
+                  const normalized = digitsOnly.replace(/^0+(\d)/, '$1')
+                  setQuantityInput(normalized)
+                }}
+              />
 
-            <Button
-              onClick={handleAdd}
-              disabled={!quantityInput || Number(quantityInput) <= 0}
-            >
-              Dodaj
-            </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={handleAdd}
+                  disabled={!quantityInput || Number(quantityInput) <= 0}
+                >
+                  Dodaj
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedMaterialId(null)
+                    setQuantityInput('1')
+                  }}
+                >
+                  Anuluj
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

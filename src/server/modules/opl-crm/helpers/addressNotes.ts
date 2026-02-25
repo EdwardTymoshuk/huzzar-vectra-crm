@@ -161,12 +161,13 @@ export const createAddressNoteRecord = async ({
   await ensureAddressNotesStorage(prisma)
 
   const id = randomUUID()
+  const now = new Date()
 
   await prisma.$executeRaw`
     INSERT INTO opl."OplAddressNote"
-      ("id","city","street","cityNorm","streetNorm","buildingScope","note","createdById")
+      ("id","city","street","cityNorm","streetNorm","buildingScope","note","active","createdAt","updatedAt","createdById")
     VALUES
-      (${id},${city},${street},${cityNorm},${streetNorm},${buildingScope},${note},${createdById})
+      (${id},${city},${street},${cityNorm},${streetNorm},${buildingScope},${note},true,${now},${now},${createdById})
   `
 
   const rows = await prisma.$queryRaw<AddressNoteDbRow[]>`
