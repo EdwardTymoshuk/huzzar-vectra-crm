@@ -17,13 +17,13 @@ const TRANSFER_KEYWORDS = ['przekaz', 'przenies', 'przekazane']
 const ORDER_EDIT_KEYWORDS = ['zlecenie edytowane', 'zmieniono dane zlecenia']
 const NEW_ATTEMPT_KEYWORDS = ['kolejne podejście', 'kolejne wejście', 'następne wejście']
 
-function isCreationNote(note?: string) {
+function isCreationNote(note?: string | null) {
   if (!note) return false
   const lower = note.toLowerCase()
   return CREATION_KEYWORDS.some((keyword) => lower.includes(keyword))
 }
 
-function parseAttemptNumberFromNote(note?: string): number | null {
+function parseAttemptNumberFromNote(note?: string | null): number | null {
   if (!note) return null
   const match = note.match(/wej(?:\u015B|s|ſ)\s*([\d]+)/i)
   if (match && match[1]) {
@@ -33,24 +33,24 @@ function parseAttemptNumberFromNote(note?: string): number | null {
   return null
 }
 
-function isNewAttemptNote(note?: string) {
+function isNewAttemptNote(note?: string | null) {
   if (!note) return false
   const lower = note.toLowerCase()
   return NEW_ATTEMPT_KEYWORDS.some((keyword) => lower.includes(keyword))
 }
 
-function parseAttemptNumberFromNewAttempt(note?: string, fallback?: number) {
+function parseAttemptNumberFromNewAttempt(note?: string | null, fallback?: number) {
   return parseAttemptNumberFromNote(note) ?? fallback ?? null
 }
 
-function determineCreationMethod(note?: string) {
+function determineCreationMethod(note?: string | null) {
   const lower = (note ?? '').toLowerCase()
   if (lower.includes('import')) return 'import'
   return 'ręcznie'
 }
 
 function buildCreationTitle(
-  note?: string,
+  note?: string | null,
   attemptNumber?: number,
   methodOverride?: 'import' | 'ręcznie'
 ) {
@@ -77,13 +77,13 @@ function buildAttemptDescription(
   )
 }
 
-function isTransferNote(note?: string) {
+function isTransferNote(note?: string | null) {
   if (!note) return false
   const lower = note.toLowerCase()
   return TRANSFER_KEYWORDS.some((keyword) => lower.includes(keyword))
 }
 
-function isOrderEditNote(note?: string) {
+function isOrderEditNote(note?: string | null) {
   if (!note) return false
   const lower = note.toLowerCase()
   return ORDER_EDIT_KEYWORDS.some((keyword) => lower.includes(keyword))
@@ -149,7 +149,6 @@ export function getFullOrderTimeline(
   if (isPrivileged && order.history?.length) {
     for (const history of order.history) {
       const note = history.notes
-      const lowerNote = note?.toLowerCase() ?? ''
       const isNewAttempt = isNewAttemptNote(note)
       const isCreation = isCreationNote(note)
       const isTransfer = isTransferNote(note)
@@ -199,8 +198,10 @@ export function getFullOrderTimeline(
         history.statusBefore !== history.statusAfter
 
       if (isStatusChange) {
-        const title = `ZMIANA STATUSU: ${statusMap[history.statusBefore]} → ${
-          statusMap[history.statusAfter]
+        const statusBefore = history.statusBefore as VectraOrderStatus
+        const statusAfter = history.statusAfter as VectraOrderStatus
+        const title = `ZMIANA STATUSU: ${statusMap[statusBefore]} → ${
+          statusMap[statusAfter]
         }`
         const editedAfterCompletion =
           order.closedAt &&

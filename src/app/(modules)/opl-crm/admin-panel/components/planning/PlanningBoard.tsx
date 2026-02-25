@@ -60,7 +60,7 @@ const PlanningBoard = () => {
         dateLabel?: string
         slotLabel: string
         networkLabel: string
-        status: string
+        status: OplOrderStatus
         techniciansLabel: string
         standard: string
         notes: string | null
