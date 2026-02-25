@@ -8,7 +8,8 @@ import { mapServiceToCode } from '../lib/constants'
  * - Each NET service counts a socket for: modem + router (if any) + extra devices.
  * - TEL, DTV, ATV each count as one socket.
  * - ATV adds only socket (no device code).
- * - DTV, NET, TEL add both socket and their respective work codes.
+ * - DTV and NET add both socket and their respective work codes.
+ * - TEL adds only socket (no modem/install work code).
  * - "Przyłącze" is always added once.
  *
  * @param activatedServices - List of all activated services for the order.
@@ -57,9 +58,9 @@ export const getSettlementWorkCodes = (
     workCodeMap[przylaczeCode] = 1
   }
 
-  /* -------------------- DEVICE CODES (NET, TEL, DTV) -------------------- */
+  /* -------------------- DEVICE CODES (NET, DTV) -------------------- */
   activatedServices.forEach((service) => {
-    if (service.type === 'ATV') return // ATV adds only socket
+    if (service.type === 'ATV' || service.type === 'TEL') return // ATV/TEL add only socket
 
     const code = mapServiceToCode(service, rates)
     if (code) {

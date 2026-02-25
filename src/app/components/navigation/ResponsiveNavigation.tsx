@@ -12,6 +12,7 @@ interface Props {
   moduleLabel: string
   adminMenu: MenuItem[]
   technicianMenu: MenuItem[]
+  forcedRoleMode?: 'technician' | 'default'
 }
 
 const ResponsiveNavigation = ({
@@ -19,6 +20,7 @@ const ResponsiveNavigation = ({
   moduleLabel,
   adminMenu,
   technicianMenu,
+  forcedRoleMode = 'default',
 }: Props) => {
   const [isMobile, setIsMobile] = useState(false)
 
@@ -27,11 +29,16 @@ const ResponsiveNavigation = ({
   const { isWarehouseman, isTechnician } = useRole()
   const searchParams = useSearchParams()
 
-  const menuItems = isTechnician ? technicianMenu : adminMenu
+  const effectiveIsTechnician =
+    forcedRoleMode === 'technician' ? true : isTechnician
+  const effectiveIsWarehouseman =
+    forcedRoleMode === 'technician' ? false : isWarehouseman
+
+  const menuItems = effectiveIsTechnician ? technicianMenu : adminMenu
 
   const normalizeTabKey = (tab: string | null) => {
     if (!tab) return tab
-    if (isTechnician && (tab === 'planning' || tab === 'planner')) {
+    if (effectiveIsTechnician && (tab === 'planning' || tab === 'planner')) {
       return 'planer'
     }
     return tab
@@ -41,7 +48,7 @@ const ResponsiveNavigation = ({
     const tab = normalizeTabKey(searchParams.get('tab'))
 
     /** Warehouseman always works in tab-based navigation */
-    if (isWarehouseman) {
+    if (effectiveIsWarehouseman) {
       return tab ?? 'warehouse'
     }
 
@@ -54,14 +61,20 @@ const ResponsiveNavigation = ({
     const match = menuItems.find((item) => pathname.includes(item.key))
 
     return match?.key ?? 'dashboard'
-  }, [pathname, searchParams, menuItems, isWarehouseman, isTechnician])
+  }, [
+    pathname,
+    searchParams,
+    menuItems,
+    effectiveIsWarehouseman,
+    effectiveIsTechnician,
+  ])
 
   const sharedProps = {
     menuItems,
     activeKey,
     router,
-    isTechnician,
-    isWarehouseman,
+    isTechnician: effectiveIsTechnician,
+    isWarehouseman: effectiveIsWarehouseman,
     basePath,
     moduleLabel,
   }
@@ -74,10 +87,10 @@ const ResponsiveNavigation = ({
   }, [])
 
   useEffect(() => {
-    if (isWarehouseman && !searchParams.get('tab')) {
+    if (effectiveIsWarehouseman && !searchParams.get('tab')) {
       router.replace(`${basePath}/admin-panel?tab=warehouse`)
     }
-  }, [isWarehouseman, searchParams, router, basePath])
+  }, [effectiveIsWarehouseman, searchParams, router, basePath])
 
   return isMobile ? <MobileNav {...sharedProps} /> : <TopNav {...sharedProps} />
 }

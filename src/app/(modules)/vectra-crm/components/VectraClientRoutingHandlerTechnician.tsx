@@ -84,6 +84,7 @@ const VectraClientRoutingHandlerTechnician = ({
           moduleLabel={module.name}
           adminMenu={adminMenu}
           technicianMenu={technicianMenu}
+          forcedRoleMode="technician"
         />
       }
     >

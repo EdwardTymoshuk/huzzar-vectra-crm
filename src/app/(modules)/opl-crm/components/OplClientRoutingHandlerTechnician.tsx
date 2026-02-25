@@ -83,6 +83,7 @@ const ClientRoutingHandlerTechnician = ({
           moduleLabel={module.name}
           adminMenu={adminMenu}
           technicianMenu={technicianMenu}
+          forcedRoleMode="technician"
         />
       }
     >
