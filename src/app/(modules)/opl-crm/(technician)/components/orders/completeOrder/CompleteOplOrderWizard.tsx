@@ -249,12 +249,12 @@ const CompleteOplOrderWizard = ({
     }
 
     if (
-      finalStatus === 'COMPLETED' &&
+      (finalStatus === 'COMPLETED' || finalStatus === 'NOT_COMPLETED') &&
       soloCompletion &&
       (order.assignments?.length ?? 0) > 1 &&
       !soloTechnicianId
     ) {
-      toast.error('Wybierz technika realizującego solo.')
+      toast.error('Wybierz technika rozliczanego solo.')
       return
     }
 
@@ -401,12 +401,16 @@ const CompleteOplOrderWizard = ({
                 setStatus(data.status)
                 setFailureReason(data.failureReason ?? '')
                 setNotes(data.notes ?? '')
-                if (data.status !== 'COMPLETED') {
+                if (
+                  data.status !== 'COMPLETED' &&
+                  data.status !== 'NOT_COMPLETED'
+                ) {
                   setSoloCompletion(false)
                   setSoloTechnicianId('')
                 }
                 if (
-                  data.status === 'COMPLETED' &&
+                  (data.status === 'COMPLETED' ||
+                    data.status === 'NOT_COMPLETED') &&
                   soloCompletion &&
                   mode !== 'adminEdit'
                 ) {

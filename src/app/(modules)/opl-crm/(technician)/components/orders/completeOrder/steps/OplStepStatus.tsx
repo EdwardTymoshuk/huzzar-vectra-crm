@@ -233,11 +233,12 @@ const OplStepStatus = ({
           </Button>
         </div>
 
-        {isTeamOrder && status === 'COMPLETED' && (
+        {isTeamOrder &&
+          (status === 'COMPLETED' || status === 'NOT_COMPLETED') && (
           <div className="mt-4 max-w-md mx-auto rounded-md border border-border/70 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-medium">
-                {isAdminEditMode ? 'Wykonane solo' : 'Wykonane solo przeze mnie'}
+                {isAdminEditMode ? 'Rozlicz solo' : 'Rozlicz solo przeze mnie'}
               </div>
               <Switch
                 checked={soloCompletion}
@@ -256,7 +257,7 @@ const OplStepStatus = ({
             {isAdminEditMode && soloCompletion && (
               <div className="mt-3">
                 <Label className="mb-1.5 block text-xs text-muted-foreground">
-                  Technik, który wykonał solo
+                  Technik rozliczany solo
                 </Label>
                 <Select
                   value={soloTechnicianId}

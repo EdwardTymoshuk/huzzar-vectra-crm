@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import OrdersList from './OrdersList'
 import { usePlanningContext } from './PlanningContext'
 import TechniciansList from './TechniciansList'
+import { PLANNER_ORDER_STATUS_COLORS } from './constants'
 
 /**
  * PlanningBoard
@@ -19,12 +20,6 @@ import TechniciansList from './TechniciansList'
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
 /** 🎨 Marker colors based on order status */
-const STATUS_COLORS: Record<string, string> = {
-  ASSIGNED: '#26303d',
-  COMPLETED: '#66b266',
-  NOT_COMPLETED: '#E6262D',
-}
-
 const PlanningBoard = () => {
   const { selectedDate } = usePlanningContext()
   const utils = trpc.useUtils()
@@ -71,7 +66,9 @@ const PlanningBoard = () => {
                 ? new Date(o.date).toLocaleDateString('pl-PL')
                 : undefined,
               operator: o.operator ?? '—',
-              color: STATUS_COLORS[o.status] ?? '#26303d',
+            color:
+              PLANNER_ORDER_STATUS_COLORS[o.status] ??
+              PLANNER_ORDER_STATUS_COLORS.ASSIGNED,
             }))
         )
       ) ?? []
@@ -86,7 +83,7 @@ const PlanningBoard = () => {
         Status: nieprzypisane`,
         date: o.date ? new Date(o.date).toLocaleDateString('pl-PL') : undefined,
         operator: o.operator ?? '—',
-        color: '#E6262D',
+        color: PLANNER_ORDER_STATUS_COLORS.UNASSIGNED,
       }))
 
     return [...assignedMarkers, ...unassignedMarkers]

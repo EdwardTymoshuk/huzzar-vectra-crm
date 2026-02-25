@@ -4,15 +4,90 @@ import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { OplOrderStatus, OplOrderType, Role } from '@prisma/client'
 import { ReactNode } from 'react'
 
-/**
- * Builds a full chronological timeline for an order.
- * - Technicians: see only attempts (actual visits)
- * - Admins / Coordinators: see full history (creation, status changes, confirmation)
- *
- * Sorting precision:
- * - Uses raw Date objects to maintain true chronological order (including milliseconds)
- * - Creation/history events appear before attempts when sharing the same timestamp
- */
+type TimelineEvent = {
+  id: string
+  rawDate: Date
+  title: string
+  description?: ReactNode
+  color: 'success' | 'danger' | 'warning' | 'secondary'
+}
+
+const CREATION_KEYWORDS = ['utworzono', 'dodano zlecenie']
+const TRANSFER_KEYWORDS = ['przekaz', 'przenies', 'przekazane']
+const ORDER_EDIT_KEYWORDS = ['zlecenie edytowane', 'zmieniono dane zlecenia']
+const NEW_ATTEMPT_KEYWORDS = ['kolejne podejście', 'kolejne wejście', 'następne wejście']
+
+function isCreationNote(note?: string) {
+  if (!note) return false
+  const lower = note.toLowerCase()
+  return CREATION_KEYWORDS.some((keyword) => lower.includes(keyword))
+}
+
+function parseAttemptNumberFromNote(note?: string): number | null {
+  if (!note) return null
+  const match = note.match(/wej(?:\u015B|s|ſ)\s*([\d]+)/i)
+  if (match && match[1]) {
+    const parsed = Number(match[1])
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
+}
+
+function isNewAttemptNote(note?: string) {
+  if (!note) return false
+  const lower = note.toLowerCase()
+  return NEW_ATTEMPT_KEYWORDS.some((keyword) => lower.includes(keyword))
+}
+
+function parseAttemptNumberFromNewAttempt(note?: string, fallback?: number) {
+  return parseAttemptNumberFromNote(note) ?? fallback ?? null
+}
+
+function determineCreationMethod(note?: string) {
+  const lower = (note ?? '').toLowerCase()
+  if (lower.includes('import')) return 'import'
+  return 'ręcznie'
+}
+
+function buildCreationTitle(
+  note?: string,
+  attemptNumber?: number,
+  methodOverride?: 'import' | 'ręcznie'
+) {
+  const method = methodOverride ?? determineCreationMethod(note) ?? 'ręcznie'
+  const attempt = attemptNumber ?? parseAttemptNumberFromNote(note) ?? 1
+  return `Utworzono zlecenie (${method}) | Wejście ${attempt}`
+}
+
+function isTransferNote(note?: string) {
+  if (!note) return false
+  const lower = note.toLowerCase()
+  return TRANSFER_KEYWORDS.some((keyword) => lower.includes(keyword))
+}
+
+function isOrderEditNote(note?: string) {
+  if (!note) return false
+  const lower = note.toLowerCase()
+  return ORDER_EDIT_KEYWORDS.some((keyword) => lower.includes(keyword))
+}
+
+function buildAttemptDescription(attempt: OplOrderWithAttempts['attempts'][number]) {
+  return (
+    <>
+      {attempt.assignedTechnicians?.length > 0 && (
+        <p className="text-sm">
+          {attempt.assignedTechnicians.map((t) => t.name).join(' + ')}
+        </p>
+      )}
+      {attempt.status !== 'COMPLETED' && attempt.failureReason && (
+        <p className="text-xs text-muted-foreground font-medium">
+          Powód: {attempt.failureReason}
+        </p>
+      )}
+    </>
+  )
+}
+
 export function getOplFullOrderTimeline(
   order: OplOrderWithAttempts & {
     type: OplOrderType
@@ -63,13 +138,12 @@ export function getOplFullOrderTimeline(
     (note ?? '').replace(/\s*\[SOLO:[^\]]+\]\s*/gi, '').trim()
 
   const isTechnician = role === 'TECHNICIAN'
-  const events: {
-    id: string
-    rawDate: Date
-    title: string
-    description?: ReactNode
-    color: 'success' | 'danger' | 'warning' | 'secondary'
-  }[] = []
+  const isPrivileged = role === 'ADMIN' || role === 'COORDINATOR'
+  const events: TimelineEvent[] = []
+
+  const pushEvent = (item: TimelineEvent) => {
+    events.push(item)
+  }
 
   if (isTechnician) {
     const assignedEvent = order.history
@@ -77,7 +151,7 @@ export function getOplFullOrderTimeline(
       .sort((a, b) => a.changeDate.getTime() - b.changeDate.getTime())[0]
 
     if (assignedEvent) {
-      events.push({
+      pushEvent({
         id: `history-assigned-${assignedEvent.id}`,
         rawDate: assignedEvent.changeDate,
         title: 'Przypisane do realizacji',
@@ -90,17 +164,20 @@ export function getOplFullOrderTimeline(
       .sort((a, b) => b.attemptNumber - a.attemptNumber)[0]
 
     if (latestCompletedAttempt) {
-      events.push({
+      pushEvent({
         id: `attempt-final-${latestCompletedAttempt.id}`,
         rawDate:
           latestCompletedAttempt.completedAt ??
           latestCompletedAttempt.closedAt ??
           latestCompletedAttempt.createdAt ??
           latestCompletedAttempt.date,
-        title: `Wejście ${latestCompletedAttempt.attemptNumber} — ${humanStatusLabel(
-          latestCompletedAttempt.status
-        )}`,
-        color: latestCompletedAttempt.status === 'COMPLETED' ? 'success' : 'danger',
+        title:
+          latestCompletedAttempt.status === 'COMPLETED'
+            ? 'WYKONANE'
+            : 'NIE WYKONANE',
+        color:
+          latestCompletedAttempt.status === 'COMPLETED' ? 'success' : 'danger',
+        description: buildAttemptDescription(latestCompletedAttempt),
       })
     } else if (
       order.status === 'COMPLETED' ||
@@ -110,14 +187,11 @@ export function getOplFullOrderTimeline(
         .filter((h) => h.statusAfter === order.status)
         .sort((a, b) => b.changeDate.getTime() - a.changeDate.getTime())[0]
 
-      events.push({
+      pushEvent({
         id: `order-final-${order.id}`,
         rawDate:
-          order.completedAt ??
-          order.closedAt ??
-          completedHistory?.changeDate ??
-          order.date,
-        title: `Wejście ${order.attemptNumber} — ${humanStatusLabel(order.status)}`,
+          order.completedAt ?? order.closedAt ?? completedHistory?.changeDate ?? order.date,
+        title: order.status === 'COMPLETED' ? 'WYKONANE' : 'NIE WYKONANE',
         color: order.status === 'COMPLETED' ? 'success' : 'danger',
       })
     }
@@ -130,181 +204,307 @@ export function getOplFullOrderTimeline(
       }))
   }
 
-  /* ----------------------------------------------------------
-   * 1️⃣ Attempts (visible for everyone)
-   * ---------------------------------------------------------- */
   if (order.attempts?.length) {
-    for (const a of order.attempts) {
+    for (const attempt of order.attempts) {
       const color =
-        a.status === 'COMPLETED'
+        attempt.status === 'COMPLETED'
           ? 'success'
-          : a.status === 'NOT_COMPLETED'
-          ? 'danger'
-          : 'warning'
+          : attempt.status === 'NOT_COMPLETED'
+            ? 'danger'
+            : 'warning'
 
-      // Select most relevant timestamp
-      const displayDate = a.completedAt ?? a.closedAt ?? a.createdAt ?? a.date
+      const displayDate =
+        attempt.completedAt ?? attempt.closedAt ?? attempt.createdAt ?? attempt.date
 
-      events.push({
-        id: `attempt-${a.id}`,
+      if (!displayDate) continue
+
+      let title = humanStatusLabel(attempt.status)
+      if (attempt.status === 'COMPLETED') title = 'WYKONANE'
+      if (attempt.status === 'NOT_COMPLETED') title = 'NIE WYKONANE'
+
+      pushEvent({
+        id: `attempt-${attempt.id}`,
         rawDate: displayDate,
-        title: `Wejście ${a.attemptNumber} — ${humanStatusLabel(a.status)}`,
+        title,
         color,
+        description: buildAttemptDescription(attempt),
+      })
+    }
+  }
+
+  // Some OPL orders keep final completion only on order/history level (not on attempt).
+  // In that case add a synthetic final event so the timeline still shows WYKONANE/NIE WYKONANE.
+  const hasFinalAttemptEvent = (order.attempts ?? []).some(
+    (attempt) =>
+      attempt.status === 'COMPLETED' || attempt.status === 'NOT_COMPLETED'
+  )
+
+  if (
+    !hasFinalAttemptEvent &&
+    (order.status === 'COMPLETED' || order.status === 'NOT_COMPLETED')
+  ) {
+    const completedHistory = [...(order.history ?? [])]
+      .filter((h) => h.statusAfter === order.status)
+      .sort((a, b) => b.changeDate.getTime() - a.changeDate.getTime())[0]
+
+    pushEvent({
+      id: `order-final-${order.id}`,
+      rawDate:
+        order.completedAt ?? order.closedAt ?? completedHistory?.changeDate ?? order.date,
+      title: order.status === 'COMPLETED' ? 'WYKONANE' : 'NIE WYKONANE',
+      color: order.status === 'COMPLETED' ? 'success' : 'danger',
+      description:
+        order.assignedTechnicians?.length > 0 ? (
+          <p className="text-sm">
+            {order.assignedTechnicians.map((t) => t.name).join(' + ')}
+          </p>
+        ) : undefined,
+    })
+  }
+
+  const builtCreationNumbers = new Set<number>()
+
+  if (isPrivileged && order.history?.length) {
+    for (const history of order.history) {
+      const note = cleanNote(history.notes)
+      const isNewAttempt = isNewAttemptNote(note)
+      const isCreation = isCreationNote(note)
+      const isTransfer = isTransferNote(note)
+      const isOrderEdit = isOrderEditNote(note)
+
+      if (isNewAttempt) {
+        const attemptNumber =
+          parseAttemptNumberFromNewAttempt(
+            note,
+            order.attempts?.length
+              ? Math.max(...order.attempts.map((a) => a.attemptNumber ?? 0))
+              : 1
+          ) ?? null
+
+        if (attemptNumber) builtCreationNumbers.add(attemptNumber)
+
+        pushEvent({
+          id: `history-${history.id}-creation`,
+          rawDate: history.changeDate,
+          title: buildCreationTitle(note, attemptNumber ?? undefined),
+          color: 'secondary',
+          description: history.changedBy?.name ? (
+            <p className="text-sm">{history.changedBy.name}</p>
+          ) : undefined,
+        })
+        continue
+      }
+
+      if (isCreation) {
+        const attemptNumber =
+          parseAttemptNumberFromNote(note) ?? order.attempts?.[0]?.attemptNumber ?? 1
+        builtCreationNumbers.add(attemptNumber)
+
+        pushEvent({
+          id: `history-${history.id}`,
+          rawDate: history.changeDate,
+          title: buildCreationTitle(note, attemptNumber),
+          color: 'secondary',
+          description: history.changedBy?.name ? (
+            <p className="text-sm">{history.changedBy.name}</p>
+          ) : undefined,
+        })
+        continue
+      }
+
+      const isStatusChange =
+        history.statusBefore &&
+        history.statusAfter &&
+        history.statusBefore !== history.statusAfter
+
+      if (isStatusChange) {
+        if (
+          history.statusAfter === 'COMPLETED' ||
+          history.statusAfter === 'NOT_COMPLETED'
+        ) {
+          // Completion/non-completion is already shown as a dedicated attempt event.
+          continue
+        }
+
+        const statusBefore = history.statusBefore as OplOrderStatus
+        const statusAfter = history.statusAfter as OplOrderStatus
+        const title = `ZMIANA STATUSU: ${statusMap[statusBefore]} → ${statusMap[statusAfter]}`
+        const editedAfterCompletion =
+          order.closedAt && history.changeDate.getTime() > order.closedAt.getTime()
+
+        pushEvent({
+          id: `history-${history.id}`,
+          rawDate: history.changeDate,
+          title,
+          color: editedAfterCompletion ? 'warning' : 'secondary',
+          description: (
+            <>
+              {history.changedBy?.name && (
+                <p className="text-sm">{history.changedBy.name}</p>
+              )}
+              {editedAfterCompletion && (
+                <p className="text-xs text-warning">
+                  Modyfikacja po zakończeniu zlecenia
+                </p>
+              )}
+              {note && !isSystemNote(note) && (
+                <p className="text-xs text-muted-foreground">Uwagi: {note}</p>
+              )}
+            </>
+          ),
+        })
+        continue
+      }
+
+      if (isTransfer) {
+        pushEvent({
+          id: `history-${history.id}`,
+          rawDate: history.changeDate,
+          title: 'Przekazanie zlecenia',
+          color: 'warning',
+          description: (
+            <>
+              {history.changedBy?.name && (
+                <p className="text-sm">{history.changedBy.name}</p>
+              )}
+              {note && <p className="text-xs text-muted-foreground">{note}</p>}
+            </>
+          ),
+        })
+        continue
+      }
+
+      if (isOrderEdit) {
+        pushEvent({
+          id: `history-${history.id}`,
+          rawDate: history.changeDate,
+          title: 'Edycja zlecenia',
+          color: 'warning',
+          description: (
+            <>
+              {history.changedBy?.name && (
+                <p className="text-sm">{history.changedBy.name}</p>
+              )}
+              {note && !isSystemNote(note) && (
+                <p className="text-xs text-muted-foreground">{note}</p>
+              )}
+            </>
+          ),
+        })
+        continue
+      }
+
+      pushEvent({
+        id: `history-${history.id}`,
+        rawDate: history.changeDate,
+        title: 'Edycja odpisu',
+        color: 'warning',
         description: (
           <>
-            {a.assignedTechnicians?.length > 0 && (
-              <p>
-                Technik: {a.assignedTechnicians.map((t) => t.name).join(' + ')}
-              </p>
+            {history.changedBy?.name && (
+              <p className="text-sm">{history.changedBy.name}</p>
             )}
-
-            {a.status === 'NOT_COMPLETED' && a.failureReason && (
-              <p className=" text-muted-foreground text-xs font-medium">
-                Powód: {a.failureReason}
-              </p>
+            {note && !isSystemNote(note) && (
+              <p className="text-xs text-muted-foreground">{note}</p>
             )}
-            {(a.status === 'COMPLETED' || a.status === 'NOT_COMPLETED') &&
-              a.notes &&
-              !isSystemNote(a.notes) && (
-              <p className=" text-xs text-muted-foreground">Uwagi: {a.notes}</p>
-              )}
           </>
         ),
       })
     }
   }
 
-  /* ----------------------------------------------------------
-   * 2️⃣ Additional events only for admins / coordinators
-   * ---------------------------------------------------------- */
-  const isPrivileged = role === 'ADMIN' || role === 'COORDINATOR'
+  if (
+    isPrivileged &&
+    order.closedAt &&
+    (order.type === 'SERVICE' || order.type === 'OUTAGE')
+  ) {
+    pushEvent({
+      id: `closed-${order.id}`,
+      rawDate: order.closedAt,
+      title: 'Zlecenie zatwierdzone przez koordynatora',
+      color: 'secondary',
+      description: (
+        <p className="text-xs text-muted-foreground">
+          Rozliczenie i ostateczna akceptacja zlecenia.
+        </p>
+      ),
+    })
+  }
 
-  if (isPrivileged) {
-    // Admin confirmation (SERVICE / OUTAGE only)
-    if (
-      order.closedAt &&
-      (order.type === 'SERVICE' || order.type === 'OUTAGE')
-    ) {
-      events.push({
-        id: `closed-${order.id}`,
-        rawDate: order.closedAt,
-        title: 'Zlecenie zatwierdzone przez koordynatora',
+  const attemptNumbers = order.attempts
+    ?.map((a) => a.attemptNumber)
+    .filter((n): n is number => typeof n === 'number')
+    .sort((a, b) => b - a)
+
+  if (attemptNumbers?.length) {
+    for (const attemptNumber of attemptNumbers) {
+      if (builtCreationNumbers.has(attemptNumber)) continue
+      const attempt = order.attempts?.find((a) => a.attemptNumber === attemptNumber)
+      if (!attempt) continue
+
+      pushEvent({
+        id: `creation-synth-${attempt.id}`,
+        rawDate: attempt.createdAt ?? attempt.date ?? new Date(),
+        title: buildCreationTitle(undefined, attemptNumber),
         color: 'secondary',
-        description: (
-          <p className=" text-xs text-muted-foreground">
-            Rozliczenie i ostateczna akceptacja zlecenia.
-          </p>
-        ),
-      })
-    }
-
-    // Full order history (creation + status changes + edits)
-    if (order.history?.length) {
-      for (const h of order.history) {
-        const note = h.notes?.toLowerCase() ?? ''
-        let title = ''
-        let color: 'warning' | 'secondary' = 'warning'
-
-        // ✅ Detect creation (manual / planner / retry)
-        if (
-          note.includes('pierwsze wejście') ||
-          note.includes('ponowne podejście') ||
-          note.includes('utworzono zlecenie') ||
-          note.includes('dodano zlecenie')
-        ) {
-          if (note.includes('planer')) {
-            title = 'Dodano zlecenie w planerze'
-          } else {
-            title = 'Utworzono zlecenie ręcznie'
-          }
-          color = 'secondary'
-        }
-        // ✅ Real status changes
-        else if (h.statusAfter) {
-          title = humanStatusLabel(h.statusAfter)
-          color = 'warning'
-        } else {
-          title = 'Edycja'
-          color = 'warning'
-        }
-
-        events.push({
-          id: `history-${h.id}`,
-          rawDate: h.changeDate,
-          title,
-          color,
-          description: (
-            <>
-              {h.changedBy?.name && (
-                <p className="text-sm">Wykonał: {h.changedBy.name}</p>
-              )}
-              {h.notes && !isSystemNote(h.notes) && (
-                <p className=" text-xs text-muted-foreground">
-                  Uwagi: {cleanNote(h.notes)}
-                </p>
-              )}
-            </>
-          ),
-        })
-      }
-    }
-
-    if (order.previousOrder) {
-      events.push({
-        id: `previous-attempt-${order.previousOrder.id}`,
-        rawDate: order.date,
-        title: `Poprzednie wejście (${order.previousOrder.attemptNumber}) — ${humanStatusLabel(
-          order.previousOrder.status
-        )}`,
-        color:
-          order.previousOrder.status === 'COMPLETED'
-            ? 'success'
-            : order.previousOrder.status === 'NOT_COMPLETED'
-              ? 'danger'
-              : 'warning',
-        description: (
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <p>
-              Wykonał:{' '}
-              {order.previousOrder.completedByName ??
-                order.previousOrder.assignedTechnicians
-                  ?.map((t) => t.name)
-                  .join(' + ') ??
-                '-'}
+        description:
+          attempt.assignedTechnicians?.length > 0 ? (
+            <p className="text-sm">
+              {attempt.assignedTechnicians.map((t) => t.name).join(' + ')}
             </p>
-            <button
-              type="button"
-              onClick={() => options?.onOpenOrder?.(order.previousOrder!.id)}
-              className="text-destructive underline underline-offset-2"
-            >
-              Nr zlecenia: {order.orderNumber}
-            </button>
-          </div>
-        ),
+          ) : undefined,
       })
     }
   }
 
-  /* ----------------------------------------------------------
-   * 3️⃣ Sort chronologically (newest first, full precision)
-   * ---------------------------------------------------------- */
-  return (
-    events
-      .sort((a, b) => {
-        const diff = b.rawDate.getTime() - a.rawDate.getTime()
-        if (diff !== 0) return diff
+  if (isPrivileged && order.previousOrder) {
+    pushEvent({
+      id: `previous-attempt-${order.previousOrder.id}`,
+      rawDate: order.date,
+      title: `Poprzednie wejście (${order.previousOrder.attemptNumber}) — ${humanStatusLabel(
+        order.previousOrder.status
+      )}`,
+      color:
+        order.previousOrder.status === 'COMPLETED'
+          ? 'success'
+          : order.previousOrder.status === 'NOT_COMPLETED'
+            ? 'danger'
+            : 'warning',
+      description: (
+        <div className="space-y-1 text-xs text-muted-foreground">
+          <p>
+            Wykonał:{' '}
+            {order.previousOrder.completedByName ??
+              order.previousOrder.assignedTechnicians
+                ?.map((t) => t.name)
+                .join(' + ') ??
+              '-'}
+          </p>
+          <button
+            type="button"
+            onClick={() => options?.onOpenOrder?.(order.previousOrder!.id)}
+            className="text-destructive underline underline-offset-2"
+          >
+            Nr zlecenia: {order.orderNumber}
+          </button>
+        </div>
+      ),
+    })
+  }
 
-        // Secondary sort: show history before attempts on same timestamp
-        const aIsHistory = a.id.startsWith('history-')
-        const bIsHistory = b.id.startsWith('history-')
-        if (aIsHistory && !bIsHistory) return 1
-        if (!aIsHistory && bIsHistory) return -1
-        return 0
-      })
-      // Convert date to formatted string for display
-      .map((e) => ({
-        ...e,
-        date: formatDateTime(e.rawDate),
-      }))
-  )
+  return events
+    .sort((a, b) => {
+      const diff = b.rawDate.getTime() - a.rawDate.getTime()
+      if (diff !== 0) return diff
+
+      const aIsHistory = a.id.startsWith('history-')
+      const bIsHistory = b.id.startsWith('history-')
+      if (aIsHistory && !bIsHistory) return 1
+      if (!aIsHistory && bIsHistory) return -1
+      return 0
+    })
+    .map((event) => ({
+      ...event,
+      date: formatDateTime(event.rawDate),
+    }))
 }

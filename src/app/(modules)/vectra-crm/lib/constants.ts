@@ -84,17 +84,6 @@ export const timeSlotColors = {
   MMP: timeSlotColorsMMP,
 }
 
-export const operatorColorsMap = {
-  VECTRA: '#2d4083',
-  PLAY: '#5d3582',
-  'T-MOBILE': '#f915bb',
-  ORANGE: '#fa7e18',
-  PLUS: '#65b233',
-  BIZNES: '#2083fe',
-  MULTIMEDIA: '#e77d1f',
-  DEFAULT: '#9ca3af',
-}
-
 export const warehouseActionMap: Record<
   VectraWarehouseAction,
   { label: string; variant: BadgeVariant }

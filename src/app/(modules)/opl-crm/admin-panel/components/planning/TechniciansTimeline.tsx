@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
 import { oplTimeSlotMap } from '../../../lib/constants'
+import { PLANNER_ORDER_STATUS_COLORS } from './constants'
 
 type Props = {
   assignments: OplTechnicianAssignment[]
@@ -32,12 +33,6 @@ const HOURS = Array.from(
   { length: HOUR_END - HOUR_START + 1 },
   (_, i) => HOUR_START + i
 )
-
-const operatorColorsMap = {
-  ORANGE: '#fa7e18',
-  SI: '#2083fe',
-  DEFAULT: '#9ca3af',
-}
 
 /**
  * Utility: parses slot enum to numeric start/end hours.
@@ -308,13 +303,10 @@ const TechniciansTimeline = ({
                         ))}
 
                         {items.map((order, idx) => {
-                          const key = order.operator?.trim().toUpperCase()
                           const color =
-                            key && key in operatorColorsMap
-                              ? operatorColorsMap[
-                                  key as keyof typeof operatorColorsMap
-                                ]
-                              : operatorColorsMap.DEFAULT
+                            PLANNER_ORDER_STATUS_COLORS[
+                              order.status as keyof typeof PLANNER_ORDER_STATUS_COLORS
+                            ] ?? PLANNER_ORDER_STATUS_COLORS.ASSIGNED
 
                           const startCol = Math.max(
                             1,
@@ -367,7 +359,7 @@ const TechniciansTimeline = ({
                                             (LANE_HEIGHT + LANE_GAP)
                                           }px`,
 
-                                          // Preserve operator-based background color
+                                          // Apply status-based background color
                                           backgroundColor: color,
 
                                           // No border for any status

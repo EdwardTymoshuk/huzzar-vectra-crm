@@ -3,6 +3,7 @@
 import LoadingOverlay from '@/app/components/LoadingOverlay'
 import { oplNetworkMap, oplTimeSlotMap } from '@/app/(modules)/opl-crm/lib/constants'
 import { OplTechnicianAssignment } from '@/types/opl-crm'
+import { OplOrderStatus } from '@prisma/client'
 import { trpc } from '@/utils/trpc'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
@@ -12,6 +13,7 @@ import { toast } from 'sonner'
 import OrdersList from './OrdersList'
 import { usePlanningContext } from './PlanningContext'
 import TechniciansList from './TechniciansList'
+import { PLANNER_ORDER_STATUS_COLORS } from './constants'
 
 /**
  * PlanningBoard
@@ -21,14 +23,9 @@ import TechniciansList from './TechniciansList'
  */
 const MapView = dynamic(() => import('./MapView'), { ssr: false })
 
-/** 🎨 Marker colors based on order status */
-const MARKER_COLORS = {
-  completed: '#22c55e',
-  notCompleted: '#ef4444',
-  unassigned: '#26303d',
-  assigned: '#f59e0b',
-} as const
-
+const getStatusColor = (status: OplOrderStatus | undefined) =>
+  (status && PLANNER_ORDER_STATUS_COLORS[status]) ??
+  PLANNER_ORDER_STATUS_COLORS.ASSIGNED
 const PlanningBoard = () => {
   const { selectedDate } = usePlanningContext()
   const utils = trpc.useUtils()
@@ -131,12 +128,7 @@ const PlanningBoard = () => {
       notes: o.notes,
       failureReason: o.failureReason,
       completedByName: o.completedByName,
-      color:
-        o.status === 'COMPLETED'
-          ? MARKER_COLORS.completed
-          : o.status === 'NOT_COMPLETED'
-            ? MARKER_COLORS.notCompleted
-            : MARKER_COLORS.assigned,
+      color: getStatusColor(o.status),
     }))
 
     const assignedIds = new Set(byOrderId.keys())
@@ -166,7 +158,7 @@ const PlanningBoard = () => {
         notes: o.notes ?? null,
         failureReason: o.failureReason ?? null,
         completedByName: null,
-        color: MARKER_COLORS.unassigned,
+        color: PLANNER_ORDER_STATUS_COLORS.UNASSIGNED,
       }))
 
     return [...assignedMarkers, ...unassignedMarkers]

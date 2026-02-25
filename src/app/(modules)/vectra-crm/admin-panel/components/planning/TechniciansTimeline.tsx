@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
-import { operatorColorsMap } from '../../../lib/constants'
+import { PLANNER_ORDER_STATUS_COLORS } from './constants'
 
 type Props = {
   assignments: VectraTechnicianAssignment[]
@@ -280,13 +280,10 @@ const TechniciansTimeline = ({
                         ))}
 
                         {items.map((order, idx) => {
-                          const key = order.operator?.trim().toUpperCase()
                           const color =
-                            key && key in operatorColorsMap
-                              ? operatorColorsMap[
-                                  key as keyof typeof operatorColorsMap
-                                ]
-                              : operatorColorsMap.DEFAULT
+                            PLANNER_ORDER_STATUS_COLORS[
+                              order.status as keyof typeof PLANNER_ORDER_STATUS_COLORS
+                            ] ?? PLANNER_ORDER_STATUS_COLORS.ASSIGNED
 
                           const startCol = Math.max(
                             1,
@@ -339,7 +336,7 @@ const TechniciansTimeline = ({
                                             (LANE_HEIGHT + LANE_GAP)
                                           }px`,
 
-                                          // Preserve operator-based background color
+                                          // Apply status-based background color
                                           backgroundColor: color,
 
                                           // No border for any status
