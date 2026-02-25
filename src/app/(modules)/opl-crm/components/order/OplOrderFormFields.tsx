@@ -32,7 +32,7 @@ import { OplOrderStandard, OplOrderStatus } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { Minus, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Control, UseFormReturn } from 'react-hook-form'
 import {
   oplOrderStandardOptions,
@@ -75,9 +75,54 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [equipment, setEquipment] = useState<EquipmentRequirementVM[]>([])
   const [equipmentOpen, setEquipmentOpen] = useState(false)
+  const orderNumberInputRef = useRef<HTMLInputElement | null>(null)
+  const [cityFocused, setCityFocused] = useState(false)
+  const [streetFocused, setStreetFocused] = useState(false)
 
   const assignedTechnicianIds = watch('assignedTechnicianIds')
   const type = watch?.('type') ?? undefined
+  const cityValue = String(watch?.('city') ?? '')
+  const streetValue = String(watch?.('street') ?? '')
+  const currentYear = new Date().getFullYear()
+  const gftOrderPrefixes = ['GFT013', 'GFT010', 'GFT007']
+  const deferredCityValue = useDeferredValue(cityValue)
+  const deferredStreetValue = useDeferredValue(streetValue)
+  const focusOrderNumberAtEditablePart = (value: string) => {
+    requestAnimationFrame(() => {
+      const input = orderNumberInputRef.current
+      if (!input) return
+      input.focus()
+      const sfToken = '/I/SF-'
+      const kzToken = '/KZ/'
+      const sfIdx = value.indexOf(sfToken)
+      const kzIdx = value.indexOf(kzToken)
+
+      let pos = value.length
+      if (sfIdx >= 0) pos = sfIdx + sfToken.length
+      if (kzIdx >= 0) pos = kzIdx + kzToken.length
+
+      input.setSelectionRange(pos, pos)
+    })
+  }
+
+  const insertGftTemplate = (prefix: string) => {
+    const currentValue = String(getValues?.('orderNumber') ?? '').trim()
+    const matchGft = currentValue.match(
+      /^([^/]+)\/I\/SF-([^/]+)\/(\d{4})\/(\d+)$/
+    )
+    const matchKz = currentValue.match(/^I_GNG\/KZ\/([^/]+)\/(\d{4})\/(\d+)$/)
+
+    const sfPart = matchGft?.[2] ?? matchKz?.[1] ?? ''
+    const yearPart = matchGft?.[3] ?? matchKz?.[2] ?? String(currentYear)
+    const entryPart = matchGft?.[4] ?? matchKz?.[3] ?? '1'
+
+    const next = `${prefix}/I/SF-${sfPart}/${yearPart}/${entryPart}`
+    setValue('orderNumber', next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    focusOrderNumberAtEditablePart(next)
+  }
 
   // Fetch device definitions
   const { data: deviceDefinitions, isLoading: isDevicesLoading } =
@@ -100,6 +145,26 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   const { data: oplTeams } = isAdmin
     ? trpc.opl.user.getTeams.useQuery({ activeOnly: true })
     : { data: [] }
+
+  const citySuggestionsQuery = trpc.opl.order.getAddressSuggestions.useQuery(
+    { query: deferredCityValue.trim(), limit: 8 },
+    {
+      enabled: cityFocused && deferredCityValue.trim().length >= 2,
+      staleTime: 1000 * 60 * 5,
+    }
+  )
+
+  const streetSuggestionsQuery = trpc.opl.order.getAddressSuggestions.useQuery(
+    {
+      query: deferredStreetValue.trim(),
+      cityHint: deferredCityValue.trim() || undefined,
+      limit: 8,
+    },
+    {
+      enabled: streetFocused && deferredStreetValue.trim().length >= 2,
+      staleTime: 1000 * 60 * 5,
+    }
+  )
 
   const suggestedSecondTechnicianId = useMemo(
     () =>
@@ -281,10 +346,33 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
             <FormControl>
               <Input
                 {...field}
-                placeholder="np. Q_GGS/Z/12345/2026/1"
+                ref={(el) => {
+                  field.ref(el)
+                  orderNumberInputRef.current = el
+                }}
+                placeholder={`np. GFT013/I/SF-4615223/${currentYear}/1`}
                 disabled={type === 'OUTAGE'}
               />
             </FormControl>
+            {type !== 'OUTAGE' && (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {gftOrderPrefixes.map((prefix) => (
+                    <Button
+                      key={prefix}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs font-mono"
+                      onClick={() => insertGftTemplate(prefix)}
+                    >
+                      {prefix}/I/SF-.../{currentYear}/...
+                    </Button>
+                  ))}
+                </div>
+
+              </div>
+            )}
             <FormMessage />
           </FormItem>
         )}
@@ -411,13 +499,54 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         control={control}
         name="city"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="relative">
             <FormLabel>
               Miasto <span className="text-destructive">*</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder="np. Gdańsk" />
+              <Input
+                {...field}
+                placeholder="np. Gdańsk"
+                autoComplete="off"
+                onFocus={() => setCityFocused(true)}
+                onBlur={() => setTimeout(() => setCityFocused(false), 120)}
+              />
             </FormControl>
+            {cityFocused &&
+              deferredCityValue.trim().length >= 2 &&
+              citySuggestionsQuery.data &&
+              citySuggestionsQuery.data.length > 0 && (
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-background shadow-md">
+                  <div className="max-h-56 overflow-auto p-1">
+                    {Array.from(
+                      new Map(
+                        citySuggestionsQuery.data
+                          .map((s) => s.city.trim())
+                          .filter(Boolean)
+                          .map((city) => [city.toLowerCase(), city])
+                      ).values()
+                    )
+                      .slice(0, 8)
+                      .map((city) => (
+                        <button
+                          key={city}
+                          type="button"
+                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setValue('city', city, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                            setCityFocused(false)
+                          }}
+                        >
+                          {city}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             <FormMessage />
           </FormItem>
         )}
@@ -428,14 +557,61 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         control={control}
         name="street"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="relative">
             <FormLabel>
               Adres (ulica, nr domu, mieszkanie){' '}
               <span className="text-destructive">*</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder="np. Długa 1" />
+              <Input
+                {...field}
+                placeholder="np. Długa 1"
+                autoComplete="off"
+                onFocus={() => setStreetFocused(true)}
+                onBlur={() => setTimeout(() => setStreetFocused(false), 120)}
+              />
             </FormControl>
+            {streetFocused &&
+              deferredStreetValue.trim().length >= 2 &&
+              streetSuggestionsQuery.data &&
+              streetSuggestionsQuery.data.length > 0 && (
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-background shadow-md">
+                  <div className="max-h-64 overflow-auto p-1">
+                    {streetSuggestionsQuery.data.map((suggestion) => (
+                      <button
+                        key={`${suggestion.source}-${suggestion.city}-${suggestion.street}`}
+                        type="button"
+                        className="w-full rounded-sm px-2 py-1.5 text-left hover:bg-accent"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (suggestion.city) {
+                            setValue('city', suggestion.city, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          if (suggestion.street) {
+                            setValue('street', suggestion.street, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          setStreetFocused(false)
+                        }}
+                      >
+                        <div className="text-sm">
+                          {[suggestion.city, suggestion.street]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {suggestion.source === 'local' ? 'CRM' : 'Mapa (OSM)'}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             <FormMessage />
           </FormItem>
         )}
@@ -607,8 +783,8 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
             </Button>
           </PopoverTrigger>
 
-          <PopoverContent className="w-full p-0">
-            <Command>
+          <PopoverContent className="w-full p-0 bg-background">
+            <Command className="bg-background">
               <CommandGroup>
                 {deviceDefinitions?.map((d) => (
                   <CommandItem

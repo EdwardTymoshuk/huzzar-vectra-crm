@@ -75,6 +75,152 @@ const SUSPICIOUS_STREET_SUFFIX_REGEX =
  * queriesRouter
  * ----------------------------------------------------------- */
 export const queriesRouter = router({
+  getAddressSuggestions: loggedInEveryone
+    .use(requireOplModule)
+    .input(
+      z.object({
+        query: z.string().trim().min(2),
+        cityHint: z.string().trim().optional(),
+        limit: z.number().min(1).max(20).default(8),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const q = input.query.trim()
+      const cityHint = input.cityHint?.trim()
+      const limit = input.limit
+      const isStreetSearch = Boolean(cityHint)
+
+      const localRows = await ctx.prisma.oplOrder.findMany({
+        where: {
+          ...(isStreetSearch
+            ? {
+                AND: [
+                  { street: { contains: q, mode: 'insensitive' as const } },
+                  ...(cityHint
+                    ? [
+                        {
+                          city: {
+                            contains: cityHint,
+                            mode: 'insensitive' as const,
+                          },
+                        },
+                      ]
+                    : []),
+                ],
+              }
+            : {
+                city: { contains: q, mode: 'insensitive' as const },
+              }),
+        },
+        select: {
+          city: true,
+          street: true,
+        },
+        orderBy: [{ createdAt: 'desc' }],
+        take: 60,
+      })
+
+      const seen = new Set<string>()
+      const localSuggestions: Array<{
+        city: string
+        street: string
+        label: string
+        source: 'local' | 'photon'
+      }> = []
+
+      for (const row of localRows) {
+        const city = (row.city ?? '').trim()
+        const street = (row.street ?? '').trim()
+        if (!city && !street) continue
+
+        if (isStreetSearch) {
+          if (!street || !street.toLowerCase().includes(q.toLowerCase())) continue
+        } else {
+          if (!city || !city.toLowerCase().includes(q.toLowerCase())) continue
+        }
+
+        if (
+          cityHint &&
+          city &&
+          !city.toLowerCase().includes(cityHint.toLowerCase())
+        ) {
+          continue
+        }
+
+        const key = `${city.toLowerCase()}|${street.toLowerCase()}`
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        localSuggestions.push({
+          city,
+          street,
+          label: [city, street].filter(Boolean).join(', '),
+          source: 'local',
+        })
+
+        if (localSuggestions.length >= limit) break
+      }
+
+      if (localSuggestions.length >= limit) return localSuggestions
+
+      const photonSuggestions: Array<{
+        city: string
+        street: string
+        label: string
+        source: 'local' | 'photon'
+      }> = []
+
+      try {
+        const photonQuery = [q, cityHint, 'Polska'].filter(Boolean).join(', ')
+        const url = new URL('https://photon.komoot.io/api/')
+        url.searchParams.set('q', photonQuery)
+        url.searchParams.set('lang', 'pl')
+        url.searchParams.set('limit', String(Math.max(3, limit)))
+
+        const res = await fetch(url.toString(), {
+          headers: { Accept: 'application/json' },
+        })
+
+        if (res.ok) {
+          const data = (await res.json()) as {
+            features?: Array<{
+              properties?: Record<string, unknown>
+            }>
+          }
+
+          for (const feature of data.features ?? []) {
+            const props = feature.properties ?? {}
+            const city = String(
+              props.city ?? props.locality ?? props.county ?? ''
+            ).trim()
+            const streetName = String(props.street ?? props.name ?? '').trim()
+            const houseNumber = String(props.housenumber ?? '').trim()
+            const street = [streetName, houseNumber].filter(Boolean).join(' ')
+
+            if (!city && !street) continue
+            const key = `${city.toLowerCase()}|${street.toLowerCase()}`
+            if (seen.has(key)) continue
+            seen.add(key)
+
+            photonSuggestions.push({
+              city,
+              street,
+              label: [city, street].filter(Boolean).join(', '),
+              source: 'photon',
+            })
+
+            if (localSuggestions.length + photonSuggestions.length >= limit) {
+              break
+            }
+          }
+        }
+      } catch {
+        // Silent fallback: local suggestions are enough for manual entry.
+      }
+
+      return [...localSuggestions, ...photonSuggestions].slice(0, limit)
+    }),
+
   /** Paginated order list with filters and sort */
   getOrders: loggedInEveryone
     .use(requireOplModule)
