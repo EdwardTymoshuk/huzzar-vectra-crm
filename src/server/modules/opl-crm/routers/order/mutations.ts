@@ -23,6 +23,7 @@ import { z } from 'zod'
 import {
   createAddressNoteRecord,
   normalizeAddressToken,
+  normalizeStreetBaseToken,
   resolveBuildingScope,
 } from '../../helpers/addressNotes'
 import { addOrderHistory } from '../../helpers/addOrderHistory'
@@ -2871,7 +2872,7 @@ export const mutationsRouter = router({
       }
 
       const cityNorm = normalizeAddressToken(order.city)
-      const streetNorm = normalizeAddressToken(order.street)
+      const streetNorm = normalizeStreetBaseToken(order.street)
       const buildingScope = resolveBuildingScope(input.buildingScope, order.street)
 
       const created = await createAddressNoteRecord({

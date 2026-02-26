@@ -391,7 +391,11 @@ const OplStepStatus = ({
           className="w-full h-11 text-base gap-1"
           disabled={!status || createAddressNote.isPending}
         >
-          {createAddressNote.isPending ? 'Zapisywanie...' : 'Dalej'}
+          {createAddressNote.isPending
+            ? 'Zapisywanie...'
+            : status === 'NOT_COMPLETED'
+              ? 'Zakończ'
+              : 'Dalej'}
           <MdKeyboardArrowRight className="h-5 w-5" />
         </Button>
       </div>

@@ -31,6 +31,7 @@ import {
   getAddressNotesByAddress,
   matchesBuildingScope,
   normalizeAddressToken,
+  normalizeStreetBaseToken,
   searchAddressNotesByText,
 } from '../../helpers/addressNotes'
 import { mapOplOrderToListVM } from '../../helpers/mappers/mapOplOrderToListVM'
@@ -1299,12 +1300,14 @@ export const queriesRouter = router({
       }
 
       const cityNorm = normalizeAddressToken(order.city)
-      const streetNorm = normalizeAddressToken(order.street)
+      const streetNorm = normalizeStreetBaseToken(order.street)
+      const streetNormLegacy = normalizeAddressToken(order.street)
 
       const rows = await getAddressNotesByAddress({
         prisma: ctx.prisma,
         cityNorm,
         streetNorm,
+        streetNormLegacy,
       })
 
       return rows

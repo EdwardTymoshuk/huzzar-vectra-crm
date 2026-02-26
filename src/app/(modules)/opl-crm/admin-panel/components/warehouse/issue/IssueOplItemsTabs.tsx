@@ -208,12 +208,12 @@ const IssueOplItemsTabs = ({
         </div>
       </section>
 
-      <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+      <section className="rounded-xl border p-4 md:flex md:flex-col md:min-h-0 md:overflow-hidden">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold">Wydane urządzenia</h3>
           <span className="text-muted-foreground">({devices.length})</span>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           {devices.length === 0 ? (
             <p className="text-sm text-muted-foreground py-1">
               Brak wydanych urządzeń.
@@ -246,12 +246,12 @@ const IssueOplItemsTabs = ({
         </div>
       </section>
 
-      <section className="rounded-xl border p-4 flex flex-col min-h-0 overflow-hidden">
+      <section className="rounded-xl border p-4 md:flex md:flex-col md:min-h-0 md:overflow-hidden">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold">Wydane materiały</h3>
           <span className="text-muted-foreground">({materials.length})</span>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           {materials.length === 0 ? (
             <p className="text-sm text-muted-foreground py-1">
               Brak wydanych materiałów.

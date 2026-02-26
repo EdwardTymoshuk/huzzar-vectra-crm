@@ -13,6 +13,13 @@ export const parseBuildingFromStreet = (street: string): string | null => {
   return match?.[1] ?? null
 }
 
+export const normalizeStreetBaseToken = (street: string): string => {
+  const normalized = normalizeAddressToken(street)
+  return normalized
+    .replace(/\s+\d+[A-Z]?(?:\/\d+[A-Z]?)?\s*$/i, '')
+    .trim()
+}
+
 export const normalizeBuildingScope = (value?: string | null): string | null => {
   const raw = value?.trim()
   if (!raw) return null
@@ -200,10 +207,12 @@ export const getAddressNotesByAddress = async ({
   prisma,
   cityNorm,
   streetNorm,
+  streetNormLegacy,
 }: {
   prisma: PrismaClient
   cityNorm: string
   streetNorm: string
+  streetNormLegacy?: string
 }): Promise<AddressNoteResult[]> => {
   await ensureAddressNotesStorage(prisma)
 
@@ -223,7 +232,10 @@ export const getAddressNotesByAddress = async ({
     WHERE
       n."active" = true
       AND n."cityNorm" = ${cityNorm}
-      AND n."streetNorm" = ${streetNorm}
+      AND (
+        n."streetNorm" = ${streetNorm}
+        OR (${streetNormLegacy ?? ''} <> '' AND n."streetNorm" = ${streetNormLegacy ?? ''})
+      )
     ORDER BY n."createdAt" DESC
     LIMIT 30
   `

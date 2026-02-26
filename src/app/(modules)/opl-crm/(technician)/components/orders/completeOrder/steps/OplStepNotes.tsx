@@ -501,7 +501,7 @@ const OplStepNotes = ({
                   setMeasurementOppDraft(value)
                   setMeasurementOpp(value.trim())
                 }}
-                placeholder="np. 12,3"
+                placeholder="Np. 12,3"
                 className={subtlePlaceholderInputClass}
               />
             </div>
@@ -515,7 +515,7 @@ const OplStepNotes = ({
                   setMeasurementGoDraft(value)
                   setMeasurementGo(value.trim())
                 }}
-                placeholder="np. 12,7"
+                placeholder="Np. 12,7"
                 className={subtlePlaceholderInputClass}
               />
             </div>
@@ -553,7 +553,7 @@ const OplStepNotes = ({
                       <Input
                         value={routeNodePathDraft}
                         onChange={(e) => setRouteNodePathDraft(e.target.value)}
-                        placeholder="SP-001_GDANSK/OPP023D"
+                        placeholder="Np. SP-001_GDANSK/OPP023D"
                         className={subtlePlaceholderInputClass}
                       />
                     </div>
@@ -562,7 +562,7 @@ const OplStepNotes = ({
                       <Input
                         value={routePortDraft}
                         onChange={(e) => setRoutePortDraft(e.target.value)}
-                        placeholder="12"
+                        placeholder="Np. 12"
                         className={subtlePlaceholderInputClass}
                       />
                     </div>
@@ -572,7 +572,7 @@ const OplStepNotes = ({
                         <Input
                           value={routeCableJDraft}
                           onChange={(e) => setRouteCableJDraft(e.target.value)}
-                          placeholder="2"
+                          placeholder="Np. 2"
                           className={subtlePlaceholderInputClass}
                         />
                       </div>
@@ -596,7 +596,7 @@ const OplStepNotes = ({
                             <Input
                               value={routeOkwDraft}
                               onChange={(e) => setRouteOkwDraft(e.target.value)}
-                              placeholder="OKW0426347/24J_(1-22)"
+                              placeholder="Np. OKW0426347/24J_(1-22)"
                               className={subtlePlaceholderInputClass}
                             />
                           </div>
@@ -605,7 +605,7 @@ const OplStepNotes = ({
                             <Input
                               value={routeFiberNoDraft}
                               onChange={(e) => setRouteFiberNoDraft(e.target.value)}
-                              placeholder="9"
+                              placeholder="Np. 9"
                               className={subtlePlaceholderInputClass}
                             />
                           </div>
@@ -648,7 +648,7 @@ const OplStepNotes = ({
                             <Input
                               value={routeOkwDraft}
                               onChange={(e) => setRouteOkwDraft(e.target.value)}
-                              placeholder="OKW0426347/24J_(1-22)"
+                              placeholder="Np. OKW0426347/24J_(1-22)"
                               className={subtlePlaceholderInputClass}
                             />
                           </div>
@@ -657,7 +657,7 @@ const OplStepNotes = ({
                             <Input
                               value={routeFiberNoDraft}
                               onChange={(e) => setRouteFiberNoDraft(e.target.value)}
-                              placeholder="9"
+                              placeholder="Np. 9"
                               className={subtlePlaceholderInputClass}
                             />
                           </div>
@@ -674,7 +674,7 @@ const OplStepNotes = ({
                           <Input
                             value={routeLengthDraft}
                             onChange={(e) => setRouteLengthDraft(e.target.value)}
-                            placeholder="70"
+                            placeholder="Np. 70"
                             className={subtlePlaceholderInputClass}
                           />
                         </div>
@@ -716,7 +716,7 @@ const OplStepNotes = ({
                                       return next
                                     })
                                   }
-                                  placeholder="54,3443683, 18,8311836"
+                                  placeholder="Np. 54,3443683, 18,8311836"
                                   className={subtlePlaceholderInputClass}
                                 />
                               </div>
