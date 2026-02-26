@@ -26,7 +26,13 @@ export const normalizeBuildingScope = (value?: string | null): string | null => 
 
   return raw
     .split(BUILDING_SPLIT_RE)
-    .map((part) => part.trim().toUpperCase().replace(/\s+/g, ''))
+    .map((part) =>
+      part
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '')
+        .replace(/\/\d+[A-Z]?$/i, '')
+    )
     .filter(Boolean)
     .join(',')
 }
