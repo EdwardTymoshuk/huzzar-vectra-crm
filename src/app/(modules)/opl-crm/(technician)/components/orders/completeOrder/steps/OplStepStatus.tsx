@@ -41,6 +41,7 @@ interface OplStepStatusProps {
     failureReason?: string | null
     notes?: string | null
     finishImmediately?: boolean
+    goToNotesStep?: boolean
   }) => void
   failureReason: string
   notes: string
@@ -61,7 +62,7 @@ interface OplStepStatusProps {
  * Provides a clear interface for selecting order status.
  * - If COMPLETED → proceeds to next step.
  * - If NOT_COMPLETED → requires failure reason and notes,
- *   then immediately completes the wizard (skipping further steps).
+ *   then jumps to notes/summary flow (without forcing work-code steps).
  */
 const OplStepStatus = ({
   orderNumber,
@@ -192,7 +193,8 @@ const OplStepStatus = ({
         status,
         failureReason,
         notes,
-        finishImmediately: true,
+        finishImmediately: false,
+        goToNotesStep: true,
       })
       return
     }
@@ -320,10 +322,8 @@ const OplStepStatus = ({
           className="w-full h-11 text-base gap-1"
           disabled={!status}
         >
-          {status === 'NOT_COMPLETED'
-            ? 'Zakończ'
-            : 'Dalej'}
-          {status !== 'NOT_COMPLETED' && <MdKeyboardArrowRight className="h-5 w-5" />}
+          Dalej
+          <MdKeyboardArrowRight className="h-5 w-5" />
         </Button>
       </div>
 

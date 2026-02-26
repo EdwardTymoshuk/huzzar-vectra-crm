@@ -62,7 +62,7 @@ const OplReturnModal = ({ open, onCloseAction }: Props) => {
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleAttemptClose()}>
-      <DialogContent className="w-[96vw] max-w-[1500px] h-[92vh] overflow-hidden space-y-4">
+      <DialogContent className="w-[96vw] max-w-[1500px] max-h-[92dvh] h-auto overflow-y-auto md:h-[92vh] md:overflow-hidden space-y-4">
         <DialogHeader>
           <DialogTitle>Zwrot sprzętu</DialogTitle>
         </DialogHeader>
@@ -71,21 +71,21 @@ const OplReturnModal = ({ open, onCloseAction }: Props) => {
           defaultValue="fromTechnician"
           value={activeTab}
           onValueChange={setActiveTab}
-          className="h-[calc(92vh-170px)] flex flex-col"
+          className="flex flex-col md:h-[calc(92vh-170px)]"
         >
-          <TabsList className="grid grid-cols-2 w-full">
+          <TabsList className="grid h-auto w-full grid-cols-1 sm:grid-cols-2">
             <TabsTrigger value="fromTechnician">Od technika</TabsTrigger>
             <TabsTrigger value="toOperator">Do operatora</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="fromTechnician" className="flex-1 overflow-hidden">
+          <TabsContent value="fromTechnician" className="flex-1 overflow-visible md:overflow-hidden">
             <ReturnFromTechnician
               onClose={resetAndClose}
               onDraftChange={setHasDraftFromTechnician}
             />
           </TabsContent>
 
-          <TabsContent value="toOperator" className="flex-1 overflow-hidden">
+          <TabsContent value="toOperator" className="flex-1 overflow-visible md:overflow-hidden">
             <ReturnToOperator
               onClose={resetAndClose}
               onDraftChange={setHasDraftToOperator}

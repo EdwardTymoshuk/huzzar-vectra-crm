@@ -755,7 +755,7 @@ const OplStepNotes = ({
                       el.style.height = `${el.scrollHeight}px`
                     }}
                     placeholder="Np. SP-001_GDANSK/OPP023D port:12, OKW0426347/24J_(1-22) włókno 9"
-                    className="min-h-24 resize-none overflow-hidden bg-background"
+                    className="min-h-24 resize-none overflow-hidden bg-background placeholder:text-muted-foreground/60 placeholder:italic"
                   />
                 </div>
               )}

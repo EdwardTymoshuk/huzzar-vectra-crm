@@ -434,6 +434,11 @@ const CompleteOplOrderWizard = ({
                   return
                 }
 
+                if (data.goToNotesStep) {
+                  setStep(STEPS.length - 2)
+                  return
+                }
+
                 next(STEPS.length)
               }}
             />

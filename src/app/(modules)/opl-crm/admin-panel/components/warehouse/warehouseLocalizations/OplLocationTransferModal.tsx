@@ -82,8 +82,8 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
       <DialogContent
         className={
           toLocation
-            ? 'w-[96vw] max-w-[1500px] h-[92vh] overflow-hidden space-y-4'
-            : 'w-[96vw] max-w-[1100px] space-y-4'
+            ? 'w-[96vw] max-w-[1500px] max-h-[92dvh] h-auto overflow-y-auto md:h-[92vh] md:overflow-hidden space-y-4'
+            : 'w-[96vw] max-w-[1100px] max-h-[92dvh] overflow-y-auto space-y-4'
         }
       >
         <DialogHeader>
@@ -92,7 +92,7 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
 
         {/* Destination location selector */}
         {toLocation && !editMode ? (
-          <div className="flex items-center justify-between py-2 px-4 rounded-md bg-background border">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-2 px-4 rounded-md bg-background border">
             <div>
               <p className="font-bold text-primary">{toLocation.name}</p>
             </div>
@@ -106,7 +106,7 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex-1">
               <LocationSelector
                 currentLocationId={fromLocationId ?? ''}
@@ -122,7 +122,7 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
             <Button
               variant="ghost"
               size="sm"
-              className="self-end mb-1"
+              className="self-end sm:mb-1"
               onClick={handleAttemptClose}
             >
               Anuluj
@@ -132,7 +132,7 @@ const OplLocationTransferModal = ({ open, onCloseAction }: Props) => {
 
         {/* Items picking tabs */}
         {fromLocationId && toLocation && (
-          <div className="h-[calc(92vh-210px)] overflow-hidden">
+          <div className="h-auto md:h-[calc(92vh-210px)] overflow-visible md:overflow-hidden">
             <LocationTransferItemsTabs
               fromLocationId={fromLocationId}
               toLocationId={toLocation.id}

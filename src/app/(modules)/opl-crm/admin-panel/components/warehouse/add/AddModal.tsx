@@ -154,12 +154,12 @@ const AddModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="w-[96vw] max-w-[1450px] h-[92vh] overflow-hidden space-y-4">
+      <DialogContent className="w-[96vw] max-w-[1450px] max-h-[92dvh] h-auto overflow-y-auto md:h-[92vh] md:overflow-hidden space-y-4">
         <DialogHeader>
           <DialogTitle>Przyjęcie do magazynu</DialogTitle>
         </DialogHeader>
 
-        <div className="grid h-[calc(92vh-130px)] gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="grid gap-4 md:h-[calc(92vh-130px)] lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <section className="rounded-xl border p-4 overflow-y-auto">
             <AddItemForm existingItems={items} onAddItem={handleAddItem} />
           </section>
