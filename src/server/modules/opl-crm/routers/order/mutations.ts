@@ -1,6 +1,6 @@
 import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { requireOplModule } from '@/server/middleware/oplMiddleware'
-import { adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
+import { adminOnly, adminOrCoord, loggedInEveryone } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { parseLocalDate } from '@/utils/dates/parseLocalDate'
 import { getCoordinatesFromAddress } from '@/utils/geocode'
@@ -2895,6 +2895,19 @@ export const mutationsRouter = router({
         createdAt: created.createdAt,
         createdBy: created.createdBy,
       }
+    }),
+
+  deleteAddressNote: adminOnly
+    .use(requireOplModule)
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input, ctx }) => {
+      await ctx.prisma.$executeRaw`
+        UPDATE opl."OplAddressNote"
+        SET "active" = false, "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "id" = ${input.id}
+      `
+
+      return { success: true }
     }),
 
   sendFailureEmail: loggedInEveryone

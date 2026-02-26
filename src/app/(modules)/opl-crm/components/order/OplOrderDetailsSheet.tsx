@@ -3,6 +3,12 @@
 import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
 import { Button } from '@/app/components/ui/button'
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/app/components/ui/accordion'
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -16,6 +22,7 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { MdDelete } from 'react-icons/md'
 import CompleteOplOrderWizard from '../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
 import OrderStatusBadge from '../../../../components/order/OrderStatusBadge'
 import OplOrderTimeline from '../../admin-panel/components/order/OplOrderTimeline'
@@ -46,6 +53,10 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(orderId)
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [addressNoteToDelete, setAddressNoteToDelete] = useState<{
+    id: string
+    note: string
+  } | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAdminEdit, setShowAdminEdit] = useState(false)
 
@@ -88,6 +99,22 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
       else toast.error('Nieoczekiwany błąd podczas usuwania.')
 
       setShowDeleteDialog(false)
+    },
+  })
+
+  const deleteAddressNoteMutation = trpc.opl.order.deleteAddressNote.useMutation({
+    onSuccess: async () => {
+      toast.success('Uwaga do adresu została usunięta.')
+      if (activeOrderId) {
+        await utils.opl.order.getAddressNotesForOrder.invalidate({
+          orderId: activeOrderId,
+        })
+      }
+      await utils.opl.order.searchAddressNotes.invalidate()
+      setAddressNoteToDelete(null)
+    },
+    onError: () => {
+      toast.error('Nie udało się usunąć uwagi do adresu.')
     },
   })
 
@@ -370,29 +397,70 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                     Uwagi do adresu
                   </h3>
                   {addressNotes.length ? (
-                    <ul className="space-y-2 normal-case">
-                      {addressNotes.map((n) => (
-                        <li
-                          key={n.id}
-                          className={cn(
-                            'rounded border p-2',
-                            n.scopeMatches
-                              ? 'border-border'
-                              : 'border-dashed border-muted-foreground/40'
-                          )}
-                        >
-                          <p>{n.note}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {!n.scopeMatches ? 'Inny zakres ulicy • ' : ''}
-                            {n.buildingScope
-                              ? `Zakres: ${n.buildingScope} • `
-                              : ''}
-                            {n.createdBy.name} •{' '}
-                            {new Date(n.createdAt).toLocaleString('pl-PL')}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
+                    <Accordion
+                      type="single"
+                      collapsible
+                      className="w-full normal-case"
+                    >
+                      <AccordionItem
+                        value="address-notes"
+                        className="border rounded border-border px-2"
+                      >
+                        <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                          {`Pokaż uwagi (${addressNotes.length})`}
+                        </AccordionTrigger>
+                        <AccordionContent className="pb-2">
+                          <ul className="space-y-2">
+                            {addressNotes.map((n) => (
+                              <li
+                                key={n.id}
+                                className={cn(
+                                  'rounded border p-2',
+                                  n.scopeMatches
+                                    ? 'border-border'
+                                    : 'border-dashed border-muted-foreground/40'
+                                )}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="flex-1">{n.note}</p>
+                                  {isAdmin && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                                      onClick={() =>
+                                        setAddressNoteToDelete({
+                                          id: n.id,
+                                          note: n.note,
+                                        })
+                                      }
+                                    >
+                                      <MdDelete className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {`Adres wpisu: ${n.city}, ${n.street}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {!n.scopeMatches
+                                    ? 'Inny zakres ulicy • '
+                                    : ''}
+                                  {n.buildingScope
+                                    ? `Zakres: ${n.buildingScope} • `
+                                    : ''}
+                                  {n.createdBy.name} •{' '}
+                                  {new Date(n.createdAt).toLocaleString(
+                                    'pl-PL'
+                                  )}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   ) : (
                     <p>—</p>
                   )}
@@ -641,6 +709,24 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
         onClose={() => setShowDeleteDialog(false)}
         onConfirm={handleDelete}
         description={`Czy na pewno chcesz usunąć zlecenie "${order?.orderNumber}"? Tej operacji nie można cofnąć.`}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!addressNoteToDelete}
+        onClose={() => setAddressNoteToDelete(null)}
+        onConfirm={async () => {
+          if (!addressNoteToDelete) return
+          await deleteAddressNoteMutation.mutateAsync({
+            id: addressNoteToDelete.id,
+          })
+        }}
+        description={`Czy na pewno chcesz usunąć tę uwagę do adresu?${
+          addressNoteToDelete?.note
+            ? ` "${addressNoteToDelete.note.slice(0, 120)}${
+                addressNoteToDelete.note.length > 120 ? '…' : ''
+              }"`
+            : ''
+        }`}
       />
     </>
   )

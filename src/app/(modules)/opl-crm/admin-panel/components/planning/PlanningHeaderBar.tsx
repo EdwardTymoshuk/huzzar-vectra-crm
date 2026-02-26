@@ -3,6 +3,7 @@
 import DatePicker from '@/app/components/DatePicker'
 import PageControlBar from '@/app/components/PageControlBar'
 import SearchInput from '@/app/components/SearchInput'
+import ConfirmDeleteDialog from '@/app/components/ConfirmDeleteDialog'
 import { Button } from '@/app/components/ui/button'
 import {
   Dialog,
@@ -15,7 +16,7 @@ import { trpc } from '@/utils/trpc'
 import { addDays, subDays } from 'date-fns'
 import { useState } from 'react'
 import { MdChevronLeft, MdChevronRight } from 'react-icons/md'
-import { MdAdd, MdNotes, MdUploadFile } from 'react-icons/md'
+import { MdAdd, MdDelete, MdNotes, MdUploadFile } from 'react-icons/md'
 import AddOplOrderModal from '../orders/AddOplOrderModal'
 import ImportOrdersModal from '../orders/ImportOrdersModal'
 import { usePlanningContext } from './PlanningContext'
@@ -42,6 +43,10 @@ const PlannerHeaderBar = () => {
   const [isImportOpen, setImportOpen] = useState(false)
   const [isAddressNotesOpen, setAddressNotesOpen] = useState(false)
   const [addressNotesQuery, setAddressNotesQuery] = useState('')
+  const [addressNoteToDelete, setAddressNoteToDelete] = useState<{
+    id: string
+    note: string
+  } | null>(null)
   const { isAdmin, isCoordinator, isLoading } = useRole()
   const canManage = !isLoading && (isAdmin || isCoordinator)
   const { data: addressNotes = [], isFetching: isAddressNotesLoading } =
@@ -49,6 +54,13 @@ const PlannerHeaderBar = () => {
       { query: addressNotesQuery.trim() || undefined, limit: 50 },
       { enabled: isAddressNotesOpen }
     )
+  const utils = trpc.useUtils()
+  const deleteAddressNoteMutation = trpc.opl.order.deleteAddressNote.useMutation({
+    onSuccess: async () => {
+      await utils.opl.order.searchAddressNotes.invalidate()
+      setAddressNoteToDelete(null)
+    },
+  })
 
   const handlePrev = () => setSelectedDate(subDays(selectedDate, 1))
   const handleNext = () => setSelectedDate(addDays(selectedDate, 1))
@@ -158,8 +170,26 @@ const PlannerHeaderBar = () => {
                     <div className="divide-y">
                       {addressNotes.map((row) => (
                         <div key={row.id} className="p-3 text-sm">
-                          <div className="font-medium">
-                            {row.city}, {row.street}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-medium">
+                              {row.city}, {row.street}
+                            </div>
+                            {isAdmin && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                                onClick={() =>
+                                  setAddressNoteToDelete({
+                                    id: row.id,
+                                    note: row.note,
+                                  })
+                                }
+                              >
+                                <MdDelete className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                           {row.buildingScope && (
                             <div className="text-xs text-muted-foreground mt-0.5">
@@ -179,6 +209,24 @@ const PlannerHeaderBar = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+          <ConfirmDeleteDialog
+            open={!!addressNoteToDelete}
+            onClose={() => setAddressNoteToDelete(null)}
+            onConfirm={async () => {
+              if (!addressNoteToDelete) return
+              await deleteAddressNoteMutation.mutateAsync({
+                id: addressNoteToDelete.id,
+              })
+            }}
+            description={`Czy na pewno chcesz usunąć tę uwagę do adresu?${
+              addressNoteToDelete?.note
+                ? ` "${addressNoteToDelete.note.slice(0, 120)}${
+                    addressNoteToDelete.note.length > 120 ? '…' : ''
+                  }"`
+                : ''
+            }`}
+          />
         </>
       )}
     </>

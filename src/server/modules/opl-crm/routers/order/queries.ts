@@ -1315,6 +1315,8 @@ export const queriesRouter = router({
           const scopeMatches = matchesBuildingScope(row.buildingScope, order.street)
           return {
           id: row.id,
+          city: row.city,
+          street: row.street,
           note: row.note,
           buildingScope: row.buildingScope,
           createdAt: row.createdAt,
