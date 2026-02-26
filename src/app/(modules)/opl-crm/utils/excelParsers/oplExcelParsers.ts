@@ -1,6 +1,7 @@
 import { OplNetworkOeprator, OplOrderStandard, OplTimeSlot } from '@prisma/client'
 import * as XLSX from 'xlsx'
 import { normalizeName } from '@/utils/normalizeName'
+import { appendImportedRouteMarker } from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
 
 export type ParsedOplOrderFromExcel = {
   operator?: string
@@ -97,6 +98,7 @@ export async function parseOplOrdersFromExcel(
       'standard zlecenia',
       'standard',
     ]),
+    route: safeIndex(headerMap, ['przebieg']),
     additionalActivities: safeIndex(headerMap, [
       'czynności dodatkowe',
       'czynnosci dodatkowe',
@@ -162,9 +164,12 @@ export async function parseOplOrdersFromExcel(
       col.additionalActivities !== null
         ? String(row[col.additionalActivities] ?? '').trim()
         : ''
+    const routeRaw =
+      col.route !== null ? String(row[col.route] ?? '').trim() : ''
     const standard = mapStandard(standardsRaw)
     const notes = buildImportNotes({
       inputNotes,
+      routeRaw,
       additionalActivitiesRaw,
     })
     const devicesRaw =
@@ -502,9 +507,11 @@ function mapStandard(raw: string): OplOrderStandard | undefined {
 
 function buildImportNotes({
   inputNotes,
+  routeRaw,
   additionalActivitiesRaw,
 }: {
   inputNotes: string
+  routeRaw: string
   additionalActivitiesRaw: string
 }): string {
   const out: string[] = []
@@ -516,7 +523,7 @@ function buildImportNotes({
     out.push(`Czynności dodatkowe:\n${additionalActivitiesRaw.trim()}`)
   }
 
-  return out.join('\n\n').trim()
+  return appendImportedRouteMarker(out.join('\n\n').trim(), routeRaw)
 }
 
 function parseEquipmentToDeliver(raw: string): string[] {

@@ -121,6 +121,17 @@ const OplStepSummary = ({
     }
   }
 
+  const handleCopyRoute = async () => {
+    const routeText = state.routeCompliant ? 'ZGODNY' : state.routeDescription || '-'
+
+    try {
+      await navigator.clipboard.writeText(routeText)
+      toast.success('Skopiowano przebieg do schowka.')
+    } catch {
+      toast.error('Nie udało się skopiować przebiegu.')
+    }
+  }
+
   return (
     <div className="flex h-full flex-col justify-between">
       <div className="flex-1 overflow-y-auto p-2 space-y-4">
@@ -149,6 +160,12 @@ const OplStepSummary = ({
                 {state.failureReason}
               </p>
             )}
+            <p className="whitespace-pre-wrap">
+              <span className="font-semibold">Przebieg:</span>{' '}
+              {state.routeCompliant
+                ? 'Zgodny'
+                : (state.routeDescription || '—')}
+            </p>
             {state.notes && (
               <p className="whitespace-pre-wrap">
                 <span className="font-semibold">Uwaga do zlecenia:</span>{' '}
@@ -304,14 +321,24 @@ const OplStepSummary = ({
       </div>
 
       <div className="space-y-3 p-4">
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={handleCopySummary}
-        >
-          <MdContentCopy className="h-4 w-4" />
-          Kopiuj do schowka
-        </Button>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleCopyRoute}
+          >
+            <MdContentCopy className="h-4 w-4" />
+            Kopiuj przebieg
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleCopySummary}
+          >
+            <MdContentCopy className="h-4 w-4" />
+            Kopiuj odpis
+          </Button>
+        </div>
 
         <div className="flex gap-3">
         <Button variant="outline" className="flex-1 gap-1" onClick={onBack}>

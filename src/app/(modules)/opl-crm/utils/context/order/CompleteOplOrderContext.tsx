@@ -30,6 +30,8 @@ export type CompleteOplOrderState = {
   notes: string
   measurementOpp: string
   measurementGo: string
+  routeCompliant: boolean
+  routeDescription: string
   soloCompletion: boolean
   soloTechnicianId: string
   addressNoteEnabled: boolean
@@ -58,6 +60,8 @@ type CompleteOplOrderContextValue = {
   setNotes: (v: string) => void
   setMeasurementOpp: (v: string) => void
   setMeasurementGo: (v: string) => void
+  setRouteCompliant: (v: boolean) => void
+  setRouteDescription: (v: string) => void
   setSoloCompletion: (v: boolean) => void
   setSoloTechnicianId: (v: string) => void
   setAddressNoteEnabled: (v: boolean) => void
@@ -114,6 +118,8 @@ const initialState: CompleteOplOrderState = {
   notes: '',
   measurementOpp: '',
   measurementGo: '',
+  routeCompliant: false,
+  routeDescription: '',
   soloCompletion: false,
   soloTechnicianId: '',
   addressNoteEnabled: false,
@@ -215,6 +221,12 @@ export const CompleteOplOrderProvider = ({
   }, [])
   const setMeasurementGo = useCallback((v: string) => {
     setState((prev) => ({ ...prev, measurementGo: v }))
+  }, [])
+  const setRouteCompliant = useCallback((v: boolean) => {
+    setState((prev) => ({ ...prev, routeCompliant: v }))
+  }, [])
+  const setRouteDescription = useCallback((v: string) => {
+    setState((prev) => ({ ...prev, routeDescription: v }))
   }, [])
   const setSoloCompletion = useCallback((v: boolean) => {
     setState((prev) => ({ ...prev, soloCompletion: v }))
@@ -544,6 +556,8 @@ export const CompleteOplOrderProvider = ({
       setNotes,
       setMeasurementOpp,
       setMeasurementGo,
+      setRouteCompliant,
+      setRouteDescription,
       setSoloCompletion,
       setSoloTechnicianId,
       setAddressNoteEnabled,

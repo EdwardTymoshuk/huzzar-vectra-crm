@@ -2,6 +2,7 @@
 
 import { useCompleteOplOrder } from '@/app/(modules)/opl-crm/utils/context/order/CompleteOplOrderContext'
 import {
+  appendImportedRouteMarker,
   buildOrderNotesWithMeasurements,
   parseMeasurementsFromNotes,
 } from '@/app/(modules)/opl-crm/utils/order/notesFormatting'
@@ -191,6 +192,7 @@ const CompleteOplOrderWizard = ({
       notes: parsedNotes.plainNotes,
       measurementOpp: parsedNotes.measurements.opp,
       measurementGo: parsedNotes.measurements.go,
+      routeDescription: parsedNotes.importRoute,
       soloCompletion: Boolean(
         order.history?.find((h) =>
           h.statusAfter === 'COMPLETED' || h.statusAfter === 'NOT_COMPLETED'
@@ -284,13 +286,19 @@ const CompleteOplOrderWizard = ({
     }
 
     try {
+      const notesWithMeasurements = buildOrderNotesWithMeasurements(finalNotes, {
+        opp: state.measurementOpp,
+        go: state.measurementGo,
+      })
+      const finalPersistedNotes = appendImportedRouteMarker(
+        notesWithMeasurements,
+        state.routeDescription || undefined
+      )
+
       await resolveMutation().mutateAsync({
         orderId: order.id,
         status: finalStatus,
-        notes: buildOrderNotesWithMeasurements(finalNotes, {
-          opp: state.measurementOpp,
-          go: state.measurementGo,
-        }) || null,
+        notes: finalPersistedNotes || null,
         failureReason: finalFailureReason || null,
         soloCompletion,
         soloTechnicianId:
@@ -470,6 +478,8 @@ const CompleteOplOrderWizard = ({
                 <OplStepNotes
                   orderId={order.id}
                   orderType={orderType}
+                  standard={order.standard ?? undefined}
+                  sourceNotes={order.notes}
                   onBack={handleBack}
                   onNext={() => {
                     next(STEPS.length)
@@ -529,6 +539,8 @@ const CompleteOplOrderWizard = ({
                 <OplStepNotes
                   orderId={order.id}
                   orderType={orderType}
+                  standard={order.standard ?? undefined}
+                  sourceNotes={order.notes}
                   onBack={handleBack}
                   onNext={() => {
                     next(STEPS.length)

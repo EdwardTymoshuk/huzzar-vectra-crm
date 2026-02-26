@@ -4,6 +4,8 @@ type Measurements = {
 }
 
 const MEASUREMENT_PREFIX = 'POMIAR:'
+const IMPORT_ROUTE_START = '[[OPL_IMPORT_ROUTE]]'
+const IMPORT_ROUTE_END = '[[/OPL_IMPORT_ROUTE]]'
 
 const normalizeMeasurementValue = (value: string): string => {
   const raw = value.trim().replace(',', '.')
@@ -26,19 +28,27 @@ export const formatMeasurementsLine = (measurements: Measurements): string => {
 
 export const parseMeasurementsFromNotes = (
   notes?: string | null
-): { measurements: Measurements; plainNotes: string } => {
+): { measurements: Measurements; plainNotes: string; importRoute: string } => {
   const source = notes ?? ''
-  if (!source.trim()) {
-    return { measurements: { opp: '', go: '' }, plainNotes: '' }
+  const routeMatch = source.match(
+    /\[\[OPL_IMPORT_ROUTE\]\]([\s\S]*?)\[\[\/OPL_IMPORT_ROUTE\]\]/
+  )
+  const importRoute = routeMatch?.[1]?.trim() ?? ''
+  const sourceWithoutRoute = source
+    .replace(/\n?\[\[OPL_IMPORT_ROUTE\]\][\s\S]*?\[\[\/OPL_IMPORT_ROUTE\]\]\n?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  if (!sourceWithoutRoute.trim()) {
+    return { measurements: { opp: '', go: '' }, plainNotes: '', importRoute }
   }
 
-  const lines = source.split('\n')
+  const lines = sourceWithoutRoute.split('\n')
   const measurementLineIndex = lines.findIndex((line) =>
     line.trim().toUpperCase().startsWith(MEASUREMENT_PREFIX)
   )
 
   if (measurementLineIndex < 0) {
-    return { measurements: { opp: '', go: '' }, plainNotes: source }
+    return { measurements: { opp: '', go: '' }, plainNotes: sourceWithoutRoute, importRoute }
   }
 
   const measurementLine = lines[measurementLineIndex] ?? ''
@@ -56,6 +66,7 @@ export const parseMeasurementsFromNotes = (
   return {
     measurements: { opp, go },
     plainNotes: remaining,
+    importRoute,
   }
 }
 
@@ -68,4 +79,17 @@ export const buildOrderNotesWithMeasurements = (
   if (!measurementLine) return cleanNotes
   if (!cleanNotes) return measurementLine
   return `${measurementLine}\n${cleanNotes}`
+}
+
+export const appendImportedRouteMarker = (
+  notes: string,
+  importRoute?: string | null
+): string => {
+  const cleanNotes = notes.trim()
+  const route = String(importRoute ?? '').trim()
+  if (!route) return cleanNotes
+
+  const marker = `${IMPORT_ROUTE_START}\n${route}\n${IMPORT_ROUTE_END}`
+  if (!cleanNotes) return marker
+  return `${cleanNotes}\n${marker}`
 }
