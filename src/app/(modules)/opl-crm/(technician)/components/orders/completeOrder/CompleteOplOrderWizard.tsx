@@ -387,6 +387,7 @@ const CompleteOplOrderWizard = ({
         <div className="flex-1 overflow-y-auto">
           {step === 0 && (
             <OplStepStatus
+              orderId={order.id}
               orderNumber={order.orderNumber}
               orderAddress={`${order.city} ${order.street}`.trim()}
               status={status}
@@ -431,11 +432,6 @@ const CompleteOplOrderWizard = ({
                     notes: data.notes ?? '',
                     failureReason: data.failureReason ?? '',
                   })
-                  return
-                }
-
-                if (data.goToNotesStep) {
-                  setStep(STEPS.length - 2)
                   return
                 }
 

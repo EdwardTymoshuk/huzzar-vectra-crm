@@ -117,6 +117,8 @@ const OplStepNotes = ({
   onBack,
   onNext,
 }: Props) => {
+  const subtlePlaceholderInputClass =
+    'placeholder:text-muted-foreground/60 placeholder:italic'
   const {
     state,
     setNotes,
@@ -500,6 +502,7 @@ const OplStepNotes = ({
                   setMeasurementOpp(value.trim())
                 }}
                 placeholder="np. 12,3"
+                className={subtlePlaceholderInputClass}
               />
             </div>
             <div className="space-y-1.5">
@@ -513,6 +516,7 @@ const OplStepNotes = ({
                   setMeasurementGo(value.trim())
                 }}
                 placeholder="np. 12,7"
+                className={subtlePlaceholderInputClass}
               />
             </div>
           </div>
@@ -550,6 +554,7 @@ const OplStepNotes = ({
                         value={routeNodePathDraft}
                         onChange={(e) => setRouteNodePathDraft(e.target.value)}
                         placeholder="SP-001_GDANSK/OPP023D"
+                        className={subtlePlaceholderInputClass}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -558,6 +563,7 @@ const OplStepNotes = ({
                         value={routePortDraft}
                         onChange={(e) => setRoutePortDraft(e.target.value)}
                         placeholder="12"
+                        className={subtlePlaceholderInputClass}
                       />
                     </div>
                     {(routeMode === 'ZJD' || routeMode === 'ZJN') && (
@@ -567,6 +573,7 @@ const OplStepNotes = ({
                           value={routeCableJDraft}
                           onChange={(e) => setRouteCableJDraft(e.target.value)}
                           placeholder="2"
+                          className={subtlePlaceholderInputClass}
                         />
                       </div>
                     )}
@@ -590,6 +597,7 @@ const OplStepNotes = ({
                               value={routeOkwDraft}
                               onChange={(e) => setRouteOkwDraft(e.target.value)}
                               placeholder="OKW0426347/24J_(1-22)"
+                              className={subtlePlaceholderInputClass}
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -598,6 +606,7 @@ const OplStepNotes = ({
                               value={routeFiberNoDraft}
                               onChange={(e) => setRouteFiberNoDraft(e.target.value)}
                               placeholder="9"
+                              className={subtlePlaceholderInputClass}
                             />
                           </div>
                         </div>
@@ -640,6 +649,7 @@ const OplStepNotes = ({
                               value={routeOkwDraft}
                               onChange={(e) => setRouteOkwDraft(e.target.value)}
                               placeholder="OKW0426347/24J_(1-22)"
+                              className={subtlePlaceholderInputClass}
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -648,6 +658,7 @@ const OplStepNotes = ({
                               value={routeFiberNoDraft}
                               onChange={(e) => setRouteFiberNoDraft(e.target.value)}
                               placeholder="9"
+                              className={subtlePlaceholderInputClass}
                             />
                           </div>
                         </div>
@@ -664,6 +675,7 @@ const OplStepNotes = ({
                             value={routeLengthDraft}
                             onChange={(e) => setRouteLengthDraft(e.target.value)}
                             placeholder="70"
+                            className={subtlePlaceholderInputClass}
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -705,6 +717,7 @@ const OplStepNotes = ({
                                     })
                                   }
                                   placeholder="54,3443683, 18,8311836"
+                                  className={subtlePlaceholderInputClass}
                                 />
                               </div>
                             ))}

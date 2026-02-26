@@ -175,7 +175,7 @@ const IssueOplItemsTabs = ({
   }
 
   return (
-    <div className="grid h-full min-h-0 gap-4 grid-rows-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.6fr)_minmax(300px,0.6fr)]">
+    <div className="grid h-auto gap-4 md:h-full md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.6fr)_minmax(300px,0.6fr)]">
       <section className="rounded-xl border p-4 min-h-0 overflow-y-auto">
         <div className="space-y-5">
           <div className="space-y-3">

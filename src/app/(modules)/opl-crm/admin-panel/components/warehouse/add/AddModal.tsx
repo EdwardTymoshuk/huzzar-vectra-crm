@@ -143,18 +143,18 @@ const AddModal = ({
     !devicesOpen
       ? 'max-h-0'
       : openCount === 2
-        ? 'max-h-[22vh]'
-        : 'max-h-[46vh]'
+        ? 'md:max-h-[22vh]'
+        : 'md:max-h-[46vh]'
   const materialsListHeightClass =
     !materialsOpen
       ? 'max-h-0'
       : openCount === 2
-        ? 'max-h-[22vh]'
-        : 'max-h-[46vh]'
+        ? 'md:max-h-[22vh]'
+        : 'md:max-h-[46vh]'
 
   return (
     <Dialog open={open} onOpenChange={onCloseAction}>
-      <DialogContent className="w-[96vw] max-w-[1450px] max-h-[92dvh] h-auto overflow-y-auto md:h-[92vh] md:overflow-hidden space-y-4">
+      <DialogContent className="w-[96vw] max-w-[1450px] h-auto overflow-y-auto md:h-[92vh] md:max-h-[92vh] md:overflow-hidden space-y-4">
         <DialogHeader>
           <DialogTitle>Przyjęcie do magazynu</DialogTitle>
         </DialogHeader>

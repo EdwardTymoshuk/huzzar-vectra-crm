@@ -32,6 +32,7 @@ import { toast } from 'sonner'
 import OplFailureReasonSelect from '../OplFailureReasonSelect'
 
 interface OplStepStatusProps {
+  orderId: string
   orderNumber: string
   orderAddress: string
   status: OplOrderStatus | null
@@ -41,7 +42,6 @@ interface OplStepStatusProps {
     failureReason?: string | null
     notes?: string | null
     finishImmediately?: boolean
-    goToNotesStep?: boolean
   }) => void
   failureReason: string
   notes: string
@@ -65,6 +65,7 @@ interface OplStepStatusProps {
  *   then jumps to notes/summary flow (without forcing work-code steps).
  */
 const OplStepStatus = ({
+  orderId,
   orderNumber,
   orderAddress,
   status,
@@ -83,12 +84,17 @@ const OplStepStatus = ({
   onNext,
 }: OplStepStatusProps) => {
   const sendFailureEmailMutation = trpc.opl.order.sendFailureEmail.useMutation()
+  const createAddressNote = trpc.opl.order.createAddressNote.useMutation()
+  const utils = trpc.useUtils()
   const [mailDialogOpen, setMailDialogOpen] = useState(false)
   const [mailSubject, setMailSubject] = useState(
     `${orderNumber} - ${orderAddress}`,
   )
   const [mailExtraNote, setMailExtraNote] = useState('')
   const [attachments, setAttachments] = useState<File[]>([])
+  const [addressNoteEnabled, setAddressNoteEnabled] = useState(false)
+  const [addressNoteText, setAddressNoteText] = useState('')
+  const [addressNoteScope, setAddressNoteScope] = useState('')
 
   const mailBody = useMemo(() => {
     const base = [
@@ -177,7 +183,7 @@ const OplStepStatus = ({
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (status === 'NOT_COMPLETED') {
       if (!failureReason.trim()) {
         toast.error('Wybierz powód niewykonania.')
@@ -189,12 +195,30 @@ const OplStepStatus = ({
         return
       }
 
+      if (addressNoteEnabled && !addressNoteText.trim()) {
+        toast.error('Uzupełnij treść uwagi do adresu albo wyłącz przełącznik.')
+        return
+      }
+
+      if (addressNoteEnabled && addressNoteText.trim()) {
+        try {
+          await createAddressNote.mutateAsync({
+            orderId,
+            note: addressNoteText.trim(),
+            buildingScope: addressNoteScope.trim(),
+          })
+          await utils.opl.order.getAddressNotesForOrder.invalidate({ orderId })
+        } catch {
+          toast.error('Nie udało się zapisać uwagi do adresu.')
+          return
+        }
+      }
+
       onNext({
         status,
         failureReason,
         notes,
-        finishImmediately: false,
-        goToNotesStep: true,
+        finishImmediately: true,
       })
       return
     }
@@ -311,6 +335,49 @@ const OplStepStatus = ({
               <MdMailOutline className="mr-1 h-4 w-4" />
               Wyślij email do COK
             </Button>
+
+            <div className="rounded-md border border-border/70 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-medium">Uwaga do adresu</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Będzie widoczna w kolejnych zleceniach pod tym adresem.
+                  </p>
+                </div>
+                <Switch
+                  checked={addressNoteEnabled}
+                  onCheckedChange={setAddressNoteEnabled}
+                />
+              </div>
+
+              {addressNoteEnabled && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="opl-status-address-note-text">
+                      Treść uwagi
+                    </Label>
+                    <Textarea
+                      id="opl-status-address-note-text"
+                      value={addressNoteText}
+                      onChange={(e) => setAddressNoteText(e.target.value)}
+                      placeholder="Np. Kontakt do administracji: 600 000 000"
+                      className="min-h-[90px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="opl-status-address-note-scope">
+                      Zakres budynków (opcjonalnie)
+                    </Label>
+                    <Input
+                      id="opl-status-address-note-scope"
+                      value={addressNoteScope}
+                      onChange={(e) => setAddressNoteScope(e.target.value)}
+                      placeholder="Np. 1,2,3,10-12 (puste = bieżący numer)"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -318,11 +385,13 @@ const OplStepStatus = ({
       {/* ============ Bottom navigation ============ */}
       <div className="sticky bottom-0 bg-background p-4">
         <Button
-          onClick={handleSubmit}
+          onClick={() => {
+            void handleSubmit()
+          }}
           className="w-full h-11 text-base gap-1"
-          disabled={!status}
+          disabled={!status || createAddressNote.isPending}
         >
-          Dalej
+          {createAddressNote.isPending ? 'Zapisywanie...' : 'Dalej'}
           <MdKeyboardArrowRight className="h-5 w-5" />
         </Button>
       </div>

@@ -62,7 +62,7 @@ const OplReturnModal = ({ open, onCloseAction }: Props) => {
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleAttemptClose()}>
-      <DialogContent className="w-[96vw] max-w-[1500px] max-h-[92dvh] h-auto overflow-y-auto md:h-[92vh] md:overflow-hidden space-y-4">
+      <DialogContent className="w-[96vw] max-w-[1500px] h-auto overflow-y-auto md:h-[92vh] md:max-h-[92vh] md:overflow-hidden space-y-4">
         <DialogHeader>
           <DialogTitle>Zwrot sprzętu</DialogTitle>
         </DialogHeader>
