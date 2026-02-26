@@ -1311,14 +1311,23 @@ export const queriesRouter = router({
       })
 
       return rows
-        .filter((row) => matchesBuildingScope(row.buildingScope, order.street))
-        .map((row) => ({
+        .map((row) => {
+          const scopeMatches = matchesBuildingScope(row.buildingScope, order.street)
+          return {
           id: row.id,
           note: row.note,
           buildingScope: row.buildingScope,
           createdAt: row.createdAt,
           createdBy: row.createdBy,
-        }))
+            scopeMatches,
+          }
+        })
+        .sort((a, b) => {
+          if (a.scopeMatches !== b.scopeMatches) {
+            return a.scopeMatches ? -1 : 1
+          }
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        })
     }),
 
   searchAddressNotes: loggedInEveryone

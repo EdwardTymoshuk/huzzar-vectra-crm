@@ -240,6 +240,7 @@ export const getAddressNotesByAddress = async ({
       AND n."cityNorm" = ${cityNorm}
       AND (
         n."streetNorm" = ${streetNorm}
+        OR n."streetNorm" LIKE ${`${streetNorm} %`}
         OR (${streetNormLegacy ?? ''} <> '' AND n."streetNorm" = ${streetNormLegacy ?? ''})
       )
     ORDER BY n."createdAt" DESC

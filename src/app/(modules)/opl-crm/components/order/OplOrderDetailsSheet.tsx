@@ -10,6 +10,7 @@ import {
 } from '@/app/components/ui/sheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { materialUnitMap } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
@@ -373,10 +374,16 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
                       {addressNotes.map((n) => (
                         <li
                           key={n.id}
-                          className="rounded border border-border p-2"
+                          className={cn(
+                            'rounded border p-2',
+                            n.scopeMatches
+                              ? 'border-border'
+                              : 'border-dashed border-muted-foreground/40'
+                          )}
                         >
                           <p>{n.note}</p>
                           <p className="text-xs text-muted-foreground">
+                            {!n.scopeMatches ? 'Inny zakres ulicy • ' : ''}
                             {n.buildingScope
                               ? `Zakres: ${n.buildingScope} • `
                               : ''}
