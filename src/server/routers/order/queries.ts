@@ -19,6 +19,7 @@ import {
   OrderStatus,
   OrderType,
   Prisma,
+  PrismaClient,
   TimeSlot,
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
@@ -34,10 +35,7 @@ type MissingGeoOrder = {
 }
 
 type GeoBackfillPrisma = {
-  order: {
-    findMany: (args: unknown) => Promise<MissingGeoOrder[]>
-    updateMany: (args: unknown) => Promise<{ count: number }>
-  }
+  order: Pick<PrismaClient['order'], 'findMany' | 'updateMany'>
 }
 
 const GEO_BACKFILL_SWEEP_INTERVAL_MS = 2 * 60 * 1000
