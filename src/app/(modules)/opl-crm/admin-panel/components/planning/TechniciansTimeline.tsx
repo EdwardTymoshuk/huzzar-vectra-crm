@@ -2,12 +2,6 @@
 
 import { Button } from '@/app/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/app/components/ui/dropdown-menu'
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -21,8 +15,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
-import { MdClose } from 'react-icons/md'
-import { MoreHorizontal } from 'lucide-react'
+import {
+  MdClose,
+  MdKeyboardArrowRight,
+  MdDragIndicator,
+} from 'react-icons/md'
+import { PiArrowsCounterClockwiseBold } from 'react-icons/pi'
 import { oplTimeSlotMap } from '../../../lib/constants'
 import { PLANNER_ORDER_STATUS_COLORS } from './constants'
 
@@ -31,6 +29,9 @@ type Props = {
   onUnassign: (orderId: string) => void
   searchTerm?: string
   onOrderClick?: (orderId: string) => void
+  reorderMode?: boolean
+  onToggleReorderMode?: () => void
+  onReorderTechnicians?: (sourceId: string, targetId: string) => void
 }
 
 /** Timeline configuration constants */
@@ -142,10 +143,22 @@ const TechniciansTimeline = ({
   onUnassign,
   searchTerm = '',
   onOrderClick,
+  reorderMode = false,
+  onToggleReorderMode,
+  onReorderTechnicians,
 }: Props) => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [selectedActionOrderId, setSelectedActionOrderId] = useState<
+    string | null
+  >(null)
+  const [draggedTechnicianId, setDraggedTechnicianId] = useState<string | null>(
+    null
+  )
+  const [dragOverTechnicianId, setDragOverTechnicianId] = useState<string | null>(
+    null
+  )
   const [isMobile, setIsMobile] = useState(false)
 
   const LANE_HEIGHT = 30
@@ -160,6 +173,31 @@ const TechniciansTimeline = ({
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
   }, [])
+
+  useEffect(() => {
+    if (!selectedActionOrderId) return
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+
+      const clickedCard = target.closest('[data-order-card-id]')
+      if (
+        clickedCard &&
+        clickedCard.getAttribute('data-order-card-id') === selectedActionOrderId
+      ) {
+        return
+      }
+
+      const clickedMenu = target.closest('[data-order-action-menu]')
+      if (clickedMenu) return
+
+      setSelectedActionOrderId(null)
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [selectedActionOrderId])
 
   /**
    * Utility: determines whether order should be locked from drag & unassign.
@@ -231,7 +269,22 @@ const TechniciansTimeline = ({
                 className="flex-shrink-0 border-r py-2 my-auto text-center bg-muted sticky left-0 z-40"
                 style={{ width: `${TECH_COL_WIDTH}px` }}
               >
-                TECHNIK
+                <div className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={onToggleReorderMode}
+                    className={cn(
+                      'inline-flex items-center p-0 text-[10px] font-medium transition-colors bg-transparent',
+                      reorderMode
+                        ? 'text-secondary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    title="Ustaw kolejność techników"
+                  >
+                    <PiArrowsCounterClockwiseBold className="h-3.5 w-3.5" />
+                  </button>
+                  <span>TECHNIK</span>
+                </div>
               </div>
               <div
                 className="flex overflow-x-hidden"
@@ -282,24 +335,111 @@ const TechniciansTimeline = ({
                     >
                       {/* Sticky technician name (left) */}
                       <div
-                        className="border-r p-2 font-semibold flex text-xs items-start justify-start bg-muted sticky left-0 z-20 overflow-hidden"
+                        className={cn(
+                          'border-r p-2 font-semibold flex text-xs items-start justify-start bg-muted sticky left-0 z-20 overflow-hidden',
+                          reorderMode &&
+                            dragOverTechnicianId === tech.technicianId &&
+                            'ring-2 ring-secondary'
+                        )}
                         title={tech.technicianName}
                         style={{ width: `${TECH_COL_WIDTH}px` }}
+                        draggable={
+                          reorderMode &&
+                          !!onReorderTechnicians &&
+                          !!tech.technicianId &&
+                          (tech.teamTechnicianIds?.length ?? 0) <= 1
+                        }
+                        onDragStart={(e) => {
+                          if (
+                            !reorderMode ||
+                            !onReorderTechnicians ||
+                            !tech.technicianId ||
+                            (tech.teamTechnicianIds?.length ?? 0) > 1
+                          ) {
+                            return
+                          }
+                          setDraggedTechnicianId(tech.technicianId)
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.dataTransfer.setData('text/plain', tech.technicianId)
+                        }}
+                        onDragEnd={() => {
+                          setDraggedTechnicianId(null)
+                          setDragOverTechnicianId(null)
+                        }}
+                        onDragOver={(e) => {
+                          if (
+                            !reorderMode ||
+                            !onReorderTechnicians ||
+                            !tech.technicianId ||
+                            (tech.teamTechnicianIds?.length ?? 0) > 1
+                          ) {
+                            return
+                          }
+                          e.preventDefault()
+                          e.dataTransfer.dropEffect = 'move'
+                          if (draggedTechnicianId !== tech.technicianId) {
+                            setDragOverTechnicianId(tech.technicianId)
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverTechnicianId === tech.technicianId) {
+                            setDragOverTechnicianId(null)
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (
+                            !reorderMode ||
+                            !onReorderTechnicians ||
+                            !tech.technicianId ||
+                            (tech.teamTechnicianIds?.length ?? 0) > 1
+                          ) {
+                            return
+                          }
+                          e.preventDefault()
+                          const sourceId =
+                            draggedTechnicianId ||
+                            e.dataTransfer.getData('text/plain')
+                          if (sourceId && sourceId !== tech.technicianId) {
+                            onReorderTechnicians(sourceId, tech.technicianId)
+                          }
+                          setDraggedTechnicianId(null)
+                          setDragOverTechnicianId(null)
+                        }}
                       >
-                        {matchSearch(searchTerm, tech.technicianName) ? (
-                          <span className="block w-full truncate leading-tight">
-                            <Highlight
-                              searchWords={[searchTerm]}
-                              textToHighlight={tech.technicianName}
-                              autoEscape
-                              highlightClassName="bg-yellow-200"
-                            />
-                          </span>
-                        ) : (
-                          <span className="block w-full truncate leading-tight">
-                            {tech.technicianName}
-                          </span>
-                        )}
+                        <div className="flex w-full items-start gap-1">
+                          <div className="flex-1 min-w-0">
+                            {matchSearch(searchTerm, tech.technicianName) ? (
+                              <span className="block w-full truncate leading-tight">
+                                <Highlight
+                                  searchWords={[searchTerm]}
+                                  textToHighlight={tech.technicianName}
+                                  autoEscape
+                                  highlightClassName="bg-yellow-200"
+                                />
+                              </span>
+                            ) : (
+                              <span className="block w-full truncate leading-tight">
+                                {tech.technicianName}
+                              </span>
+                            )}
+                          </div>
+                          {reorderMode &&
+                            onReorderTechnicians &&
+                            tech.technicianId &&
+                            (tech.teamTechnicianIds?.length ?? 0) <= 1 && (
+                              <div
+                                className={cn(
+                                  'inline-flex h-5 w-5 items-center justify-center rounded-md text-foreground shrink-0',
+                                  draggedTechnicianId === tech.technicianId
+                                    ? 'cursor-grabbing text-secondary'
+                                    : 'cursor-grab text-muted-foreground'
+                                )}
+                                title="Przeciągnij, aby zmienić kolejność"
+                              >
+                                <MdDragIndicator className="h-4 w-4" />
+                              </div>
+                            )}
+                        </div>
                       </div>
 
                       {/* Hour grid + draggable orders */}
@@ -339,10 +479,13 @@ const TechniciansTimeline = ({
                               key={order.id}
                               draggableId={order.id}
                               index={idx}
-                              isDragDisabled={isLockedStatus(order.status)} // <-- BLOCK DRAG
+                              isDragDisabled={
+                                reorderMode || isLockedStatus(order.status)
+                              }
                             >
                               {(drag, snapshot) => {
                                 const locked = isLockedStatus(order.status)
+                                const dragDisabledByMode = reorderMode || locked
                                 const isCompleted = order.status === 'COMPLETED'
                                 const isFailed =
                                   order.status === 'NOT_COMPLETED'
@@ -353,15 +496,17 @@ const TechniciansTimeline = ({
                                       <div
                                         ref={drag.innerRef}
                                         {...drag.draggableProps}
-                                        {...(!locked
+                                        {...(!dragDisabledByMode
                                           ? drag.dragHandleProps
                                           : {})}
                                         className={cn(
-                                          'absolute truncate rounded-md shadow-sm my-[1px] px-1 py-0 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group overflow-hidden',
+                                          'absolute truncate rounded-md shadow-sm my-[1px] px-1 py-0 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group',
                                           snapshot.isDragging &&
                                             !locked &&
                                             'scale-105 shadow-lg z-50 ring-2 ring-secondary',
-                                          locked && 'cursor-default'
+                                          dragDisabledByMode && 'cursor-default',
+                                          selectedActionOrderId === order.id &&
+                                            'z-40'
                                         )}
                                         style={{
                                           left: `${
@@ -384,8 +529,13 @@ const TechniciansTimeline = ({
                                           ...drag.draggableProps.style,
                                         }}
                                         onClick={() => {
+                                          if (reorderMode) return
                                           onOrderClick?.(order.id)
+                                          setSelectedActionOrderId((current) =>
+                                            current === order.id ? null : order.id
+                                          )
                                         }}
+                                        data-order-card-id={order.id}
                                       >
                                         {/* Disabled overlay for locked orders (prevents interaction without affecting colors) */}
                                         {locked && (
@@ -426,7 +576,7 @@ const TechniciansTimeline = ({
 
                                           {/* Unassign button hidden for locked orders */}
                                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {!locked && (
+                                            {!locked && !reorderMode && (
                                               <Button
                                                 type="button"
                                                 variant="ghost"
@@ -443,39 +593,6 @@ const TechniciansTimeline = ({
                                                 <MdClose className="w-3.5 h-3.5" />
                                               </Button>
                                             )}
-
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  onClick={(e) =>
-                                                    e.stopPropagation()
-                                                  }
-                                                  onPointerDown={(e) =>
-                                                    e.stopPropagation()
-                                                  }
-                                                  className="p-0 h-4 w-4 min-w-0 text-white/90 hover:bg-white/20"
-                                                >
-                                                  <MoreHorizontal className="w-3.5 h-3.5" />
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent
-                                                align="end"
-                                                side="bottom"
-                                                className="z-[70]"
-                                              >
-                                                <DropdownMenuItem
-                                                  onSelect={(e) => {
-                                                    e.preventDefault()
-                                                    handleGoToOrder(order.id)
-                                                  }}
-                                                >
-                                                  Przejdź do zlecenia
-                                                </DropdownMenuItem>
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
                                           </div>
                                         </div>
 
@@ -483,6 +600,25 @@ const TechniciansTimeline = ({
                                         <div className="truncate text-[0.65rem]">
                                           {order.address}
                                         </div>
+
+                                        {selectedActionOrderId === order.id && (
+                                          <div
+                                            data-order-action-menu
+                                            className="absolute inset-0 z-30 rounded-md bg-gradient-to-tr from-black/60 via-black/25 to-black/10 backdrop-blur-[1px] p-1.5 flex items-center justify-center"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <button
+                                              type="button"
+                                              className="inline-flex items-center gap-1 text-white text-xs px-2.5 py-1.5 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] hover:underline"
+                                              onClick={() =>
+                                                handleGoToOrder(order.id)
+                                              }
+                                            >
+                                              Przejdź do zlecenia
+                                              <MdKeyboardArrowRight className="h-3.5 w-3.5" />
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     </TooltipTrigger>
 
@@ -534,6 +670,16 @@ const TechniciansTimeline = ({
                             </Draggable>
                           )
                         })}
+
+                        {reorderMode && (
+                          <div
+                            className={cn(
+                              'absolute inset-0 z-10 bg-background/45 backdrop-blur-[1px] pointer-events-none',
+                              dragOverTechnicianId === tech.technicianId &&
+                                'ring-2 ring-secondary'
+                            )}
+                          />
+                        )}
 
                         {provided.placeholder}
                       </div>

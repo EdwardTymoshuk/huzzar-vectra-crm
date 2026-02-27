@@ -1,15 +1,15 @@
 'use client'
 
 import { Skeleton } from '@/app/components/ui/skeleton'
+import { OplTechnicianAssignment } from '@/types/opl-crm'
 import { getErrMessage } from '@/utils/errorHandler'
 import { matchSearch } from '@/utils/searchUtils'
 import { trpc } from '@/utils/trpc'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { groupAssignmentsForTeams } from './groupAssignments'
 import { usePlanningContext } from './PlanningContext'
 import TechniciansTimeline from './TechniciansTimeline'
-import { OplTechnicianAssignment } from '@/types/opl-crm'
 
 type Props = {
   setProcessing: (v: boolean) => void
@@ -32,12 +32,90 @@ const TechniciansList = ({
   onOrderClick,
 }: Props) => {
   const { searchTerm } = usePlanningContext()
+  const [reorderMode, setReorderMode] = useState(false)
+  const [techOrder, setTechOrder] = useState<string[]>([])
+  const TECH_ORDER_STORAGE_KEY = 'opl-planner-tech-order-v1'
 
   const trpcUtils = trpc.useUtils()
   const groupedAssignments = useMemo(
     () => groupAssignmentsForTeams(assignments),
     [assignments]
   )
+  const baseTechnicianIds = useMemo(
+    () =>
+      groupedAssignments
+        .filter((row) => row.technicianId && !(row.teamTechnicianIds?.length ?? 0))
+        .map((row) => row.technicianId!) as string[],
+    [groupedAssignments]
+  )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const raw = window.localStorage.getItem(TECH_ORDER_STORAGE_KEY)
+    if (!raw) {
+      setTechOrder(baseTechnicianIds)
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        setTechOrder(baseTechnicianIds)
+        return
+      }
+      const persisted = parsed.filter((id): id is string => typeof id === 'string')
+      const known = persisted.filter((id) => baseTechnicianIds.includes(id))
+      const missing = baseTechnicianIds.filter((id) => !known.includes(id))
+      setTechOrder([...known, ...missing])
+    } catch {
+      setTechOrder(baseTechnicianIds)
+    }
+  }, [baseTechnicianIds])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (techOrder.length === 0) return
+    window.localStorage.setItem(TECH_ORDER_STORAGE_KEY, JSON.stringify(techOrder))
+  }, [techOrder])
+
+  const orderedAssignments = useMemo(() => {
+    const indexMap = new Map(techOrder.map((id, idx) => [id, idx]))
+    const fallbackBase = techOrder.length + 100
+
+    const rankForRow = (row: OplTechnicianAssignment) => {
+      if (row.teamTechnicianIds && row.teamTechnicianIds.length > 1) {
+        const indices = row.teamTechnicianIds
+          .map((id) => indexMap.get(id))
+          .filter((v): v is number => typeof v === 'number')
+        if (indices.length > 0) return Math.min(...indices)
+        return fallbackBase
+      }
+      if (row.technicianId) {
+        return indexMap.get(row.technicianId) ?? fallbackBase
+      }
+      return fallbackBase
+    }
+
+    return [...groupedAssignments].sort((a, b) => {
+      const diff = rankForRow(a) - rankForRow(b)
+      if (diff !== 0) return diff
+      return a.technicianName.localeCompare(b.technicianName, 'pl')
+    })
+  }, [groupedAssignments, techOrder])
+
+  const reorderTechnicians = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    setTechOrder((prev) => {
+      const current = prev.length > 0 ? [...prev] : [...baseTechnicianIds]
+      const sourceIndex = current.indexOf(sourceId)
+      const targetIndex = current.indexOf(targetId)
+      if (sourceIndex === -1 || targetIndex === -1) return current
+      const [moved] = current.splice(sourceIndex, 1)
+      current.splice(targetIndex, 0, moved)
+      return current
+    })
+  }
 
   const assignMutation = trpc.opl.order.assignTechnician.useMutation({
     onError: (err) => toast.error(getErrMessage(err)),
@@ -61,9 +139,9 @@ const TechniciansList = ({
 
   const filteredAssignments = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
-    if (!term) return groupedAssignments
+    if (!term) return orderedAssignments
 
-    return groupedAssignments
+    return orderedAssignments
       .map((tech) => {
         const technicianMatches = matchSearch(term, tech.technicianName)
 
@@ -87,7 +165,7 @@ const TechniciansList = ({
         return null
       })
       .filter(Boolean) as typeof assignments
-  }, [groupedAssignments, searchTerm])
+  }, [orderedAssignments, searchTerm])
 
   return (
     <div className="space-y-4 w-full h-full max-w-full min-w-0">
@@ -104,6 +182,9 @@ const TechniciansList = ({
           assignments={filteredAssignments}
           onUnassign={unassignOrder}
           onOrderClick={onOrderClick}
+          reorderMode={reorderMode}
+          onToggleReorderMode={() => setReorderMode((v) => !v)}
+          onReorderTechnicians={reorderTechnicians}
         />
       )}
     </div>
