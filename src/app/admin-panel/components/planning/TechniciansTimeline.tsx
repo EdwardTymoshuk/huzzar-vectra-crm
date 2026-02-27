@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
+import { operatorColorsMap } from '@/lib/constants'
 
 type Props = {
   assignments: TechnicianAssignment[]
@@ -260,6 +261,13 @@ const TechniciansTimeline = ({
                         ))}
 
                         {items.map((order, idx) => {
+                          const key = order.operator?.trim().toUpperCase()
+                          const color =
+                            key && key in operatorColorsMap
+                              ? operatorColorsMap[
+                                  key as keyof typeof operatorColorsMap
+                                ]
+                              : operatorColorsMap.DEFAULT
                           const startCol = Math.max(
                             1,
                             order.start - HOUR_START + 1
@@ -310,6 +318,9 @@ const TechniciansTimeline = ({
                                             order.lane *
                                             (LANE_HEIGHT + LANE_GAP)
                                           }px`,
+
+                                          // Preserve operator-based background color
+                                          backgroundColor: color,
                                           // No border for any status
                                           border: 'none',
 
