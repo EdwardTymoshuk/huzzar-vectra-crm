@@ -64,6 +64,7 @@ const OplClientRoutingHandler = ({
     rawTab === 'dashboard' && isWarehouseman ? 'warehouse' : rawTab
 
   const isSubPage = [
+    '/orders/',
     '/warehouse/details/',
     '/warehouse/history',
     '/warehouse/issue',

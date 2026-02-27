@@ -207,6 +207,9 @@ export type OplOrderWithAttempts = {
     id: string
     attemptNumber: number
     status: OplOrderStatus
+    date?: Date | null
+    completedAt?: Date | null
+    closedAt?: Date | null
     failureReason?: string | null
     completedByName?: string | null
     assignedTechnicians: { id: string; name: string }[]

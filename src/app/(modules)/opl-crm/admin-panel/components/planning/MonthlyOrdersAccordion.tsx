@@ -1,6 +1,5 @@
 'use client'
 
-import OplOrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import LoaderSpinner from '@/app/components/LoaderSpinner'
 import {
   Accordion,
@@ -22,7 +21,8 @@ import {
 import { OplOrderStatus, OplTimeSlot } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useMemo } from 'react'
 import { MdVisibility } from 'react-icons/md'
 import { trpc } from '@/utils/trpc'
 import { matchSearch } from '@/utils/searchUtils'
@@ -58,7 +58,9 @@ const statusBadgeVariant = (status: OplOrderStatus) => {
 
 const MonthlyOrdersAccordion = () => {
   const { selectedDate, searchTerm } = usePlanningContext()
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const monthKey = format(selectedDate, 'yyyy-MM-dd')
   const { data = [], isLoading, isError } =
@@ -125,6 +127,14 @@ const MonthlyOrdersAccordion = () => {
     const effectiveness = closed > 0 ? (completed / closed) * 100 : 0
     return { received, completed, notCompleted, inProgress, effectiveness }
   }, [filtered])
+
+  const openOrderDetails = (orderId: string) => {
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
+  }
 
   if (isLoading) {
     return (
@@ -291,7 +301,7 @@ const MonthlyOrdersAccordion = () => {
                               variant="outline"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() => setSelectedOrderId(order.id)}
+                              onClick={() => openOrderDetails(order.id)}
                             >
                               <MdVisibility className="h-4 w-4" />
                             </Button>
@@ -338,7 +348,7 @@ const MonthlyOrdersAccordion = () => {
                         variant="outline"
                         size="sm"
                         className="w-full h-8 text-xs"
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => openOrderDetails(order.id)}
                       >
                         <MdVisibility className="mr-1 h-4 w-4" />
                         Szczegóły
@@ -352,11 +362,6 @@ const MonthlyOrdersAccordion = () => {
         </Accordion>
       )}
 
-      <OplOrderDetailsSheet
-        open={Boolean(selectedOrderId)}
-        orderId={selectedOrderId}
-        onClose={() => setSelectedOrderId(null)}
-      />
     </div>
   )
 }

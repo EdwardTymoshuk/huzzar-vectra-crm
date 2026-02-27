@@ -55,6 +55,9 @@ export function mapOrderToTimelineVM(
           attemptNumber: order.previousOrder.attemptNumber,
           status: order.previousOrder.status,
           failureReason: order.previousOrder.failureReason,
+          date: order.previousOrder.date,
+          completedAt: order.previousOrder.completedAt,
+          closedAt: order.previousOrder.closedAt,
           completedByName:
             order.previousOrder.history?.[0]?.changedBy?.user?.name ?? null,
 

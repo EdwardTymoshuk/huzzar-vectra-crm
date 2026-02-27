@@ -16,10 +16,10 @@ import {
   TableRow,
 } from '@/app/components/ui/table'
 import { Button } from '@/app/components/ui/button'
-import OplOrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import { trpc } from '@/utils/trpc'
 import { OplOrderType } from '@prisma/client'
 import { format } from 'date-fns'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { MdChevronRight, MdClose } from 'react-icons/md'
 
@@ -38,11 +38,13 @@ const OplInProgressOrdersDialog = ({
   dateTo,
   orderType,
 }: Props) => {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [technicianFilterId, setTechnicianFilterId] = useState<string | null>(null)
   const [technicianFilterName, setTechnicianFilterName] = useState<string | null>(
     null
   )
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { data, isLoading } = trpc.opl.order.getAllInProgress.useQuery(
     {
       dateFrom,
@@ -60,6 +62,15 @@ const OplInProgressOrdersDialog = ({
       o.technicians?.some((t) => t.id === technicianFilterId)
     )
   }, [data, technicianFilterId])
+
+  const openOrderDetails = (orderId: string) => {
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    onClose()
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -148,7 +159,7 @@ const OplInProgressOrdersDialog = ({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => setSelectedOrderId(o.id)}
+                        onClick={() => openOrderDetails(o.id)}
                         aria-label="Pokaż szczegóły zlecenia"
                       >
                         <MdChevronRight className="h-5 w-5" />
@@ -162,11 +173,6 @@ const OplInProgressOrdersDialog = ({
         )}
       </DialogContent>
 
-      <OplOrderDetailsSheet
-        orderId={selectedOrderId}
-        open={Boolean(selectedOrderId)}
-        onClose={() => setSelectedOrderId(null)}
-      />
     </Dialog>
   )
 }

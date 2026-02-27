@@ -20,6 +20,7 @@ import { formatDateOrDash } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplWarehouseAction } from '@prisma/client'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 
@@ -37,7 +38,9 @@ interface Props {
  */
 const OplItemModeTable = ({ mode, items }: Props) => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [orderId, setOrderId] = useState<string | null>(null)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const { isAdmin, isCoordinator, isWarehouseman } = useRole()
   const { data: Locations = [] } = trpc.core.user.getUserLocations.useQuery(
@@ -54,6 +57,14 @@ const OplItemModeTable = ({ mode, items }: Props) => {
 
   const showLocationColumn =
     isAdmin || ((isCoordinator || isWarehouseman) && locations.length > 1)
+
+  const openOrderDetails = (orderId: string) => {
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
+  }
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -224,7 +235,7 @@ const OplItemModeTable = ({ mode, items }: Props) => {
                         <Button
                           variant="link"
                           className="p-0"
-                          onClick={() => setOrderId(order.id)}
+                          onClick={() => openOrderDetails(order.id)}
                         >
                           {order.orderNumber}
                         </Button>
@@ -245,12 +256,6 @@ const OplItemModeTable = ({ mode, items }: Props) => {
           })}
         </TableBody>
       </Table>
-      {/* 
-      <OrderDetailsSheet
-        orderId={orderId}
-        open={!!orderId}
-        onClose={() => setOrderId(null)}
-      /> */}
     </>
   )
 }

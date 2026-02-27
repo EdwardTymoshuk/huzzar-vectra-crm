@@ -23,6 +23,7 @@ import { trpc } from '@/utils/trpc'
 import { OplOrderType } from '@prisma/client'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { MdVisibility } from 'react-icons/md'
 import {
@@ -44,6 +45,10 @@ const OplTechnicianMonthlyDetails = ({
   orderType,
 }: Props) => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isAdminPanel = pathname.includes('/admin-panel')
 
   const from = format(
     new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1),
@@ -96,6 +101,18 @@ const OplTechnicianMonthlyDetails = ({
   )
   const totalAssigned = totalCompleted + totalNotCompleted
   const totalRatio = totalAssigned ? (totalCompleted / totalAssigned) * 100 : 0
+
+  const openOrderDetails = (orderId: string) => {
+    if (isAdminPanel) {
+      const query = searchParams.toString()
+      const from = query ? `${pathname}?${query}` : pathname
+      router.push(
+        `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+      )
+      return
+    }
+    setSelectedOrderId(orderId)
+  }
 
   return (
     <div className="space-y-6">
@@ -225,7 +242,7 @@ const OplTechnicianMonthlyDetails = ({
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => setSelectedOrderId(order.id)}
+                              onClick={() => openOrderDetails(order.id)}
                             >
                               <MdVisibility className="w-4 h-4" />
                             </Button>
@@ -241,11 +258,13 @@ const OplTechnicianMonthlyDetails = ({
         })}
       </Accordion>
 
-      <OplOrderDetailsSheet
-        open={Boolean(selectedOrderId)}
-        orderId={selectedOrderId}
-        onClose={() => setSelectedOrderId(null)}
-      />
+      {!isAdminPanel && (
+        <OplOrderDetailsSheet
+          open={Boolean(selectedOrderId)}
+          orderId={selectedOrderId}
+          onClose={() => setSelectedOrderId(null)}
+        />
+      )}
     </div>
   )
 }

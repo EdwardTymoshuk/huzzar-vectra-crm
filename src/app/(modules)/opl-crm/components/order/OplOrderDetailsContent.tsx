@@ -22,10 +22,13 @@ import { parseMeasurementsFromNotes } from '../../utils/order/notesFormatting'
  */
 export type OrderWithDetails = {
   id: string
+  orderNumber: string
   status: OplOrderStatus
   date: Date
   completedAt: Date | null
   attemptNumber: number
+  city: string
+  street: string
   operator: string
   serviceId: string | null
   network: OplNetworkOeprator
@@ -84,6 +87,15 @@ export type OrderWithDetails = {
 
   failureReason: string | null
   notes: string | null
+  history?: {
+    statusBefore: OplOrderStatus | null
+    statusAfter: OplOrderStatus
+    changedBy: {
+      user: {
+        name: string | null
+      }
+    }
+  }[]
 }
 
 type Props = {
@@ -92,6 +104,8 @@ type Props = {
   isConfirmed?: boolean
   amountMode?: 'full' | 'perTechnician'
   showTechnicianBreakdown?: boolean
+  hideHeaderInfo?: boolean
+  omitEmptySections?: boolean
 }
 
 /**
@@ -104,6 +118,8 @@ const OplOrderDetailsContent = ({
   order,
   amountMode = 'full',
   showTechnicianBreakdown = false,
+  hideHeaderInfo = false,
+  omitEmptySections = false,
 }: Props) => {
   const {
     status,
@@ -114,12 +130,16 @@ const OplOrderDetailsContent = ({
     failureReason,
     notes,
     attemptNumber,
+    orderNumber,
+    city,
+    street,
     operator,
     serviceId,
     network,
     standard,
     clientPhoneNumber,
     equipmentRequirements,
+    history,
   } = order
 
   // Collected = sprzęt odebrany od klienta
@@ -154,38 +174,58 @@ const OplOrderDetailsContent = ({
           parsedNotes.measurements.go || '-'
         } dB`
       : null
+  const isClosed =
+    status === OplOrderStatus.COMPLETED || status === OplOrderStatus.NOT_COMPLETED
+  const completionEvent = (history ?? []).find(
+    (entry) =>
+      entry.statusAfter === OplOrderStatus.COMPLETED ||
+      entry.statusAfter === OplOrderStatus.NOT_COMPLETED,
+  )
+  const completedByName = completionEvent?.changedBy?.user?.name ?? null
 
   return (
     <div className="space-y-6 text-sm w-full">
       {/* ===== Header ===== */}
-      <div className="space-y-1">
-        {completedAt && (
+      {!hideHeaderInfo && (
+        <div className="space-y-1">
+          <HeaderRow label="Nr zlecenia" value={orderNumber || '-'} />
           <HeaderRow
-            label="Data zakończenia"
-            value={new Date(completedAt).toLocaleString()}
+            label="Adres"
+            value={[city, street].filter(Boolean).join(', ') || '-'}
           />
-        )}
-        {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
-        <HeaderRow label="Id usługi" value={serviceId ?? '-'} />
-        <HeaderRow label="Operator" value={operator?.trim() || '-'} />
-        <HeaderRow
-          label="Operator sieci"
-          value={oplNetworkMap[network] ?? network}
-        />
-        <HeaderRow label="Standard zlecenia" value={standard ?? '-'} />
-        <HeaderRow label="Nr kontaktowy klienta" value={clientPhoneNumber ?? '-'} />
-        {measurementLabel && <HeaderRow label="Pomiar" value={measurementLabel} />}
-      </div>
+          {completedAt && (
+            <HeaderRow
+              label="Data zakończenia"
+              value={new Date(completedAt).toLocaleString()}
+            />
+          )}
+          {isClosed && (
+            <HeaderRow label="Technik realizujący" value={completedByName ?? '-'} />
+          )}
+          {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
+          <HeaderRow label="Id usługi" value={serviceId ?? '-'} />
+          <HeaderRow label="Operator" value={operator?.trim() || '-'} />
+          <HeaderRow
+            label="Operator sieci"
+            value={oplNetworkMap[network] ?? network}
+          />
+          <HeaderRow label="Standard zlecenia" value={standard ?? '-'} />
+          <HeaderRow label="Nr kontaktowy klienta" value={clientPhoneNumber ?? '-'} />
+          {measurementLabel && <HeaderRow label="Pomiar" value={measurementLabel} />}
+        </div>
+      )}
 
-      <Section
-        title="Sprzęty do wydania"
-        list={equipmentRequirements.map((req) => {
-          const type =
-            oplDevicesTypeMap[req.deviceDefinition.category] ??
-            req.deviceDefinition.category
-          return `${req.deviceDefinition.name} (${type}) x ${req.quantity}`
-        })}
-      />
+      {!isClosed && (!omitEmptySections || equipmentRequirements.length > 0) && (
+        <Section
+          title="Sprzęty do wydania"
+          list={equipmentRequirements.map((req) => {
+            const type =
+              oplDevicesTypeMap[req.deviceDefinition.category] ??
+              req.deviceDefinition.category
+            return `${req.deviceDefinition.name} (${type}) x ${req.quantity}`
+          })}
+        />
+      )}
 
       {/* ===== Work codes ===== */}
       <Section
@@ -196,12 +236,14 @@ const OplOrderDetailsContent = ({
             : ''
           return `${toWorkCodeLabel(s.code)}${qty}`
         })}
+        hideWhenEmpty={omitEmptySections}
       />
 
       {/* ===== PKI ===== */}
       <Section
         title="PKI"
         list={pkiCodes.map((s) => `${toWorkCodeLabel(s.code)} x ${s.quantity}`)}
+        hideWhenEmpty={omitEmptySections}
       />
 
       {/* ===== Issued equipment ===== */}
@@ -220,6 +262,7 @@ const OplOrderDetailsContent = ({
             : ''
           return `${showCat ? `${prefix} ` : ''}${name}${sn}`
         })}
+        hideWhenEmpty={omitEmptySections}
       />
 
       {/* ===== Collected equipment ===== */}
@@ -238,6 +281,7 @@ const OplOrderDetailsContent = ({
             : ''
           return `${showCat ? `${prefix} ` : ''}${name}${sn}`
         })}
+        hideWhenEmpty={omitEmptySections}
       />
 
       {/* ===== Materials ===== */}
@@ -247,15 +291,26 @@ const OplOrderDetailsContent = ({
           (m) =>
             `${m.material.name} × ${m.quantity} ${materialUnitMap[m.unit]}`,
         )}
+        hideWhenEmpty={omitEmptySections}
       />
 
       {/* ===== Not completed reason ===== */}
       {status === OplOrderStatus.NOT_COMPLETED && (
-        <Section title="Powód niewykonania" list={[failureReason ?? '—']} />
+        <Section
+          title="Powód niewykonania"
+          list={failureReason ? [failureReason] : []}
+          hideWhenEmpty={omitEmptySections}
+        />
       )}
 
       {/* ===== Notes ===== */}
-      {parsedNotes.plainNotes && <Section title="Uwagi" list={[parsedNotes.plainNotes]} />}
+      {(parsedNotes.plainNotes || !omitEmptySections) && (
+        <Section
+          title="Uwagi"
+          list={parsedNotes.plainNotes ? [parsedNotes.plainNotes] : []}
+          hideWhenEmpty={omitEmptySections}
+        />
+      )}
 
       <div className="pt-4 border-t border-border font-semibold">
         {amountMode === 'perTechnician' ? 'Kwota : ' : 'Kwota: '}
@@ -285,22 +340,34 @@ export default OplOrderDetailsContent
 /** Utility section component
  * Renders a titled list; shows a dash when the list is empty.
  */
-const Section = ({ title, list }: { title: string; list: string[] }) => (
-  <section className="pt-4 border-t border-border space-y-1">
-    <h4 className="font-semibold">{title}</h4>
-    {list.length ? (
-      <ul className="list-none list-inside">
-        {list.map((it, idx) => (
-          <li key={`${it}-${idx}`} className="whitespace-pre-line normal-case">
-            {it}
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <span className="text-muted-foreground">—</span>
-    )}
-  </section>
-)
+const Section = ({
+  title,
+  list,
+  hideWhenEmpty = false,
+}: {
+  title: string
+  list: string[]
+  hideWhenEmpty?: boolean
+}) => {
+  if (hideWhenEmpty && list.length === 0) return null
+
+  return (
+    <section className="pt-4 border-t border-border space-y-1">
+      <h4 className="text-sm font-medium">{title}</h4>
+      {list.length ? (
+        <ul className="list-none list-inside text-sm leading-5">
+          {list.map((it, idx) => (
+            <li key={`${it}-${idx}`} className="whitespace-pre-line normal-case">
+              {it}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      )}
+    </section>
+  )
+}
 
 /** HeaderRow helper
  * Displays a label-value pair in a clean horizontal layout.
@@ -312,8 +379,10 @@ const HeaderRow = ({
   label: string
   value: React.ReactNode
 }) => (
-  <div className="flex items-center gap-2">
-    <span className="font-semibold">{label}:</span>
-    <span className="inline-flex items-center">{!!value ? value : '-'}</span>
+  <div className="flex items-center gap-2 text-sm leading-5">
+    <span className="font-medium text-muted-foreground min-w-[170px]">{label}:</span>
+    <span className="inline-flex items-center font-normal">
+      {!!value ? value : '-'}
+    </span>
   </div>
 )

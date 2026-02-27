@@ -19,9 +19,9 @@ import {
   DropResult,
   Droppable,
 } from '@hello-pangea/dnd'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
-import OrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import { oplTimeSlotMap } from '../../../lib/constants'
 import { groupAssignmentsForTeams } from './groupAssignments'
 import { usePlanningContext } from './PlanningContext'
@@ -35,8 +35,9 @@ import UnassignedOrdersAccordion from './UnassignedOrdersAccordion'
  */
 const AssignmentsTable = () => {
   const { selectedDate, searchTerm } = usePlanningContext()
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const [from, setFrom] = useState<Date | undefined>()
   const [to, setTo] = useState<Date | undefined>()
@@ -129,6 +130,14 @@ const AssignmentsTable = () => {
       .filter(Boolean) as OplTechnicianAssignment[]
   }, [groupedAssignments, searchTerm])
 
+  const openOrderDetails = (orderId: string) => {
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
+  }
+
   return (
     <div className="space-y-6">
       <UnassignedOrdersAccordion
@@ -139,8 +148,7 @@ const AssignmentsTable = () => {
         setFrom={setFrom}
         setTo={setTo}
         onOpenOrder={(id) => {
-          setSelectedOrderId(id)
-          setIsPanelOpen(true)
+          openOrderDetails(id)
         }}
       />
 
@@ -234,8 +242,7 @@ const AssignmentsTable = () => {
                                     {...drag.dragHandleProps}
                                     className="hover:bg-muted cursor-pointer text-sm uppercase"
                                     onClick={() => {
-                                      setSelectedOrderId(order.id)
-                                      setIsPanelOpen(true)
+                                      openOrderDetails(order.id)
                                     }}
                                   >
                                     <TableCell className="text-center border">
@@ -316,11 +323,6 @@ const AssignmentsTable = () => {
         )}
       </DragDropContext>
 
-      <OrderDetailsSheet
-        orderId={selectedOrderId}
-        open={isPanelOpen}
-        onClose={() => setIsPanelOpen(false)}
-      />
     </div>
   )
 }

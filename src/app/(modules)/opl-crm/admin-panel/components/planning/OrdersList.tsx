@@ -1,6 +1,5 @@
 'use client'
 
-import OrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import {
   OplNetworkOeprator,
@@ -9,7 +8,7 @@ import {
 } from '@prisma/client'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
-import { useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Highlight from 'react-highlight-words'
 import { oplNetworkMap, oplTimeSlotMap } from '../../../lib/constants'
 import { usePlanningContext } from './PlanningContext'
@@ -40,9 +39,9 @@ type Props = {
  */
 const OrdersList = ({ orders, isLoading, onOrderClick }: Props) => {
   const { searchTerm } = usePlanningContext()
-
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const filtered = orders.filter((o) => {
     const address = `${o.city} ${o.street}`.toLowerCase()
@@ -51,8 +50,11 @@ const OrdersList = ({ orders, isLoading, onOrderClick }: Props) => {
   })
 
   const handleOpenDetails = (orderId: string) => {
-    setSelectedOrderId(orderId)
-    setIsSheetOpen(true)
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
   }
 
   return (
@@ -178,12 +180,6 @@ const OrdersList = ({ orders, isLoading, onOrderClick }: Props) => {
         )}
       </div>
 
-      {/* Order details sheet */}
-      <OrderDetailsSheet
-        orderId={selectedOrderId}
-        open={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
-      />
     </>
   )
 }

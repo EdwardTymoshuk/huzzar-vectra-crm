@@ -141,6 +141,15 @@ export function getOplFullOrderTimeline(
   const isPrivileged = role === 'ADMIN' || role === 'COORDINATOR'
   const events: TimelineEvent[] = []
 
+  const attemptsChronological = [...(order.attempts ?? [])].sort((a, b) => {
+    const aTime = (a.createdAt ?? a.date)?.getTime?.() ?? 0
+    const bTime = (b.createdAt ?? b.date)?.getTime?.() ?? 0
+    return aTime - bTime
+  })
+  const displayAttemptById = new Map(
+    attemptsChronological.map((attempt, index) => [attempt.id, index + 1])
+  )
+
   const pushEvent = (item: TimelineEvent) => {
     events.push(item)
   }
@@ -312,6 +321,31 @@ export function getOplFullOrderTimeline(
         continue
       }
 
+      if (isTransfer) {
+        const transferTarget =
+          note?.match(/do technika\s+(.+)$/i)?.[1]?.trim() ?? null
+
+        pushEvent({
+          id: `history-${history.id}`,
+          rawDate: history.changeDate,
+          title: 'Przekazanie zlecenia',
+          color: 'warning',
+          description: (
+            <>
+              {history.changedBy?.name && (
+                <p className="text-sm">{history.changedBy.name}</p>
+              )}
+              {transferTarget && (
+                <p className="text-xs text-muted-foreground">
+                  Przekazano do: {transferTarget}
+                </p>
+              )}
+            </>
+          ),
+        })
+        continue
+      }
+
       const isStatusChange =
         history.statusBefore &&
         history.statusAfter &&
@@ -350,24 +384,6 @@ export function getOplFullOrderTimeline(
               {note && !isSystemNote(note) && (
                 <p className="text-xs text-muted-foreground">Uwagi: {note}</p>
               )}
-            </>
-          ),
-        })
-        continue
-      }
-
-      if (isTransfer) {
-        pushEvent({
-          id: `history-${history.id}`,
-          rawDate: history.changeDate,
-          title: 'Przekazanie zlecenia',
-          color: 'warning',
-          description: (
-            <>
-              {history.changedBy?.name && (
-                <p className="text-sm">{history.changedBy.name}</p>
-              )}
-              {note && <p className="text-xs text-muted-foreground">{note}</p>}
             </>
           ),
         })
@@ -432,14 +448,16 @@ export function getOplFullOrderTimeline(
   }
 
   const attemptNumbers = order.attempts
-    ?.map((a) => a.attemptNumber)
+    ?.map((a) => displayAttemptById.get(a.id) ?? a.attemptNumber)
     .filter((n): n is number => typeof n === 'number')
     .sort((a, b) => b - a)
 
   if (attemptNumbers?.length) {
     for (const attemptNumber of attemptNumbers) {
       if (builtCreationNumbers.has(attemptNumber)) continue
-      const attempt = order.attempts?.find((a) => a.attemptNumber === attemptNumber)
+      const attempt = attemptsChronological.find(
+        (a) => (displayAttemptById.get(a.id) ?? a.attemptNumber) === attemptNumber
+      )
       if (!attempt) continue
 
       pushEvent({
@@ -458,10 +476,18 @@ export function getOplFullOrderTimeline(
   }
 
   if (isPrivileged && order.previousOrder) {
+    const previousDisplayAttempt =
+      displayAttemptById.get(order.previousOrder.id) ??
+      order.previousOrder.attemptNumber
+
     pushEvent({
       id: `previous-attempt-${order.previousOrder.id}`,
-      rawDate: order.date,
-      title: `Poprzednie wejście (${order.previousOrder.attemptNumber}) — ${humanStatusLabel(
+      rawDate:
+        order.previousOrder.completedAt ??
+        order.previousOrder.closedAt ??
+        order.previousOrder.date ??
+        order.date,
+      title: `Poprzednie wejście (${previousDisplayAttempt}) — ${humanStatusLabel(
         order.previousOrder.status
       )}`,
       color:
@@ -473,7 +499,6 @@ export function getOplFullOrderTimeline(
       description: (
         <div className="space-y-1 text-xs text-muted-foreground">
           <p>
-            Wykonał:{' '}
             {order.previousOrder.completedByName ??
               order.previousOrder.assignedTechnicians
                 ?.map((t) => t.name)

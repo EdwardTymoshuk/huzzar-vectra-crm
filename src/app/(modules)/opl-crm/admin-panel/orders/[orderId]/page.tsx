@@ -2,6 +2,7 @@
 
 import { Button } from '@/app/components/ui/button'
 import PageControlBar from '@/app/components/PageControlBar'
+import { trpc } from '@/utils/trpc'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { use } from 'react'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
@@ -18,6 +19,16 @@ const OplAdminOrderDetailsPage = ({ params }: Props) => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const from = searchParams.get('from')
+  const { data: order } = trpc.opl.order.getOrderById.useQuery({ id: orderId })
+
+  const orderAddress = [order?.city, order?.street].filter(Boolean).join(', ')
+  const headerMeta =
+    order && (order.orderNumber || orderAddress)
+      ? [order.orderNumber, orderAddress].filter(Boolean).join(' | ')
+      : null
+  const headerTitle = headerMeta
+    ? `Szczegóły zlecenia | ${headerMeta}`
+    : 'Szczegóły zlecenia'
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -30,7 +41,7 @@ const OplAdminOrderDetailsPage = ({ params }: Props) => {
   return (
     <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
       <PageControlBar
-        title="Szczegóły zlecenia"
+        title={headerTitle}
         leftStart={
           <Button
             variant="ghost"
@@ -45,7 +56,7 @@ const OplAdminOrderDetailsPage = ({ params }: Props) => {
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 md:p-4">
-        <div className="rounded-md border bg-background p-3 md:p-4">
+        <div className="bg-background p-3 md:p-4">
           <OplOrderAccordionDetails order={{ id: orderId }} />
         </div>
       </div>

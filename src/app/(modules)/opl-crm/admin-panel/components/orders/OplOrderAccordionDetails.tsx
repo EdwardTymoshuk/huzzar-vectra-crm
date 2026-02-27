@@ -1,21 +1,30 @@
 'use client'
 
 import LoaderSpinner from '@/app/components/LoaderSpinner'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/app/components/ui/accordion'
 import { Button } from '@/app/components/ui/button'
-import { Separator } from '@/app/components/ui/separator'
+import { statusMap } from '@/lib/constants'
 import { OplIssuedItemDevice } from '@/types/opl-crm'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplOrderStatus } from '@prisma/client'
+import { format } from 'date-fns'
 import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { IoCheckmarkDone } from 'react-icons/io5'
 import { MdEdit } from 'react-icons/md'
 import { toast } from 'sonner'
 import CompleteOplOrderWizard from '../../../(technician)/components/orders/completeOrder/CompleteOplOrderWizard'
+import { oplDevicesTypeMap, oplNetworkMap, oplTimeSlotMap } from '../../../lib/constants'
 import OplOrderDetailsContent from '../../../components/order/OplOrderDetailsContent'
 import { CompleteOplOrderProvider } from '../../../utils/context/order/CompleteOplOrderContext'
+import { parseMeasurementsFromNotes } from '../../../utils/order/notesFormatting'
 import OplOrderTimeline from '../order/OplOrderTimeline'
 
 type Props = { order: { id: string } }
@@ -48,6 +57,10 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
   const { data, isLoading, isError } = trpc.opl.order.getOrderById.useQuery({
     id: order.id,
   })
+  const { data: addressNotes = [] } = trpc.opl.order.getAddressNotesForOrder.useQuery(
+    { orderId: order.id },
+    { enabled: Boolean(order.id) }
+  )
 
   const primaryAssignment = data?.assignments?.[0]
   const secondaryAssignment = data?.assignments?.[1]
@@ -248,22 +261,145 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
     (isAdmin || isCoordinator) &&
     (data.status === OplOrderStatus.COMPLETED ||
       data.status === OplOrderStatus.NOT_COMPLETED)
+  const isClosed =
+    data.status === OplOrderStatus.COMPLETED ||
+    data.status === OplOrderStatus.NOT_COMPLETED
+  const completionEvent = (data.history ?? []).find(
+    (entry) =>
+      entry.statusAfter === OplOrderStatus.COMPLETED ||
+      entry.statusAfter === OplOrderStatus.NOT_COMPLETED
+  )
+  const completedByName = completionEvent?.changedBy?.user?.name ?? null
+  const assignedTechniciansLabel = Array.from(
+    new Set(
+      (data.assignments ?? [])
+        .map((assignment) => assignment.technician?.user?.name?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+  ).join(' + ')
+  const completedByLabel = assignedTechniciansLabel || completedByName || '-'
+  const parsedNotes = parseMeasurementsFromNotes(data.notes)
+  const completedAtLabel = data.completedAt
+    ? formatDateTime(data.completedAt)
+    : data.closedAt
+      ? formatDateTime(data.closedAt)
+      : '-'
 
   /* ---------------- Render ---------------- */
   return (
-    <div className="flex gap-6">
-      {/* -------- LEFT COLUMN: main content -------- */}
-      <div className="space-y-4 flex-1">
-        <h3 className="text-base font-semibold mb-2">Informacja o zleceniu</h3>
-        <OplOrderDetailsContent
-          order={data}
-          isConfirmed={isConfirmed}
-          amountMode="full"
-          showTechnicianBreakdown
-        />
+    <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+      <div className="space-y-4 xl:pr-5 xl:border-r xl:border-border">
+        <h3 className="text-base font-semibold">Informacje ogólne</h3>
+        <div className="space-y-2 text-sm leading-5">
+          <DetailsRow label="Nr zlecenia" value={data.orderNumber} />
+          <DetailsRow
+            label="Adres"
+            value={[data.city, data.street].filter(Boolean).join(', ')}
+          />
+          <DetailsRow
+            label="Data umówienia i slot"
+            value={`${format(data.date, 'dd.MM.yyyy')} • ${
+              oplTimeSlotMap[data.timeSlot] ?? data.timeSlot
+            }`}
+          />
+          <DetailsRow label="Wejście" value={String(data.attemptNumber)} />
+          <DetailsRow label="Status" value={statusMap[data.status] ?? data.status} />
+          <DetailsRow label="Id usługi" value={data.serviceId || '-'} />
+          <DetailsRow label="Operator" value={data.operator || '-'} />
+          <DetailsRow
+            label="Operator sieci"
+            value={oplNetworkMap[data.network] ?? data.network}
+          />
+          <DetailsRow label="Nr kontaktowy klienta" value={data.clientPhoneNumber || '-'} />
+          <div className="space-y-1 border-t border-border pt-3">
+            <h4 className="text-sm font-medium">Uwagi do adresu</h4>
+            {addressNotes.length ? (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem
+                  value="address-notes"
+                  className="rounded border border-border px-2"
+                >
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                    {`Pokaż uwagi (${addressNotes.length})`}
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2">
+                    <ul className="space-y-2">
+                      {addressNotes.map((n) => (
+                        <li key={n.id} className="rounded border border-border p-2 text-sm">
+                          <p>{n.note}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {`Adres wpisu: ${n.city}, ${n.street}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {n.buildingScope ? `Zakres: ${n.buildingScope} • ` : ''}
+                            {n.createdBy.name} •{' '}
+                            {new Date(n.createdAt).toLocaleString('pl-PL')}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : (
+              <span className="text-sm text-muted-foreground">—</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 2xl:pr-5 2xl:border-r 2xl:border-border">
+        <h3 className="text-base font-semibold">
+          {isClosed ? 'Odpis i podsumowanie' : 'Informacje realizacyjne'}
+        </h3>
+
+        {isClosed && data.status === OplOrderStatus.COMPLETED ? (
+          <>
+            <DetailsRow label="Data zakończenia" value={completedAtLabel} />
+            <DetailsRow label="Technik realizujący" value={completedByLabel} />
+            <OplOrderDetailsContent
+              order={data}
+              isConfirmed={isConfirmed}
+              amountMode="full"
+              showTechnicianBreakdown
+              hideHeaderInfo
+              omitEmptySections
+            />
+          </>
+        ) : isClosed && data.status === OplOrderStatus.NOT_COMPLETED ? (
+          <>
+            <DetailsRow label="Data zakończenia" value={completedAtLabel} />
+            <DetailsRow label="Technik realizujący" value={completedByLabel} />
+            <DetailsSection
+              title="Powód niewykonania"
+              lines={data.failureReason ? [data.failureReason] : []}
+            />
+            <DetailsSection
+              title="Uwagi"
+              lines={parsedNotes.plainNotes ? [parsedNotes.plainNotes] : []}
+            />
+          </>
+        ) : (
+          <>
+            <DetailsRow label="Standard zlecenia" value={data.standard || '-'} />
+            <DetailsSection
+              title="Sprzęty do wydania"
+              lines={data.equipmentRequirements.map((req) => {
+                const type =
+                  oplDevicesTypeMap[req.deviceDefinition.category] ??
+                  req.deviceDefinition.category
+                return `${req.deviceDefinition.name} (${type}) x ${req.quantity}`
+              })}
+            />
+            <DetailsSection
+              title="Uwagi"
+              lines={[parsedNotes.plainNotes || '—']}
+            />
+          </>
+        )}
 
         {(canAdminEdit || canApprove) && (
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
             {canAdminEdit && !isWarehouseman && (
               <Button
                 variant="default"
@@ -344,10 +480,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
         </CompleteOplOrderProvider>
       </div>
 
-      <Separator className="h-auto" orientation="vertical" />
-
-      {/* -------- RIGHT COLUMN: timeline -------- */}
-      <div className="flex-1">
+      <div>
         <h3 className="text-base font-semibold mb-2">Historia zlecenia</h3>
         <OplOrderTimeline order={data} />
       </div>
@@ -356,3 +489,39 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
 }
 
 export default OplOrderAccordionDetails
+
+const DetailsRow = ({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) => (
+  <div className="flex items-start gap-2 text-sm leading-5">
+    <span className="font-medium text-muted-foreground min-w-[170px]">{label}:</span>
+    <span className="text-foreground font-normal">{value || '-'}</span>
+  </div>
+)
+
+const DetailsSection = ({
+  title,
+  lines,
+}: {
+  title: string
+  lines: string[]
+}) => (
+  <div className="space-y-1 border-t border-border pt-3">
+    <h4 className="text-sm font-medium">{title}</h4>
+    {lines.length > 0 ? (
+      <ul className="space-y-1 text-sm">
+        {lines.map((line, idx) => (
+          <li key={`${title}-${idx}`} className="whitespace-pre-line">
+            {line}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <span className="text-sm text-muted-foreground">—</span>
+    )}
+  </div>
+)

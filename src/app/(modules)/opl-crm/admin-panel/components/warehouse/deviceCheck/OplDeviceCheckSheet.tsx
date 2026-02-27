@@ -1,6 +1,5 @@
 'use client'
 
-import OplOrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
 import { Input } from '@/app/components/ui/input'
 import { Label } from '@/app/components/ui/label'
@@ -14,6 +13,7 @@ import { Timeline } from '@/app/components/ui/timeline'
 import { devicesStatusMap } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { getDeviceTimeline } from '@/utils/warehouse/getDeviceTimeline'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 type Props = { open: boolean; onClose: () => void }
@@ -21,9 +21,9 @@ type Props = { open: boolean; onClose: () => void }
 const OplDeviceCheckSheet = ({ open, onClose }: Props) => {
   const [serial, setSerial] = useState('')
   const [submittedSerial, setSubmittedSerial] = useState<string | null>(null)
-
-  // NEW — state for opening the order sheet
-  const [orderId, setOrderId] = useState<string | null>(null)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const query = trpc.opl.warehouse.checkDeviceBySerialNumber.useQuery(
     { serialNumber: submittedSerial ?? undefined },
@@ -48,6 +48,15 @@ const OplDeviceCheckSheet = ({ open, onClose }: Props) => {
     setSerial('')
     setSubmittedSerial(null)
     onClose()
+  }
+
+  const openOrderDetails = (orderId: string) => {
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    onClose()
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
   }
 
   return (
@@ -121,19 +130,20 @@ const OplDeviceCheckSheet = ({ open, onClose }: Props) => {
                   <div>
                     <dt className="font-medium">Powiązane zlecenie:</dt>
                     <dd>
-                      {query.data.assignedOrder ? (
+                      {(() => {
+                        const assignedOrder = query.data?.assignedOrder
+                        return assignedOrder ? (
                         <Button
                           variant="link"
                           className="p-0 h-auto"
-                          onClick={() =>
-                            setOrderId(query?.data?.assignedOrder.id ?? '')
-                          }
+                          onClick={() => openOrderDetails(assignedOrder.id)}
                         >
-                          {query.data.assignedOrder.orderNumber}
+                          {assignedOrder.orderNumber}
                         </Button>
-                      ) : (
-                        'Brak'
-                      )}
+                        ) : (
+                          'Brak'
+                        )
+                      })()}
                     </dd>
                   </div>
                   {query.data.history && query.data.history.length > 0 && (
@@ -149,12 +159,6 @@ const OplDeviceCheckSheet = ({ open, onClose }: Props) => {
         </SheetContent>
       </Sheet>
 
-      {/* ORDER DETAILS SHEET */}
-      <OplOrderDetailsSheet
-        orderId={orderId}
-        open={!!orderId}
-        onClose={() => setOrderId(null)}
-      />
     </>
   )
 }
