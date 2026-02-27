@@ -8,7 +8,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/app/components/ui/tooltip'
-import { operatorColorsMap } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { TechnicianAssignment } from '@/types'
 import { matchSearch } from '@/utils/searchUtils'
@@ -261,10 +260,6 @@ const TechniciansTimeline = ({
                         ))}
 
                         {items.map((order, idx) => {
-                          const color =
-                            operatorColorsMap[
-                              order.operator?.trim().toUpperCase()
-                            ] ?? operatorColorsMap.DEFAULT
                           const startCol = Math.max(
                             1,
                             order.start - HOUR_START + 1
@@ -298,6 +293,7 @@ const TechniciansTimeline = ({
                                           : {})}
                                         className={cn(
                                           'absolute truncate rounded-md shadow-sm my-[1px] px-1 py-0 text-xs text-white font-medium transition-all cursor-grab active:cursor-grabbing group overflow-hidden',
+                                          'bg-secondary',
                                           snapshot.isDragging &&
                                             !locked &&
                                             'scale-105 shadow-lg z-50 ring-2 ring-secondary',
@@ -314,10 +310,6 @@ const TechniciansTimeline = ({
                                             order.lane *
                                             (LANE_HEIGHT + LANE_GAP)
                                           }px`,
-
-                                          // Preserve operator-based background color
-                                          backgroundColor: color,
-
                                           // No border for any status
                                           border: 'none',
 
