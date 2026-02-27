@@ -42,6 +42,8 @@ const GEO_BACKFILL_SWEEP_INTERVAL_MS = 2 * 60 * 1000
 const GEO_BACKFILL_BATCH_SIZE = 120
 const GEO_INLINE_VIEW_LIMIT = 24
 const GEO_INLINE_CONCURRENCY = 4
+const GEO_INLINE_TOTAL_BUDGET_MS = 2000
+const GEO_INLINE_SINGLE_TIMEOUT_MS = 900
 
 const geoBackfillState: {
   running: boolean
@@ -81,6 +83,21 @@ const geocodeByVariants = async (o: {
 }) => {
   for (const candidate of buildAddressVariants(o)) {
     const coords = await getCoordinatesFromAddress(candidate)
+    if (coords) return coords
+  }
+  return null
+}
+
+const geocodeByVariantsFast = async (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  for (const candidate of buildAddressVariants(o)) {
+    const coords = await getCoordinatesFromAddress(candidate, {
+      timeoutMs: GEO_INLINE_SINGLE_TIMEOUT_MS,
+      maxRetries: 0,
+    })
     if (coords) return coords
   }
   return null
@@ -136,11 +153,14 @@ const geocodeVisibleRowsNow = async (
   }
 
   const resolved = new Map<string, { lat: number; lng: number }>()
+  const startedAt = Date.now()
   await mapWithConcurrency(
     Array.from(grouped.values()),
     GEO_INLINE_CONCURRENCY,
     async (group) => {
-      const coords = await geocodeByVariants(group[0])
+      if (Date.now() - startedAt > GEO_INLINE_TOTAL_BUDGET_MS) return
+
+      const coords = await geocodeByVariantsFast(group[0])
       if (!coords) return
       const ids = group.map((g) => g.id)
       await prisma.order.updateMany({

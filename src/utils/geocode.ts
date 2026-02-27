@@ -10,6 +10,10 @@
 
 type LatLng = { lat: number; lng: number }
 type FetchJSON = Array<{ lat: string; lon: string }>
+type GeocodeOptions = {
+  timeoutMs?: number
+  maxRetries?: number
+}
 
 /** In-process cache (consider Redis for multi-pod environments). */
 const CACHE = new Map<string, LatLng>()
@@ -67,7 +71,8 @@ export const cleanStreetName = (street: string): string =>
  * Returns `null` on failure (never throws).
  */
 export async function getCoordinatesFromAddress(
-  address: string
+  address: string,
+  options?: GeocodeOptions
 ): Promise<LatLng | null> {
   // Optional kill-switch for development / incidents
   if (process.env.GEOCODING_DISABLED === '1') return null
@@ -79,13 +84,15 @@ export async function getCoordinatesFromAddress(
 
   await acquire()
   try {
+    const timeoutMs = options?.timeoutMs ?? REQUEST_TIMEOUT_MS
+    const maxRetries = options?.maxRetries ?? MAX_RETRIES
     let attempt = 0
     while (true) {
       attempt += 1
 
       // Hard timeout per request
       const ctrl = new AbortController()
-      const timeoutId = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS)
+      const timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
 
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=${encodeURIComponent(
@@ -108,7 +115,7 @@ export async function getCoordinatesFromAddress(
 
         // Backoff on 429 / 5xx
         if (response.status === 429 || response.status >= 500) {
-          if (attempt <= MAX_RETRIES) {
+          if (attempt <= maxRetries) {
             const backoff = 400 * Math.pow(2, attempt - 1)
             await sleep(backoff)
             continue
@@ -140,7 +147,7 @@ export async function getCoordinatesFromAddress(
       } catch (err) {
         clearTimeout(timeoutId)
         // Retry on network/abort up to MAX_RETRIES
-        if (attempt <= MAX_RETRIES) {
+        if (attempt <= maxRetries) {
           const backoff = 300 * Math.pow(2, attempt - 1)
           await sleep(backoff)
           continue
