@@ -13,6 +13,7 @@ import { OplTechnicianAssignment } from '@/types/opl-crm'
 import {
   cleanStreetName,
   getCoordinatesFromAddress,
+  normalizeAddressForGeocodeCache,
   stripStreetUnit,
 } from '@/utils/geocode'
 import { getNextLineOrderNumber } from '@/utils/orders/nextLineOrderNumber'
@@ -23,6 +24,7 @@ import {
   OplOrderType,
   OplTimeSlot,
   Prisma,
+  PrismaClient,
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { endOfDay, endOfMonth, parseISO, startOfDay, startOfMonth } from 'date-fns'
@@ -68,9 +70,231 @@ async function mapWithConcurrency<T, R>(
   return ret
 }
 
-/** Street endings that often break geocoding precision (local/unit suffixes). */
-const SUSPICIOUS_STREET_SUFFIX_REGEX =
-  /(?:\/\s*(?:LU|LOK|L|M|M\.|LOKAL)\s*[A-Z0-9-]+|\d+[A-Z]?\s*\/\s*[A-Z0-9-]+)\s*$/i
+type MissingGeoOrder = {
+  id: string
+  city: string
+  street: string
+  postalCode: string | null
+}
+
+type GeoBackfillPrisma = {
+  oplOrder: Pick<PrismaClient['oplOrder'], 'findMany' | 'updateMany'>
+}
+
+const GEO_BACKFILL_SWEEP_INTERVAL_MS = 2 * 60 * 1000
+const GEO_BACKFILL_BATCH_SIZE = 120
+const GEO_INLINE_VIEW_LIMIT = 24
+const GEO_INLINE_CONCURRENCY = 4
+const GEO_INLINE_TOTAL_BUDGET_MS = 2000
+const GEO_INLINE_SINGLE_TIMEOUT_MS = 900
+
+const geoBackfillState: {
+  running: boolean
+  lastSweepAt: number
+  pendingIds: Set<string>
+} = {
+  running: false,
+  lastSweepAt: 0,
+  pendingIds: new Set(),
+}
+
+const isUsablePostalCode = (pc?: string | null): boolean => {
+  if (!pc) return false
+  const trimmed = pc.trim()
+  if (!/^\d{2}-\d{3}$/.test(trimmed)) return false
+  if (trimmed === '00-000') return false
+  return true
+}
+
+const buildAddressVariants = (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  const street = cleanStreetName(o.street).trim()
+  const strippedStreet = stripStreetUnit(street)
+  const city = o.city.trim()
+  const pc = isUsablePostalCode(o.postalCode) ? o.postalCode!.trim() : null
+
+  const variants: string[] = []
+  if (street && city && pc) variants.push(`${street}, ${pc} ${city}, Polska`)
+  if (street && city) variants.push(`${street}, ${city}, Polska`)
+  if (strippedStreet && strippedStreet !== street && city && pc)
+    variants.push(`${strippedStreet}, ${pc} ${city}, Polska`)
+  if (strippedStreet && strippedStreet !== street && city)
+    variants.push(`${strippedStreet}, ${city}, Polska`)
+  if (city) variants.push(`${city}, Polska`)
+
+  return Array.from(new Set(variants))
+}
+
+const buildStreetLevelKey = (o: { city: string; street: string }) =>
+  normalizeAddressForGeocodeCache(
+    `${stripStreetUnit(cleanStreetName(o.street))}, ${o.city}, Polska`
+  )
+
+const geocodeByVariants = async (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  for (const candidate of buildAddressVariants(o)) {
+    const coords = await getCoordinatesFromAddress(candidate)
+    if (coords) return coords
+  }
+  return null
+}
+
+const geocodeByVariantsFast = async (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  for (const candidate of buildAddressVariants(o)) {
+    const coords = await getCoordinatesFromAddress(candidate, {
+      timeoutMs: GEO_INLINE_SINGLE_TIMEOUT_MS,
+      maxRetries: 0,
+    })
+    if (coords) return coords
+  }
+  return null
+}
+
+type PlannerGeoRow = {
+  id: string
+  city: string
+  street: string
+  postalCode: string | null
+  lat: number | null
+  lng: number | null
+}
+
+const geocodeVisibleRowsNow = async (
+  prisma: GeoBackfillPrisma,
+  rows: PlannerGeoRow[],
+  limit = GEO_INLINE_VIEW_LIMIT
+): Promise<Map<string, { lat: number; lng: number }>> => {
+  const missing = rows
+    .filter((r) => r.lat === null || r.lng === null)
+    .slice(0, limit)
+  if (missing.length === 0) return new Map()
+
+  const grouped = new Map<string, PlannerGeoRow[]>()
+  for (const row of missing) {
+    const key = buildStreetLevelKey(row)
+    const group = grouped.get(key)
+    if (group) group.push(row)
+    else grouped.set(key, [row])
+  }
+
+  const resolved = new Map<string, { lat: number; lng: number }>()
+  const startedAt = Date.now()
+  await mapWithConcurrency(
+    Array.from(grouped.values()),
+    GEO_INLINE_CONCURRENCY,
+    async (group) => {
+      if (Date.now() - startedAt > GEO_INLINE_TOTAL_BUDGET_MS) return
+
+      const coords = await geocodeByVariantsFast(group[0])
+      if (!coords) return
+
+      const ids = group.map((g) => g.id)
+      await prisma.oplOrder.updateMany({
+        where: { id: { in: ids } },
+        data: { lat: coords.lat, lng: coords.lng },
+      })
+      ids.forEach((id) => resolved.set(id, coords))
+    }
+  )
+
+  return resolved
+}
+
+const runGeoBackfill = async (prisma: GeoBackfillPrisma) => {
+  if (geoBackfillState.running) return
+
+  geoBackfillState.running = true
+  try {
+    let candidates: MissingGeoOrder[] = []
+
+    if (geoBackfillState.pendingIds.size > 0) {
+      const pendingIds = Array.from(geoBackfillState.pendingIds).slice(
+        0,
+        GEO_BACKFILL_BATCH_SIZE
+      )
+      pendingIds.forEach((id) => geoBackfillState.pendingIds.delete(id))
+
+      candidates = await prisma.oplOrder.findMany({
+        where: {
+          id: { in: pendingIds },
+          OR: [{ lat: null }, { lng: null }],
+        },
+        select: {
+          id: true,
+          city: true,
+          street: true,
+          postalCode: true,
+        },
+      })
+    }
+
+    if (
+      candidates.length === 0 &&
+      Date.now() - geoBackfillState.lastSweepAt >= GEO_BACKFILL_SWEEP_INTERVAL_MS
+    ) {
+      geoBackfillState.lastSweepAt = Date.now()
+      candidates = await prisma.oplOrder.findMany({
+        where: { OR: [{ lat: null }, { lng: null }] },
+        select: {
+          id: true,
+          city: true,
+          street: true,
+          postalCode: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: GEO_BACKFILL_BATCH_SIZE,
+      })
+    }
+
+    if (candidates.length === 0) return
+
+    const groups = new Map<string, MissingGeoOrder[]>()
+    for (const row of candidates) {
+      if (!row.city?.trim() || !row.street?.trim()) continue
+      const key = buildStreetLevelKey(row)
+      const list = groups.get(key)
+      if (list) list.push(row)
+      else groups.set(key, [row])
+    }
+
+    for (const groupRows of Array.from(groups.values())) {
+      const coords = await geocodeByVariants(groupRows[0])
+      if (!coords) continue
+
+      await prisma.oplOrder.updateMany({
+        where: { id: { in: groupRows.map((r) => r.id) } },
+        data: { lat: coords.lat, lng: coords.lng },
+      })
+    }
+  } catch (error) {
+    console.error('OPL geo backfill failed:', error)
+  } finally {
+    geoBackfillState.running = false
+    if (geoBackfillState.pendingIds.size > 0) {
+      setTimeout(() => {
+        void runGeoBackfill(prisma)
+      }, 50)
+    }
+  }
+}
+
+const triggerGeoBackfill = (
+  prisma: GeoBackfillPrisma,
+  missingFromView: MissingGeoOrder[]
+) => {
+  missingFromView.forEach((row) => geoBackfillState.pendingIds.add(row.id))
+  void runGeoBackfill(prisma)
+}
 
 /* -----------------------------------------------------------
  * queriesRouter
@@ -643,6 +867,7 @@ export const queriesRouter = router({
           orderNumber: true,
           city: true,
           street: true,
+          postalCode: true,
           standard: true,
           network: true,
           lat: true,
@@ -694,65 +919,27 @@ export const queriesRouter = router({
         orderBy: { timeSlot: 'asc' },
       })
 
-      /* -------------------------------------------
-       * 3️⃣ Auto-geocoding (bounded, concurrent)
-       * ------------------------------------------- */
-      const missingCoords = orders.filter((o) => o.lat === null || o.lng === null)
-      const suspiciousCoords = orders.filter((o) =>
-        SUSPICIOUS_STREET_SUFFIX_REGEX.test(o.street)
-      )
-      const MAX_GEOCODES = 60
-      const CONCURRENCY = 3
-
-      const geocodeTargets = Array.from(
-        new Map(
-          [...suspiciousCoords, ...missingCoords].map((order) => [order.id, order])
-        ).values()
-      )
-
-      await mapWithConcurrency(
-        geocodeTargets.slice(0, MAX_GEOCODES),
-        CONCURRENCY,
-        async (order) => {
-          const cleanStreet = cleanStreetName(order.street)
-          const strippedStreet = stripStreetUnit(cleanStreet)
-          const variants = [
-            `${cleanStreet}, ${order.city}, Polska`,
-            ...(strippedStreet !== cleanStreet
-              ? [`${strippedStreet}, ${order.city}, Polska`]
-              : []),
-            `${order.city}, Polska`,
-          ]
-
-          let coords = null as { lat: number; lng: number } | null
-          for (const address of variants) {
-            coords = await getCoordinatesFromAddress(address)
-            if (coords) break
-          }
-          if (!coords) {
-            if (SUSPICIOUS_STREET_SUFFIX_REGEX.test(order.street)) {
-              order.lat = null
-              order.lng = null
-              await ctx.prisma.oplOrder.update({
-                where: { id: order.id },
-                data: { lat: null, lng: null },
-              })
-            }
-            return
-          }
-
-          order.lat = coords.lat
-          order.lng = coords.lng
-
-          await ctx.prisma.oplOrder.update({
-            where: { id: order.id },
-            data: { lat: coords.lat, lng: coords.lng },
-          })
+      const visibleResolved = await geocodeVisibleRowsNow(ctx.prisma, orders)
+      orders.forEach((o) => {
+        const coords = visibleResolved.get(o.id)
+        if (coords) {
+          o.lat = coords.lat
+          o.lng = coords.lng
         }
-      )
+      })
+
+      const missingFromView = orders
+        .filter((o) => o.lat === null || o.lng === null)
+        .map((o) => ({
+          id: o.id,
+          city: o.city,
+          street: o.street,
+          postalCode: o.postalCode,
+        }))
+      triggerGeoBackfill(ctx.prisma, missingFromView)
 
       /* -------------------------------------------
-       * 4️⃣ Helper do wrzucania w sloty
+       * 3️⃣ Helper do wrzucania w sloty
        * ------------------------------------------- */
       const push = (
         technicianId: string,
@@ -820,7 +1007,7 @@ export const queriesRouter = router({
       }
 
       /* -------------------------------------------
-       * 5️⃣ Fan-out: jedno zlecenie → wielu techników
+       * 4️⃣ Fan-out: jedno zlecenie → wielu techników
        * ------------------------------------------- */
       orders.forEach((o) => {
         const assignedTechnicians = o.assignments.map((a) => ({
@@ -1008,7 +1195,7 @@ export const queriesRouter = router({
       }
     }),
 
-  /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */
+  /** Unassigned orders for planner drag-&-drop */
   getUnassignedOrders: adminOrCoord
     .input(z.object({ date: z.string().optional() }).optional())
     .query(async ({ input, ctx }) => {
@@ -1044,116 +1231,31 @@ export const queriesRouter = router({
         take: 300,
       })
 
-      // Nothing to do if no rows
-      if (rows.length === 0) return []
-
-      /* ---------------- helpers ---------------- */
-
-      /** Accept only valid PL postal codes and ignore placeholders like "00-000". */
-      const isUsablePostalCode = (pc?: string | null): boolean => {
-        if (!pc) return false
-        const trimmed = pc.trim()
-        // Strict PL format NN-NNN
-        if (!/^\d{2}-\d{3}$/.test(trimmed)) return false
-        // Treat "00-000" as a placeholder (do not use for geocoding)
-        if (trimmed === '00-000') return false
-        return true
-      }
-
-      /** Build address variants for robust geocoding when postal code is missing/placeholder. */
-      const buildAddressVariants = (r: (typeof rows)[number]): string[] => {
-        const street = cleanStreetName(r.street)
-        const strippedStreet = stripStreetUnit(street)
-        const city = (r.city ?? '').trim()
-        const pc = isUsablePostalCode(r.postalCode)
-          ? r.postalCode!.trim()
-          : null
-
-        const variants: string[] = []
-        if (street && city && pc)
-          variants.push(`${street}, ${pc}, ${city}, Polska`)
-        if (street && city) variants.push(`${street}, ${city}, Polska`)
-        if (strippedStreet && strippedStreet !== street && city && pc)
-          variants.push(`${strippedStreet}, ${pc}, ${city}, Polska`)
-        if (strippedStreet && strippedStreet !== street && city)
-          variants.push(`${strippedStreet}, ${city}, Polska`)
-        if (city) variants.push(`${city}, Polska`)
-        return Array.from(new Set(variants))
-      }
-
-      /** Try multiple address variants until one returns coordinates. */
-      const geocodeWithFallback = async (variants: string[]) => {
-        for (const v of variants) {
-          const coords = await getCoordinatesFromAddress(v)
-          if (coords) return coords
+      const visibleResolved = await geocodeVisibleRowsNow(ctx.prisma, rows)
+      rows.forEach((r) => {
+        const coords = visibleResolved.get(r.id)
+        if (coords) {
+          r.lat = coords.lat
+          r.lng = coords.lng
         }
-        return null
-      }
+      })
 
-      /* --------------- main --------------- */
-
-      const MAX_GEOCODES = 60
-      const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
-
-      const missingRows = rows.filter((r) => r.lat === null || r.lng === null)
-      const suspiciousRows = rows.filter((r) =>
-        SUSPICIOUS_STREET_SUFFIX_REGEX.test(r.street)
-      )
-      const head = Array.from(
-        new Map([...suspiciousRows, ...missingRows].map((r) => [r.id, r])).values()
-      ).slice(0, MAX_GEOCODES)
-
-      const enrichAndPersist = async (r: (typeof rows)[number]) => {
-        const variants = buildAddressVariants(r)
-        const coords = await geocodeWithFallback(variants)
-        if (!coords) {
-          if (SUSPICIOUS_STREET_SUFFIX_REGEX.test(r.street)) {
-            r.lat = null
-            r.lng = null
-            await ctx.prisma.oplOrder.update({
-              where: { id: r.id },
-              data: { lat: null, lng: null },
-            })
-          }
-          return
-        }
-        r.lat = coords.lat
-        r.lng = coords.lng
-        await ctx.prisma.oplOrder.update({
-          where: { id: r.id },
-          data: { lat: coords.lat, lng: coords.lng },
-        })
-      }
-
-      try {
-        // Run initial chunk with limited concurrency; never throw the whole route on single failure
-        await mapWithConcurrency(head, CONCURRENCY, async (row) => {
-          try {
-            await enrichAndPersist(row)
-          } catch {
-            // Be fail-safe: fallback without coords
-          }
-        })
-
-        return rows.map((r) => ({
-          ...r,
-          operator: r.operator?.trim() || '-',
-          lat: r.lat ?? null,
-          lng: r.lng ?? null,
+      const missingFromView = rows
+        .filter((r) => r.lat === null || r.lng === null)
+        .map((r) => ({
+          id: r.id,
+          city: r.city,
+          street: r.street,
+          postalCode: r.postalCode,
         }))
-      } catch (e) {
-        // HARD FALLBACK: if geocoding infra is down, still return rows without coordinates
-        console.error(
-          'Geocoding batch failed — returning rows without coordinates',
-          e
-        )
-        return rows.map((r) => ({
-          ...r,
-          operator: r.operator?.trim() || '-',
-          lat: r.lat ?? null,
-          lng: r.lng ?? null,
-        }))
-      }
+      triggerGeoBackfill(ctx.prisma, missingFromView)
+
+      return rows.map(({ postalCode: _postalCode, ...r }) => ({
+        ...r,
+        operator: r.operator?.trim() || '-',
+        lat: r.lat ?? null,
+        lng: r.lng ?? null,
+      }))
     }),
 
   /** Fetches ALL in progress orders from all technitians and from all the time */

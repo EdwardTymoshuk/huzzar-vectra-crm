@@ -14,10 +14,15 @@ import {
   VectraPreviousOrderPrismaResult,
   VectraTechnicianAssignment,
 } from '@/types/vectra-crm'
-import { cleanStreetName, getCoordinatesFromAddress } from '@/utils/geocode'
+import {
+  cleanStreetName,
+  getCoordinatesFromAddress,
+  normalizeAddressForGeocodeCache,
+} from '@/utils/geocode'
 import { getNextLineOrderNumber } from '@/utils/orders/nextLineOrderNumber'
 import {
   Prisma,
+  PrismaClient,
   VectraOrderStatus,
   VectraOrderType,
   VectraTimeSlot,
@@ -57,6 +62,216 @@ async function mapWithConcurrency<T, R>(
   )
   await Promise.all(workers)
   return ret
+}
+
+type MissingGeoOrder = {
+  id: string
+  city: string
+  street: string
+  postalCode: string | null
+}
+
+type GeoBackfillPrisma = {
+  vectraOrder: Pick<PrismaClient['vectraOrder'], 'findMany' | 'updateMany'>
+}
+
+const GEO_BACKFILL_SWEEP_INTERVAL_MS = 2 * 60 * 1000
+const GEO_BACKFILL_BATCH_SIZE = 120
+const GEO_INLINE_VIEW_LIMIT = 24
+const GEO_INLINE_CONCURRENCY = 4
+const GEO_INLINE_TOTAL_BUDGET_MS = 2000
+const GEO_INLINE_SINGLE_TIMEOUT_MS = 900
+
+const geoBackfillState: {
+  running: boolean
+  lastSweepAt: number
+  pendingIds: Set<string>
+} = {
+  running: false,
+  lastSweepAt: 0,
+  pendingIds: new Set(),
+}
+
+const buildAddressVariants = (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  const street = cleanStreetName(o.street).trim()
+  const city = o.city.trim()
+  const postalCode = o.postalCode?.trim()
+
+  return [
+    postalCode
+      ? `${street}, ${postalCode} ${city}, Polska`
+      : `${street}, ${city}, Polska`,
+    `${street}, ${city}, Polska`,
+    `${city}, Polska`,
+  ]
+}
+
+const buildStreetLevelKey = (o: { city: string; street: string }) =>
+  normalizeAddressForGeocodeCache(`${o.street}, ${o.city}, Polska`)
+
+const geocodeByVariants = async (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  for (const candidate of buildAddressVariants(o)) {
+    const coords = await getCoordinatesFromAddress(candidate)
+    if (coords) return coords
+  }
+  return null
+}
+
+const geocodeByVariantsFast = async (o: {
+  city: string
+  street: string
+  postalCode?: string | null
+}) => {
+  for (const candidate of buildAddressVariants(o)) {
+    const coords = await getCoordinatesFromAddress(candidate, {
+      timeoutMs: GEO_INLINE_SINGLE_TIMEOUT_MS,
+      maxRetries: 0,
+    })
+    if (coords) return coords
+  }
+  return null
+}
+
+type PlannerGeoRow = {
+  id: string
+  city: string
+  street: string
+  postalCode: string | null
+  lat: number | null
+  lng: number | null
+}
+
+const geocodeVisibleRowsNow = async (
+  prisma: GeoBackfillPrisma,
+  rows: PlannerGeoRow[],
+  limit = GEO_INLINE_VIEW_LIMIT
+): Promise<Map<string, { lat: number; lng: number }>> => {
+  const missing = rows
+    .filter((r) => r.lat === null || r.lng === null)
+    .slice(0, limit)
+  if (missing.length === 0) return new Map()
+
+  const grouped = new Map<string, PlannerGeoRow[]>()
+  for (const row of missing) {
+    const key = buildStreetLevelKey(row)
+    const group = grouped.get(key)
+    if (group) group.push(row)
+    else grouped.set(key, [row])
+  }
+
+  const resolved = new Map<string, { lat: number; lng: number }>()
+  const startedAt = Date.now()
+  await mapWithConcurrency(
+    Array.from(grouped.values()),
+    GEO_INLINE_CONCURRENCY,
+    async (group) => {
+      if (Date.now() - startedAt > GEO_INLINE_TOTAL_BUDGET_MS) return
+      const coords = await geocodeByVariantsFast(group[0])
+      if (!coords) return
+      const ids = group.map((g) => g.id)
+      await prisma.vectraOrder.updateMany({
+        where: { id: { in: ids } },
+        data: { lat: coords.lat, lng: coords.lng },
+      })
+      ids.forEach((id) => resolved.set(id, coords))
+    }
+  )
+
+  return resolved
+}
+
+const runGeoBackfill = async (prisma: GeoBackfillPrisma) => {
+  if (geoBackfillState.running) return
+
+  geoBackfillState.running = true
+  try {
+    let candidates: MissingGeoOrder[] = []
+
+    if (geoBackfillState.pendingIds.size > 0) {
+      const pendingIds = Array.from(geoBackfillState.pendingIds).slice(
+        0,
+        GEO_BACKFILL_BATCH_SIZE
+      )
+      pendingIds.forEach((id) => geoBackfillState.pendingIds.delete(id))
+
+      candidates = await prisma.vectraOrder.findMany({
+        where: {
+          id: { in: pendingIds },
+          OR: [{ lat: null }, { lng: null }],
+        },
+        select: {
+          id: true,
+          city: true,
+          street: true,
+          postalCode: true,
+        },
+      })
+    }
+
+    if (
+      candidates.length === 0 &&
+      Date.now() - geoBackfillState.lastSweepAt >= GEO_BACKFILL_SWEEP_INTERVAL_MS
+    ) {
+      geoBackfillState.lastSweepAt = Date.now()
+      candidates = await prisma.vectraOrder.findMany({
+        where: { OR: [{ lat: null }, { lng: null }] },
+        select: {
+          id: true,
+          city: true,
+          street: true,
+          postalCode: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: GEO_BACKFILL_BATCH_SIZE,
+      })
+    }
+
+    if (candidates.length === 0) return
+
+    const groups = new Map<string, MissingGeoOrder[]>()
+    for (const row of candidates) {
+      if (!row.city?.trim() || !row.street?.trim()) continue
+      const key = buildStreetLevelKey(row)
+      const list = groups.get(key)
+      if (list) list.push(row)
+      else groups.set(key, [row])
+    }
+
+    for (const groupRows of Array.from(groups.values())) {
+      const coords = await geocodeByVariants(groupRows[0])
+      if (!coords) continue
+
+      await prisma.vectraOrder.updateMany({
+        where: { id: { in: groupRows.map((r) => r.id) } },
+        data: { lat: coords.lat, lng: coords.lng },
+      })
+    }
+  } catch (error) {
+    console.error('Vectra geo backfill failed:', error)
+  } finally {
+    geoBackfillState.running = false
+    if (geoBackfillState.pendingIds.size > 0) {
+      setTimeout(() => {
+        void runGeoBackfill(prisma)
+      }, 50)
+    }
+  }
+}
+
+const triggerGeoBackfill = (
+  prisma: GeoBackfillPrisma,
+  missingFromView: MissingGeoOrder[]
+) => {
+  missingFromView.forEach((row) => geoBackfillState.pendingIds.add(row.id))
+  void runGeoBackfill(prisma)
 }
 
 /* -----------------------------------------------------------
@@ -375,6 +590,7 @@ export const queriesRouter = router({
           orderNumber: true,
           city: true,
           street: true,
+          postalCode: true,
           lat: true,
           lng: true,
           timeSlot: true,
@@ -386,24 +602,24 @@ export const queriesRouter = router({
         orderBy: { timeSlot: 'asc' },
       })
 
-      // Auto-geocode assigned orders missing coordinates
-      for (const o of assigned) {
-        if (o.lat === null || o.lng === null) {
-          const address = `${o.street}, ${o.city}, Polska`
-          const coords = await getCoordinatesFromAddress(address)
-
-          if (coords) {
-            o.lat = coords.lat
-            o.lng = coords.lng
-
-            // Update DB so next time the order already has coords
-            await ctx.prisma.vectraOrder.update({
-              where: { id: o.id },
-              data: { lat: coords.lat, lng: coords.lng },
-            })
-          }
+      const visibleResolved = await geocodeVisibleRowsNow(ctx.prisma, assigned)
+      assigned.forEach((o) => {
+        const coords = visibleResolved.get(o.id)
+        if (coords) {
+          o.lat = coords.lat
+          o.lng = coords.lng
         }
-      }
+      })
+
+      const missingFromView = assigned
+        .filter((o) => o.lat === null || o.lng === null)
+        .map((o) => ({
+          id: o.id,
+          city: o.city,
+          street: o.street,
+          postalCode: o.postalCode,
+        }))
+      triggerGeoBackfill(ctx.prisma, missingFromView)
 
       const push = (
         key: string,
@@ -555,7 +771,7 @@ export const queriesRouter = router({
       return { orders, totalOrders }
     }),
 
-  /** Unassigned orders for planner drag-&-drop (with polite geocoding + fallbacks) */
+  /** Unassigned orders for planner drag-&-drop */
   getUnassignedOrders: adminOrCoord
     .input(z.object({ date: z.string().optional() }).optional())
     .query(async ({ input, ctx }) => {
@@ -575,96 +791,43 @@ export const queriesRouter = router({
           orderNumber: true,
           city: true,
           street: true,
+          postalCode: true,
+          lat: true,
+          lng: true,
           operator: true,
           timeSlot: true,
           status: true,
-          postalCode: true,
           date: true,
         },
         orderBy: { timeSlot: 'asc' },
         take: 300,
       })
 
-      // Nothing to do if no rows
-      if (rows.length === 0) return []
-
-      /* ---------------- helpers ---------------- */
-
-      /** Accept only valid PL postal codes and ignore placeholders like "00-000". */
-      const isUsablePostalCode = (pc?: string | null): boolean => {
-        if (!pc) return false
-        const trimmed = pc.trim()
-        // Strict PL format NN-NNN
-        if (!/^\d{2}-\d{3}$/.test(trimmed)) return false
-        // Treat "00-000" as a placeholder (do not use for geocoding)
-        if (trimmed === '00-000') return false
-        return true
-      }
-
-      /** Build address variants for robust geocoding when postal code is missing/placeholder. */
-      const buildAddressVariants = (r: (typeof rows)[number]): string[] => {
-        const street = cleanStreetName(r.street)
-        const city = (r.city ?? '').trim()
-        const pc = isUsablePostalCode(r.postalCode)
-          ? r.postalCode!.trim()
-          : null
-
-        const variants: string[] = []
-        if (street && city && pc)
-          variants.push(`${street}, ${pc}, ${city}, Polska`)
-        if (street && city) variants.push(`${street}, ${city}, Polska`)
-        if (city) variants.push(`${city}, Polska`)
-        return variants
-      }
-
-      /** Try multiple address variants until one returns coordinates. */
-      const geocodeWithFallback = async (variants: string[]) => {
-        for (const v of variants) {
-          const coords = await getCoordinatesFromAddress(v)
-          if (coords) return coords
+      const visibleResolved = await geocodeVisibleRowsNow(ctx.prisma, rows)
+      rows.forEach((r) => {
+        const coords = visibleResolved.get(r.id)
+        if (coords) {
+          r.lat = coords.lat
+          r.lng = coords.lng
         }
-        return null
-      }
+      })
 
-      /* --------------- main --------------- */
+      const missingFromView = rows
+        .filter((r) => r.lat === null || r.lng === null)
+        .map((r) => ({
+          id: r.id,
+          city: r.city,
+          street: r.street,
+          postalCode: r.postalCode,
+        }))
+      triggerGeoBackfill(ctx.prisma, missingFromView)
 
-      const MAX_GEOCODES = 20
-      const CONCURRENCY = 3 // tuned for Nominatim politeness + UX
-
-      const head = rows.slice(0, MAX_GEOCODES)
-      const tail = rows.slice(MAX_GEOCODES)
-
-      const enrich = async (r: (typeof rows)[number]) => {
-        const variants = buildAddressVariants(r)
-        const coords = await geocodeWithFallback(variants)
-        return { ...r, lat: coords?.lat ?? null, lng: coords?.lng ?? null }
-      }
-
-      try {
-        // Run initial chunk with limited concurrency; never throw the whole route on single failure
-        const headResults = await mapWithConcurrency(
-          head,
-          CONCURRENCY,
-          async (row) => {
-            try {
-              return await enrich(row)
-            } catch {
-              // Be fail-safe: fallback without coords
-              return { ...row, lat: null, lng: null }
-            }
-          }
-        )
-
-        const normalizedTail = tail.map((r) => ({ ...r, lat: null, lng: null }))
-        return [...headResults, ...normalizedTail]
-      } catch (e) {
-        // HARD FALLBACK: if geocoding infra is down, still return orders without coordinates
-        console.error(
-          'Geocoding batch failed — returning rows without coordinates',
-          e
-        )
-        return rows.map((r) => ({ ...r, lat: null, lng: null }))
-      }
+      return rows.map(({ postalCode: _postalCode, ...r }) => ({
+        ...r,
+        operator: r.operator?.trim() || '-',
+        lat: r.lat ?? null,
+        lng: r.lng ?? null,
+      }))
     }),
 
   /** Fetches ALL in progress orders from all technitians and from all the time */
