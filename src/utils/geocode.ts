@@ -45,6 +45,19 @@ const release = () => {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/**
+ * Normalizes street-level address so apartment variants share one cache entry
+ * (e.g. "Bramińskiego 13/2" and "Bramińskiego 13/12" -> "Bramińskiego 13").
+ */
+export const normalizeAddressForGeocodeCache = (value: string): string => {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*polska$/i, '')
+    .replace(/(\d+[a-z]?)\s*\/\s*\d+[a-z]?/gi, '$1')
+}
+
 /** Normalizes common Polish prefixes in street names. */
 export const cleanStreetName = (street: string): string =>
   street.replace(/^(ul\.|al\.|pl\.)\s+/i, '').trim()
@@ -60,7 +73,8 @@ export async function getCoordinatesFromAddress(
   if (process.env.GEOCODING_DISABLED === '1') return null
 
   // Cache hit short-circuit
-  const cached = CACHE.get(address)
+  const cacheKey = normalizeAddressForGeocodeCache(address)
+  const cached = CACHE.get(cacheKey)
   if (cached) return cached
 
   await acquire()
@@ -117,7 +131,7 @@ export async function getCoordinatesFromAddress(
             const firstKey = CACHE.keys().next().value
             if (firstKey) CACHE.delete(firstKey)
           }
-          CACHE.set(address, result)
+          CACHE.set(cacheKey, result)
           return result
         }
 
