@@ -1,7 +1,12 @@
 'use client'
 
-import OrderDetailsSheet from '@/app/(modules)/opl-crm/components/order/OplOrderDetailsSheet'
 import { Button } from '@/app/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu'
 import {
   Tooltip,
   TooltipContent,
@@ -12,10 +17,12 @@ import { cn } from '@/lib/utils'
 import { OplTechnicianAssignment } from '@/types/opl-crm'
 import { matchSearch } from '@/utils/searchUtils'
 import { Draggable, Droppable } from '@hello-pangea/dnd'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Highlight from 'react-highlight-words'
 import { MdClose } from 'react-icons/md'
+import { MoreHorizontal } from 'lucide-react'
 import { oplTimeSlotMap } from '../../../lib/constants'
 import { PLANNER_ORDER_STATUS_COLORS } from './constants'
 
@@ -136,8 +143,9 @@ const TechniciansTimeline = ({
   searchTerm = '',
   onOrderClick,
 }: Props) => {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isMobile, setIsMobile] = useState(false)
 
   const LANE_HEIGHT = 30
@@ -158,6 +166,14 @@ const TechniciansTimeline = ({
    */
   const isLockedStatus = (status: string): boolean => {
     return status === 'COMPLETED' || status === 'NOT_COMPLETED'
+  }
+
+  const handleGoToOrder = (orderId: string) => {
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    router.push(
+      `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+    )
   }
 
   const filteredAssignments = useMemo(() => {
@@ -367,11 +383,9 @@ const TechniciansTimeline = ({
 
                                           ...drag.draggableProps.style,
                                         }}
-                                        onDoubleClick={() => {
-                                          setSelectedOrderId(order.id)
-                                          setIsSheetOpen(true)
+                                        onClick={() => {
+                                          onOrderClick?.(order.id)
                                         }}
-                                        onClick={() => onOrderClick?.(order.id)}
                                       >
                                         {/* Disabled overlay for locked orders (prevents interaction without affecting colors) */}
                                         {locked && (
@@ -411,19 +425,58 @@ const TechniciansTimeline = ({
                                           </div>
 
                                           {/* Unassign button hidden for locked orders */}
-                                          {!locked && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={() =>
-                                                onUnassign(order.id)
-                                              }
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0 h-4 w-4 min-w-0 text-danger hover:bg-danger/80"
-                                            >
-                                              <MdClose className="w-3.5 h-3.5" />
-                                            </Button>
-                                          )}
+                                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {!locked && (
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  onUnassign(order.id)
+                                                }}
+                                                onPointerDown={(e) =>
+                                                  e.stopPropagation()
+                                                }
+                                                className="p-0 h-4 w-4 min-w-0 text-danger hover:bg-danger/80"
+                                              >
+                                                <MdClose className="w-3.5 h-3.5" />
+                                              </Button>
+                                            )}
+
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={(e) =>
+                                                    e.stopPropagation()
+                                                  }
+                                                  onPointerDown={(e) =>
+                                                    e.stopPropagation()
+                                                  }
+                                                  className="p-0 h-4 w-4 min-w-0 text-white/90 hover:bg-white/20"
+                                                >
+                                                  <MoreHorizontal className="w-3.5 h-3.5" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent
+                                                align="end"
+                                                side="bottom"
+                                                className="z-[70]"
+                                              >
+                                                <DropdownMenuItem
+                                                  onSelect={(e) => {
+                                                    e.preventDefault()
+                                                    handleGoToOrder(order.id)
+                                                  }}
+                                                >
+                                                  Przejdź do zlecenia
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
                                         </div>
 
                                         {/* Address line */}
@@ -492,16 +545,6 @@ const TechniciansTimeline = ({
           </div>
         </div>
       </div>
-
-      {/* Order Details Sheet */}
-      <OrderDetailsSheet
-        orderId={selectedOrderId}
-        open={isSheetOpen}
-        onClose={() => {
-          setIsSheetOpen(false)
-          setSelectedOrderId(null)
-        }}
-      />
     </TooltipProvider>
   )
 }
