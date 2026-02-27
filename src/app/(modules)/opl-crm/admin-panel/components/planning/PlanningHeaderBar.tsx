@@ -13,7 +13,7 @@ import {
 } from '@/app/components/ui/dialog'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
-import { addDays, subDays } from 'date-fns'
+import { addDays, addMonths, subDays, subMonths } from 'date-fns'
 import { useState } from 'react'
 import { MdChevronLeft, MdChevronRight } from 'react-icons/md'
 import { MdAdd, MdDelete, MdNotes, MdUploadFile } from 'react-icons/md'
@@ -62,8 +62,11 @@ const PlannerHeaderBar = () => {
     },
   })
 
-  const handlePrev = () => setSelectedDate(subDays(selectedDate, 1))
-  const handleNext = () => setSelectedDate(addDays(selectedDate, 1))
+  const isMonthlyTab = activeTab === 'assignments'
+  const handlePrev = () =>
+    setSelectedDate(isMonthlyTab ? subMonths(selectedDate, 1) : subDays(selectedDate, 1))
+  const handleNext = () =>
+    setSelectedDate(isMonthlyTab ? addMonths(selectedDate, 1) : addDays(selectedDate, 1))
 
   const headerActions = canManage ? (
     <div className="flex items-center gap-2">
@@ -108,30 +111,67 @@ const PlannerHeaderBar = () => {
         }
         enableHorizontalScroll
       >
-        <div className="flex items-center gap-2 min-w-[520px]">
-          <Button variant="outline" size="icon" onClick={handlePrev}>
-            <MdChevronLeft className="w-5 h-5" />
-          </Button>
+        {isMonthlyTab ? (
+          <div className="flex items-center gap-2 min-w-[620px]">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={handlePrev}
+              >
+                <MdChevronLeft className="w-4 h-4" />
+              </Button>
 
-          <DatePicker
-            selected={selectedDate}
-            onChange={(d) => d && setSelectedDate(d)}
-            range="day"
-            allowFuture
-            compact
-          />
+              <DatePicker
+                selected={selectedDate}
+                onChange={(d) => d && setSelectedDate(d)}
+                range="month"
+                allowFuture
+                compact
+              />
 
-          <Button variant="outline" size="icon" onClick={handleNext}>
-            <MdChevronRight className="w-5 h-5" />
-          </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={handleNext}
+              >
+                <MdChevronRight className="w-4 h-4" />
+              </Button>
 
-          <SearchInput
-            placeholder="Szukaj technika lub zlecenie..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-            className="w-64 min-w-[220px]"
-          />
-        </div>
+              <SearchInput
+                placeholder="Szukaj zlecenia, adresu, technika..."
+                value={searchTerm}
+                onChange={setSearchTerm}
+                className="flex-1 min-w-[280px] [&_input]:h-10"
+              />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 min-w-[520px]">
+            <Button variant="outline" size="icon" onClick={handlePrev}>
+              <MdChevronLeft className="w-5 h-5" />
+            </Button>
+
+            <DatePicker
+              selected={selectedDate}
+              onChange={(d) => d && setSelectedDate(d)}
+              range="day"
+              allowFuture
+              compact
+            />
+
+            <Button variant="outline" size="icon" onClick={handleNext}>
+              <MdChevronRight className="w-5 h-5" />
+            </Button>
+
+            <SearchInput
+              placeholder="Szukaj technika lub zlecenie..."
+              value={searchTerm}
+              onChange={setSearchTerm}
+              className="w-64 min-w-[220px]"
+            />
+          </div>
+        )}
       </PageControlBar>
 
       {canManage && (

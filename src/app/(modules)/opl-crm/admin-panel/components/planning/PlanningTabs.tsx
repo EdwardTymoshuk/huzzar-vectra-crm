@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent } from '@/app/components/ui/tabs'
 import AssignmentsFloatingAction from './AssignmentsFloatingAction'
-import AssignmentsTable from './AssignmentsTable'
+import MonthlyOrdersAccordion from './MonthlyOrdersAccordion'
 import PlanningBoard from './PlanningBoard'
 import { usePlanningContext } from './PlanningContext'
 import PlanningFloatingAction from './PlanningFloatingAction'
@@ -35,7 +35,7 @@ const PlanningTabs = () => {
           className="flex flex-col flex-1 h-full overflow-hidden"
         >
           <div className="flex-1 overflow-auto">
-            <AssignmentsTable />
+            <MonthlyOrdersAccordion />
             <AssignmentsFloatingAction />
           </div>
         </TabsContent>

@@ -25,7 +25,7 @@ import {
   Prisma,
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
-import { endOfDay, parseISO, startOfDay } from 'date-fns'
+import { endOfDay, endOfMonth, parseISO, startOfDay, startOfMonth } from 'date-fns'
 import { z } from 'zod'
 import {
   getAddressNotesByAddress,
@@ -1220,6 +1220,67 @@ export const queriesRouter = router({
           id: a.technician.user.id,
           name: a.technician.user.name,
         })),
+      }))
+    }),
+
+  getPlannerMonthlyOrders: adminOrCoord
+    .use(requireOplModule)
+    .input(
+      z.object({
+        month: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const baseDate = parseISO(input.month)
+      const from = startOfMonth(baseDate)
+      const to = endOfMonth(baseDate)
+
+      const orders = await ctx.prisma.oplOrder.findMany({
+        where: {
+          date: {
+            gte: startOfDay(from),
+            lte: endOfDay(to),
+          },
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          city: true,
+          street: true,
+          date: true,
+          timeSlot: true,
+          status: true,
+          operator: true,
+          type: true,
+          assignments: {
+            orderBy: { assignedAt: 'asc' },
+            select: {
+              technician: {
+                select: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ date: 'desc' }, { timeSlot: 'asc' }, { createdAt: 'desc' }],
+      })
+
+      return orders.map((o) => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        city: o.city,
+        street: o.street,
+        date: o.date,
+        timeSlot: o.timeSlot,
+        status: o.status,
+        operator: o.operator,
+        type: o.type,
+        technicians: o.assignments.map((a) => a.technician.user.name),
       }))
     }),
 
