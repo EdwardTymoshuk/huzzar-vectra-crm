@@ -15,6 +15,7 @@ import {
 } from '@/app/components/ui/alert-dialog'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
+import { Checkbox } from '@/app/components/ui/checkbox'
 import { Input } from '@/app/components/ui/input'
 import { Textarea } from '@/app/components/ui/textarea'
 import {
@@ -53,6 +54,9 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
   const [issuedMaterials, setIssuedMaterials] = useState<
     OplIssuedItemMaterial[]
   >([])
+  const [damagedByDeviceId, setDamagedByDeviceId] = useState<
+    Record<string, boolean>
+  >({})
   const [notes, setNotes] = useState('')
 
 
@@ -143,7 +147,8 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
       return
     }
 
-    setIssuedDevices((prev) => [...prev, device])
+    setIssuedDevices((prev) => [...prev, { ...device, isDamaged: false }])
+    setDamagedByDeviceId((prev) => ({ ...prev, [device.id]: false }))
   }
 
   const handleAddMaterial = (materialName: string) => {
@@ -208,12 +213,18 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
   const handleClearAll = () => {
     setIssuedDevices([])
     setIssuedMaterials([])
+    setDamagedByDeviceId({})
     setNotes('')
     setClearConfirmOpen(false)
   }
 
   const removeDevice = (deviceId: string) => {
     setIssuedDevices((prev) => prev.filter((d) => d.id !== deviceId))
+    setDamagedByDeviceId((prev) => {
+      const next = { ...prev }
+      delete next[deviceId]
+      return next
+    })
   }
 
   const removeMaterialByName = (name: string) => {
@@ -230,7 +241,11 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
     try {
       await returnMutation.mutateAsync({
         items: [
-          ...issuedDevices.map((d) => ({ id: d.id, type: 'DEVICE' as const })),
+          ...issuedDevices.map((d) => ({
+            id: d.id,
+            type: 'DEVICE' as const,
+            isDamaged: damagedByDeviceId[d.id] ?? false,
+          })),
           ...issuedMaterials.map((m) => ({
             id: m.id,
             type: 'MATERIAL' as const,
@@ -281,6 +296,7 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
               setSearch('')
               setIssuedDevices([])
               setIssuedMaterials([])
+              setDamagedByDeviceId({})
               setNotes('')
             }}
           />
@@ -419,14 +435,31 @@ const OplReturnFromTechnician = ({ onClose, onDraftChange }: Props) => {
                       Typ: {oplDevicesTypeMap[d.category]} | SN: {d.serialNumber}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-danger hover:text-danger hover:bg-danger/10"
-                    onClick={() => removeDevice(d.id)}
-                  >
-                    <FaTrashAlt className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-start gap-2">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                      <Checkbox
+                        checked={damagedByDeviceId[d.id] ?? false}
+                        onCheckedChange={(checked) =>
+                          setDamagedByDeviceId((prev) => ({
+                            ...prev,
+                            [d.id]: checked === true,
+                          }))
+                        }
+                      />
+                      Uszkodzony
+                    </label>
+                    {damagedByDeviceId[d.id] && (
+                      <Badge variant="danger">USZKODZONY</Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-danger hover:text-danger hover:bg-danger/10"
+                      onClick={() => removeDevice(d.id)}
+                    >
+                      <FaTrashAlt className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

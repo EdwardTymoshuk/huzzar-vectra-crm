@@ -188,6 +188,35 @@ export const mutationsRouter = router({
 
       for (const item of input.items) {
         if (item.type === 'DEVICE') {
+          const current = await prisma.oplWarehouse.findUnique({
+            where: { id: item.id },
+            select: {
+              id: true,
+              itemType: true,
+              status: true,
+              assignedToId: true,
+              orderAssignments: { select: { id: true }, take: 1 },
+            },
+          })
+          if (!current || current.itemType !== 'DEVICE') {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'Urządzenie nie istnieje',
+            })
+          }
+          if (current.status !== 'AVAILABLE' || current.assignedToId !== null) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Urządzenie nie jest dostępne do wydania.',
+            })
+          }
+          if (current.orderAssignments.length > 0) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Urządzenie jest już przypisane do zlecenia.',
+            })
+          }
+
           await prisma.oplWarehouse.update({
             where: { id: item.id },
             data: {
@@ -315,7 +344,11 @@ export const mutationsRouter = router({
       z.object({
         items: z.array(
           z.discriminatedUnion('type', [
-            z.object({ type: z.literal('DEVICE'), id: z.string() }),
+            z.object({
+              type: z.literal('DEVICE'),
+              id: z.string(),
+              isDamaged: z.boolean().optional(),
+            }),
             z.object({
               type: z.literal('MATERIAL'),
               id: z.string(),
@@ -339,10 +372,15 @@ export const mutationsRouter = router({
           })
           if (!current) throw new TRPCError({ code: 'NOT_FOUND' })
 
-          const newStatus =
-            current.status === 'COLLECTED_FROM_CLIENT'
-              ? 'RETURNED'
-              : 'AVAILABLE'
+          const isDamaged = item.isDamaged === true
+          const newStatus = isDamaged
+            ? 'RETURNED'
+            : current.status === 'COLLECTED_FROM_CLIENT'
+            ? 'RETURNED'
+            : 'AVAILABLE'
+          const notes = isDamaged
+            ? `[USZKODZONE] ${input.notes?.trim() ?? ''}`.trim()
+            : input.notes
 
           await prisma.oplWarehouse.update({
             where: { id: item.id },
@@ -360,7 +398,7 @@ export const mutationsRouter = router({
               performedById: userId,
               assignedToId: current.assignedToId ?? undefined,
               toLocationId: input.locationId,
-              notes: input.notes,
+              notes,
             },
           })
           continue

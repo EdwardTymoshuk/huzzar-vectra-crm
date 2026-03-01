@@ -72,6 +72,7 @@ export type OplIssuedItemDevice = {
   status?: OplWarehouseStatus
   deviceDefinitionId: string | null
   sourceLabel?: string
+  isDamaged?: boolean
 }
 
 export type OplIssuedItemMaterial = {

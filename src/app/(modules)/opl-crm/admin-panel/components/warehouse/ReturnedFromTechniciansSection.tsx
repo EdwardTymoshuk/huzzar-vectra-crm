@@ -187,6 +187,9 @@ const ReturnedFromTechniciansSection = () => {
                       const returned = item.history.find(
                         (h) => h.action === 'RETURNED'
                       )
+                      const isDamaged = (returned?.notes ?? '')
+                        .toUpperCase()
+                        .includes('[USZKODZONE]')
 
                       const daysAgo = collected
                         ? differenceInDays(new Date(), collected.actionDate)
@@ -263,6 +266,9 @@ const ReturnedFromTechniciansSection = () => {
                           {/* badge */}
                           <div className="flex md:flex-col items-center gap-2 justify-between">
                             <Badge variant={badgeVariant}>{daysAgo} dni</Badge>
+                            {isDamaged && (
+                              <Badge variant="danger">USZKODZONY</Badge>
+                            )}
                           </div>
                         </div>
                       )
