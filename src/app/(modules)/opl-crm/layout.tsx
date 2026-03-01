@@ -1,7 +1,6 @@
 //scr/app/(modules)/opl-crm/layout.tsx
 
 import LoaderLogo from '@/app/components/LoaderLogo'
-import Providers from '@/app/components/Providers'
 import { authOptions } from '@/lib/authOptions'
 import { getServerSession } from 'next-auth'
 import { Suspense } from 'react'
@@ -22,16 +21,12 @@ export default async function OplCrmLayout({
   const role = session?.user?.role
 
   return (
-    <Providers>
-      <Suspense fallback={<LoaderLogo show />}>
-        {role === 'TECHNICIAN' ? (
-          <ClientRoutingHandlerTechnician>
-            {children}
-          </ClientRoutingHandlerTechnician>
-        ) : (
-          children
-        )}
-      </Suspense>
-    </Providers>
+    <Suspense fallback={<LoaderLogo show />}>
+      {role === 'TECHNICIAN' ? (
+        <ClientRoutingHandlerTechnician>{children}</ClientRoutingHandlerTechnician>
+      ) : (
+        children
+      )}
+    </Suspense>
   )
 }

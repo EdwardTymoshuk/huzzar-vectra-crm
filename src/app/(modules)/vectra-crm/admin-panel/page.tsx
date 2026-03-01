@@ -19,9 +19,9 @@ const AdminPanelRootPage = () => {
       </div>
     )
 
-  if (isWarehouseman) return redirect('/admin-panel?tab=warehouse')
+  if (isWarehouseman) return redirect('/vectra-crm/admin-panel?tab=warehouse')
 
-  return redirect('/admin-panel?tab=dashboard')
+  return redirect('/vectra-crm/admin-panel?tab=dashboard')
 }
 
 export default AdminPanelRootPage

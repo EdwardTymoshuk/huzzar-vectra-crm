@@ -18,6 +18,7 @@ export default function VectraCrmEntryPage() {
 
   useEffect(() => {
     if (isLoading) return
+    if (!role) return
 
     if (role === 'ADMIN' || role === 'COORDINATOR') {
       router.replace('/vectra-crm/admin-panel')

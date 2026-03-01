@@ -1,7 +1,6 @@
 //scr/app/(modules)/vectra-crm/layout.tsx
 
 import LoaderLogo from '@/app/components/LoaderLogo'
-import Providers from '@/app/components/Providers'
 import { authOptions } from '@/lib/authOptions'
 import { getServerSession } from 'next-auth'
 import { Suspense } from 'react'
@@ -22,16 +21,14 @@ export default async function VectraCrmLayout({
   const role = session?.user?.role
 
   return (
-    <Providers>
-      <Suspense fallback={<LoaderLogo show />}>
-        {role === 'TECHNICIAN' ? (
-          <VectraClientRoutingHandlerTechnician>
-            {children}
-          </VectraClientRoutingHandlerTechnician>
-        ) : (
-          children
-        )}
-      </Suspense>
-    </Providers>
+    <Suspense fallback={<LoaderLogo show />}>
+      {role === 'TECHNICIAN' ? (
+        <VectraClientRoutingHandlerTechnician>
+          {children}
+        </VectraClientRoutingHandlerTechnician>
+      ) : (
+        children
+      )}
+    </Suspense>
   )
 }
