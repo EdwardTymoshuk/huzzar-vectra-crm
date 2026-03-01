@@ -55,6 +55,8 @@ const OplReturnToOperator = ({ onClose, onDraftChange }: Props) => {
   const { data: warehouse = [] } = trpc.opl.warehouse.getAll.useQuery(
     activeLocationId ? { locationId: activeLocationId } : undefined
   )
+  const { data: returnedFromTechnicians = [] } =
+    trpc.opl.warehouse.getReturnedFromTechnicians.useQuery()
   const returnMutation = trpc.opl.warehouse.returnToOperator.useMutation()
   const generateReturnReport =
     trpc.opl.warehouse.generateOplReturnToOperatorReport.useMutation()
@@ -79,8 +81,22 @@ const OplReturnToOperator = ({ onClose, onDraftChange }: Props) => {
   }, [warehouse, search])
 
   const availableReturnDevices: OplDeviceBasic[] = useMemo(() => {
+    const damagedReturnedIds = new Set(
+      returnedFromTechnicians
+        .filter((item) => {
+          const returned = item.history.find((h) => h.action === 'RETURNED')
+          return (returned?.notes ?? '').toUpperCase().includes('[USZKODZONE]')
+        })
+        .map((item) => item.id)
+    )
+
     return warehouse
-      .filter((i) => i.itemType === 'DEVICE' && i.status === 'AVAILABLE')
+      .filter(
+        (i) =>
+          i.itemType === 'DEVICE' &&
+          (i.status === 'AVAILABLE' ||
+            (i.status === 'RETURNED' && damagedReturnedIds.has(i.id)))
+      )
       .map((item) => ({
         id: item.id,
         name: item.name,
@@ -89,7 +105,7 @@ const OplReturnToOperator = ({ onClose, onDraftChange }: Props) => {
         status: item.status,
         deviceDefinitionId: item.deviceDefinitionId,
       }))
-  }, [warehouse])
+  }, [warehouse, returnedFromTechnicians])
 
   const handleAddDevice = (device: OplIssuedItemDevice) => {
     if (issuedDevices.some((d) => d.id === device.id)) {
@@ -230,7 +246,7 @@ const OplReturnToOperator = ({ onClose, onDraftChange }: Props) => {
             <OplSerialScanInput
               onAdd={handleAddDevice}
               devices={availableReturnDevices}
-              validStatuses={['AVAILABLE']}
+              validStatuses={['AVAILABLE', 'RETURNED']}
               isDeviceUsed={(id) => issuedDevices.some((d) => d.id === id)}
               strictSource="WAREHOUSE"
               successMessages={{

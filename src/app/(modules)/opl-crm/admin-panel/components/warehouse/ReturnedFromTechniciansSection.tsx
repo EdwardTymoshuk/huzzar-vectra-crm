@@ -103,8 +103,18 @@ const ReturnedFromTechniciansSection = () => {
 
   const locationId = useActiveLocation() ?? ''
 
-  const allIds = data?.map((d) => d.id) ?? []
-  const allSelected = allIds.length > 0 && selected.length === allIds.length
+  const visibleItems = (data ?? []).filter((item) => {
+    const returned = item.history.find((h) => h.action === 'RETURNED')
+    const isDamaged = (returned?.notes ?? '')
+      .toUpperCase()
+      .includes('[USZKODZONE]')
+    return !isDamaged
+  })
+
+  const allIds = visibleItems.map((d) => d.id)
+  const selectedVisibleCount = selected.filter((id) => allIds.includes(id)).length
+  const allSelected =
+    allIds.length > 0 && selectedVisibleCount === allIds.length
 
   const toggleAll = () => setSelected(allSelected ? [] : [...allIds])
 
@@ -121,8 +131,8 @@ const ReturnedFromTechniciansSection = () => {
   /* ───── loading skeleton ───────────────────────────────────────── */
   if (isLoading) return <Skeleton className="h-16 w-full rounded-lg mb-6" />
 
-  const count = data?.length ?? 0
-  const noneSelected = selected.length === 0
+  const count = visibleItems.length
+  const noneSelected = selectedVisibleCount === 0
 
   return (
     <>
@@ -174,22 +184,19 @@ const ReturnedFromTechniciansSection = () => {
                       disabled={noneSelected}
                       onClick={() => setShowConfirm(true)}
                     >
-                      Wyślij zaznaczone ({selected.length})
+                      Wyślij zaznaczone ({selectedVisibleCount})
                     </Button>
                   </div>
 
                   {/* list */}
                   <div className="space-y-3">
-                    {data!.map((item) => {
+                    {visibleItems.map((item) => {
                       const collected = item.history.find(
                         (h) => h.action === 'COLLECTED_FROM_CLIENT'
                       )
                       const returned = item.history.find(
                         (h) => h.action === 'RETURNED'
                       )
-                      const isDamaged = (returned?.notes ?? '')
-                        .toUpperCase()
-                        .includes('[USZKODZONE]')
 
                       const daysAgo = collected
                         ? differenceInDays(new Date(), collected.actionDate)
@@ -266,9 +273,6 @@ const ReturnedFromTechniciansSection = () => {
                           {/* badge */}
                           <div className="flex md:flex-col items-center gap-2 justify-between">
                             <Badge variant={badgeVariant}>{daysAgo} dni</Badge>
-                            {isDamaged && (
-                              <Badge variant="danger">USZKODZONY</Badge>
-                            )}
                           </div>
                         </div>
                       )
@@ -298,7 +302,7 @@ const ReturnedFromTechniciansSection = () => {
             </h3>
 
             <div className="max-h-64 overflow-y-auto pr-1 space-y-2">
-              {data
+              {visibleItems
                 ?.filter((d) => selected.includes(d.id))
                 .map((d) => (
                   <div
