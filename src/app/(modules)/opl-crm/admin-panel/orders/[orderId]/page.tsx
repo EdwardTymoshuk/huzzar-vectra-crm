@@ -31,10 +31,6 @@ const OplAdminOrderDetailsPage = ({ params }: Props) => {
     : 'Szczegóły zlecenia'
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      router.back()
-      return
-    }
     router.push(from ? decodeURIComponent(from) : '/opl-crm/admin-panel/planning')
   }
 

@@ -46,6 +46,13 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const withOpenOrderInFrom = (baseFrom: string, orderId: string) => {
+    const [path, query = ''] = baseFrom.split('?')
+    const params = new URLSearchParams(query)
+    params.set('openOrderId', orderId)
+    const nextQuery = params.toString()
+    return nextQuery ? `${path}?${nextQuery}` : path
+  }
 
   /** tRPC utils used for post-mutation invalidation */
   const utils = trpc.useUtils()
@@ -491,11 +498,12 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
           onOpenOrder={(orderId) => {
             const currentQuery = searchParams.toString()
             const baseFrom = searchParams.get('from')
-            const from = baseFrom
+            const fromRaw = baseFrom
               ? decodeURIComponent(baseFrom)
               : currentQuery
                 ? `${pathname}?${currentQuery}`
                 : pathname
+            const from = withOpenOrderInFrom(fromRaw, orderId)
             router.push(
               `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
             )

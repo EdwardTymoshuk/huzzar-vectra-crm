@@ -28,6 +28,7 @@ import { useDebounce } from '@/utils/hooks/useDebounce'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplOrderStatus, OplOrderType } from '@prisma/client'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdDelete, MdEdit } from 'react-icons/md'
@@ -125,6 +126,8 @@ const OplOrdersTableInner = ({
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>(null)
   const [openRowId, setOpenRowId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const openOrderIdFromUrl = searchParams.get('openOrderId')
 
   // Dialogs / panels
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -177,6 +180,12 @@ const OplOrdersTableInner = ({
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
+
+  useEffect(() => {
+    if (openOrderIdFromUrl) {
+      setOpenRowId(openOrderIdFromUrl)
+    }
+  }, [openOrderIdFromUrl])
 
   /* -------------------------- Mutations --------------------------- */
   const utils = trpc.useUtils()
@@ -304,19 +313,20 @@ const OplOrdersTableInner = ({
                 Brak zrealizowanych zleceń do wyświetlenia.
               </p>
             ) : (
-              <Accordion type="multiple">
+              <Accordion
+                type="single"
+                collapsible
+                value={openRowId ?? undefined}
+                onValueChange={(value) => setOpenRowId(value || null)}
+              >
                 {orders.map((o) => {
-                  const open = openRowId === o.id
                   return (
                     <AccordionItem key={o.id} value={o.id} className="min-w-fit">
                       <AccordionTrigger
                         className="text-xs font-normal uppercase px-4 py-3 hover:bg-muted/50 justify-start cursor-pointer"
                         asChild
                       >
-                        <div
-                          onClick={() => setOpenRowId(open ? null : o.id)}
-                          className={`${GRID} w-full gap-2 items-center text-start`}
-                        >
+                        <div className={`${GRID} w-full gap-2 items-center text-start`}>
                           <span>
                             {oplOrderTypeMap[o.type]
                               .trim()

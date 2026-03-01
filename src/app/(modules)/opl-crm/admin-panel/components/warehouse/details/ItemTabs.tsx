@@ -7,6 +7,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/app/components/ui/tabs'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
 import OplItemModeTable from './OplItemModeTable'
 import OplMaterialHistoryByTabs from './OplMaterialHistoryByTabs'
@@ -16,6 +17,29 @@ type Props = {
 }
 
 const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const tabFromUrl = searchParams.get('itemTab')
+  const activeTab =
+    tabFromUrl === 'technicians' ||
+    tabFromUrl === 'orders' ||
+    tabFromUrl === 'returned'
+      ? tabFromUrl
+      : 'warehouse'
+
+  const setTabInUrl = (tab: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === 'warehouse') {
+      params.delete('itemTab')
+    } else {
+      params.set('itemTab', tab)
+    }
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
+
   const locFiltered = useMemo(() => {
     if (activeLocationId === 'all') return items
 
@@ -70,7 +94,11 @@ const ItemTabs = ({ items, activeLocationId = 'all' }: Props) => {
   const name = items[0]?.name || ''
 
   return (
-    <Tabs defaultValue="warehouse" className="w-full">
+    <Tabs
+      value={activeTab}
+      onValueChange={setTabInUrl}
+      className="w-full"
+    >
       <TabsList className="grid w-full grid-cols-4 mb-2">
         <TabsTrigger value="warehouse">Magazyn</TabsTrigger>
         <TabsTrigger value="technicians">Technicy</TabsTrigger>
