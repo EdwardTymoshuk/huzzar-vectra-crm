@@ -3,6 +3,7 @@ import OplDeviceDefinitionsSection from '@/app/(modules)/opl-crm/components/sett
 import OplMaterialDefinitionsSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/materialDefinition/OplMaterialDefinitionsSection'
 import OplOperatorsDefinitionSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/operatorsSection/OplOperatorsDefinitionSection'
 import OplRatesSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/rateSection/OplRatesSection'
+import OplTeamsSettingsSection from '@/app/(modules)/opl-crm/components/settings/admin-panel/teamSection/OplTeamsSettingsSection'
 import VectraAdminsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/adminSection/VectraAdminsSection'
 import VectraDeviceDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/deviceDefinition/VectraDeviceDefinitionsSection'
 import VectraMaterialDefinitionsSection from '@/app/(modules)/vectra-crm/components/settings/admin-panel/materialDefinition/VectraMaterialDefinitionsSection'
@@ -47,6 +48,9 @@ export const SettingsContent = ({ section, role }: Props) => {
       <>
         {role === 'ADMIN' && <OplAdminsSection title="Administratorzy" />}
         {role === 'ADMIN' && <OplRatesSection title="Stawki" />}
+        {(role === 'ADMIN' || role === 'COORDINATOR') && (
+          <OplTeamsSettingsSection title="Ekipy techników" />
+        )}
 
         <OplDeviceDefinitionsSection title="Urządzenia" />
         <OplMaterialDefinitionsSection title="Materiał" />

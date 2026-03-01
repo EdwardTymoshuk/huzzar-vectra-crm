@@ -22,9 +22,10 @@ type Marker = {
   slotLabel?: string
   technicianLabel?: string
   standard?: string
+  operatorLabel?: string
   networkLabel?: string
+  equipmentToDeliver?: string[]
   failureReason?: string | null
-  notes?: string | null
   completedByName?: string | null
   color?: string
 }
@@ -131,15 +132,21 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [], focusOrderId }) => {
       const standardRow = `<div><b>Standard:</b> ${escapeHtml(
         m.standard || '-'
       )}</div>`
+      const operatorRow = `<div><b>Operator:</b> ${escapeHtml(
+        m.operatorLabel || '-'
+      )}</div>`
       const networkRow = `<div><b>Sieć:</b> ${escapeHtml(m.networkLabel || '-')}</div>`
+      const equipmentRow =
+        m.equipmentToDeliver && m.equipmentToDeliver.length > 0
+          ? `<div><b>Sprzęt do wydania:</b> ${escapeHtml(
+              m.equipmentToDeliver.join(', ')
+            )}</div>`
+          : ''
       const completedByRow = m.completedByName
         ? `<div><b>Wykonał:</b> ${escapeHtml(m.completedByName)}</div>`
         : ''
       const failureReasonRow = m.failureReason
         ? `<div><b>Powód nieskutecznego:</b> ${escapeHtml(m.failureReason)}</div>`
-        : ''
-      const notesRow = m.notes
-        ? `<div><b>Uwagi:</b> ${escapeHtml(m.notes)}</div>`
         : ''
 
       const popupHtml = `
@@ -149,10 +156,11 @@ const MapView: React.FC<Props> = ({ mapKey, markers = [], focusOrderId }) => {
           ${dateRow}
           ${technicianRow}
           ${standardRow}
+          ${operatorRow}
           ${networkRow}
+          ${equipmentRow}
           ${completedByRow}
           ${failureReasonRow}
-          ${notesRow}
         </div>
       `
 

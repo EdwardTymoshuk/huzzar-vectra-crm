@@ -64,14 +64,11 @@ type EquipmentRequirementVM = {
   quantity: number
 }
 
-const NO_OPERATOR_VALUE = '__NO_OPERATOR__'
-
 export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   // Cast to allow uniform access (control always exists)
   const { control, setValue, getValues, watch } =
     form as UseFormReturn<OplOrderFormData>
 
-  const [operatorList, setOperatorList] = useState<string[]>([])
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [equipment, setEquipment] = useState<EquipmentRequirementVM[]>([])
   const [equipmentOpen, setEquipmentOpen] = useState(false)
@@ -127,10 +124,6 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   // Fetch device definitions
   const { data: deviceDefinitions, isLoading: isDevicesLoading } =
     trpc.opl.settings.getAllOplDeviceDefinitions.useQuery()
-
-  // Fetch operator definitions
-  const { data: operatorsData, isLoading: isOperatorsLoading } =
-    trpc.opl.settings.getAllOplOperatorDefinitions.useQuery()
 
   // Fetch next outage order number (only if type === OUTAGE)
   const { data: nextOutageOrderNumber } =
@@ -196,13 +189,6 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
     })
   }, [assignedTechnicianIds, isAdmin, setValue])
 
-  /** Populate operator list */
-  useEffect(() => {
-    if (operatorsData) {
-      setOperatorList(operatorsData.map((op) => op.operator))
-    }
-  }, [operatorsData])
-
   /** Auto-generate outage order number */
   useEffect(() => {
     if (type === 'OUTAGE' && nextOutageOrderNumber) {
@@ -254,27 +240,18 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              Operator
+              Operator <span className="text-destructive">*</span>
             </FormLabel>
             <Select
-              onValueChange={(value) =>
-                field.onChange(
-                  value === NO_OPERATOR_VALUE ? undefined : value
-                )
-              }
-              value={field.value ?? NO_OPERATOR_VALUE}
-              disabled={isOperatorsLoading}
+              onValueChange={field.onChange}
+              value={field.value}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz operatora" />
               </SelectTrigger>
               <SelectContent className="bg-background">
-                <SelectItem value={NO_OPERATOR_VALUE}>Brak</SelectItem>
-                {operatorList.map((op) => (
-                  <SelectItem key={op} value={op}>
-                    {op}
-                  </SelectItem>
-                ))}
+                <SelectItem value="ORANGE">ORANGE</SelectItem>
+                <SelectItem value="OA">OA</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
@@ -304,31 +281,6 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
               </SelectContent>
             </Select>
 
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Client ID */}
-      <FormField
-        control={control}
-        name="serviceId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              ID usługi <span className="text-destructive"></span>
-            </FormLabel>
-            <FormControl>
-              <Input
-                {...field}
-                placeholder="np. 34323456957534"
-                className="font-mono"
-                onChange={(e) => {
-                  const cleaned = e.target.value.trim()
-                  field.onChange(cleaned)
-                }}
-              />
-            </FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -373,21 +325,6 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
 
               </div>
             )}
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Client number */}
-      <FormField
-        control={control}
-        name="clientPhoneNumber"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Numer kontaktowy klienta</FormLabel>
-            <FormControl>
-              <Input {...field} placeholder="np. 600123456" inputMode="tel" />
-            </FormControl>
             <FormMessage />
           </FormItem>
         )}

@@ -31,19 +31,44 @@ const PlanningBoard = () => {
   const utils = trpc.useUtils()
   const [isProcessing, setProcessing] = useState(false)
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null)
+  const [showAllUnassigned, setShowAllUnassigned] = useState(false)
   const selectedDateKey = format(selectedDate, 'yyyy-MM-dd')
 
   /** 🔹 Fetch data for both assigned & unassigned orders */
   const { data: assigned = [], isLoading: isAssignedLoading } =
     trpc.opl.order.getAssignedOrders.useQuery(
       { date: selectedDateKey },
-      { keepPreviousData: true }
+      {
+        keepPreviousData: true,
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
+      }
     )
 
-  const { data: unassigned = [], isLoading: isUnassignedLoading } =
-    trpc.opl.order.getUnassignedOrders.useQuery({
-      date: selectedDateKey,
+  const { data: unassignedForDate = [], isLoading: isUnassignedByDateLoading } =
+    trpc.opl.order.getUnassignedOrders.useQuery(
+      {
+        date: selectedDateKey,
+      },
+      {
+        keepPreviousData: true,
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
+      }
+    )
+
+  const { data: allUnassigned = [], isLoading: isAllUnassignedLoading } =
+    trpc.opl.order.getUnassignedOrders.useQuery(undefined, {
+      enabled: showAllUnassigned,
+      keepPreviousData: true,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
     })
+
+  const unassigned = showAllUnassigned ? allUnassigned : unassignedForDate
+  const isUnassignedLoading = showAllUnassigned
+    ? isAllUnassignedLoading
+    : isUnassignedByDateLoading
 
   const isLoading = isAssignedLoading || isUnassignedLoading
 
@@ -59,11 +84,12 @@ const PlanningBoard = () => {
         address: string
         dateLabel?: string
         slotLabel: string
+        operatorLabel: string
         networkLabel: string
         status: OplOrderStatus
         techniciansLabel: string
         standard: string
-        notes: string | null
+        equipmentToDeliver: string[]
         failureReason: string | null
         completedByName: string | null
       }
@@ -96,6 +122,7 @@ const PlanningBoard = () => {
               ? new Date(o.date).toLocaleDateString('pl-PL')
               : undefined,
             slotLabel: oplTimeSlotMap[slot.timeSlot] ?? slot.timeSlot,
+            operatorLabel: o.operator?.trim() || '-',
             networkLabel:
               o.network && o.network in oplNetworkMap
                 ? oplNetworkMap[o.network]
@@ -106,7 +133,7 @@ const PlanningBoard = () => {
                 ? o.assignedTechnicians.map((t) => t.name).join(' / ')
                 : tech.technicianName,
             standard: o.standard ?? '-',
-            notes: o.notes ?? null,
+            equipmentToDeliver: o.equipmentToDeliver ?? [],
             failureReason: o.failureReason ?? null,
             completedByName: o.completedByName ?? null,
           })
@@ -124,15 +151,16 @@ const PlanningBoard = () => {
       slotLabel: o.slotLabel,
       technicianLabel: o.techniciansLabel || '-',
       standard: o.standard,
+      operatorLabel: o.operatorLabel,
       networkLabel: o.networkLabel,
-      notes: o.notes,
+      equipmentToDeliver: o.equipmentToDeliver,
       failureReason: o.failureReason,
       completedByName: o.completedByName,
       color: getStatusColor(o.status),
     }))
 
     const assignedIds = new Set(byOrderId.keys())
-    const unassignedMarkers = unassigned
+    const unassignedMarkers = unassignedForDate
       .filter(
         (o) =>
           typeof o.lat === 'number' &&
@@ -153,16 +181,17 @@ const PlanningBoard = () => {
         slotLabel: oplTimeSlotMap[o.timeSlot] ?? o.timeSlot,
         technicianLabel: '-',
         standard: o.standard ?? '-',
+        operatorLabel: o.operator?.trim() || '-',
         networkLabel:
           o.network && o.network in oplNetworkMap ? oplNetworkMap[o.network] : '-',
-        notes: o.notes ?? null,
+        equipmentToDeliver: o.equipmentToDeliver ?? [],
         failureReason: o.failureReason ?? null,
         completedByName: null,
         color: PLANNER_ORDER_STATUS_COLORS.UNASSIGNED,
       }))
 
     return [...assignedMarkers, ...unassignedMarkers]
-  }, [assigned, unassigned])
+  }, [assigned, unassignedForDate])
 
   /** Mutation for assignment */
   const assignMutation = trpc.opl.order.assignTechnician.useMutation({
@@ -240,11 +269,13 @@ const PlanningBoard = () => {
 
         {/* 🔹 Bottom section: unassigned orders */}
         <section className="flex flex-col flex-[3] min-h-0 md:h-[30%] md:min-h-[30%] overflow-hidden">
-          <div className="flex-1 min-h-0 max-h-full overflow-y-auto pb-2">
+          <div className="flex-1 min-h-0 max-h-full pb-2">
             <OrdersList
               orders={unassigned}
               isLoading={isUnassignedLoading}
               onOrderClick={setFocusedOrderId}
+              showAllUnassigned={showAllUnassigned}
+              onShowAllUnassignedChange={setShowAllUnassigned}
             />
           </div>
         </section>

@@ -33,67 +33,112 @@ const TechniciansList = ({
 }: Props) => {
   const { searchTerm } = usePlanningContext()
   const [reorderMode, setReorderMode] = useState(false)
-  const [techOrder, setTechOrder] = useState<string[]>([])
-  const TECH_ORDER_STORAGE_KEY = 'opl-planner-tech-order-v1'
+  const [rowOrder, setRowOrder] = useState<string[]>([])
+  const [anchorOrder, setAnchorOrder] = useState<string[]>([])
+  const ROW_ORDER_STORAGE_KEY = 'opl-planner-row-order-v2'
+  const ANCHOR_ORDER_STORAGE_KEY = 'opl-planner-anchor-order-v1'
 
   const trpcUtils = trpc.useUtils()
+  const { data: teams = [] } = trpc.opl.user.getTeams.useQuery({ activeOnly: true })
   const groupedAssignments = useMemo(
-    () => groupAssignmentsForTeams(assignments),
-    [assignments]
+    () => groupAssignmentsForTeams(assignments, teams),
+    [assignments, teams]
   )
-  const baseTechnicianIds = useMemo(
+  const baseRows = useMemo(
     () =>
       groupedAssignments
-        .filter((row) => row.technicianId && !(row.teamTechnicianIds?.length ?? 0))
-        .map((row) => row.technicianId!) as string[],
+        .filter((row) => row.rowId)
+        .map((row) => ({
+          rowId: row.rowId as string,
+          technicianId: row.technicianId ?? null,
+        })),
     [groupedAssignments]
+  )
+  const baseRowIds = useMemo(() => baseRows.map((r) => r.rowId), [baseRows])
+  const baseAnchors = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          baseRows
+            .map((r) => r.technicianId)
+            .filter((id): id is string => Boolean(id))
+        )
+      ),
+    [baseRows]
   )
 
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const raw = window.localStorage.getItem(TECH_ORDER_STORAGE_KEY)
-    if (!raw) {
-      setTechOrder(baseTechnicianIds)
+    const rawRows = window.localStorage.getItem(ROW_ORDER_STORAGE_KEY)
+    const rawAnchors = window.localStorage.getItem(ANCHOR_ORDER_STORAGE_KEY)
+
+    if (!rawRows && !rawAnchors) {
+      setRowOrder(baseRowIds)
+      setAnchorOrder(baseAnchors)
       return
     }
 
     try {
-      const parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed)) {
-        setTechOrder(baseTechnicianIds)
-        return
-      }
-      const persisted = parsed.filter((id): id is string => typeof id === 'string')
-      const known = persisted.filter((id) => baseTechnicianIds.includes(id))
-      const missing = baseTechnicianIds.filter((id) => !known.includes(id))
-      setTechOrder([...known, ...missing])
+      const parsedRows = rawRows ? JSON.parse(rawRows) : []
+      const parsedAnchors = rawAnchors ? JSON.parse(rawAnchors) : []
+
+      const persistedRows = Array.isArray(parsedRows)
+        ? parsedRows.filter((id): id is string => typeof id === 'string')
+        : []
+      const persistedAnchors = Array.isArray(parsedAnchors)
+        ? parsedAnchors.filter((id): id is string => typeof id === 'string')
+        : []
+
+      const knownAnchors = persistedAnchors.filter((id) =>
+        baseAnchors.includes(id)
+      )
+      const missingAnchors = baseAnchors.filter((id) => !knownAnchors.includes(id))
+      setAnchorOrder([...knownAnchors, ...missingAnchors])
+
+      const knownRows = persistedRows.filter((id) => baseRowIds.includes(id))
+      const combinedKnown = Array.from(new Set([...knownRows])).filter(
+        (id) => baseRowIds.includes(id)
+      )
+      const missing = baseRowIds.filter((id) => !combinedKnown.includes(id))
+      setRowOrder([...combinedKnown, ...missing])
     } catch {
-      setTechOrder(baseTechnicianIds)
+      setRowOrder(baseRowIds)
+      setAnchorOrder(baseAnchors)
     }
-  }, [baseTechnicianIds])
+  }, [baseRowIds, baseAnchors])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (techOrder.length === 0) return
-    window.localStorage.setItem(TECH_ORDER_STORAGE_KEY, JSON.stringify(techOrder))
-  }, [techOrder])
+    if (rowOrder.length === 0) return
+    window.localStorage.setItem(ROW_ORDER_STORAGE_KEY, JSON.stringify(rowOrder))
+  }, [rowOrder])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (anchorOrder.length === 0) return
+    window.localStorage.setItem(
+      ANCHOR_ORDER_STORAGE_KEY,
+      JSON.stringify(anchorOrder)
+    )
+  }, [anchorOrder])
 
   const orderedAssignments = useMemo(() => {
-    const indexMap = new Map(techOrder.map((id, idx) => [id, idx]))
-    const fallbackBase = techOrder.length + 100
+    const rowIndexMap = new Map(rowOrder.map((id, idx) => [id, idx]))
+    const anchorIndexMap = new Map(anchorOrder.map((id, idx) => [id, idx]))
+    const fallbackBase = Math.max(rowOrder.length, anchorOrder.length) + 100
 
     const rankForRow = (row: OplTechnicianAssignment) => {
-      if (row.teamTechnicianIds && row.teamTechnicianIds.length > 1) {
-        const indices = row.teamTechnicianIds
-          .map((id) => indexMap.get(id))
-          .filter((v): v is number => typeof v === 'number')
-        if (indices.length > 0) return Math.min(...indices)
-        return fallbackBase
+      const rowRank = row.rowId ? rowIndexMap.get(row.rowId) : undefined
+      const anchorRank = row.technicianId
+        ? anchorIndexMap.get(row.technicianId)
+        : undefined
+
+      if (typeof rowRank === 'number' && typeof anchorRank === 'number') {
+        return Math.min(rowRank, anchorRank)
       }
-      if (row.technicianId) {
-        return indexMap.get(row.technicianId) ?? fallbackBase
-      }
+      if (typeof rowRank === 'number') return rowRank
+      if (typeof anchorRank === 'number') return anchorRank
       return fallbackBase
     }
 
@@ -102,14 +147,30 @@ const TechniciansList = ({
       if (diff !== 0) return diff
       return a.technicianName.localeCompare(b.technicianName, 'pl')
     })
-  }, [groupedAssignments, techOrder])
+  }, [groupedAssignments, rowOrder, anchorOrder])
 
-  const reorderTechnicians = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return
-    setTechOrder((prev) => {
-      const current = prev.length > 0 ? [...prev] : [...baseTechnicianIds]
-      const sourceIndex = current.indexOf(sourceId)
-      const targetIndex = current.indexOf(targetId)
+  const reorderRows = (sourceRowId: string, targetRowId: string) => {
+    if (sourceRowId === targetRowId) return
+    setRowOrder((prev) => {
+      const current = prev.length > 0 ? [...prev] : [...baseRowIds]
+      const sourceIndex = current.indexOf(sourceRowId)
+      const targetIndex = current.indexOf(targetRowId)
+      if (sourceIndex === -1 || targetIndex === -1) return current
+      const [moved] = current.splice(sourceIndex, 1)
+      current.splice(targetIndex, 0, moved)
+      return current
+    })
+
+    const sourceTechId =
+      baseRows.find((r) => r.rowId === sourceRowId)?.technicianId ?? null
+    const targetTechId =
+      baseRows.find((r) => r.rowId === targetRowId)?.technicianId ?? null
+    if (!sourceTechId || !targetTechId || sourceTechId === targetTechId) return
+
+    setAnchorOrder((prev) => {
+      const current = prev.length > 0 ? [...prev] : [...baseAnchors]
+      const sourceIndex = current.indexOf(sourceTechId)
+      const targetIndex = current.indexOf(targetTechId)
       if (sourceIndex === -1 || targetIndex === -1) return current
       const [moved] = current.splice(sourceIndex, 1)
       current.splice(targetIndex, 0, moved)
@@ -184,7 +245,7 @@ const TechniciansList = ({
           onOrderClick={onOrderClick}
           reorderMode={reorderMode}
           onToggleReorderMode={() => setReorderMode((v) => !v)}
-          onReorderTechnicians={reorderTechnicians}
+          onReorderTechnicians={reorderRows}
         />
       )}
     </div>

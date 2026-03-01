@@ -57,8 +57,7 @@ export function AddOplOrderModal({
     resolver: zodResolver(orderSchema),
     defaultValues: {
       type: OplOrderType.INSTALLATION,
-      operator: undefined,
-      serviceId: undefined,
+      operator: 'ORANGE',
       network: OplNetworkOeprator.ORANGE,
       clientPhoneNumber: undefined,
       orderNumber: '',

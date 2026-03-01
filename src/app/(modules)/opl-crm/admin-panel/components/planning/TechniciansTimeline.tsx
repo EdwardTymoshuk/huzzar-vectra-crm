@@ -153,10 +153,10 @@ const TechniciansTimeline = ({
   const [selectedActionOrderId, setSelectedActionOrderId] = useState<
     string | null
   >(null)
-  const [draggedTechnicianId, setDraggedTechnicianId] = useState<string | null>(
+  const [draggedRowId, setDraggedRowId] = useState<string | null>(
     null
   )
-  const [dragOverTechnicianId, setDragOverTechnicianId] = useState<string | null>(
+  const [dragOverRowId, setDragOverRowId] = useState<string | null>(
     null
   )
   const [isMobile, setIsMobile] = useState(false)
@@ -338,7 +338,7 @@ const TechniciansTimeline = ({
                         className={cn(
                           'border-r p-2 font-semibold flex text-xs items-start justify-start bg-muted sticky left-0 z-20 overflow-hidden',
                           reorderMode &&
-                            dragOverTechnicianId === tech.technicianId &&
+                            dragOverRowId === tech.rowId &&
                             'ring-2 ring-secondary'
                         )}
                         title={tech.technicianName}
@@ -346,64 +346,60 @@ const TechniciansTimeline = ({
                         draggable={
                           reorderMode &&
                           !!onReorderTechnicians &&
-                          !!tech.technicianId &&
-                          (tech.teamTechnicianIds?.length ?? 0) <= 1
+                          !!tech.rowId
                         }
                         onDragStart={(e) => {
                           if (
                             !reorderMode ||
                             !onReorderTechnicians ||
-                            !tech.technicianId ||
-                            (tech.teamTechnicianIds?.length ?? 0) > 1
+                            !tech.rowId
                           ) {
                             return
                           }
-                          setDraggedTechnicianId(tech.technicianId)
+                          setDraggedRowId(tech.rowId)
                           e.dataTransfer.effectAllowed = 'move'
-                          e.dataTransfer.setData('text/plain', tech.technicianId)
+                          e.dataTransfer.setData('text/plain', tech.rowId)
                         }}
                         onDragEnd={() => {
-                          setDraggedTechnicianId(null)
-                          setDragOverTechnicianId(null)
+                          setDraggedRowId(null)
+                          setDragOverRowId(null)
                         }}
                         onDragOver={(e) => {
                           if (
                             !reorderMode ||
                             !onReorderTechnicians ||
-                            !tech.technicianId ||
-                            (tech.teamTechnicianIds?.length ?? 0) > 1
+                            !tech.rowId
                           ) {
                             return
                           }
                           e.preventDefault()
                           e.dataTransfer.dropEffect = 'move'
-                          if (draggedTechnicianId !== tech.technicianId) {
-                            setDragOverTechnicianId(tech.technicianId)
+                          if (draggedRowId !== tech.rowId) {
+                            setDragOverRowId(tech.rowId)
                           }
                         }}
                         onDragLeave={() => {
-                          if (dragOverTechnicianId === tech.technicianId) {
-                            setDragOverTechnicianId(null)
+                          if (dragOverRowId === tech.rowId) {
+                            setDragOverRowId(null)
                           }
                         }}
                         onDrop={(e) => {
                           if (
                             !reorderMode ||
                             !onReorderTechnicians ||
-                            !tech.technicianId ||
-                            (tech.teamTechnicianIds?.length ?? 0) > 1
+                            !tech.rowId
                           ) {
                             return
                           }
                           e.preventDefault()
                           const sourceId =
-                            draggedTechnicianId ||
+                            draggedRowId ||
                             e.dataTransfer.getData('text/plain')
-                          if (sourceId && sourceId !== tech.technicianId) {
-                            onReorderTechnicians(sourceId, tech.technicianId)
+                          if (sourceId && sourceId !== tech.rowId) {
+                            onReorderTechnicians(sourceId, tech.rowId)
                           }
-                          setDraggedTechnicianId(null)
-                          setDragOverTechnicianId(null)
+                          setDraggedRowId(null)
+                          setDragOverRowId(null)
                         }}
                       >
                         <div className="flex w-full items-start gap-1">
@@ -425,12 +421,11 @@ const TechniciansTimeline = ({
                           </div>
                           {reorderMode &&
                             onReorderTechnicians &&
-                            tech.technicianId &&
-                            (tech.teamTechnicianIds?.length ?? 0) <= 1 && (
+                            tech.rowId && (
                               <div
                                 className={cn(
                                   'inline-flex h-5 w-5 items-center justify-center rounded-md text-foreground shrink-0',
-                                  draggedTechnicianId === tech.technicianId
+                                  draggedRowId === tech.rowId
                                     ? 'cursor-grabbing text-secondary'
                                     : 'cursor-grab text-muted-foreground'
                                 )}
@@ -675,7 +670,7 @@ const TechniciansTimeline = ({
                           <div
                             className={cn(
                               'absolute inset-0 z-10 bg-background/45 backdrop-blur-[1px] pointer-events-none',
-                              dragOverTechnicianId === tech.technicianId &&
+                              dragOverRowId === tech.rowId &&
                                 'ring-2 ring-secondary'
                             )}
                           />

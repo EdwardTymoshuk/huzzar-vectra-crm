@@ -38,6 +38,7 @@ export function mapOrderToTimelineVM(
     failureReason: order.failureReason,
     notes: order.notes,
     date: order.date,
+    createdSource: order.createdSource,
     completedAt: order.completedAt,
     closedAt: order.closedAt,
 
@@ -80,6 +81,7 @@ export function mapOrderToTimelineVM(
       completedAt: a.completedAt,
       closedAt: a.closedAt,
       createdAt: a.createdAt,
+      createdSource: a.createdSource,
 
       assignedTechnicians:
         a.assignments?.map((ass) => ({

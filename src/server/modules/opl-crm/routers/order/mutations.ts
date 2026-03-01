@@ -72,6 +72,39 @@ const settleCodeMap: Record<string, string> = {
 const normalizeSettlementCode = (code: string): string =>
   settleCodeMap[code.trim().toUpperCase()] ?? code.trim().toUpperCase()
 
+const normalizeServiceId = (value?: string | null): string | null => {
+  const trimmed = value?.trim()
+  return trimmed && trimmed.length > 0 ? trimmed : null
+}
+
+const deriveOperatorFromServiceId = (serviceId?: string | null): 'ORANGE' | 'OA' => {
+  const raw = serviceId?.trim()
+  if (!raw) return 'ORANGE'
+
+  const digitsOnly = raw.replace(/\D/g, '')
+  const probe = digitsOnly || raw
+  return probe.startsWith('300') ? 'OA' : 'ORANGE'
+}
+
+const resolveOrderOperator = (
+  operator?: string | null,
+  serviceId?: string | null
+): 'ORANGE' | 'OA' => {
+  if (serviceId?.trim()) return deriveOperatorFromServiceId(serviceId)
+  if (operator === 'OA') return 'OA'
+  if (operator === 'ORANGE') return 'ORANGE'
+  return deriveOperatorFromServiceId(serviceId)
+}
+
+const isMissingAbsenceTableError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  return (
+    message.includes('OplTechnicianAbsence') &&
+    (message.includes('does not exist') || message.includes('42P01'))
+  )
+}
+
 const preserveValidatedTechnicianOrder = (
   requestedIds: string[] | undefined,
   validIds: string[]
@@ -273,11 +306,13 @@ export const mutationsRouter = router({
     .input(
       z.array(
         z.object({
-          operator: z.string().optional(),
+          operator: z.enum(['ORANGE', 'OA']).optional(),
           type: z.literal('INSTALLATION'),
           serviceId: z.string().optional(),
           network: z.nativeEnum(OplNetworkOeprator),
           standard: z.nativeEnum(OplOrderStandard).optional(),
+          zone: z.string().optional(),
+          termChangeFlag: z.enum(['T', 'N']).optional(),
           orderNumber: z.string(),
           date: z.string(),
           timeSlot: z.nativeEnum(OplTimeSlot),
@@ -391,13 +426,21 @@ export const mutationsRouter = router({
             /** -------------------------------------------------------
              * 4. Create order attempt
              * ------------------------------------------------------ */
+            const normalizedServiceId = normalizeServiceId(o.serviceId)
+            const derivedOperator = resolveOrderOperator(
+              o.operator,
+              normalizedServiceId
+            )
+
             const created = await tx.oplOrder.create({
               data: {
-                serviceId: o.serviceId ?? null,
-                operator: o.operator ?? '',
+                serviceId: normalizedServiceId,
+                operator: derivedOperator,
                 type: o.type,
                 network: o.network,
                 standard: o.standard ?? null,
+                zone: o.zone ?? null,
+                termChangeFlag: o.termChangeFlag ?? null,
                 orderNumber,
                 date,
                 timeSlot: o.timeSlot,
@@ -473,11 +516,13 @@ export const mutationsRouter = router({
   createOrder: loggedInEveryone
     .input(
       z.object({
-        operator: z.string().optional(),
+        operator: z.enum(['ORANGE', 'OA']),
         type: z.nativeEnum(OplOrderType),
         network: z.nativeEnum(OplNetworkOeprator),
-        serviceId: z.string().length(12).optional(),
+        serviceId: z.string().min(1).max(64).optional(),
         standard: z.nativeEnum(OplOrderStandard).optional(),
+        zone: z.string().optional(),
+        termChangeFlag: z.enum(['T', 'N']).optional(),
 
         orderNumber: z.string().min(3),
         date: z.string(),
@@ -610,13 +655,21 @@ export const mutationsRouter = router({
           ? OplOrderStatus.ASSIGNED
           : OplOrderStatus.PENDING
 
+      const normalizedServiceId = normalizeServiceId(input.serviceId)
+      const derivedOperator = resolveOrderOperator(
+        input.operator,
+        normalizedServiceId
+      )
+
       const created = await prisma.oplOrder.create({
         data: {
-          serviceId: input.serviceId ?? null,
-          operator: input.operator ?? '',
+          serviceId: normalizedServiceId,
+          operator: derivedOperator,
           type: input.type,
           network: input.network,
           standard: input.standard ?? null,
+          zone: input.zone ?? null,
+          termChangeFlag: input.termChangeFlag ?? null,
           orderNumber: input.orderNumber.trim(),
           date: parseLocalDate(input.date),
           timeSlot: input.timeSlot,
@@ -659,7 +712,7 @@ export const mutationsRouter = router({
         })
       }
 
-      const historyNote = input.serviceId
+      const historyNote = normalizedServiceId
         ? previousOrderId
           ? `Utworzono kolejne podejście (wejście ${attemptNumber}).`
           : 'Utworzono pierwsze zlecenie klienta.'
@@ -686,7 +739,7 @@ export const mutationsRouter = router({
       z.object({
         id: z.string(),
         type: z.nativeEnum(OplOrderType),
-        operator: z.string().optional(),
+        operator: z.enum(['ORANGE', 'OA']),
         orderNumber: z.string().min(3),
         date: z.string(),
         timeSlot: z.nativeEnum(OplTimeSlot),
@@ -817,19 +870,28 @@ export const mutationsRouter = router({
             : OplOrderStatus.PENDING
 
         const updated = await prisma.$transaction(async (tx) => {
+          const resolvedServiceId =
+            input.serviceId !== undefined
+              ? normalizeServiceId(input.serviceId)
+              : existing.serviceId
+          const resolvedOperator = resolveOrderOperator(
+            input.operator,
+            resolvedServiceId
+          )
+
           const order = await tx.oplOrder.update({
             where: { id: existing.id },
             data: {
               orderNumber: normOrder,
               type: input.type,
-              operator: input.operator ?? existing.operator,
+              operator: resolvedOperator,
               date: parseLocalDate(input.date),
               timeSlot: input.timeSlot,
               notes: input.notes,
               status,
               city: input.city.trim(),
               street: input.street.trim(),
-              serviceId: input.serviceId ?? existing.serviceId,
+              serviceId: resolvedServiceId,
               attemptNumber,
               previousOrderId,
               ...(addressChanged
@@ -1005,6 +1067,38 @@ export const mutationsRouter = router({
         }
 
         technicianIds = requestedIds
+
+        const dayStart = new Date(order.date)
+        dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(order.date)
+        dayEnd.setHours(23, 59, 59, 999)
+
+        try {
+          const absent = await prisma.$queryRaw<Array<{ technicianName: string }>>(
+            Prisma.sql`
+              SELECT DISTINCT u."name" AS "technicianName"
+              FROM "opl"."OplTechnicianAbsence" a
+              JOIN "opl"."OplUser" ou ON ou."userId" = a."technicianId"
+              JOIN "public"."User" u ON u."id" = ou."userId"
+              WHERE a."active" = true
+                AND a."technicianId" IN (${Prisma.join(technicianIds)})
+                AND a."dateFrom" <= ${dayEnd}
+                AND a."dateTo" >= ${dayStart}
+            `
+          )
+
+          if (absent.length > 0) {
+            const absentNames = Array.from(
+              new Set(absent.map((row) => row.technicianName))
+            )
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: `Nie można przypisać zlecenia: technik niedostępny tego dnia (${absentNames.join(', ')}).`,
+            })
+          }
+        } catch (error) {
+          if (!isMissingAbsenceTableError(error)) throw error
+        }
       }
 
       let lat: number | null | undefined = undefined

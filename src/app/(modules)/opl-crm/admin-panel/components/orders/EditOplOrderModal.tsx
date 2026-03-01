@@ -61,9 +61,7 @@ const EditOplOrderModal = ({ open, orderId, onCloseAction }: Props) => {
     values: order
       ? {
           type: order.type,
-          operator: order.operator || undefined,
-
-          serviceId: order.serviceId ?? undefined,
+          operator: order.operator === 'OA' ? 'OA' : 'ORANGE',
 
           network: order.network ?? 'ORANGE',
 

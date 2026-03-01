@@ -21,6 +21,13 @@ import { toast } from 'sonner'
 
 const ALLOWED_EXTENSIONS = ['xls', 'xlsx']
 
+type ImportTeam = {
+  id: string
+  technician1Id: string
+  technician2Id: string
+  active: boolean
+}
+
 interface ImportOrdersModalProps {
   open: boolean
   onClose: () => void
@@ -119,7 +126,12 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
    */
   const resolveTechniciansByName = async (
     names: string[]
-  ): Promise<Map<string, string | undefined>> => {
+  ): Promise<{
+    nameToId: Map<string, string | undefined>
+    teams: ImportTeam[]
+    activeTechnicianIds: Set<string>
+    technicians: Array<{ id: string; name: string }>
+  }> => {
     const uniqueNormalized = Array.from(
       new Set(
         names
@@ -130,11 +142,28 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
     )
 
     const result = new Map<string, string | undefined>()
-    if (uniqueNormalized.length === 0) return result
 
     const allTechs = await utils.opl.user.getTechnicians.fetch({
       status: 'ACTIVE',
     })
+    const teams = (await utils.opl.user.getTeams.fetch({ activeOnly: true })).map(
+      (t) => ({
+        id: t.id,
+        technician1Id: t.technician1Id,
+        technician2Id: t.technician2Id,
+        active: t.active,
+      })
+    )
+    const activeTechnicianIds = new Set(allTechs.map((t) => t.id))
+
+    if (uniqueNormalized.length === 0) {
+      return {
+        nameToId: result,
+        teams,
+        activeTechnicianIds,
+        technicians: allTechs.map((t) => ({ id: t.id, name: t.name })),
+      }
+    }
 
     const index = new Map<string, string>()
     for (const t of allTechs) {
@@ -145,7 +174,103 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
       result.set(n, index.get(n))
     }
 
-    return result
+    return {
+      nameToId: result,
+      teams,
+      activeTechnicianIds,
+      technicians: allTechs.map((t) => ({ id: t.id, name: t.name })),
+    }
+  }
+
+  const stripDiacritics = (value: string) =>
+    value.normalize('NFD').replace(/\p{Diacritic}/gu, '')
+
+  const normalizeAscii = (value: string) =>
+    stripDiacritics(value).toUpperCase().replace(/[^A-Z0-9]/g, '')
+
+  const parseTeamCodeAssignee = (
+    raw: string | undefined
+  ): { token: string } | null => {
+    if (!raw) return null
+    const compact = normalizeAscii(raw)
+    const marker = 'PODFTTHHUZZAR'
+    const idx = compact.indexOf(marker)
+    const tail = idx >= 0 ? compact.slice(idx + marker.length) : compact
+    if (!tail) return null
+
+    return { token: tail }
+  }
+
+  const pickPrimaryTechnicianFromTeamCode = (
+    teamCodeRaw: string | undefined,
+    technicians: Array<{ id: string; name: string }>
+  ): string | undefined => {
+    const parsed = parseTeamCodeAssignee(teamCodeRaw)
+    if (!parsed) return undefined
+
+    const entries = technicians.map((tech) => {
+      const tokens = stripDiacritics(tech.name)
+        .toUpperCase()
+        .split(/\s+/)
+        .filter(Boolean)
+      const surnameCandidates = new Set([
+        tokens[0] ?? '',
+        tokens[tokens.length - 1] ?? '',
+      ])
+      return { id: tech.id, tokens, surnameCandidates }
+    })
+
+    const surnameMatched = entries.filter((entry) =>
+      entry.surnameCandidates.has(parsed.token)
+    )
+    if (surnameMatched.length > 0) return surnameMatched[0].id
+
+    if (parsed.token.length < 3) return undefined
+
+    const maybeInitial = parsed.token.at(-1)
+    const baseSurname = parsed.token.slice(0, -1)
+    if (!maybeInitial || !/^[A-Z]$/.test(maybeInitial) || !baseSurname) {
+      return undefined
+    }
+    const splitMatched = entries.filter((entry) =>
+      entry.surnameCandidates.has(baseSurname)
+    )
+    if (splitMatched.length === 0) return undefined
+    const initialMatched = splitMatched.filter((entry) =>
+      entry.tokens.some((token) => token.startsWith(maybeInitial))
+    )
+    return (initialMatched[0] ?? splitMatched[0]).id
+  }
+
+  const expandWithTeamPartner = (
+    primaryTechnicianId: string,
+    teams: ImportTeam[],
+    activeTechnicianIds: Set<string>
+  ): string[] => {
+    const team = teams.find(
+      (t) =>
+        t.active &&
+        (t.technician1Id === primaryTechnicianId ||
+          t.technician2Id === primaryTechnicianId)
+    )
+    if (!team) return [primaryTechnicianId]
+
+    const partnerId =
+      team.technician1Id === primaryTechnicianId
+        ? team.technician2Id
+        : team.technician1Id
+
+    if (!activeTechnicianIds.has(partnerId)) return [primaryTechnicianId]
+    return [primaryTechnicianId, partnerId]
+  }
+
+  const shouldImportRow = (statusRaw: string | undefined): boolean => {
+    const status = String(statusRaw ?? '').trim().toLowerCase()
+    if (!status) return true
+    if (status.includes('skutecznie') || status.includes('nieskutecznie')) {
+      return false
+    }
+    return true
   }
 
   const resolveEquipmentRequirements = async (
@@ -166,24 +291,35 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         .replace(/\s+/g, ' ')
         .trim()
 
+    const canonicalToken = (value: string) =>
+      normalizeToken(value)
+        .replace(/@/g, 'A')
+        .replace(/FUNBOX\s*3(?:0)?\b/g, 'FUNBOX3')
+        .replace(/FUNBOX\s*10\b/g, 'FUNBOX10')
+        .replace(/[^A-Z0-9]/g, '')
+        .trim()
+
     const isCategoryHint = (value: string) =>
       value.includes('MODEM') ||
       value.includes('DEKODER') ||
       value.includes('ONT')
+
+    const defsIndex = defs.map((d) => ({
+      id: d.id,
+      category: d.category,
+      name: d.name,
+      normalized: normalizeToken(d.name),
+      canonical: canonicalToken(d.name),
+    }))
 
     const matchDefinition = (
       token: string
     ): { id: string; category: OplDeviceCategory; name: string } | null => {
       const normalized = normalizeToken(token)
       if (!normalized) return null
+      const canonical = canonicalToken(token)
 
-      const candidates = defs
-        .map((d) => ({
-          id: d.id,
-          category: d.category,
-          name: d.name,
-          normalized: normalizeToken(d.name),
-        }))
+      const candidates = defsIndex
         .filter(
           (d) =>
             d.normalized.includes(normalized) || normalized.includes(d.normalized)
@@ -192,16 +328,19 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
 
       if (candidates.length > 0) return candidates[0]
 
-      if (normalized.includes('FUNBOX 3')) {
+      const fuzzyCandidates = defsIndex
+        .filter(
+          (d) => d.canonical.includes(canonical) || canonical.includes(d.canonical)
+        )
+        .sort((a, b) => b.canonical.length - a.canonical.length)
+
+      if (fuzzyCandidates.length > 0) return fuzzyCandidates[0]
+
+      if (normalized.includes('FUNBOX 3') || canonical.includes('FUNBOX3')) {
         return (
-          defs
-            .map((d) => ({
-              id: d.id,
-              category: d.category,
-              name: d.name,
-              normalized: normalizeToken(d.name),
-            }))
-            .find((d) => d.normalized.includes('FUNBOX 3')) ?? null
+          defsIndex.find(
+            (d) => d.normalized.includes('FUNBOX 3') || d.canonical.includes('FUNBOX3')
+          ) ?? null
         )
       }
 
@@ -222,13 +361,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         if (isCategoryHint(token.toUpperCase())) continue
         const normalizedToken = normalizeToken(token)
         if (normalizedToken.includes('TERMINAL ONT')) {
-          const ontV9 = defs
-            .map((d) => ({
-              id: d.id,
-              category: d.category,
-              name: d.name,
-              normalized: normalizeToken(d.name),
-            }))
+          const ontV9 = defsIndex
             .find(
               (d) =>
                 d.normalized.includes('ONT V9') ||
@@ -287,27 +420,67 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         .flatMap((o) => o.assignedToNames ?? [])
         .filter((v): v is string => !!v)
 
-      const nameToIdMap = await resolveTechniciansByName(namesToResolve)
+      const {
+        nameToId: nameToIdMap,
+        teams,
+        activeTechnicianIds,
+        technicians,
+      } = await resolveTechniciansByName(namesToResolve)
       const { requirementsByOrder, unresolvedByOrder } =
         await resolveEquipmentRequirements(orders)
 
       let unresolvedTechCount = 0
 
       // 2) Build final payload for bulk import
-      const payload = orders.map((o) => {
-        const assignedTechnicianIds = (o.assignedToNames ?? [])
+      const importableOrders = orders.filter((o) => shouldImportRow(o.importStatus))
+      const skippedFromStatus = orders.length - importableOrders.length
+
+      const payload = importableOrders.map((o) => {
+        const assignedByName = (o.assignedToNames ?? [])
           .map((name) => nameToIdMap.get(normalizeName(name)))
           .filter((id): id is string => Boolean(id))
 
-        const unresolvedForOrder = (o.assignedToNames ?? []).filter(
-          (name) => !nameToIdMap.get(normalizeName(name))
-        ).length
+        const primaryFromTeamCode = pickPrimaryTechnicianFromTeamCode(
+          o.assigneeRaw,
+          technicians
+        )
+        const assignedFromTeamCode = primaryFromTeamCode
+          ? expandWithTeamPartner(primaryFromTeamCode, teams, activeTechnicianIds)
+          : []
+
+        const assignedTechnicianIds = Array.from(
+          new Set(
+            assignedByName.length > 0 ? assignedByName : assignedFromTeamCode
+          )
+        )
+
+        const hasAnyAssigneeHint =
+          Boolean(o.assigneeRaw?.trim()) || (o.assignedToNames?.length ?? 0) > 0
+        const unresolvedForOrder = assignedByName.length
+          ? (o.assignedToNames ?? []).filter(
+              (name) => !nameToIdMap.get(normalizeName(name))
+            ).length
+          : primaryFromTeamCode
+            ? 0
+            : hasAnyAssigneeHint
+              ? 1
+              : 0
         unresolvedTechCount += unresolvedForOrder
 
+        const normalizedServiceId = (() => {
+          const raw = o.serviceId?.trim()
+          if (!raw) return undefined
+          return raw
+        })()
+        const normalizedOperator: 'ORANGE' | 'OA' | undefined =
+          o.operator === 'OA' || o.operator === 'ORANGE'
+            ? o.operator
+            : undefined
+
         return {
-          operator: o.operator,
+          operator: normalizedOperator,
           type: o.type,
-          serviceId: o.serviceId,
+          serviceId: normalizedServiceId,
           network: o.network,
           standard: o.standard,
           orderNumber: o.orderNumber,
@@ -318,8 +491,10 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
           postalCode: o.postalCode,
           assignedTechnicianIds:
             assignedTechnicianIds.length > 0
-              ? Array.from(new Set(assignedTechnicianIds))
+              ? assignedTechnicianIds
               : undefined,
+          zone: o.zone,
+          termChangeFlag: o.termChangeFlag,
           notes: [
             o.notes?.trim(),
             ...(unresolvedByOrder.get(o.orderNumber)?.length
@@ -336,6 +511,11 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
         }
       })
 
+      if (!payload.length) {
+        toast.warning('Brak zleceń do importu po odfiltrowaniu pozycji zakończonych.')
+        return
+      }
+
       // 3) One fast request to backend
       const summary = await bulkImportMutation.mutateAsync(payload)
 
@@ -347,6 +527,12 @@ Pominięte (wykonane): ${summary?.skippedCompleted}
 Pominięte (aktywne): ${summary?.skippedPendingOrAssigned}
 Inne błędy: ${summary?.otherErrors}`
       )
+
+      if (skippedFromStatus > 0) {
+        toast.info(
+          `Pominięto ${skippedFromStatus} rekordów z pliku (status zakończony).`
+        )
+      }
 
       // 5) Warn if some technicians were not matched
       if (unresolvedTechCount > 0) {

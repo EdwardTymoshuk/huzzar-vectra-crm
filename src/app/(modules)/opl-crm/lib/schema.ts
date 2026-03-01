@@ -96,14 +96,7 @@ export const operatorSchema = z.object({
 
 const orderSchemaBase = z.object({
     type: z.nativeEnum(OplOrderType),
-    operator: optionalInputString(z.string().max(50).optional()),
-
-    serviceId: optionalInputString(
-      z
-        .string()
-        .length(12, 'Id usługi musi mieć dokładnie 12 znaków')
-        .optional()
-    ),
+    operator: z.enum(['ORANGE', 'OA']),
 
     network: z.nativeEnum(OplNetworkOeprator).default('ORANGE'),
     orderNumber: z.string().min(3, 'Numer zlecenia jest wymagany'),

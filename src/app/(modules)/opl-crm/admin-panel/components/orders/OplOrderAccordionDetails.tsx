@@ -277,6 +277,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
         .filter((name): name is string => Boolean(name))
     )
   ).join(' + ')
+  const assignedTechniciansValue = assignedTechniciansLabel || 'Nieprzypisane'
   const completedByLabel = assignedTechniciansLabel || completedByName || '-'
   const parsedNotes = parseMeasurementsFromNotes(data.notes)
   const completedAtLabel = data.completedAt
@@ -304,13 +305,12 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
           />
           <DetailsRow label="Wejście" value={String(data.attemptNumber)} />
           <DetailsRow label="Status" value={statusMap[data.status] ?? data.status} />
-          <DetailsRow label="Id usługi" value={data.serviceId || '-'} />
+          <DetailsRow label="Przypisani technicy" value={assignedTechniciansValue} />
           <DetailsRow label="Operator" value={data.operator || '-'} />
           <DetailsRow
             label="Operator sieci"
             value={oplNetworkMap[data.network] ?? data.network}
           />
-          <DetailsRow label="Nr kontaktowy klienta" value={data.clientPhoneNumber || '-'} />
           <div className="space-y-1 border-t border-border pt-3">
             <h4 className="text-sm font-medium">Uwagi do adresu</h4>
             {addressNotes.length ? (
@@ -428,7 +428,7 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
 
                     await editOrder.mutateAsync({
                       id: data.id,
-                      operator: data.operator,
+                      operator: data.operator === 'OA' ? 'OA' : 'ORANGE',
                       serviceId: data.serviceId ?? undefined,
                       type: data.type,
                       notes: updatedNotes,

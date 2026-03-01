@@ -88,6 +88,15 @@ const GEO_INLINE_CONCURRENCY = 4
 const GEO_INLINE_TOTAL_BUDGET_MS = 2000
 const GEO_INLINE_SINGLE_TIMEOUT_MS = 900
 
+const isMissingAbsenceTableError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  return (
+    message.includes('OplTechnicianAbsence') &&
+    (message.includes('does not exist') || message.includes('42P01'))
+  )
+}
+
 const geoBackfillState: {
   running: boolean
   lastSweepAt: number
@@ -820,12 +829,35 @@ export const queriesRouter = router({
       const target = input?.date
         ? new Date(`${input.date}T00:00:00`)
         : new Date()
+      const dayStart = startOfDay(target)
+      const dayEnd = endOfDay(target)
+
+      let absentTechnicianIds: string[] = []
+      try {
+        const absentRows = await ctx.prisma.$queryRaw<Array<{ technicianId: string }>>(
+          Prisma.sql`
+            SELECT DISTINCT "technicianId"
+            FROM "opl"."OplTechnicianAbsence"
+            WHERE "active" = true
+              AND "dateFrom" <= ${dayEnd}
+              AND "dateTo" >= ${dayStart}
+          `
+        )
+        absentTechnicianIds = Array.from(
+          new Set(absentRows.map((row) => row.technicianId))
+        )
+      } catch (error) {
+        if (!isMissingAbsenceTableError(error)) throw error
+      }
 
       /* -------------------------------------------
        * 1️⃣ Load technicians
        * ------------------------------------------- */
       const techs = await ctx.prisma.user.findMany({
         where: {
+          id: absentTechnicianIds.length
+            ? { notIn: absentTechnicianIds }
+            : undefined,
           role: 'TECHNICIAN',
           status: 'ACTIVE',
           modules: {
@@ -855,8 +887,8 @@ export const queriesRouter = router({
         where: {
           type: OplOrderType.INSTALLATION,
           date: {
-            gte: startOfDay(target),
-            lte: endOfDay(target),
+            gte: dayStart,
+            lte: dayEnd,
           },
           assignments: {
             some: {}, // 🔥 tylko z przypisaniami
@@ -878,6 +910,14 @@ export const queriesRouter = router({
           notes: true,
           failureReason: true,
           date: true,
+          equipmentRequirements: {
+            select: {
+              quantity: true,
+              deviceDefinition: {
+                select: { name: true },
+              },
+            },
+          },
           assignments: {
             select: {
               technicianId: true,
@@ -959,6 +999,10 @@ export const queriesRouter = router({
           notes: string | null
           failureReason: string | null
           date: Date
+          equipmentRequirements: {
+            quantity: number
+            deviceDefinition: { name: string }
+          }[]
           primaryTechnicianId: string | null
           assignedTechnicians: { id: string; name: string }[]
           completedByName: string | null
@@ -1000,6 +1044,9 @@ export const queriesRouter = router({
           network: data.network,
           notes: data.notes ?? undefined,
           failureReason: data.failureReason ?? null,
+          equipmentToDeliver: data.equipmentRequirements.map(
+            (req) => `${req.deviceDefinition.name} x${req.quantity}`
+          ),
           primaryTechnicianId: data.primaryTechnicianId,
           assignedTechnicians: data.assignedTechnicians,
           completedByName: data.completedByName,
@@ -1226,6 +1273,14 @@ export const queriesRouter = router({
           lat: true,
           lng: true,
           date: true,
+          equipmentRequirements: {
+            select: {
+              quantity: true,
+              deviceDefinition: {
+                select: { name: true },
+              },
+            },
+          },
         },
         orderBy: { timeSlot: 'asc' },
         take: 300,
@@ -1255,6 +1310,9 @@ export const queriesRouter = router({
         operator: r.operator?.trim() || '-',
         lat: r.lat ?? null,
         lng: r.lng ?? null,
+        equipmentToDeliver: r.equipmentRequirements.map(
+          (req) => `${req.deviceDefinition.name} x${req.quantity}`
+        ),
       }))
     }),
 

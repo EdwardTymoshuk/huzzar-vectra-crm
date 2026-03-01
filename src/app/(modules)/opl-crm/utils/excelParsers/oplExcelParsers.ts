@@ -15,9 +15,13 @@ export type ParsedOplOrderFromExcel = {
   street: string
   postalCode?: string
   assignedToNames?: string[]
+  assigneeRaw?: string
   notes: string
   standard?: OplOrderStandard
   equipmentToDeliver: string[]
+  zone?: string
+  termChangeFlag?: 'T' | 'N'
+  importStatus?: string
 }
 
 type ExcelRow = (string | number | Date | null | undefined)[]
@@ -38,6 +42,8 @@ export async function parseOplOrdersFromExcel(
     serviceId: safeIndex(headerMap, [
       'nr łącza',
       'nr lacza',
+      'numer łącza',
+      'numer lacza',
       'id usługi',
       'id uslugi',
       'service id',
@@ -47,12 +53,25 @@ export async function parseOplOrdersFromExcel(
     street: safeIndex(headerMap, ['ulica', 'adres']),
     postalCode: safeIndex(headerMap, ['kod pocztowy', 'postal code']),
     assignees: safeIndex(headerMap, [
+      'ekipa',
       'monterzy',
       'przypisani pracownicy / grupy',
       'przypisani pracownicy',
       'technik',
       'technicy',
       'pracownik',
+    ]),
+    zone: safeIndex(headerMap, ['strefa']),
+    termChange: safeIndex(headerMap, [
+      'zmiana terminu',
+      'data umówienia [zmieniono datę umówienia]',
+      'data umowienia [zmieniono date umowienia]',
+    ]),
+    resultStatus: safeIndex(headerMap, [
+      'wynik realizacji',
+      'status realizacji',
+      'wynik',
+      'status',
     ]),
     appointment: safeIndex(headerMap, [
       'data umówienia',
@@ -102,16 +121,22 @@ export async function parseOplOrdersFromExcel(
     additionalActivities: safeIndex(headerMap, [
       'czynności dodatkowe',
       'czynnosci dodatkowe',
+      'czynności',
+      'czynnosci',
     ]),
     devicesToDeliver: safeIndex(headerMap, [
       'urządzenia [do dostarczenia]',
       'urzadzenia [do dostarczenia]',
       'urządzenia do dostarczenia',
       'urzadzenia do dostarczenia',
+      'urządzenia',
+      'urzadzenia',
     ]),
   }
 
   return rows.reduce<ParsedOplOrderFromExcel[]>((acc, row) => {
+    if (isRowEmpty(row)) return acc
+
     const orderNumber = String(row[col.orderNumber] ?? '').trim()
     if (!orderNumber) return acc
 
@@ -156,6 +181,14 @@ export async function parseOplOrdersFromExcel(
     const assigneesRaw =
       col.assignees !== null ? String(row[col.assignees] ?? '').trim() : ''
     const assignedToNames = parseTechnicianNames(assigneesRaw)
+    const zoneRaw = col.zone !== null ? String(row[col.zone] ?? '').trim() : ''
+    const zone = zoneRaw || undefined
+    const termChangeRaw =
+      col.termChange !== null ? String(row[col.termChange] ?? '').trim() : ''
+    const termChangeFlag = parseTermChangeFlag(termChangeRaw)
+    const resultStatusRaw =
+      col.resultStatus !== null ? String(row[col.resultStatus] ?? '').trim() : ''
+    const importStatus = resultStatusRaw || undefined
 
     const inputNotes = col.notes !== null ? String(row[col.notes] ?? '').trim() : ''
     const standardsRaw =
@@ -187,9 +220,13 @@ export async function parseOplOrdersFromExcel(
       street,
       postalCode,
       assignedToNames,
+      assigneeRaw: assigneesRaw || undefined,
       notes,
       standard,
       equipmentToDeliver,
+      zone,
+      termChangeFlag,
+      importStatus,
     })
 
     return acc
@@ -252,6 +289,10 @@ function safeIndex(map: Map<string, number>, labels: string[]): number | null {
   } catch {
     return null
   }
+}
+
+function isRowEmpty(row: ExcelRow): boolean {
+  return row.every((cell) => String(cell ?? '').trim() === '')
 }
 
 function parseAddress(locationRaw: string): {
@@ -538,11 +579,11 @@ function parseEquipmentToDeliver(raw: string): string[] {
   const output: string[] = []
   for (const item of chunks) {
     const upper = item.toUpperCase()
-    if (upper.includes('FUNBOX 3')) {
+    if (/FUNBOX\s*3(?:\.0)?/i.test(item)) {
       output.push('FUNBOX 3')
       continue
     }
-    if (upper.includes('FUNBOX 10')) {
+    if (/FUNBOX\s*10(?:\.0)?/i.test(item)) {
       output.push('FUNBOX 10')
       continue
     }
@@ -560,6 +601,13 @@ function parseEquipmentToDeliver(raw: string): string[] {
   }
 
   return Array.from(new Set(output))
+}
+
+function parseTermChangeFlag(raw: string): 'T' | 'N' | undefined {
+  const s = String(raw ?? '').trim().toUpperCase()
+  if (s === 'T') return 'T'
+  if (s === 'N') return 'N'
+  return undefined
 }
 
 function extractDateFromText(text: string): string | null {

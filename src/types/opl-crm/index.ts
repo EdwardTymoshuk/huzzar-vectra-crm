@@ -9,6 +9,7 @@ import {
   OplAddonCode,
   OplBaseWorkCode,
   OplDeviceCategory,
+  OplOrderCreatedSource,
   OplMaterialUnit,
   OplOrderStatus,
   OplOrderStandard,
@@ -183,6 +184,7 @@ export interface OplTechnicianAssignment {
       failureReason?: string | null
       standard?: OplOrderStandard | null
       network?: OplNetworkOeprator
+      equipmentToDeliver?: string[]
       assignedToId?: string
       primaryTechnicianId?: string | null
       assignedTechnicians?: { id: string; name: string }[]
@@ -202,6 +204,7 @@ export type OplOrderWithAttempts = {
   failureReason?: string | null
   notes?: string | null
   date: Date
+  createdSource?: OplOrderCreatedSource
   assignedTechnicians: { id: string; name: string }[]
   previousOrder?: {
     id: string
@@ -224,6 +227,7 @@ export type OplOrderWithAttempts = {
     completedAt?: Date | null
     closedAt?: Date | null
     createdAt?: Date | null
+    createdSource?: OplOrderCreatedSource
     assignedTechnicians: { id: string; name: string }[]
   }[]
 }

@@ -242,3 +242,12 @@ enum OplNetworkOeprator {
 
   @@schema("opl")
 }
+
+enum OplTechnicianAbsenceType {
+  VACATION
+  DAY_OFF
+  SICK_LEAVE
+  OTHER
+
+  @@schema("opl")
+}

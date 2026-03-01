@@ -269,29 +269,15 @@ const OplOrderDetailsSheet = ({ orderId, onClose, open }: Props) => {
 
                 <div>
                   <h3 className="text-xs text-muted-foreground font-medium">
-                    Id usługi
-                  </h3>
-                  <p>{order.serviceId ? order.serviceId : '-'}</p>
-                </div>
-
-                <div>
-                  <h3 className="text-xs text-muted-foreground font-medium">
                     Przedział czasowy
                   </h3>
                   <p>{oplTimeSlotMap[order.timeSlot] ?? order.timeSlot}</p>
                 </div>
 
-                <div>
-                  <h3 className="text-xs text-muted-foreground font-medium">
-                    Nr kontaktowy klienta
-                  </h3>
-                  <p>{order.clientPhoneNumber ?? '—'}</p>
-                </div>
-
                 {!isTechnician && (
                   <div>
                     <h3 className="text-xs text-muted-foreground font-medium">
-                      Technik
+                      Przypisani technicy
                     </h3>
 
                     {order.assignments.length === 0 ? (

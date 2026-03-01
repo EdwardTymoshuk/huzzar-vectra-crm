@@ -1,0 +1,4 @@
+ALTER TABLE "opl"."OplOrder"
+ADD COLUMN IF NOT EXISTS "zone" TEXT,
+ADD COLUMN IF NOT EXISTS "termChangeFlag" TEXT;
+

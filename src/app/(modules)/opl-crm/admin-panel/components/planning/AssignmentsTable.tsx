@@ -60,9 +60,10 @@ const AssignmentsTable = () => {
   } = trpc.opl.order.getAssignedOrders.useQuery({
     date: selectedDate.toLocaleDateString('en-CA'),
   })
+  const { data: teams = [] } = trpc.opl.user.getTeams.useQuery({ activeOnly: true })
   const groupedAssignments = useMemo(
-    () => groupAssignmentsForTeams(assignments),
-    [assignments]
+    () => groupAssignmentsForTeams(assignments, teams),
+    [assignments, teams]
   )
 
   /** 🔹 Handle drag-drop assignment */

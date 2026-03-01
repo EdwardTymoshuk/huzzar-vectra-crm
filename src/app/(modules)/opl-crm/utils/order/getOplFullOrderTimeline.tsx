@@ -1,7 +1,7 @@
 import { statusMap } from '@/lib/constants'
 import { OplOrderWithAttempts } from '@/types/opl-crm'
 import { formatDateTime } from '@/utils/dates/formatDateTime'
-import { OplOrderStatus, OplOrderType, Role } from '@prisma/client'
+import { OplOrderCreatedSource, OplOrderStatus, OplOrderType, Role } from '@prisma/client'
 import { ReactNode } from 'react'
 
 type TimelineEvent = {
@@ -47,6 +47,11 @@ function determineCreationMethod(note?: string) {
   const lower = (note ?? '').toLowerCase()
   if (lower.includes('import')) return 'import'
   return 'ręcznie'
+}
+
+function methodFromCreatedSource(source?: OplOrderCreatedSource | null) {
+  if (!source) return null
+  return source === 'PLANNER' ? 'import' : 'ręcznie'
 }
 
 function buildCreationTitle(
@@ -291,11 +296,20 @@ export function getOplFullOrderTimeline(
           ) ?? null
 
         if (attemptNumber) builtCreationNumbers.add(attemptNumber)
+        const attemptForNumber = attemptNumber
+          ? attemptsChronological.find(
+              (a) => (displayAttemptById.get(a.id) ?? a.attemptNumber) === attemptNumber
+            )
+          : null
 
         pushEvent({
           id: `history-${history.id}-creation`,
           rawDate: history.changeDate,
-          title: buildCreationTitle(note, attemptNumber ?? undefined),
+          title: buildCreationTitle(
+            note,
+            attemptNumber ?? undefined,
+            methodFromCreatedSource(attemptForNumber?.createdSource) ?? undefined
+          ),
           color: 'secondary',
           description: history.changedBy?.name ? (
             <p className="text-sm">{history.changedBy.name}</p>
@@ -308,11 +322,20 @@ export function getOplFullOrderTimeline(
         const attemptNumber =
           parseAttemptNumberFromNote(note) ?? order.attempts?.[0]?.attemptNumber ?? 1
         builtCreationNumbers.add(attemptNumber)
+        const attemptForNumber = attemptsChronological.find(
+          (a) => (displayAttemptById.get(a.id) ?? a.attemptNumber) === attemptNumber
+        )
+        const methodOverride =
+          methodFromCreatedSource(attemptForNumber?.createdSource) ??
+          (attemptNumber === order.attemptNumber
+            ? methodFromCreatedSource(order.createdSource)
+            : null) ??
+          undefined
 
         pushEvent({
           id: `history-${history.id}`,
           rawDate: history.changeDate,
-          title: buildCreationTitle(note, attemptNumber),
+          title: buildCreationTitle(note, attemptNumber, methodOverride),
           color: 'secondary',
           description: history.changedBy?.name ? (
             <p className="text-sm">{history.changedBy.name}</p>
@@ -463,7 +486,15 @@ export function getOplFullOrderTimeline(
       pushEvent({
         id: `creation-synth-${attempt.id}`,
         rawDate: attempt.createdAt ?? attempt.date ?? new Date(),
-        title: buildCreationTitle(undefined, attemptNumber),
+        title: buildCreationTitle(
+          undefined,
+          attemptNumber,
+          methodFromCreatedSource(attempt.createdSource) ??
+            (attemptNumber === order.attemptNumber
+              ? methodFromCreatedSource(order.createdSource)
+              : null) ??
+            undefined
+        ),
         color: 'secondary',
         description:
           attempt.assignedTechnicians?.length > 0 ? (

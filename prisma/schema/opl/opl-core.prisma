@@ -15,6 +15,8 @@ model OplUser {
   warehouseHistoryAssigned  OplWarehouseHistory[]          @relation("OplWHAssignedTo")
   warehouseHistoryPerformed OplWarehouseHistory[]          @relation("OplWHPerformedBy")
   addressNotesCreated       OplAddressNote[]               @relation("OplAddressNotesByUser")
+  absences                  OplTechnicianAbsence[]         @relation("OplTechnicianAbsencesByUser")
+  absencesCreated           OplTechnicianAbsence[]         @relation("OplTechnicianAbsencesCreatedBy")
   primaryTeams             OplTeam[]                      @relation("OplTeamPrimaryTechnician")
   secondaryTeams           OplTeam[]                      @relation("OplTeamSecondaryTechnician")
   teamsCreated             OplTeam[]                      @relation("OplTeamCreatedBy")
@@ -85,5 +87,27 @@ model OplAddressNote {
 
   @@index([cityNorm, streetNorm, active])
   @@index([createdAt])
+  @@schema("opl")
+}
+
+model OplTechnicianAbsence {
+  id String @id @default(uuid())
+
+  technicianId String
+  dateFrom     DateTime
+  dateTo       DateTime
+  type         OplTechnicianAbsenceType @default(OTHER)
+  reason       String?
+  active       Boolean                  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdById String?
+
+  technician OplUser  @relation("OplTechnicianAbsencesByUser", fields: [technicianId], references: [userId])
+  createdBy  OplUser? @relation("OplTechnicianAbsencesCreatedBy", fields: [createdById], references: [userId])
+
+  @@index([technicianId, active])
+  @@index([dateFrom, dateTo, active])
   @@schema("opl")
 }

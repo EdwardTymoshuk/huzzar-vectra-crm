@@ -32,6 +32,8 @@ model OplOrder {
   createdSource OplOrderCreatedSource @default(PLANNER)
   operator      String
   type          OplOrderType
+  zone          String?
+  termChangeFlag String?
 
   closedAt      DateTime?
   completedAt   DateTime?

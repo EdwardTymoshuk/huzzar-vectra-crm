@@ -137,7 +137,6 @@ const OplOrderDetailsContent = ({
     serviceId,
     network,
     standard,
-    clientPhoneNumber,
     equipmentRequirements,
     history,
   } = order
@@ -182,6 +181,13 @@ const OplOrderDetailsContent = ({
       entry.statusAfter === OplOrderStatus.NOT_COMPLETED,
   )
   const completedByName = completionEvent?.changedBy?.user?.name ?? null
+  const assignedTechniciansLabel = Array.from(
+    new Set(
+      (order.assignments ?? [])
+        .map((assignment) => assignment.technician?.user?.name?.trim())
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ).join(' + ')
 
   return (
     <div className="space-y-6 text-sm w-full">
@@ -203,14 +209,16 @@ const OplOrderDetailsContent = ({
             <HeaderRow label="Technik realizujący" value={completedByName ?? '-'} />
           )}
           {attemptNumber && <HeaderRow label="Wejście" value={attemptNumber} />}
-          <HeaderRow label="Id usługi" value={serviceId ?? '-'} />
+          <HeaderRow
+            label="Przypisani technicy"
+            value={assignedTechniciansLabel || 'Nieprzypisane'}
+          />
           <HeaderRow label="Operator" value={operator?.trim() || '-'} />
           <HeaderRow
             label="Operator sieci"
             value={oplNetworkMap[network] ?? network}
           />
           <HeaderRow label="Standard zlecenia" value={standard ?? '-'} />
-          <HeaderRow label="Nr kontaktowy klienta" value={clientPhoneNumber ?? '-'} />
           {measurementLabel && <HeaderRow label="Pomiar" value={measurementLabel} />}
         </div>
       )}
