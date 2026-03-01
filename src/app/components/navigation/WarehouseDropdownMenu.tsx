@@ -51,6 +51,7 @@ interface Props {
  */
 const WarehouseDropdownMenu = ({ basePath }: Props) => {
   const [open, setOpen] = useState(false)
+  const isOplModule = basePath === '/opl-crm'
 
   const { isTechnician, isAdmin } = useRole()
   const router = useRouter()
@@ -95,6 +96,7 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
    * This guarantees consistent URL state and prevents "empty warehouse" views.
    */
   useEffect(() => {
+    if (isOplModule) return
     if (
       !isAdmin &&
       availableLocations.length === 1 &&
@@ -112,6 +114,7 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
     isWarehouseSection,
     router,
     basePath,
+    isOplModule,
   ])
 
   /** -------------------------------------------
@@ -125,6 +128,33 @@ const WarehouseDropdownMenu = ({ basePath }: Props) => {
             <Button
               variant="ghost"
               onClick={() => router.push(`${basePath}/?tab=warehouse`)}
+              className={cn(
+                'relative flex items-center gap-2',
+                getTopNavItemClass(isWarehouseSection),
+                isWarehouseSection && 'font-semibold'
+              )}
+            >
+              <MdWarehouse className="h-5 w-5 lg:hidden" />
+              <span className="hidden lg:inline">Magazyn</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="lg:hidden">
+            Magazyn
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  // OPL: one global location, no location split in navigation.
+  if (isOplModule) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              onClick={() => router.push(`${basePath}/admin-panel?tab=warehouse`)}
               className={cn(
                 'relative flex items-center gap-2',
                 getTopNavItemClass(isWarehouseSection),

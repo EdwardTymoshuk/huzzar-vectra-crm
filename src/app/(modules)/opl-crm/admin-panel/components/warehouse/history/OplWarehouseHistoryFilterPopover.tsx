@@ -47,7 +47,6 @@ const OplWarehouseHistoryFilterPopover = ({
   setStartDate,
   endDate,
   setEndDate,
-  locationId,
   setLocationId,
 }: OplWarehouseHistoryFilterPopoverProps) => {
   const [open, setOpen] = useState(false)
@@ -55,7 +54,6 @@ const OplWarehouseHistoryFilterPopover = ({
   const { data: performers } = trpc.opl.user.getTechnicians.useQuery({
     status: 'ACTIVE',
   })
-  const { data: locations } = trpc.core.user.getAllLocations.useQuery()
 
   /** Clear all filters and close popover */
   const clearFilters = () => {
@@ -76,8 +74,6 @@ const OplWarehouseHistoryFilterPopover = ({
   // Derived values from external state
   const selectedAction = actions?.[0] ?? 'all'
   const selectedPerformer = performerId ?? 'all'
-  const selectedLocation = locationId ?? 'all'
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -132,31 +128,6 @@ const OplWarehouseHistoryFilterPopover = ({
               {performers?.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Location */}
-        <div>
-          <p className="text-sm font-medium mb-1">Lokalizacja</p>
-          <Select
-            value={selectedLocation}
-            onValueChange={(v) =>
-              handleChange(() => {
-                setLocationId(v === 'all' ? undefined : v)
-              })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Wybierz magazyn" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              {locations?.map((loc) => (
-                <SelectItem key={loc.id} value={loc.id}>
-                  {loc.name}
                 </SelectItem>
               ))}
             </SelectContent>

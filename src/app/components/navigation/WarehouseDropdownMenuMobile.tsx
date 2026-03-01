@@ -45,6 +45,7 @@ interface Props {
  */
 const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
   const [open, setOpen] = useState(false)
+  const isOplModule = basePath === '/opl-crm'
 
   const { isAdmin } = useRole()
   const router = useRouter()
@@ -93,6 +94,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
    * Prevents ambiguous warehouse state on mobile.
    */
   useEffect(() => {
+    if (isOplModule) return
     if (
       !isAdmin &&
       availableLocations.length === 1 &&
@@ -110,6 +112,7 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
     isWarehouseSection,
     router,
     basePath,
+    isOplModule,
   ])
 
   /** -------------------------------------------
@@ -123,6 +126,20 @@ const WarehouseDropdownMenuMobile = ({ isTechnician, basePath }: Props) => {
         className={cn(
           getMobileNavItemClass(isWarehouseSection)
         )}
+      >
+        <MdWarehouse className="h-5 w-5" />
+        <span>Magazyn</span>
+      </Button>
+    )
+  }
+
+  // OPL: one global location, no location split in navigation.
+  if (isOplModule) {
+    return (
+      <Button
+        variant="ghost"
+        onClick={() => router.push(`${basePath}/admin-panel?tab=warehouse`)}
+        className={cn(getMobileNavItemClass(isWarehouseSection))}
       >
         <MdWarehouse className="h-5 w-5" />
         <span>Magazyn</span>

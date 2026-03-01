@@ -1612,6 +1612,17 @@ export const queriesRouter = router({
         status: true,
         notes: true,
         standard: true,
+        transferPending: true,
+        transferTo: {
+          select: {
+            userId: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
 
         assignments: {
           orderBy: { assignedAt: 'asc' },
@@ -1647,6 +1658,13 @@ export const queriesRouter = router({
       operator: o.operator,
       status: o.status,
       notes: o.notes,
+      transferPending: o.transferPending,
+      transferTo: o.transferTo
+        ? {
+            id: o.transferTo.userId,
+            name: o.transferTo.user.name,
+          }
+        : null,
 
       technicians: o.assignments.map((a) => ({
         id: a.technician.user.id,

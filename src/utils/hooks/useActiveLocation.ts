@@ -3,7 +3,7 @@
 
 import { useRole } from '@/utils/hooks/useRole'
 import { useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 /**
  * Reads currently active warehouse location from URL or user context.
@@ -11,8 +11,17 @@ import { useSearchParams } from 'next/navigation'
  */
 export const useActiveLocation = (): string | null => {
   const { isAdmin, isCoordinator, isWarehouseman } = useRole()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const { data: session } = useSession()
+
+  // OPL works in single global warehouse location mode.
+  if (pathname.startsWith('/opl-crm')) {
+    if (isAdmin || isCoordinator || isWarehouseman) {
+      return session?.user?.locations?.[0]?.id ?? null
+    }
+    return null
+  }
 
   if (isAdmin || isCoordinator) {
     const loc = searchParams.get('loc')

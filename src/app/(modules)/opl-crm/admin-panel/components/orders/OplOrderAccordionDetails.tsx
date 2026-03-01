@@ -15,6 +15,7 @@ import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplOrderStatus } from '@prisma/client'
 import { format } from 'date-fns'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import { IoCheckmarkDone } from 'react-icons/io5'
@@ -42,6 +43,9 @@ type Props = { order: { id: string } }
 const OplOrderAccordionDetails = ({ order }: Props) => {
   /** Local state for admin edit modal */
   const [openEdit, setOpenEdit] = useState<boolean>(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   /** tRPC utils used for post-mutation invalidation */
   const utils = trpc.useUtils()
@@ -482,7 +486,21 @@ const OplOrderAccordionDetails = ({ order }: Props) => {
 
       <div>
         <h3 className="text-base font-semibold mb-2">Historia zlecenia</h3>
-        <OplOrderTimeline order={data} />
+        <OplOrderTimeline
+          order={data}
+          onOpenOrder={(orderId) => {
+            const currentQuery = searchParams.toString()
+            const baseFrom = searchParams.get('from')
+            const from = baseFrom
+              ? decodeURIComponent(baseFrom)
+              : currentQuery
+                ? `${pathname}?${currentQuery}`
+                : pathname
+            router.push(
+              `/opl-crm/admin-panel/orders/${orderId}?from=${encodeURIComponent(from)}`
+            )
+          }}
+        />
       </div>
     </div>
   )

@@ -55,8 +55,10 @@ const OplItemModeTable = ({ mode, items }: Props) => {
     name: loc.name,
   }))
 
+  const isOplModule = pathname.startsWith('/opl-crm')
   const showLocationColumn =
-    isAdmin || ((isCoordinator || isWarehouseman) && locations.length > 1)
+    !isOplModule &&
+    (isAdmin || ((isCoordinator || isWarehouseman) && locations.length > 1))
 
   const openOrderDetails = (orderId: string) => {
     const query = searchParams.toString()

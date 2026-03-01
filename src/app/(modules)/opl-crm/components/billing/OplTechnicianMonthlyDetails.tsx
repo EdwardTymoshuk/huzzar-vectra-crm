@@ -25,7 +25,7 @@ import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import { MdVisibility } from 'react-icons/md'
+import { MdKeyboardArrowRight } from 'react-icons/md'
 import {
   formatBillingQuantity,
   getVisibleBillingCodes,
@@ -241,10 +241,12 @@ const OplTechnicianMonthlyDetails = ({
                           <TableCell>
                             <Button
                               variant="outline"
-                              size="icon"
+                              size="sm"
+                              className="gap-1"
                               onClick={() => openOrderDetails(order.id)}
                             >
-                              <MdVisibility className="w-4 h-4" />
+                              Szczegóły
+                              <MdKeyboardArrowRight className="h-4 w-4" />
                             </Button>
                           </TableCell>
                         </TableRow>

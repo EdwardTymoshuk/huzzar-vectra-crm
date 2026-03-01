@@ -47,6 +47,11 @@ export type ActiveOrderRow = {
   network: OplNetworkOeprator
   status: OplOrderStatus
   notes: string | null
+  transferPending?: boolean
+  transferTo?: {
+    id: string
+    name: string
+  } | null
   technicians: {
     id: string
     name: string
@@ -79,8 +84,8 @@ type PlannerRow = {
   timeSlot: OplTimeSlot
   network: OplNetworkOeprator
   status: OplOrderStatus
-  /** When true, row represents an incoming transfer waiting for acceptance. */
-  incoming: boolean
+  source: 'ACTIVE' | 'INCOMING' | 'OUTGOING'
+  transferToName?: string
 }
 
 const TechnicianOplPlanerTable = ({
@@ -175,7 +180,8 @@ const TechnicianOplPlanerTable = ({
       timeSlot: o.timeSlot,
       network: o.network,
       status: o.status,
-      incoming: false,
+      source: o.transferPending && o.transferTo?.id ? 'OUTGOING' : 'ACTIVE',
+      transferToName: o.transferTo?.name ?? undefined,
     }))
 
     const inc: PlannerRow[] = (incomingTransfers as IncomingTransferRow[]).map(
@@ -189,11 +195,11 @@ const TechnicianOplPlanerTable = ({
         timeSlot: t.timeSlot,
         network: t.network,
         status: 'ASSIGNED',
-        incoming: true,
+        source: 'INCOMING',
       })
     )
 
-    // Merge incoming + active
+    // Merge incoming + active/outgoing
     const merged = [...inc, ...base]
 
     // ✅ Sort newest first (descending by date)
@@ -209,11 +215,16 @@ const TechnicianOplPlanerTable = ({
   /* ---------------------- Client-side search ---------------------- */
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase()
-    return rows.filter(
+    const matches = rows.filter(
       (o) =>
         o.orderNumber.toLowerCase().includes(q) ||
         `${o.city} ${o.street}`.toLowerCase().includes(q)
     )
+    return {
+      incoming: matches.filter((o) => o.source === 'INCOMING'),
+      outgoing: matches.filter((o) => o.source === 'OUTGOING'),
+      active: matches.filter((o) => o.source === 'ACTIVE'),
+    }
   }, [rows, searchTerm])
 
   /* ---------------------- Map technician stock for wizard ---------------------- */
@@ -247,9 +258,9 @@ const TechnicianOplPlanerTable = ({
     }))
 
   /* ---------------------- Loading & error states ---------------------- */
-  {
-    isCompleteOpen && activeOrderId && !fullOrder && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+  if (activeLoading || incomingLoading) {
+    return (
+      <div className="w-full flex justify-center py-8">
         <LoaderSpinner />
       </div>
     )
@@ -262,129 +273,156 @@ const TechnicianOplPlanerTable = ({
       </p>
     )
 
-  if (filtered.length === 0)
+  if (
+    filtered.active.length === 0 &&
+    filtered.incoming.length === 0 &&
+    filtered.outgoing.length === 0
+  )
     return (
       <p className="py-10 text-center text-muted-foreground">
         Brak aktywnych zleceń na ten dzień.
       </p>
     )
 
+  const renderRow = (o: PlannerRow) => (
+    <Card
+      key={o.id}
+      className={`shadow-sm border rounded-xl space-y-4 ${
+        o.source === 'INCOMING' ? 'opacity-60' : ''
+      }`}
+    >
+      <CardHeader className="pb-0">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+          <div className="flex flex-col w-full">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-muted-foreground tracking-wide">
+                  {oplOrderTypeMap[o.type] ?? '—'}
+                </span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  {oplNetworkMap[o.network] ?? o.network}
+                </span>
+              </div>
+
+              <div className="flex flex-col items-end text-sm text-muted-foreground">
+                <span>{formatDate(o.date)}</span>
+                <span>{getTimeSlotLabel(o.timeSlot)}</span>
+              </div>
+            </div>
+          </div>
+        </CardTitle>
+      </CardHeader>
+
+      <CardContent className="text-sm">
+        <div className="text-base font-semibold">
+          <Highlight searchWords={[searchTerm]} textToHighlight={o.orderNumber} />
+        </div>
+        <div className="text-base font-semibold">
+          <Highlight
+            searchWords={[searchTerm]}
+            textToHighlight={`${o.city}, ${o.street}`}
+          />
+        </div>
+
+        {o.source === 'OUTGOING' && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Oczekuje akceptacji przez: <span className="font-semibold">{o.transferToName ?? '—'}</span>
+          </p>
+        )}
+
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 pt-3">
+          {o.source === 'INCOMING' && (
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                size="sm"
+                variant="default"
+                className="flex-1 sm:flex-none"
+                onClick={() => accept.mutate({ orderId: o.id })}
+                disabled={accept.isLoading}
+              >
+                Akceptuj
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                onClick={() => reject.mutate({ orderId: o.id })}
+                disabled={reject.isLoading}
+              >
+                Odrzuć
+              </Button>
+            </div>
+          )}
+
+          {o.source === 'ACTIVE' && o.status === OplOrderStatus.ASSIGNED && (
+            <>
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setActiveOrderId(o.id)
+                  setIsCompleteOpen(true)
+                }}
+              >
+                <BsSendCheck className="mr-1" />
+                Odpisz
+              </Button>
+
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full sm:w-auto"
+                onClick={() => setShowTransfer(o.id)}
+              >
+                <CgArrowsExchange className="mr-1" />
+                Przekaż
+              </Button>
+            </>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => setOpenOrderId(o.id)}
+          >
+            <MdVisibility className="mr-1" /> Szczegóły
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   /* ---------------------- Render ---------------------- */
   return (
     <div className="flex flex-col gap-3 uppercase">
-      {filtered.map((o) => (
-        <Card
-          key={o.id}
-          className={`shadow-sm border rounded-xl space-y-4 ${
-            o.incoming ? 'opacity-60' : ''
-          }`}
-        >
-          <CardHeader className="pb-0">
-            <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <div className="flex flex-col w-full">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-muted-foreground tracking-wide">
-                      {oplOrderTypeMap[o.type] ?? '—'}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-normal">
-                      {oplNetworkMap[o.network] ?? o.network}
-                    </span>
-                  </div>
+      {filtered.incoming.length > 0 && (
+        <section className="space-y-2">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground">
+            Przekazane do Ciebie
+          </p>
+          {filtered.incoming.map(renderRow)}
+        </section>
+      )}
 
-                  <div className="flex flex-col items-end text-sm text-muted-foreground">
-                    {/* Data */}
-                    <span>{formatDate(o.date)}</span>
-                    <span>{getTimeSlotLabel(o.timeSlot)}</span>
-                  </div>
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
+      {filtered.outgoing.length > 0 && (
+        <section className="space-y-2">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground">
+            Przekazane przez Ciebie
+          </p>
+          {filtered.outgoing.map(renderRow)}
+        </section>
+      )}
 
-          <CardContent className="text-sm">
-            {/* Basic order info */}
-            <div className="text-base font-semibold">
-              {' '}
-              <Highlight
-                searchWords={[searchTerm]}
-                textToHighlight={o.orderNumber}
-              />
-            </div>
-            <div className="text-base font-semibold">
-              <Highlight
-                searchWords={[searchTerm]}
-                textToHighlight={`${o.city}, ${o.street}`}
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 pt-3">
-              {/* Accept / Reject for incoming transfers */}
-              {o.incoming && (
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="flex-1 sm:flex-none"
-                    onClick={() => accept.mutate({ orderId: o.id })}
-                    disabled={accept.isLoading}
-                  >
-                    Akceptuj
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="flex-1 sm:flex-none"
-                    onClick={() => reject.mutate({ orderId: o.id })}
-                    disabled={reject.isLoading}
-                  >
-                    Odrzuć
-                  </Button>
-                </div>
-              )}
-
-              {/* Complete / Transfer for assigned, non-incoming */}
-              {!o.incoming && o.status === OplOrderStatus.ASSIGNED && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      setActiveOrderId(o.id)
-                      setIsCompleteOpen(true)
-                    }}
-                  >
-                    <BsSendCheck className="mr-1" />
-                    Odpisz
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="w-full sm:w-auto"
-                    onClick={() => setShowTransfer(o.id)}
-                  >
-                    <CgArrowsExchange className="mr-1" />
-                    Przekaż
-                  </Button>
-                </>
-              )}
-
-              {/* Always available: details */}
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => setOpenOrderId(o.id)}
-              >
-                <MdVisibility className="mr-1" /> Szczegóły
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {filtered.active.length > 0 && (
+        <section className="space-y-2">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground">
+            Moje aktywne zlecenia
+          </p>
+          {filtered.active.map(renderRow)}
+        </section>
+      )}
 
       {/* Details sheet */}
       <OplOrderDetailsSheet

@@ -30,6 +30,7 @@ import { useActiveLocation } from '@/utils/hooks/useActiveLocation'
 import { useRole } from '@/utils/hooks/useRole'
 import { trpc } from '@/utils/trpc'
 import { OplWarehouseAction, OplWarehouseItemType } from '@prisma/client'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import Highlight from 'react-highlight-words'
 import { MdKeyboardArrowRight } from 'react-icons/md'
@@ -66,7 +67,11 @@ const OplWarehouseTableAdmin = ({
   const itemsPerPage = 100
 
   const locationId = useActiveLocation()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { isAdmin, isCoordinator, isTechnician } = useRole()
+  const query = searchParams.toString()
+  const from = query ? `${pathname}?${query}` : pathname
 
   const { data, isLoading, isError } =
     trpc.opl.warehouse.getDefinitionsWithStock.useQuery(
@@ -167,6 +172,11 @@ const OplWarehouseTableAdmin = ({
       <TiArrowSortedDown className="w-4 h-4" />
     )
   }
+
+  const detailsHrefForName = (itemName: string) =>
+    `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(itemName)}?from=${encodeURIComponent(
+      from
+    )}`
 
   if (isLoading) {
     return (
@@ -279,15 +289,7 @@ const OplWarehouseTableAdmin = ({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <NavLink
-                            href={
-                              locationId
-                                ? `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
-                                    item.name
-                                  )}?loc=${locationId}`
-                                : `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
-                                    item.name
-                                  )}`
-                            }
+                            href={detailsHrefForName(item.name)}
                             prefetch
                           >
                             <MdKeyboardArrowRight />
@@ -384,15 +386,7 @@ const OplWarehouseTableAdmin = ({
                     <TableCell>
                       <Button asChild size="sm" variant="ghost">
                         <NavLink
-                          href={
-                            locationId
-                              ? `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
-                                  item.name
-                                )}?loc=${locationId}`
-                              : `${OPL_PATH}/admin-panel/warehouse/details/${encodeURIComponent(
-                                  item.name
-                                )}`
-                          }
+                          href={detailsHrefForName(item.name)}
                           prefetch
                         >
                           <MdKeyboardArrowRight />
@@ -461,7 +455,6 @@ const OplDeviceDetailsRows = ({
           <TableHead>Numer seryjny</TableHead>
           <TableHead>Data przyjęcia</TableHead>
           <TableHead>Przyjęte przez</TableHead>
-          <TableHead>Magazyn</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -479,7 +472,6 @@ const OplDeviceDetailsRows = ({
               <TableCell>{item.serialNumber ?? '—'}</TableCell>
               <TableCell>{formatDateOrDash(receivedDate)}</TableCell>
               <TableCell>{receivedAction?.performedBy?.name ?? '—'}</TableCell>
-              <TableCell>{item.location?.name ?? '—'}</TableCell>
             </TableRow>
           )
         })}

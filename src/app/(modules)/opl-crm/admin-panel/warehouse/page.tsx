@@ -3,10 +3,9 @@
 import WarehouseFloatingActions from '@/app/components/WarehouseFloatingActions'
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { OPL_PATH } from '@/lib/constants'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import WarehouseTabs from '../../components/warehouse/OplWarehouseTabs'
-import LocationTransfersTable from '../components/warehouse/LocationTransfersTable'
 import OplReportsDialog from '../components/warehouse/OplReportsDialog'
 import ReturnedFromTechniciansSection from '../components/warehouse/ReturnedFromTechniciansSection'
 import WarehouseHeaderBar from '../components/warehouse/WarehouseHeaderBar'
@@ -25,12 +24,13 @@ const WarehousePage = () => {
   const [isNavigatingReturn, setIsNavigatingReturn] = useState(false)
   const [isStockOpen, setStockOpen] = useState(false)
   const [isSerialOpen, setSerialOpen] = useState(false)
-  const [isNavigatingTransfer, setIsNavigatingTransfer] = useState(false)
   const [isReportsOpen, setReportsOpen] = useState(false)
   const [isNavigatingIssue, setIsNavigatingIssue] = useState(false)
   const [isNavigatingHistory, setIsNavigatingHistory] = useState(false)
 
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const goToIssuePage = () => {
     setIsNavigatingIssue(true)
@@ -47,14 +47,13 @@ const WarehousePage = () => {
     router.push(`${OPL_PATH}/admin-panel/warehouse/return`)
   }
 
-  const goToTransferPage = () => {
-    setIsNavigatingTransfer(true)
-    router.push(`${OPL_PATH}/admin-panel/warehouse/transfer`)
-  }
-
   const goToHistoryPage = () => {
     setIsNavigatingHistory(true)
-    router.push(`${OPL_PATH}/admin-panel/warehouse/history`)
+    const query = searchParams.toString()
+    const from = query ? `${pathname}?${query}` : pathname
+    router.push(
+      `${OPL_PATH}/admin-panel/warehouse/history?from=${encodeURIComponent(from)}`
+    )
   }
 
   return (
@@ -83,20 +82,17 @@ const WarehousePage = () => {
         onReturn={goToReturnPage}
         onStockCheck={() => setStockOpen(true)}
         onSerialCheck={() => setSerialOpen(true)}
-        onTransfer={goToTransferPage}
         onHistory={goToHistoryPage}
         onReports={() => setReportsOpen(true)}
         addLoading={isNavigatingAdd}
         issueLoading={isNavigatingIssue}
         returnLoading={isNavigatingReturn}
-        transferLoading={isNavigatingTransfer}
         historyLoading={isNavigatingHistory}
       />
 
       {/* Page content */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
         <WarehouseSummaryCard />
-        <LocationTransfersTable />
         <ReturnedFromTechniciansSection />
 
         <WarehouseTabs
@@ -115,10 +111,10 @@ const WarehousePage = () => {
             onReturn={goToReturnPage}
             onStockCheck={() => setStockOpen(true)}
             onSerialCheck={() => setSerialOpen(true)}
-            onTransfer={goToTransferPage}
             onHistory={goToHistoryPage}
             onReports={() => setReportsOpen(true)}
             showImport={false}
+            showTransfer={false}
           />
         </div>
       </div>

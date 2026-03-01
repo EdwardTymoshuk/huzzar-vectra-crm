@@ -15,6 +15,7 @@ import {
 import { OPL_PATH } from '@/lib/constants'
 import { trpc } from '@/utils/trpc'
 import { OplOrderType } from '@prisma/client'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { MdKeyboardArrowRight } from 'react-icons/md'
 import {
   formatBillingQuantity,
@@ -30,6 +31,11 @@ type Props = {
 }
 
 const OplBillingMonthlySummaryTable = ({ from, to, orderType }: Props) => {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const currentQuery = searchParams.toString()
+  const returnTo = currentQuery ? `${pathname}?${currentQuery}` : pathname
+
   const { data, isLoading } = trpc.opl.order.getBillingMonthlySummary.useQuery({
     from,
     to,
@@ -83,7 +89,7 @@ const OplBillingMonthlySummaryTable = ({ from, to, orderType }: Props) => {
                 ? 'bg-warning'
                 : 'bg-success'
 
-            const detailsHref = `${OPL_PATH}/admin-panel/billing/technician/${row.technicianId}?from=${from}&to=${to}`
+            const detailsHref = `${OPL_PATH}/admin-panel/billing/technician/${row.technicianId}?from=${from}&to=${to}&returnTo=${encodeURIComponent(returnTo)}`
 
             return (
               <TableRow key={row.technicianId} className="hover:bg-muted/40">
@@ -107,9 +113,11 @@ const OplBillingMonthlySummaryTable = ({ from, to, orderType }: Props) => {
                   <NavLink href={detailsHref} passHref prefetch>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="outline"
                       aria-label="Podsumowanie technika"
+                      className="gap-1"
                     >
+                      Szczegóły
                       <MdKeyboardArrowRight className="mr-1" />
                     </Button>
                   </NavLink>

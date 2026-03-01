@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu'
 import { BsThreeDotsVertical } from 'react-icons/bs'
-import { CgArrowsExchangeAlt } from 'react-icons/cg'
 import {
   HiOutlineArrowDownOnSquare,
   HiOutlineArrowUpOnSquare,
@@ -33,13 +32,11 @@ interface WarehouseHeaderBarProps {
   onReturn: () => void
   onStockCheck: () => void
   onSerialCheck: () => void
-  onTransfer: () => void
   onHistory: () => void
   onReports: () => void
   addLoading?: boolean
   issueLoading?: boolean
   returnLoading?: boolean
-  transferLoading?: boolean
   historyLoading?: boolean
   centerContent?: ReactNode
 }
@@ -61,13 +58,11 @@ const WarehouseHeaderBar = ({
   onReturn,
   onStockCheck,
   onSerialCheck,
-  onTransfer,
   onHistory,
   onReports,
   addLoading = false,
   issueLoading = false,
   returnLoading = false,
-  transferLoading = false,
   historyLoading = false,
   centerContent,
 }: WarehouseHeaderBarProps) => {
@@ -133,22 +128,6 @@ const WarehouseHeaderBar = ({
             <div className="flex items-center gap-2">
               <TbListSearch className="text-lg" />
               <span>Sprawdź SN/MAC</span>
-            </div>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            onClick={onTransfer}
-            disabled={transferLoading}
-            className="hover:cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <CgArrowsExchangeAlt className="text-lg" />
-              <span className="flex items-center gap-2">
-                Przekazanie
-                {transferLoading ? (
-                  <ImSpinner2 className="text-sm animate-spin" />
-                ) : null}
-              </span>
             </div>
           </DropdownMenuItem>
 

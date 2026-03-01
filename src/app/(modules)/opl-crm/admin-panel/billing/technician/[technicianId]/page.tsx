@@ -21,6 +21,7 @@ const OplTechnicianBillingDetailsPage = ({
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromParam = searchParams.get('from')
+  const returnTo = searchParams.get('returnTo')
 
   const initialMonth = fromParam ? new Date(fromParam) : startOfMonth(new Date())
   const [selectedMonth, setSelectedMonth] = useState<Date>(initialMonth)
@@ -32,11 +33,12 @@ const OplTechnicianBillingDetailsPage = ({
   const to = format(endOfMonth(selectedMonth), 'yyyy-MM-dd')
 
   useEffect(() => {
+    const returnToPart = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ''
     router.replace(
-      `${OPL_PATH}/admin-panel/billing/technician/${technicianId}?from=${from}&to=${to}`,
+      `${OPL_PATH}/admin-panel/billing/technician/${technicianId}?from=${from}&to=${to}${returnToPart}`,
       { scroll: false }
     )
-  }, [from, to, technicianId, router])
+  }, [from, to, technicianId, router, returnTo])
 
   return (
     <div className="flex flex-col w-full flex-1 min-h-0 overflow-hidden">
@@ -46,7 +48,13 @@ const OplTechnicianBillingDetailsPage = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.back()}
+            onClick={() =>
+              router.push(
+                returnTo
+                  ? decodeURIComponent(returnTo)
+                  : `${OPL_PATH}/admin-panel?tab=billing&from=${from}&to=${to}`
+              )
+            }
             className="flex items-center gap-1"
           >
             <MdKeyboardArrowLeft className="w-5 h-5" />

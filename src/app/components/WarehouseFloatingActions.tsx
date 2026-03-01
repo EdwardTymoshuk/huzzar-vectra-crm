@@ -17,10 +17,11 @@ interface WarehouseFloatingActionsProps {
   onReturn: () => void
   onStockCheck: () => void
   onSerialCheck: () => void
-  onTransfer: () => void
+  onTransfer?: () => void
   onHistory: () => void
   onReports: () => void
   showImport?: boolean
+  showTransfer?: boolean
 }
 
 const WarehouseFloatingActions = ({
@@ -34,6 +35,7 @@ const WarehouseFloatingActions = ({
   onHistory,
   onReports,
   showImport = true,
+  showTransfer = true,
 }: WarehouseFloatingActionsProps) => {
   return (
     <FloatingActionMenu
@@ -85,12 +87,16 @@ const WarehouseFloatingActions = ({
           colorClass: 'bg-secondary hover:bg-secondary/90',
           onClick: onSerialCheck,
         },
-        {
-          label: 'Przekazanie',
-          icon: <CgArrowsExchangeAlt />,
-          colorClass: 'bg-secondary hover:bg-secondary/90',
-          onClick: onTransfer,
-        },
+        ...(showTransfer && onTransfer
+          ? [
+              {
+                label: 'Przekazanie',
+                icon: <CgArrowsExchangeAlt />,
+                colorClass: 'bg-secondary hover:bg-secondary/90',
+                onClick: onTransfer,
+              },
+            ]
+          : []),
         {
           label: 'Raporty',
           icon: <MdDescription />,

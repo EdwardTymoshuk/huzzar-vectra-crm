@@ -122,27 +122,6 @@ const OplItemHeader = ({
     ? heldByTechnicians.reduce((acc, i) => acc + i.quantity * (i.price ?? 0), 0)
     : undefined
 
-  // Per location breakdown (warehouse stock only)
-  const byLocation = useMemo(() => {
-    const map = new Map<string, { name: string; qty: number }>()
-    for (const it of items) {
-      const id = it.location?.id ?? 'unknown'
-      const name = it.location?.name ?? '—'
-
-      const inWarehouse =
-        it.status === 'AVAILABLE' &&
-        it.assignedToId === null &&
-        it.orderAssignments.length === 0
-
-      if (!inWarehouse) continue
-
-      const current = map.get(id) ?? { name, qty: 0 }
-      current.qty += isDevice ? 1 : it.quantity
-      map.set(id, current)
-    }
-    return Array.from(map.entries()).map(([id, v]) => ({ id, ...v }))
-  }, [items, isDevice])
-
   return (
     <ItemStatsCard
       name={definition.name}
@@ -151,7 +130,6 @@ const OplItemHeader = ({
       isDevice={isDevice}
       warehouseQty={warehouseQty}
       warehouseValue={warehouseValue}
-      warehouseByLocation={byLocation}
       technicianQty={technicianQty}
       technicianValue={technicianValue}
       technicianLabel="Stan techników"

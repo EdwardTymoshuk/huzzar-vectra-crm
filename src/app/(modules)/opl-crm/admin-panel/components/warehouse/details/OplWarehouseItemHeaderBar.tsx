@@ -2,7 +2,7 @@
 
 import { Button } from '@/app/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { MdKeyboardArrowLeft } from 'react-icons/md'
 
 interface OplWarehouseItemDetailHeaderBarProps {
@@ -26,6 +26,11 @@ const OplWarehouseItemDetailHeaderBar = ({
   className,
 }: OplWarehouseItemDetailHeaderBarProps) => {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const from = searchParams.get('from')
+  const handleBack = () => {
+    router.push(from ? decodeURIComponent(from) : '/opl-crm/admin-panel?tab=warehouse')
+  }
 
   return (
     <header
@@ -39,7 +44,7 @@ const OplWarehouseItemDetailHeaderBar = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.back()}
+          onClick={handleBack}
           className="flex items-center gap-1"
         >
           <MdKeyboardArrowLeft className="w-5 h-5" />
