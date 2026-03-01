@@ -5,10 +5,12 @@ import { deviceDefinitionRouter } from './deviceDefinitionRouter'
 import { materialDefinitionRouter } from './materialDefinitionRouter'
 import { operatorDefinitionRouter } from './operatorDefinitionRouter'
 import { rateDefinitionRouter } from './rateDefinition'
+import { zoneDefinitionRouter } from './zoneDefinitionRouter'
 
 export const settingsRouter = mergeRouters(
   deviceDefinitionRouter,
   materialDefinitionRouter,
   operatorDefinitionRouter,
-  rateDefinitionRouter
+  rateDefinitionRouter,
+  zoneDefinitionRouter
 )

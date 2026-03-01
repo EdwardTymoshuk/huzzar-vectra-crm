@@ -68,6 +68,8 @@ export function AddOplOrderModal({
       postalCode: '',
       notes: '',
       standard: undefined,
+      termChangeFlag: 'N',
+      leads: 0,
       assignedTechnicianIds: [],
       status: OplOrderStatus.PENDING,
       contractRequired: false,

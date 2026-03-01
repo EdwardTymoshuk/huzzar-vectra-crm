@@ -126,7 +126,10 @@ const orderSchemaBase = z.object({
       .min(1, 'Wybierz przynajmniej jednego technika')
       .max(2, 'Można przypisać maksymalnie dwóch techników'),
 
+    zone: optionalInputString(z.string().max(80).optional()),
     standard: z.nativeEnum(OplOrderStandard).optional(),
+    termChangeFlag: z.enum(['T', 'N']).default('N'),
+    leads: z.coerce.number().int().min(0).default(0),
     notes: optionalInputString(z.string().optional()),
     contractRequired: z.boolean().optional(),
 

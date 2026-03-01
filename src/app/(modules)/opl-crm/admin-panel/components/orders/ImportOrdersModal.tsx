@@ -495,6 +495,7 @@ const ImportOrdersModal: React.FC<ImportOrdersModalProps> = ({
               : undefined,
           zone: o.zone,
           termChangeFlag: o.termChangeFlag,
+          leads: o.leads,
           notes: [
             o.notes?.trim(),
             ...(unresolvedByOrder.get(o.orderNumber)?.length

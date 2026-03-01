@@ -33,7 +33,8 @@ model OplOrder {
   operator      String
   type          OplOrderType
   zone          String?
-  termChangeFlag String?
+  termChangeFlag String @default("N")
+  leads          Int    @default(0)
 
   closedAt      DateTime?
   completedAt   DateTime?
@@ -64,6 +65,7 @@ model OplOrder {
 
   /// Audit trail.
   history OplOrderHistory[]
+  npsEntries OplNpsEntry[]
 
   @@unique([orderNumber, city, street, attemptNumber])
   @@schema("opl")

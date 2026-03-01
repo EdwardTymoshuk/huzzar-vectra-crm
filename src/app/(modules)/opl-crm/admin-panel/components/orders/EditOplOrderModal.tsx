@@ -78,6 +78,8 @@ const EditOplOrderModal = ({ open, orderId, onCloseAction }: Props) => {
           assignedTechnicianIds: defaultAssignedIds,
 
           standard: order.standard ?? undefined,
+          termChangeFlag: order.termChangeFlag === 'T' ? 'T' : 'N',
+          leads: order.leads ?? 0,
 
           notes: order.notes ?? undefined,
 

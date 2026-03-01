@@ -21,6 +21,7 @@ export type ParsedOplOrderFromExcel = {
   equipmentToDeliver: string[]
   zone?: string
   termChangeFlag?: 'T' | 'N'
+  leads?: number
   importStatus?: string
 }
 
@@ -73,6 +74,7 @@ export async function parseOplOrdersFromExcel(
       'wynik',
       'status',
     ]),
+    leads: safeIndex(headerMap, ['leady', 'lead', 'liczba leadow', 'leady [szt]']),
     appointment: safeIndex(headerMap, [
       'data umówienia',
       'data umowienia',
@@ -189,6 +191,8 @@ export async function parseOplOrdersFromExcel(
     const resultStatusRaw =
       col.resultStatus !== null ? String(row[col.resultStatus] ?? '').trim() : ''
     const importStatus = resultStatusRaw || undefined
+    const leadsRaw = col.leads !== null ? String(row[col.leads] ?? '').trim() : ''
+    const leads = parseLeads(leadsRaw)
 
     const inputNotes = col.notes !== null ? String(row[col.notes] ?? '').trim() : ''
     const standardsRaw =
@@ -226,6 +230,7 @@ export async function parseOplOrdersFromExcel(
       equipmentToDeliver,
       zone,
       termChangeFlag,
+      leads,
       importStatus,
     })
 
@@ -608,6 +613,14 @@ function parseTermChangeFlag(raw: string): 'T' | 'N' | undefined {
   if (s === 'T') return 'T'
   if (s === 'N') return 'N'
   return undefined
+}
+
+function parseLeads(raw: string): number | undefined {
+  if (!raw) return undefined
+  const normalized = raw.replace(',', '.').trim()
+  const parsed = Number(normalized)
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined
+  return Math.round(parsed)
 }
 
 function extractDateFromText(text: string): string | null {

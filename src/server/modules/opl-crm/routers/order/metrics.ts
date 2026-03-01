@@ -8,7 +8,7 @@ import { getCoreUserOrThrow } from '@/server/core/services/getCoreUserOrThrow'
 import { adminOrCoord, technicianOnly } from '@/server/roleHelpers'
 import { router } from '@/server/trpc'
 import { prisma } from '@/utils/prisma'
-import { OplOrderStatus, OplOrderType } from '@prisma/client'
+import { OplOrderStatus, OplOrderType, Prisma } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
@@ -27,6 +27,30 @@ type OrderStats = {
   prevTotal: number
   prevCompleted: number
   prevFailed: number
+}
+
+type DashboardRange = 'day' | 'month' | 'year'
+
+const buildRangeFromDate = (base: Date, range: DashboardRange) => {
+  const start = new Date(base)
+  const end = new Date(base)
+
+  if (range === 'day') {
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+  } else if (range === 'month') {
+    start.setDate(1)
+    start.setHours(0, 0, 0, 0)
+    end.setMonth(end.getMonth() + 1, 0)
+    end.setHours(23, 59, 59, 999)
+  } else {
+    start.setMonth(0, 1)
+    start.setHours(0, 0, 0, 0)
+    end.setMonth(11, 31)
+    end.setHours(23, 59, 59, 999)
+  }
+
+  return { start, end }
 }
 
 const getOrderTotalAmount = (
@@ -82,7 +106,791 @@ const getTechnicianShareAmount = (
   return orderAmount / divisor
 }
 
+const isMissingLeadTableError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  return (
+    message.includes('OplLeadEntry') &&
+    (message.includes('does not exist') || message.includes('42P01'))
+  )
+}
+
+const isMissingZoneTableError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  return (
+    message.includes('OplZoneDefinition') &&
+    (message.includes('does not exist') || message.includes('42P01'))
+  )
+}
+
 export const metricsRouter = router({
+  createLeadEntry: adminOrCoord
+    .input(
+      z.object({
+        zone: z.string().min(2),
+        technicianId: z.string().optional(),
+        address: z.string().min(3),
+        leadNumber: z.string().min(2),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { id: createdById } = getCoreUserOrThrow(ctx)
+      let zoneDefinition: { zone: string; active: boolean } | null = null
+      try {
+        const rows = await ctx.prisma.$queryRaw<Array<{ zone: string; active: boolean }>>(
+          Prisma.sql`
+            SELECT "zone", "active"
+            FROM "opl"."OplZoneDefinition"
+            WHERE "zone" = ${input.zone.trim()}
+            LIMIT 1
+          `
+        )
+        zoneDefinition = rows[0] ?? null
+      } catch (error) {
+        if (isMissingZoneTableError(error)) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message:
+              'Tabela stref nie istnieje w bazie. Wykonaj migrację/db push i spróbuj ponownie.',
+          })
+        }
+        throw error
+      }
+      if (!zoneDefinition || !zoneDefinition.active) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Wybierz strefę z aktywnego słownika.',
+        })
+      }
+
+      const technician = input.technicianId
+        ? await ctx.prisma.oplUser.findUnique({
+            where: { userId: input.technicianId },
+            select: {
+              user: {
+                select: { name: true },
+              },
+            },
+          })
+        : null
+
+      const id = crypto.randomUUID()
+      try {
+        await ctx.prisma.$executeRaw(
+          Prisma.sql`
+            INSERT INTO "opl"."OplLeadEntry"
+              ("id", "zone", "address", "leadNumber", "operator", "technicianId", "technicianName", "createdById")
+            VALUES
+              (${id}, ${input.zone.trim()}, ${input.address.trim()}, ${input.leadNumber.trim()}, 'ORANGE', ${input.technicianId ?? null}, ${technician?.user.name?.trim() || null}, ${createdById})
+          `
+        )
+      } catch (error) {
+        if (isMissingLeadTableError(error)) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message:
+              'Tabela leadów nie istnieje w bazie. Wykonaj migrację/db push i spróbuj ponownie.',
+          })
+        }
+        throw error
+      }
+
+      return { id }
+    }),
+
+  importNpsQ6Rows: adminOrCoord
+    .input(
+      z.object({
+        rows: z.array(
+          z.object({
+            orderNumber: z.string().min(3),
+            technicianName: z.string().optional(),
+            zone: z.string().optional(),
+            q6Score: z.number().int().min(1).max(5),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { id: importedById } = getCoreUserOrThrow(ctx)
+      const uniqueRows = Array.from(
+        new Map(
+          input.rows.map((row) => [row.orderNumber.trim().toUpperCase(), row])
+        ).values()
+      )
+
+      let updated = 0
+      let unresolvedOrders = 0
+
+      for (const row of uniqueRows) {
+        const normalizedOrderNumber = row.orderNumber.trim()
+
+        const linkedOrder = await ctx.prisma.oplOrder.findFirst({
+          where: {
+            orderNumber: { equals: normalizedOrderNumber, mode: 'insensitive' },
+          },
+          orderBy: { attemptNumber: 'desc' },
+          select: {
+            id: true,
+            operator: true,
+            zone: true,
+          },
+        })
+
+        if (!linkedOrder) unresolvedOrders++
+
+        await ctx.prisma.oplNpsEntry.upsert({
+          where: { orderNumber: normalizedOrderNumber },
+          create: {
+            orderNumber: normalizedOrderNumber,
+            orderId: linkedOrder?.id ?? null,
+            operator: linkedOrder?.operator ?? null,
+            zone: row.zone?.trim() || linkedOrder?.zone || null,
+            technicianName: row.technicianName?.trim() || null,
+            q6Score: row.q6Score,
+            importedById,
+          },
+          update: {
+            orderId: linkedOrder?.id ?? null,
+            operator: linkedOrder?.operator ?? null,
+            zone: row.zone?.trim() || linkedOrder?.zone || null,
+            technicianName: row.technicianName?.trim() || null,
+            q6Score: row.q6Score,
+            importedById,
+            importedAt: new Date(),
+          },
+        })
+
+        updated++
+      }
+
+      return {
+        updated,
+        unresolvedOrders,
+      }
+    }),
+
+  getOrangeGoalsDashboard: adminOrCoord
+    .input(
+      z.object({
+        date: z.date(),
+        range: rangeSchema,
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { start, end } = buildRangeFromDate(input.date, input.range)
+      const zoneDefinitions = await (async () => {
+        try {
+          return await ctx.prisma.$queryRaw<Array<{ zone: string }>>(
+            Prisma.sql`
+              SELECT "zone"
+              FROM "opl"."OplZoneDefinition"
+              WHERE "active" = true
+              ORDER BY "sortOrder" ASC, "zone" ASC
+            `
+          )
+        } catch (error) {
+          if (isMissingZoneTableError(error)) return []
+          throw error
+        }
+      })()
+      const orderedZoneNames = zoneDefinitions.map((item: { zone: string }) => item.zone)
+
+      const installationOrders = await ctx.prisma.oplOrder.findMany({
+        where: {
+          date: { gte: start, lte: end },
+          type: OplOrderType.INSTALLATION,
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          attemptNumber: true,
+          termChangeFlag: true,
+          standard: true,
+          zone: true,
+          leads: true,
+          operator: true,
+          city: true,
+          street: true,
+          date: true,
+          completedAt: true,
+          closedAt: true,
+          assignments: {
+            orderBy: { assignedAt: 'asc' },
+            take: 1,
+            select: {
+              technician: {
+                select: {
+                  user: {
+                    select: { name: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+
+      const orangeOrders = installationOrders.filter(
+        (order) => order.operator === 'ORANGE'
+      )
+      const allInstallationOrders = installationOrders
+
+      const finishedOrders = orangeOrders.filter(
+        (order) =>
+          order.status === OplOrderStatus.COMPLETED ||
+          order.status === OplOrderStatus.NOT_COMPLETED
+      )
+      const completedOrders = orangeOrders.filter(
+        (order) => order.status === OplOrderStatus.COMPLETED
+      )
+      const finishedAllInstallationOrders = allInstallationOrders.filter(
+        (order) =>
+          order.status === OplOrderStatus.COMPLETED ||
+          order.status === OplOrderStatus.NOT_COMPLETED
+      )
+      const completedAllInstallationOrders = allInstallationOrders.filter(
+        (order) => order.status === OplOrderStatus.COMPLETED
+      )
+
+      const efficiencyBase = finishedOrders.length
+      const efficiencyCompleted = finishedOrders.filter(
+        (order) => order.status === OplOrderStatus.COMPLETED
+      ).length
+      const efficiencyPct =
+        efficiencyBase > 0
+          ? Math.round((efficiencyCompleted / efficiencyBase) * 100)
+          : 0
+
+      const odBase = completedOrders.length
+      const odCompleted = completedOrders.filter(
+        (order) =>
+          order.attemptNumber === 1 && order.termChangeFlag.toUpperCase() === 'N'
+      ).length
+      const odPct = odBase > 0 ? Math.round((odCompleted / odBase) * 100) : 0
+
+      const calculateZoneStats = (
+        orders: typeof installationOrders
+      ): Array<{
+        zone: string
+        received: number
+        completed: number
+        failed: number
+        efficiency: number
+      }> => {
+        const map = new Map<string, { received: number; completed: number; failed: number }>()
+        for (const order of orders) {
+          if (
+            order.status !== OplOrderStatus.COMPLETED &&
+            order.status !== OplOrderStatus.NOT_COMPLETED
+          ) {
+            continue
+          }
+          const zone = order.zone?.trim() || 'Brak strefy'
+          const current = map.get(zone) ?? { received: 0, completed: 0, failed: 0 }
+          current.received += 1
+          if (order.status === OplOrderStatus.COMPLETED) current.completed += 1
+          if (order.status === OplOrderStatus.NOT_COMPLETED) current.failed += 1
+          map.set(zone, current)
+        }
+        return Array.from(map.entries())
+          .map(([zone, stat]) => ({
+            zone,
+            ...stat,
+            efficiency:
+              stat.received > 0
+                ? Math.round((stat.completed / stat.received) * 100)
+                : 0,
+          }))
+          .sort((a, b) => a.zone.localeCompare(b.zone, 'pl'))
+      }
+
+      const orderByDefinitions = <T extends { zone: string }>(
+        rows: T[],
+        createEmpty: (zone: string) => T
+      ): T[] => {
+        const map = new Map(rows.map((row) => [row.zone, row]))
+        const ordered: T[] = []
+
+        for (const zone of orderedZoneNames) {
+          ordered.push(map.get(zone) ?? createEmpty(zone))
+          map.delete(zone)
+        }
+
+        const rest = Array.from(map.values()).sort((a, b) =>
+          a.zone.localeCompare(b.zone, 'pl')
+        )
+        return [...ordered, ...rest]
+      }
+
+      const zoneOrangeStats = orderByDefinitions(calculateZoneStats(installationOrders), (zone) => ({
+        zone,
+        received: 0,
+        completed: 0,
+        failed: 0,
+        efficiency: 0,
+      }))
+      const zoneOplStats = orderByDefinitions(calculateZoneStats(orangeOrders), (zone) => ({
+        zone,
+        received: 0,
+        completed: 0,
+        failed: 0,
+        efficiency: 0,
+      }))
+
+      const sumZoneStats = (
+        rows: Array<{ received: number; completed: number; failed: number }>
+      ) => {
+        const received = rows.reduce((sum, row) => sum + row.received, 0)
+        const completed = rows.reduce((sum, row) => sum + row.completed, 0)
+        const failed = rows.reduce((sum, row) => sum + row.failed, 0)
+        const efficiency = received > 0 ? Math.round((completed / received) * 100) : 0
+        return { received, completed, failed, efficiency }
+      }
+
+      const zoneOrangeTotals = sumZoneStats(zoneOrangeStats)
+      const zoneOplTotals = sumZoneStats(zoneOplStats)
+
+      const odZoneMap = new Map<string, { firstEntry: number; allCompleted: number }>()
+      for (const order of completedOrders) {
+        const zone = order.zone?.trim() || 'Brak strefy'
+        const current = odZoneMap.get(zone) ?? { firstEntry: 0, allCompleted: 0 }
+        current.allCompleted += 1
+        if (order.attemptNumber === 1 && order.termChangeFlag.toUpperCase() === 'N') {
+          current.firstEntry += 1
+        }
+        odZoneMap.set(zone, current)
+      }
+      const odByZone = Array.from(odZoneMap.entries())
+        .map(([zone, row]) => ({
+          zone,
+          firstEntry: row.firstEntry,
+          allCompleted: row.allCompleted,
+          efficiency:
+            row.allCompleted > 0
+              ? Math.round((row.firstEntry / row.allCompleted) * 100)
+              : 0,
+        }))
+        .sort((a, b) => a.zone.localeCompare(b.zone, 'pl'))
+      const odTotals = {
+        firstEntry: odByZone.reduce((sum, row) => sum + row.firstEntry, 0),
+        allCompleted: odByZone.reduce((sum, row) => sum + row.allCompleted, 0),
+      }
+
+      const odAllZoneMap = new Map<string, { firstEntry: number; allCompleted: number }>()
+      for (const order of completedAllInstallationOrders) {
+        const zone = order.zone?.trim() || 'Brak strefy'
+        const current = odAllZoneMap.get(zone) ?? { firstEntry: 0, allCompleted: 0 }
+        current.allCompleted += 1
+        if (order.attemptNumber === 1 && order.termChangeFlag.toUpperCase() === 'N') {
+          current.firstEntry += 1
+        }
+        odAllZoneMap.set(zone, current)
+      }
+      const odAllByZone = Array.from(odAllZoneMap.entries())
+        .map(([zone, row]) => ({
+          zone,
+          firstEntry: row.firstEntry,
+          allCompleted: row.allCompleted,
+          efficiency:
+            row.allCompleted > 0
+              ? Math.round((row.firstEntry / row.allCompleted) * 100)
+              : 0,
+        }))
+        .sort((a, b) => a.zone.localeCompare(b.zone, 'pl'))
+      const odAllByZoneOrdered = orderByDefinitions(odAllByZone, (zone) => ({
+        zone,
+        firstEntry: 0,
+        allCompleted: 0,
+        efficiency: 0,
+      }))
+
+      const leadsByZoneMap = new Map<string, number>()
+      for (const order of completedOrders) {
+        const zone = order.zone?.trim() || 'Brak strefy'
+        leadsByZoneMap.set(zone, (leadsByZoneMap.get(zone) ?? 0) + order.leads)
+      }
+
+      const leadsByZoneAllMap = new Map<string, number>()
+      for (const order of completedAllInstallationOrders) {
+        const zone = order.zone?.trim() || 'Brak strefy'
+        leadsByZoneAllMap.set(zone, (leadsByZoneAllMap.get(zone) ?? 0) + order.leads)
+      }
+
+      const manualLeads = await (async () => {
+        try {
+          return await ctx.prisma.$queryRaw<
+            Array<{
+              zone: string | null
+              operator: string | null
+              technicianName: string | null
+              leadNumber: string | null
+              address: string | null
+              createdAt: Date | null
+            }>
+          >(
+            Prisma.sql`
+              SELECT "zone", "operator", "technicianName", "leadNumber", "address", "createdAt"
+              FROM "opl"."OplLeadEntry"
+              WHERE "createdAt" >= ${start} AND "createdAt" <= ${end}
+            `
+          )
+        } catch (error) {
+          if (isMissingLeadTableError(error)) {
+            return []
+          }
+          throw error
+        }
+      })()
+
+      for (const lead of manualLeads) {
+        const zone = lead.zone?.trim() || 'Brak strefy'
+        leadsByZoneAllMap.set(zone, (leadsByZoneAllMap.get(zone) ?? 0) + 1)
+        if ((lead.operator ?? '').trim().toUpperCase() === 'ORANGE') {
+          leadsByZoneMap.set(zone, (leadsByZoneMap.get(zone) ?? 0) + 1)
+        }
+      }
+
+      const leadsByZone = Array.from(leadsByZoneMap.entries())
+        .map(([zone, leads]) => ({
+          zone,
+          leads,
+          target: 4,
+          targetReached: leads >= 4,
+        }))
+        .sort((a, b) => a.zone.localeCompare(b.zone, 'pl'))
+      const leadsByZoneOrdered = orderByDefinitions(leadsByZone, (zone) => ({
+        zone,
+        leads: 0,
+        target: 4,
+        targetReached: false,
+      }))
+      const leadsByZoneAll = Array.from(leadsByZoneAllMap.entries())
+        .map(([zone, leads]) => ({
+          zone,
+          leads,
+          target: 4,
+          targetReached: leads >= 4,
+        }))
+        .sort((a, b) => a.zone.localeCompare(b.zone, 'pl'))
+      const leadsByZoneAllOrdered = orderByDefinitions(leadsByZoneAll, (zone) => ({
+        zone,
+        leads: 0,
+        target: 4,
+        targetReached: false,
+      }))
+
+      const standardBuckets = {
+        W: { received: 0, completed: 0, failed: 0 },
+        ZJD: { received: 0, completed: 0, failed: 0 },
+        ZJN: { received: 0, completed: 0, failed: 0 },
+      }
+
+      for (const order of finishedOrders) {
+        const token = (order.standard ?? '').toString().trim().toUpperCase()
+        const key = token.startsWith('ZJD')
+          ? 'ZJD'
+          : token.startsWith('ZJN')
+          ? 'ZJN'
+          : token.startsWith('W')
+          ? 'W'
+          : null
+        if (!key) continue
+        standardBuckets[key].received += 1
+        if (order.status === OplOrderStatus.COMPLETED) {
+          standardBuckets[key].completed += 1
+        } else if (order.status === OplOrderStatus.NOT_COMPLETED) {
+          standardBuckets[key].failed += 1
+        }
+      }
+
+      const npsRows = await ctx.prisma.oplNpsEntry.findMany({
+        where: {
+          OR: [
+            {
+              orderId: {
+                in: orangeOrders.map((order) => order.id),
+              },
+            },
+            {
+              orderId: null,
+              operator: 'ORANGE',
+              importedAt: { gte: start, lte: end },
+            },
+          ],
+        },
+        select: {
+          orderNumber: true,
+          zone: true,
+          q6Score: true,
+          technicianName: true,
+        },
+      })
+      const npsRowsAll = await ctx.prisma.oplNpsEntry.findMany({
+        where: {
+          OR: [
+            {
+              orderId: {
+                in: allInstallationOrders.map((order) => order.id),
+              },
+            },
+            {
+              orderId: null,
+              importedAt: { gte: start, lte: end },
+            },
+          ],
+        },
+        select: {
+          orderId: true,
+          orderNumber: true,
+          zone: true,
+          q6Score: true,
+          technicianName: true,
+        },
+      })
+      const orderIdByNumber = new Map(
+        allInstallationOrders.map((order) => [order.orderNumber, order.id])
+      )
+
+      const npsTotal = npsRows.length
+      const npsPromoters = npsRows.filter((row) => row.q6Score === 5).length
+      const npsDetractors = npsRows.filter((row) => row.q6Score <= 3).length
+      const npsNeutral = npsRows.filter((row) => row.q6Score === 4).length
+      const npsScore =
+        npsTotal > 0
+          ? Math.round(((npsPromoters - npsDetractors) / npsTotal) * 100)
+          : 0
+      const npsPositivePct =
+        npsTotal > 0 ? Math.round((npsPromoters / npsTotal) * 100) : 0
+
+      const rankingByTechnician = new Map<
+        string,
+        {
+          technicianName: string
+          completed: number
+          wCompleted: number
+          zjdCompleted: number
+          zjnCompleted: number
+          odBase: number
+          odFirstEntry: number
+          npsTotal: number
+          npsFive: number
+        }
+      >()
+
+      for (const order of completedAllInstallationOrders) {
+        const technicianName =
+          order.assignments[0]?.technician.user.name?.trim() || 'Nieprzypisany'
+        const current = rankingByTechnician.get(technicianName) ?? {
+          technicianName,
+          completed: 0,
+          wCompleted: 0,
+          zjdCompleted: 0,
+          zjnCompleted: 0,
+          odBase: 0,
+          odFirstEntry: 0,
+          npsTotal: 0,
+          npsFive: 0,
+        }
+        current.completed += 1
+        current.odBase += 1
+        if (order.attemptNumber === 1 && order.termChangeFlag.toUpperCase() === 'N') {
+          current.odFirstEntry += 1
+        }
+        const token = (order.standard ?? '').toString().trim().toUpperCase()
+        if (token.startsWith('W')) current.wCompleted += 1
+        if (token.startsWith('ZJD')) current.zjdCompleted += 1
+        if (token.startsWith('ZJN')) current.zjnCompleted += 1
+        rankingByTechnician.set(technicianName, current)
+      }
+
+      const technicianAgg = new Map<
+        string,
+        { technicianName: string; totalResponses: number; fiveCount: number }
+      >()
+      for (const row of npsRowsAll) {
+        const name = row.technicianName?.trim() || 'Nieprzypisany'
+        const current = technicianAgg.get(name) ?? {
+          technicianName: name,
+          totalResponses: 0,
+          fiveCount: 0,
+        }
+        current.totalResponses += 1
+        if (row.q6Score === 5) current.fiveCount += 1
+        technicianAgg.set(name, current)
+
+        const ranking = rankingByTechnician.get(name) ?? {
+          technicianName: name,
+          completed: 0,
+          wCompleted: 0,
+          zjdCompleted: 0,
+          zjnCompleted: 0,
+          odBase: 0,
+          odFirstEntry: 0,
+          npsTotal: 0,
+          npsFive: 0,
+        }
+        ranking.npsTotal += 1
+        if (row.q6Score === 5) ranking.npsFive += 1
+        rankingByTechnician.set(name, ranking)
+      }
+
+      for (const lead of manualLeads) {
+        const name = lead.technicianName?.trim()
+        if (!name) continue
+        const ranking = rankingByTechnician.get(name) ?? {
+          technicianName: name,
+          completed: 0,
+          wCompleted: 0,
+          zjdCompleted: 0,
+          zjnCompleted: 0,
+          odBase: 0,
+          odFirstEntry: 0,
+          npsTotal: 0,
+          npsFive: 0,
+        }
+        rankingByTechnician.set(name, ranking)
+      }
+
+      const npsByTechnician = Array.from(technicianAgg.values())
+        .map((row) => ({
+          ...row,
+          goodPct:
+            row.totalResponses > 0
+              ? Math.round((row.fiveCount / row.totalResponses) * 100)
+              : 0,
+        }))
+        .sort((a, b) =>
+          b.goodPct !== a.goodPct
+            ? b.goodPct - a.goodPct
+            : b.totalResponses - a.totalResponses
+        )
+
+      const totalLeads = leadsByZoneOrdered.reduce((sum, zone) => sum + zone.leads, 0)
+      const totalLeadsAll = leadsByZoneAllOrdered.reduce((sum, zone) => sum + zone.leads, 0)
+      const technicianRanking = Array.from(rankingByTechnician.values())
+        .map((row) => ({
+          technicianName: row.technicianName,
+          completed: row.completed,
+          wCompleted: row.wCompleted,
+          zjdCompleted: row.zjdCompleted,
+          zjnCompleted: row.zjnCompleted,
+          odPct: row.odBase > 0 ? Math.round((row.odFirstEntry / row.odBase) * 100) : 0,
+          npsPct: row.npsTotal > 0 ? Math.round((row.npsFive / row.npsTotal) * 100) : 0,
+        }))
+        .sort((a, b) =>
+          b.completed !== a.completed
+            ? b.completed - a.completed
+            : b.odPct !== a.odPct
+            ? b.odPct - a.odPct
+            : b.npsPct - a.npsPct
+        )
+
+      const npsDetails = npsRowsAll
+        .map((row) => ({
+          orderId: row.orderId ?? orderIdByNumber.get(row.orderNumber) ?? null,
+          orderNumber: row.orderNumber,
+          technicianName: row.technicianName?.trim() || 'Nieprzypisany',
+          zone: row.zone?.trim() || '-',
+          q6Score: row.q6Score,
+        }))
+        .sort((a, b) => b.q6Score - a.q6Score)
+
+      const odDetails = completedAllInstallationOrders
+        .map((order) => ({
+          orderId: order.id,
+          dateClosed: order.closedAt ?? order.completedAt ?? order.date,
+          orderNumber: order.orderNumber,
+          technicianName:
+            order.assignments[0]?.technician.user.name?.trim() || 'Nieprzypisany',
+          address: `${order.city}, ${order.street}`,
+        }))
+        .sort((a, b) => b.dateClosed.getTime() - a.dateClosed.getTime())
+
+      const leadsDetails = manualLeads
+        .map((lead) => ({
+          createdAt: lead.createdAt ?? null,
+          leadNumber: lead.leadNumber?.trim() || '-',
+          technicianName: lead.technicianName?.trim() || 'Nieprzypisany',
+          zone: lead.zone?.trim() || '-',
+          address: lead.address?.trim() || '-',
+        }))
+        .sort((a, b) => {
+          const aTs = a.createdAt ? a.createdAt.getTime() : 0
+          const bTs = b.createdAt ? b.createdAt.getTime() : 0
+          return bTs - aTs
+        })
+
+      return {
+        goals: {
+          od: { value: odPct, target: 75, reached: odPct >= 75, base: odBase },
+          efficiency: {
+            value: efficiencyPct,
+            target: 64,
+            reached: efficiencyPct >= 64,
+            base: efficiencyBase,
+          },
+          nps: {
+            value: npsScore,
+            target: 75,
+            reached: npsScore >= 75,
+            total: npsTotal,
+            promoters: npsPromoters,
+            neutral: npsNeutral,
+            detractors: npsDetractors,
+            positivePct: npsPositivePct,
+          },
+          leads: {
+            perZoneTarget: 4,
+            totalTarget: 8,
+            zonesMeetingTarget: leadsByZoneOrdered.filter((zone) => zone.targetReached)
+              .length,
+            zoneCount: leadsByZoneOrdered.length,
+            total: totalLeads,
+            reachedTotal: totalLeads >= 8,
+          },
+        },
+        leadsByZone: leadsByZoneOrdered,
+        leadsByZoneAll: leadsByZoneAllOrdered,
+        zoneOrangeStats,
+        zoneOrangeTotals,
+        zoneOplStats,
+        zoneOplTotals,
+        odByZone,
+        odAllByZone: odAllByZoneOrdered,
+        odTotals: {
+          ...odTotals,
+          efficiency:
+            odTotals.allCompleted > 0
+              ? Math.round((odTotals.firstEntry / odTotals.allCompleted) * 100)
+              : 0,
+        },
+        totalsAllInstallations: {
+          finished: finishedAllInstallationOrders.length,
+          completed: completedAllInstallationOrders.length,
+          leads: totalLeadsAll,
+        },
+        standards: [
+          { key: 'W', ...standardBuckets.W },
+          { key: 'ZJD', ...standardBuckets.ZJD },
+          { key: 'ZJN', ...standardBuckets.ZJN },
+        ].map((bucket) => ({
+          ...bucket,
+          efficiency:
+            bucket.received > 0
+              ? Math.round((bucket.completed / bucket.received) * 100)
+              : 0,
+        })),
+        npsByTechnician,
+        technicianRanking,
+        npsDetails,
+        odDetails,
+        leadsDetails,
+      }
+    }),
+
   /**
    * getTechnicianEfficiency
    * --------------------------------------------------------------

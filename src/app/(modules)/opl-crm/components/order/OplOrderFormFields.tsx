@@ -138,6 +138,7 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
   const { data: oplTeams } = isAdmin
     ? trpc.opl.user.getTeams.useQuery({ activeOnly: true })
     : { data: [] }
+  const { data: zoneDefinitions } = trpc.opl.settings.getAllOplZoneDefinitions.useQuery()
 
   const citySuggestionsQuery = trpc.opl.order.getAddressSuggestions.useQuery(
     { query: deferredCityValue.trim(), limit: 8 },
@@ -365,6 +366,75 @@ export const OplOrderFormFields = ({ form, isAdmin = false }: Props) => {
           )}
         />
       )}
+
+      <FormField
+        control={control}
+        name="zone"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Strefa</FormLabel>
+            <Select
+              value={field.value ?? undefined}
+              onValueChange={(value) => field.onChange(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz strefę" />
+              </SelectTrigger>
+              <SelectContent className="bg-background">
+                {(zoneDefinitions ?? [])
+                  .filter((zone: { active: boolean }) => zone.active)
+                  .map((zone: { zone: string }) => (
+                    <SelectItem key={zone.zone} value={zone.zone}>
+                      {zone.zone}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="termChangeFlag"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              Zmiana terminu <span className="text-destructive">*</span>
+            </FormLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz" />
+              </SelectTrigger>
+              <SelectContent className="bg-background">
+                <SelectItem value="N">Nie (O&D)</SelectItem>
+                <SelectItem value="T">Tak (brak O&D)</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="leads"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Leady</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min={0}
+                value={field.value ?? 0}
+                onChange={(event) => field.onChange(event.target.value)}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Date */}
       <FormField

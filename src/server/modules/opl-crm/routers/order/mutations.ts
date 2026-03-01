@@ -313,6 +313,7 @@ export const mutationsRouter = router({
           standard: z.nativeEnum(OplOrderStandard).optional(),
           zone: z.string().optional(),
           termChangeFlag: z.enum(['T', 'N']).optional(),
+          leads: z.number().int().min(0).optional(),
           orderNumber: z.string(),
           date: z.string(),
           timeSlot: z.nativeEnum(OplTimeSlot),
@@ -440,7 +441,8 @@ export const mutationsRouter = router({
                 network: o.network,
                 standard: o.standard ?? null,
                 zone: o.zone ?? null,
-                termChangeFlag: o.termChangeFlag ?? null,
+                termChangeFlag: o.termChangeFlag ?? 'N',
+                leads: o.leads ?? 0,
                 orderNumber,
                 date,
                 timeSlot: o.timeSlot,
@@ -522,7 +524,8 @@ export const mutationsRouter = router({
         serviceId: z.string().min(1).max(64).optional(),
         standard: z.nativeEnum(OplOrderStandard).optional(),
         zone: z.string().optional(),
-        termChangeFlag: z.enum(['T', 'N']).optional(),
+        termChangeFlag: z.enum(['T', 'N']).default('N'),
+        leads: z.number().int().min(0).optional(),
 
         orderNumber: z.string().min(3),
         date: z.string(),
@@ -669,7 +672,8 @@ export const mutationsRouter = router({
           network: input.network,
           standard: input.standard ?? null,
           zone: input.zone ?? null,
-          termChangeFlag: input.termChangeFlag ?? null,
+          termChangeFlag: input.termChangeFlag ?? 'N',
+          leads: input.leads ?? 0,
           orderNumber: input.orderNumber.trim(),
           date: parseLocalDate(input.date),
           timeSlot: input.timeSlot,
@@ -749,6 +753,8 @@ export const mutationsRouter = router({
         street: z.string(),
         assignedTechnicianIds: z.array(z.string()).optional(),
         serviceId: z.string().optional(),
+        termChangeFlag: z.enum(['T', 'N']).optional(),
+        leads: z.number().int().min(0).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -892,6 +898,8 @@ export const mutationsRouter = router({
               city: input.city.trim(),
               street: input.street.trim(),
               serviceId: resolvedServiceId,
+              termChangeFlag: input.termChangeFlag ?? existing.termChangeFlag,
+              leads: input.leads ?? existing.leads,
               attemptNumber,
               previousOrderId,
               ...(addressChanged

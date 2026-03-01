@@ -20,6 +20,9 @@ model OplUser {
   primaryTeams             OplTeam[]                      @relation("OplTeamPrimaryTechnician")
   secondaryTeams           OplTeam[]                      @relation("OplTeamSecondaryTechnician")
   teamsCreated             OplTeam[]                      @relation("OplTeamCreatedBy")
+  npsImports               OplNpsEntry[]                  @relation("OplNpsImportedBy")
+  leadsAssigned            OplLeadEntry[]                 @relation("OplLeadAssignedTo")
+  leadsCreated             OplLeadEntry[]                 @relation("OplLeadCreatedBy")
 
   orderAssignments OplOrderAssignment[] @relation("OplOrderAssignmentsByTechnician")
 
@@ -62,6 +65,15 @@ model OplRateDefinition {
 model OplOperatorDefinition {
   operator String @id
 
+  @@schema("opl")
+}
+
+model OplZoneDefinition {
+  zone      String  @id
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  @@index([active, sortOrder])
   @@schema("opl")
 }
 
@@ -109,5 +121,52 @@ model OplTechnicianAbsence {
 
   @@index([technicianId, active])
   @@index([dateFrom, dateTo, active])
+  @@schema("opl")
+}
+
+model OplNpsEntry {
+  id String @id @default(uuid())
+
+  orderNumber    String
+  technicianName String?
+  zone           String?
+  operator       String?
+  q6Score        Int
+
+  orderId String?
+  order   OplOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  importedAt   DateTime @default(now())
+  importedById String?
+  importedBy   OplUser? @relation("OplNpsImportedBy", fields: [importedById], references: [userId])
+
+  @@unique([orderNumber])
+  @@index([zone])
+  @@index([technicianName])
+  @@index([operator])
+  @@schema("opl")
+}
+
+model OplLeadEntry {
+  id String @id @default(uuid())
+
+  zone       String
+  address    String
+  leadNumber String
+  operator   String @default("ORANGE")
+
+  technicianId   String?
+  technicianName String?
+  technician     OplUser? @relation("OplLeadAssignedTo", fields: [technicianId], references: [userId], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  createdById String?
+  createdBy   OplUser? @relation("OplLeadCreatedBy", fields: [createdById], references: [userId], onDelete: SetNull)
+
+  @@index([zone])
+  @@index([operator])
+  @@index([createdAt])
+  @@index([leadNumber])
   @@schema("opl")
 }
